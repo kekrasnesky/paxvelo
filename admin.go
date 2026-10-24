@@ -5,6 +5,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"crypto/subtle"
+	"encoding/base64"
 	"encoding/csv"
 	"encoding/json"
 	"errors"
@@ -25,6 +26,7 @@ const sessionCookie = "pv_admin"
 
 type adminView struct {
 	Title, Tab, Flash, Error, SiteURL string
+	Me                                string // the logged-in admin's name
 	CSS                               template.CSS
 	Year                              int
 	// Members tab
@@ -41,36 +43,53 @@ type adminView struct {
 	// Newsletter tab
 	Issues    []Issue
 	Issue     Issue
-	Seasons   []string
-	NewSeason string
+	MonthLive *Issue // another issue already published for Issue's month
+	Months    []monthOption
+	NewMonth  int
 	NewYear   int
+	// Minutes tab
+	Minutes []Minutes
 }
 
 // ---- Sessions ----
-// A login cookie is a signed expiry time. Changing ADMIN_PASSWORD logs
-// everyone out, since the signing key includes the password.
+// Admins share one password and give their name when they log in, so the
+// newsletter can show who wrote and edited each draft. A login cookie is a
+// signed expiry time and name. Changing ADMIN_PASSWORD logs everyone out,
+// since the signing key includes the password.
 
 func (a *App) sessionKey() []byte {
 	k := sha256.Sum256([]byte("admin\x00" + a.store.Secret() + "\x00" + a.cfg.AdminPassword))
 	return k[:]
 }
 
-func (a *App) loggedIn(r *http.Request) bool {
+// adminName returns the logged-in admin's name, or false if nobody is logged in.
+func (a *App) adminName(r *http.Request) (string, bool) {
 	c, err := r.Cookie(sessionCookie)
 	if err != nil {
-		return false
+		return "", false
 	}
-	exp, sig, ok := strings.Cut(c.Value, ".")
-	if !ok || !hmac.Equal([]byte(sig), []byte(sign(a.sessionKey(), exp))) {
-		return false
+	exp, rest, _ := strings.Cut(c.Value, ".")
+	enc, sig, ok := strings.Cut(rest, ".")
+	if !ok || !hmac.Equal([]byte(sig), []byte(sign(a.sessionKey(), exp+"."+enc))) {
+		return "", false
 	}
 	n, err := strconv.ParseInt(exp, 10, 64)
-	return err == nil && time.Now().Unix() < n
+	name, err2 := base64.RawURLEncoding.DecodeString(enc)
+	if err != nil || err2 != nil || time.Now().Unix() >= n {
+		return "", false
+	}
+	return string(name), true
 }
 
-func (a *App) setSession(w http.ResponseWriter, maxAge int) {
+func (a *App) loggedIn(r *http.Request) bool {
+	_, ok := a.adminName(r)
+	return ok
+}
+
+func (a *App) setSession(w http.ResponseWriter, name string, maxAge int) {
 	exp := strconv.FormatInt(time.Now().Add(time.Duration(maxAge)*time.Second).Unix(), 10)
-	value := exp + "." + sign(a.sessionKey(), exp)
+	enc := base64.RawURLEncoding.EncodeToString([]byte(name))
+	value := exp + "." + enc + "." + sign(a.sessionKey(), exp+"."+enc)
 	if maxAge < 0 {
 		value = ""
 	}
@@ -112,8 +131,9 @@ func (a *App) auth(h http.HandlerFunc) http.Handler {
 	})
 }
 
-func (a *App) renderAdmin(w http.ResponseWriter, status int, name string, v adminView) {
+func (a *App) renderAdmin(w http.ResponseWriter, r *http.Request, status int, name string, v adminView) {
 	v.CSS, v.SiteURL = a.site.adminCSS, a.cfg.SiteURL
+	v.Me, _ = a.adminName(r)
 	var buf bytes.Buffer
 	if err := a.site.admin.ExecuteTemplate(&buf, name, v); err != nil {
 		log.Printf("admin template %s: %v", name, err)
@@ -131,7 +151,7 @@ func (a *App) loginPage(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/admin", http.StatusSeeOther)
 		return
 	}
-	a.renderAdmin(w, http.StatusOK, "login", adminView{Title: "Log in"})
+	a.renderAdmin(w, r, http.StatusOK, "login", adminView{Title: "Log in"})
 }
 
 func (a *App) login(w http.ResponseWriter, r *http.Request) {
@@ -140,45 +160,55 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !a.limit.Allow("login:"+clientIP(r), 10, 15*time.Minute) {
-		a.renderAdmin(w, http.StatusTooManyRequests, "login", adminView{Title: "Log in", Error: "Too many attempts. Try again in 15 minutes."})
+		a.renderAdmin(w, r, http.StatusTooManyRequests, "login", adminView{Title: "Log in", Error: "Too many attempts. Try again in 15 minutes."})
 		return
 	}
 	given := sha256.Sum256([]byte(r.FormValue("password")))
 	want := sha256.Sum256([]byte(a.cfg.AdminPassword))
 	if subtle.ConstantTimeCompare(given[:], want[:]) != 1 {
-		a.renderAdmin(w, http.StatusUnauthorized, "login", adminView{Title: "Log in", Error: "That password isn’t right."})
+		a.renderAdmin(w, r, http.StatusUnauthorized, "login", adminView{Title: "Log in", Error: "That password isn’t right."})
 		return
 	}
-	a.setSession(w, 30*24*3600)
+	name := cleanName(r.FormValue("name"))
+	if name == "" {
+		a.renderAdmin(w, r, http.StatusBadRequest, "login", adminView{Title: "Log in", Error: "Enter your name, so others can see who edited what."})
+		return
+	}
+	a.setSession(w, name, 30*24*3600)
 	http.Redirect(w, r, "/admin", http.StatusSeeOther)
 }
 
 func (a *App) logout(w http.ResponseWriter, r *http.Request) {
-	a.setSession(w, -1)
+	a.setSession(w, "", -1)
 	http.Redirect(w, r, "/admin/login", http.StatusSeeOther)
 }
 
 // ---- Flash messages (passed as short codes in the URL after an action) ----
 
 var flashText = map[string]string{
-	"added":         "Member added.",
-	"exists":        "That email is already on the list.",
-	"deleted":       "Member deleted.",
-	"sending":       "Sending now. It keeps going in the background, so you can close this page.",
-	"stopped":       "Sending stopped.",
-	"resumed":       "Sending resumed.",
-	"welcome":       "Welcome email saved.",
-	"paid":          "Marked as paid.",
-	"unpaid":        "Marked as not paid.",
-	"loggedin":      "",
-	"discarded":     "Draft discarded.",
-	"drafted":       "An email about the newsletter is ready below. Check it, send yourself a test, then send it.",
-	"created":       "New issue started. Replace the text and photos, then preview and publish.",
-	"saved":         "Saved. It isn’t public until you publish it.",
-	"updated":       "Saved. The live newsletter is updated.",
-	"published":     "Published. It’s live on the website now.",
-	"unpublished":   "Unpublished. It’s hidden from the website.",
-	"issue-deleted": "Issue deleted.",
+	"added":             "Member added.",
+	"exists":            "That email is already on the list.",
+	"deleted":           "Member deleted.",
+	"sending":           "Sending now. It keeps going in the background, so you can close this page.",
+	"stopped":           "Sending stopped.",
+	"resumed":           "Sending resumed.",
+	"welcome":           "Welcome email saved.",
+	"paid":              "Marked as paid.",
+	"unpaid":            "Marked as not paid.",
+	"loggedin":          "",
+	"discarded":         "Draft discarded.",
+	"drafted":           "An email about the newsletter is ready below. Check it, send yourself a test, then send it.",
+	"copied":            "This is a new draft copied from the other one. Edit away: the original is unchanged.",
+	"minutes-added":     "Minutes uploaded. They aren’t public until you publish them.",
+	"minutes-published": "Published. They’re on the Meeting Minutes page now.",
+	"minutes-hidden":    "Unpublished. They’re hidden from the website.",
+	"minutes-deleted":   "Minutes deleted.",
+	"created":           "New draft started. Replace the text and photos, then preview and publish.",
+	"saved":             "Saved. It isn’t public until you publish it.",
+	"updated":           "Saved. The live newsletter is updated.",
+	"published":         "Published. It’s live on the website now.",
+	"unpublished":       "Unpublished. It’s hidden from the website.",
+	"issue-deleted":     "Issue deleted.",
 }
 
 var errorText = map[string]string{
@@ -190,8 +220,10 @@ var errorText = map[string]string{
 	"empty":   "Add a subject and a message first.",
 	"welcome": "The welcome email needs a subject and a message.",
 	"save":    "Couldn’t save. Check the server log.",
-	"season":  "Choose a season and year.",
-	"exists":  "There’s already an issue for that season. Open it from the list below.",
+	"month":   "Choose a month and year.",
+	"date":    "Enter the meeting date.",
+	"nofile":  "Choose the minutes file to upload.",
+	"bigfile": "That file is too big. Minutes can be up to 20 MB.",
 	"gone":    "That issue was deleted.",
 	"draft":   "There’s already an unsent email here, so the newsletter announcement didn’t replace it. Send it, or press Discard draft, then try “Email members about it” again.",
 }
@@ -254,7 +286,7 @@ func (a *App) membersPage(w http.ResponseWriter, r *http.Request) {
 		}
 		v.Members = append(v.Members, m)
 	}
-	a.renderAdmin(w, http.StatusOK, "members", v)
+	a.renderAdmin(w, r, http.StatusOK, "members", v)
 }
 
 // markPaid records (or undoes) this year's dues for a member, usually right
@@ -550,7 +582,7 @@ func (a *App) emailView(r *http.Request) adminView {
 }
 
 func (a *App) emailPage(w http.ResponseWriter, r *http.Request) {
-	a.renderAdmin(w, http.StatusOK, "email", a.emailView(r))
+	a.renderAdmin(w, r, http.StatusOK, "email", a.emailView(r))
 }
 
 func (a *App) emailStatus(w http.ResponseWriter, r *http.Request) {
@@ -593,7 +625,7 @@ func (a *App) sendTest(w http.ResponseWriter, r *http.Request) {
 			v.Flash = "Test mode: the email was written to the server log instead of being sent."
 		}
 	}
-	a.renderAdmin(w, http.StatusOK, "email", v)
+	a.renderAdmin(w, r, http.StatusOK, "email", v)
 }
 
 func (a *App) sendAll(w http.ResponseWriter, r *http.Request) {
@@ -607,7 +639,7 @@ func (a *App) sendAll(w http.ResponseWriter, r *http.Request) {
 		a.store.SetDraft(d)
 		v := a.emailView(r)
 		v.Draft, v.Error = d, err.Error()
-		a.renderAdmin(w, http.StatusOK, "email", v)
+		a.renderAdmin(w, r, http.StatusOK, "email", v)
 		return
 	}
 	a.mailer.Wake()

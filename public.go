@@ -27,7 +27,7 @@ type joinData struct {
 
 func (a *App) joinPage(w http.ResponseWriter, r *http.Request) {
 	d := joinData{Token: a.formToken(), Plan: cleanPlan(r.URL.Query().Get("plan"))}
-	a.site.render(w, http.StatusOK, "join", "/join", "Become a Member — PAXVELO", d)
+	a.site.render(w, http.StatusOK, "join", "/join", "Become a Member — "+siteName, d)
 }
 
 // join handles the membership form. It saves the member, then hands them the
@@ -51,7 +51,7 @@ func (a *App) join(w http.ResponseWriter, r *http.Request) {
 		if !d.OK {
 			d.Failed, d.Name, d.Email = true, rawName, rawEmail
 		}
-		a.site.render(w, status, "join", "/join", "Become a Member — PAXVELO", d)
+		a.site.render(w, status, "join", "/join", "Become a Member — "+siteName, d)
 	}
 	fail := func(status int, msg string) { reply(status, joinData{Message: msg}) }
 
@@ -137,7 +137,7 @@ func (a *App) unsubscribePage(w http.ResponseWriter, r *http.Request) {
 	case !m.Active():
 		d.State = "done"
 	}
-	a.site.render(w, http.StatusOK, "unsubscribe", "/unsubscribe", "Unsubscribe — PAXVELO", d)
+	a.site.render(w, http.StatusOK, "unsubscribe", "/unsubscribe", "Unsubscribe — "+siteName, d)
 }
 
 // unsubscribe handles both the button on the page and the one-click
@@ -157,7 +157,7 @@ func (a *App) unsubscribe(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		d.State = "invalid"
 	}
-	a.site.render(w, http.StatusOK, "unsubscribe", "/unsubscribe", "Unsubscribe — PAXVELO", d)
+	a.site.render(w, http.StatusOK, "unsubscribe", "/unsubscribe", "Unsubscribe — "+siteName, d)
 }
 
 // ---- Form token ----

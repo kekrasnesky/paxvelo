@@ -87,6 +87,8 @@ type storeData struct {
 	Draft        EmailDraft   `json:"draft"`
 	NextIssue    int          `json:"next_issue_id,omitempty"`
 	Issues       []*Issue     `json:"newsletter,omitempty"`
+	NextMinutes  int          `json:"next_minutes_id,omitempty"`
+	Minutes      []*Minutes   `json:"minutes,omitempty"`
 }
 
 type Store struct {

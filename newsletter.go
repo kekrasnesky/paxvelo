@@ -18,11 +18,11 @@ import (
 	"time"
 )
 
-// The Paceline is the club's quarterly newsletter. Issues are written in the
+// The Paceline is the club's monthly newsletter. Issues are written in the
 // admin portal (Newsletter tab) and stored with the rest of the club data.
 // Published issues are rendered once whenever something changes and served
 // from memory like every other page, at /newsletter (the latest issue) and
-// /newsletter/2026-fall (each issue's permanent address).
+// /newsletter/2026-10 (each issue's permanent address).
 
 type Story struct {
 	Kicker      string `json:"kicker,omitempty"`  // the small red line above the heading
@@ -50,8 +50,10 @@ type Ride struct {
 
 type Issue struct {
 	ID        int        `json:"id"`
-	Season    string     `json:"season"` // winter, spring, summer, fall
+	Month     int        `json:"month"` // 1-12; a month can have several drafts but only one published issue
 	Year      int        `json:"year"`
+	CreatedBy string     `json:"created_by,omitempty"`
+	EditedBy  string     `json:"edited_by,omitempty"`
 	Tagline   string     `json:"tagline,omitempty"`
 	Cover     string     `json:"cover,omitempty"`
 	Featured  Story      `json:"featured"`
@@ -66,38 +68,44 @@ type Issue struct {
 	Updated   time.Time  `json:"updated"`
 }
 
-var seasons = []string{"winter", "spring", "summer", "fall"}
+// monthOption is one choice in the admin's month menus.
+type monthOption struct {
+	N    int
+	Name string
+}
 
-func (is Issue) Slug() string { return fmt.Sprintf("%d-%s", is.Year, is.Season) }
+var months = func() []monthOption {
+	var out []monthOption
+	for m := time.January; m <= time.December; m++ {
+		out = append(out, monthOption{int(m), m.String()})
+	}
+	return out
+}()
+
+func (is Issue) Slug() string { return fmt.Sprintf("%d-%02d", is.Year, is.Month) }
 func (is Issue) Path() string { return "/newsletter/" + is.Slug() }
 func (is Issue) Label() string {
-	return strings.ToUpper(is.Season[:1]) + is.Season[1:] + " " + strconv.Itoa(is.Year)
+	if is.Month < 1 || is.Month > 12 {
+		return strconv.Itoa(is.Year)
+	}
+	return time.Month(is.Month).String() + " " + strconv.Itoa(is.Year)
 }
 func (is Issue) IsPublished() bool {
 	return is.Published != nil
 }
 
-// order sorts issues by when they cover, newest last.
-func (is Issue) order() int { return is.Year*10 + seasonIndex(is.Season) }
+// order sorts issues by the month they cover, newest last.
+func (is Issue) order() int { return is.Year*100 + is.Month }
 
-func seasonIndex(s string) int {
-	for i, x := range seasons {
-		if x == s {
-			return i
-		}
-	}
-	return -1
+func validMonth(month, year int) bool {
+	return month >= 1 && month <= 12 && year >= 2000 && year <= 2100
 }
 
-// seasonOf is the newsletter season a date falls in: winter is January to March.
-func seasonOf(t time.Time) (string, int) { return seasons[(int(t.Month())-1)/3], t.Year() }
-
-func nextSeason(season string, year int) (string, int) {
-	i := seasonIndex(season) + 1
-	if i == len(seasons) {
-		return seasons[0], year + 1
+func nextMonth(month, year int) (int, int) {
+	if month == 12 {
+		return 1, year + 1
 	}
-	return seasons[i], year
+	return month + 1, year
 }
 
 // ---- Store ----
@@ -109,7 +117,8 @@ func cloneIssue(is *Issue) Issue {
 	return out
 }
 
-// Issues returns every issue, newest first.
+// Issues returns every issue, newest month first. Within a month the
+// published issue comes first, then drafts by most recently edited.
 func (s *Store) Issues() []Issue {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -117,8 +126,38 @@ func (s *Store) Issues() []Issue {
 	for _, is := range s.d.Issues {
 		out = append(out, cloneIssue(is))
 	}
-	sort.SliceStable(out, func(i, j int) bool { return out[i].order() > out[j].order() })
+	sort.SliceStable(out, func(i, j int) bool {
+		a, b := out[i], out[j]
+		if a.order() != b.order() {
+			return a.order() > b.order()
+		}
+		if a.IsPublished() != b.IsPublished() {
+			return a.IsPublished()
+		}
+		return a.Updated.After(b.Updated)
+	})
 	return out
+}
+
+// liveFor returns the published issue for a month, other than the one with
+// the given ID. Callers must hold s.mu.
+func (s *Store) liveFor(month, year, exceptID int) *Issue {
+	for _, is := range s.d.Issues {
+		if is.ID != exceptID && is.Month == month && is.Year == year && is.IsPublished() {
+			return is
+		}
+	}
+	return nil
+}
+
+// LiveFor returns the published issue for a month, other than exceptID.
+func (s *Store) LiveFor(month, year, exceptID int) (Issue, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if is := s.liveFor(month, year, exceptID); is != nil {
+		return cloneIssue(is), true
+	}
+	return Issue{}, false
 }
 
 func (s *Store) Issue(id int) (Issue, bool) {
@@ -132,16 +171,15 @@ func (s *Store) Issue(id int) (Issue, bool) {
 	return Issue{}, false
 }
 
-var errIssueExists = errors.New("there's already an issue for that season")
+var errMonthTaken = errors.New("another issue for that month is already published")
 
-// SaveIssue adds a new issue (ID 0) or replaces an existing one.
+// SaveIssue adds a new issue (ID 0) or replaces an existing one. A month can
+// have any number of drafts, but only one published issue.
 func (s *Store) SaveIssue(in Issue) (Issue, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for _, is := range s.d.Issues {
-		if is.ID != in.ID && is.Season == in.Season && is.Year == in.Year {
-			return in, errIssueExists
-		}
+	if in.IsPublished() && s.liveFor(in.Month, in.Year, in.ID) != nil {
+		return in, errMonthTaken
 	}
 	in.Updated = time.Now().UTC()
 	if in.ID == 0 {
@@ -234,7 +272,7 @@ func (s *Site) newsView(is Issue, archive []Issue) (newsView, error) {
 	if v.Featured, err = story("Featured story", is.Featured); err != nil {
 		return v, err
 	}
-	if v.Recap, err = story("Last quarter", is.Recap); err != nil {
+	if v.Recap, err = story("Last month", is.Recap); err != nil {
 		return v, err
 	}
 	if v.Spotlight, err = story("Spotlight", is.Spotlight); err != nil {
@@ -268,7 +306,7 @@ func (s *Site) newsView(is Issue, archive []Issue) (newsView, error) {
 func (s *Site) renderNews(v newsView, path, title string) ([]byte, error) {
 	var buf bytes.Buffer
 	view := s.view(path, title, v)
-	view.Desc = "The Paceline, PaxVelo’s quarterly newsletter: stories from the road, upcoming rides, and club news."
+	view.Desc = "The Paceline, PaxVelo’s monthly newsletter: stories from the road, upcoming rides, and club news."
 	if err := s.dynamic["newsletter"].ExecuteTemplate(&buf, "layout", view); err != nil {
 		return nil, err
 	}
@@ -298,7 +336,7 @@ func (a *App) refreshNewsletter() {
 		v, err := a.site.newsView(is, published)
 		var b []byte
 		if err == nil {
-			b, err = a.site.renderNews(v, is.Path(), "The Paceline, "+is.Label()+" — PAXVELO")
+			b, err = a.site.renderNews(v, is.Path(), "The Paceline, "+is.Label()+" — "+siteName)
 		}
 		if err != nil {
 			log.Printf("newsletter %s: %v", is.Slug(), err)
@@ -311,7 +349,7 @@ func (a *App) refreshNewsletter() {
 		if i == 0 {
 			// The latest issue, at the address flyers and emails can always use.
 			v.Current = is.Path()
-			if b, err = a.site.renderNews(v, "/newsletter", "The Paceline — PAXVELO"); err == nil {
+			if b, err = a.site.renderNews(v, "/newsletter", "The Paceline — "+siteName); err == nil {
 				pages["/newsletter"] = page("/newsletter", b)
 			}
 		}
@@ -319,7 +357,7 @@ func (a *App) refreshNewsletter() {
 	if pages["/newsletter"] == nil {
 		if p := old["/newsletter"]; p != nil && len(published) > 0 {
 			pages["/newsletter"] = p
-		} else if b, err := a.site.renderNews(newsView{Empty: true}, "/newsletter", "The Paceline — PAXVELO"); err == nil {
+		} else if b, err := a.site.renderNews(newsView{Empty: true}, "/newsletter", "The Paceline — "+siteName); err == nil {
 			pages["/newsletter"] = page("/newsletter", b)
 		}
 	}
@@ -396,31 +434,38 @@ func (a *App) savePhotoFile(hdr *multipart.FileHeader) (string, error) {
 const maxRides, maxGallery, cornerCount = 8, 8, 3
 
 func (a *App) newsletterAdmin(w http.ResponseWriter, r *http.Request) {
-	v := adminView{Title: "Newsletter", Tab: "newsletter", Issues: a.store.Issues()}
+	v := adminView{Title: "Newsletter", Tab: "newsletter", Issues: a.store.Issues(), Months: months}
 	v.Flash, v.Error = flashFrom(r)
-	v.NewSeason, v.NewYear = seasonOf(time.Now().In(a.cfg.Location))
-	if len(v.Issues) > 0 {
-		v.NewSeason, v.NewYear = nextSeason(v.Issues[0].Season, v.Issues[0].Year)
+	// Suggest this month, or the month after the latest published issue.
+	now := time.Now().In(a.cfg.Location)
+	v.NewMonth, v.NewYear = int(now.Month()), now.Year()
+	for _, is := range v.Issues {
+		if is.IsPublished() {
+			if is.order() >= v.NewYear*100+v.NewMonth {
+				v.NewMonth, v.NewYear = nextMonth(is.Month, is.Year)
+			}
+			break
+		}
 	}
-	v.Seasons = seasons
-	a.renderAdmin(w, http.StatusOK, "newsletter", v)
+	a.renderAdmin(w, r, http.StatusOK, "newsletter", v)
 }
 
-// createIssue starts a new issue. It copies the latest issue so the regular
-// sections (new rider corner, kit, closing line) carry over and only the news
-// needs writing; the very first issue starts from a sample.
+// createIssue starts a new draft. It copies the latest published issue (or
+// the latest draft) so the regular sections (new rider corner, kit, closing
+// line) carry over and only the news needs writing; the very first issue
+// starts from a sample.
 func (a *App) createIssue(w http.ResponseWriter, r *http.Request) {
-	season := r.FormValue("season")
+	month, _ := strconv.Atoi(r.FormValue("month"))
 	year, _ := strconv.Atoi(r.FormValue("year"))
-	if seasonIndex(season) < 0 || year < 2000 || year > 2100 {
-		back(w, r, "/admin/newsletter?err=season")
+	if !validMonth(month, year) {
+		back(w, r, "/admin/newsletter?err=month")
 		return
 	}
 	is := sampleIssue()
-	// Sample rides on the first Tuesday, Thursday, and Saturday of the season
-	// (or from today, for the season we're in).
-	start := time.Date(year, time.Month(seasonIndex(season)*3+1), 1, 0, 0, 0, 0, a.cfg.Location)
-	if now := time.Now().In(a.cfg.Location); now.After(start) && now.Before(start.AddDate(0, 3, 0)) {
+	// Sample rides on the first Tuesday, Thursday, and Saturday of the month
+	// (or from today, for this month).
+	start := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, a.cfg.Location)
+	if now := time.Now().In(a.cfg.Location); now.After(start) && now.Before(start.AddDate(0, 1, 0)) {
 		start = now
 	}
 	for i, wd := range []time.Weekday{time.Tuesday, time.Thursday, time.Saturday} {
@@ -430,19 +475,40 @@ func (a *App) createIssue(w http.ResponseWriter, r *http.Request) {
 	sortRides(is.Rides)
 	if list := a.store.Issues(); len(list) > 0 {
 		is = list[0]
+		for _, x := range list {
+			if x.IsPublished() {
+				is = x
+				break
+			}
+		}
 		is.Rides = nil
 		is.Featured, is.Recap, is.Spotlight = Story{Kicker: is.Featured.Kicker}, Story{Kicker: is.Recap.Kicker}, Story{Kicker: is.Spotlight.Kicker}
 	}
-	is.ID, is.Season, is.Year, is.Published = 0, season, year, nil
+	me, _ := a.adminName(r)
+	is.ID, is.Month, is.Year, is.Published, is.CreatedBy, is.EditedBy = 0, month, year, nil, me, me
 	is, err := a.store.SaveIssue(is)
-	switch {
-	case errors.Is(err, errIssueExists):
-		back(w, r, "/admin/newsletter?err=exists")
-	case err != nil:
+	if err != nil {
 		back(w, r, "/admin/newsletter?err=save")
-	default:
-		back(w, r, fmt.Sprintf("/admin/newsletter/%d?ok=created", is.ID))
+		return
 	}
+	back(w, r, fmt.Sprintf("/admin/newsletter/%d?ok=created", is.ID))
+}
+
+// copyIssue starts a new draft for the same month from an existing issue,
+// for trying a different version.
+func (a *App) copyIssue(w http.ResponseWriter, r *http.Request) {
+	is, ok := a.issueFromPath(w, r)
+	if !ok {
+		return
+	}
+	me, _ := a.adminName(r)
+	is.ID, is.Published, is.CreatedBy, is.EditedBy = 0, nil, me, me
+	is, err := a.store.SaveIssue(is)
+	if err != nil {
+		back(w, r, "/admin/newsletter?err=save")
+		return
+	}
+	back(w, r, fmt.Sprintf("/admin/newsletter/%d?ok=copied", is.ID))
 }
 
 func (a *App) issueFromPath(w http.ResponseWriter, r *http.Request) (Issue, bool) {
@@ -463,7 +529,10 @@ func (a *App) editIssuePage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) renderIssueForm(w http.ResponseWriter, r *http.Request, is Issue, problem string) {
-	v := adminView{Title: is.Label() + " newsletter", Tab: "newsletter", Issue: is, Seasons: seasons}
+	v := adminView{Title: is.Label() + " newsletter", Tab: "newsletter", Issue: is, Months: months}
+	if live, ok := a.store.LiveFor(is.Month, is.Year, is.ID); ok {
+		v.MonthLive = &live
+	}
 	v.Flash, v.Error = flashFrom(r)
 	if problem != "" {
 		v.Flash, v.Error = "", problem
@@ -478,7 +547,7 @@ func (a *App) renderIssueForm(w http.ResponseWriter, r *http.Request, is Issue, 
 		is.Corner = append(is.Corner, Story{})
 	}
 	v.Issue = is
-	a.renderAdmin(w, http.StatusOK, "issue", v)
+	a.renderAdmin(w, r, http.StatusOK, "issue", v)
 }
 
 // saveIssue handles the edit form. Text is saved even when something needs
@@ -529,12 +598,12 @@ func (a *App) saveIssue(w http.ResponseWriter, r *http.Request) {
 			Quote: val(prefix + "quote"), QuoteBy: val(prefix + "quote_by"),
 		}
 	}
-	if s, y := r.FormValue("season"), r.FormValue("year"); seasonIndex(s) >= 0 {
-		is.Season = s
-		if n, err := strconv.Atoi(y); err == nil && n >= 2000 && n <= 2100 {
-			is.Year = n
-		}
+	month, _ := strconv.Atoi(r.FormValue("month"))
+	year, _ := strconv.Atoi(r.FormValue("year"))
+	if validMonth(month, year) {
+		is.Month, is.Year = month, year
 	}
+	is.EditedBy, _ = a.adminName(r)
 	is.Tagline, is.Closing = val("tagline"), val("closing")
 	is.Cover = photo("cover.", old.Cover)
 	is.Featured = story("featured.", old.Featured)
@@ -606,9 +675,19 @@ func (a *App) saveIssue(w http.ResponseWriter, r *http.Request) {
 		is.Published = &now
 	}
 	saved, err := a.store.SaveIssue(is)
-	if errors.Is(err, errIssueExists) {
-		problems = append(problems, "There’s already an issue for "+is.Label()+", so the season wasn’t changed.")
-		is.Season, is.Year = old.Season, old.Year
+	if errors.Is(err, errMonthTaken) {
+		// Only one issue per month can be live. Save the edit, but as a draft
+		// (or, for the live issue, without the month change).
+		live, _ := a.store.LiveFor(is.Month, is.Year, is.ID)
+		msg := fmt.Sprintf("%s already has a published issue (edited by %s). ", is.Label(), or(live.EditedBy, "someone"))
+		if old.IsPublished() {
+			is.Month, is.Year = old.Month, old.Year
+			msg += "Your changes were saved, but the month wasn’t changed."
+		} else {
+			is.Published = nil
+			msg += "This one was saved as a draft. To publish it instead, unpublish the other one first."
+		}
+		problems = append(problems, msg)
 		saved, err = a.store.SaveIssue(is)
 	}
 	if err != nil {
@@ -712,7 +791,7 @@ func (a *App) emailIssue(w http.ResponseWriter, r *http.Request) {
 		if is.Spotlight.Heading != "" {
 			body += ", " + is.Spotlight.Heading
 		}
-		body += ", and the rides coming up this season."
+		body += ", and the rides coming up this month."
 	}
 	body += "\n\nSee you on the road!\nPaxVelo"
 	if d := a.store.Draft(); d.Subject != "" || d.Body != "" {
@@ -734,14 +813,14 @@ func sampleIssue() Issue {
 		Tagline: "Stories from the road.",
 		Cover:   "/photos/hero.webp",
 		Featured: Story{
-			Kicker: "Rider of the quarter", Heading: "Meet Sarah M.", Subhead: "The people behind the pedals.",
-			Body:  "This season we’re shining the spotlight on **Sarah M.**, a longtime PaxVelo member, weekend warrior, and the kind of rider who always brings good vibes (and great coffee).\n\nSarah started with the Saturday social ride and now pulls on the Thursday paceline. Her advice for new riders: show up, sit in, and ask questions.",
+			Kicker: "Rider of the month", Heading: "Meet Sarah M.", Subhead: "The people behind the pedals.",
+			Body:  "This month we’re shining the spotlight on **Sarah M.**, a longtime PaxVelo member, weekend warrior, and the kind of rider who always brings good vibes (and great coffee).\n\nSarah started with the Saturday social ride and now pulls on the Thursday paceline. Her advice for new riders: show up, sit in, and ask questions.",
 			Photo: "/photos/ride.webp", PhotoAlt: "Sarah on a club ride",
 			LinkLabel: "Watch her interview", Quote: "PaxVelo has pushed me to be a stronger rider and a better version of myself, on and off the bike.", QuoteBy: "Sarah M.",
 		},
 		Recap: Story{
-			Kicker: "Last quarter in motion", Heading: "Summer highlights",
-			Body:  "From fast Tuesday pushes to scenic weekend rides, here are the moments that made the season.",
+			Kicker: "Last month in motion", Heading: "September highlights",
+			Body:  "From fast Tuesday pushes to scenic weekend rides, here are the moments that made the month.",
 			Photo: "/photos/hero.webp", PhotoAlt: "Riders on a country road",
 			LinkLabel: "More rides on Strava", LinkURL: "{strava}",
 		},
@@ -752,7 +831,7 @@ func sampleIssue() Issue {
 		},
 		Spotlight: Story{
 			Kicker: "Ride leader spotlight", Heading: "Chris T.",
-			Body:  "Get to know the faces that keep our rides rolling. This season it’s **Chris T.**, our Thursday ride leader: his favorite route, his go-to ride snack, and why he gives back to the club.",
+			Body:  "Get to know the faces that keep our rides rolling. This month it’s **Chris T.**, our Thursday ride leader: his favorite route, his go-to ride snack, and why he gives back to the club.",
 			Photo: "/photos/giving.webp", PhotoAlt: "Chris at the start of a ride",
 			LinkLabel: "Read more",
 		},
@@ -784,3 +863,11 @@ func (f storyForm) Has(opt string) bool { return strings.Contains(" "+f.Opts+" "
 func storyFields(prefix string, s Story, opts string) storyForm { return storyForm{prefix, s, opts} }
 
 func photoStory(photo string) Story { return Story{Photo: photo} }
+
+// or returns s, or def if s is empty.
+func or(s, def string) string {
+	if s == "" {
+		return def
+	}
+	return s
+}

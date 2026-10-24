@@ -23,10 +23,12 @@ install -m 755 paxvelo-install /usr/local/bin/paxvelo-install
 echo 'deploy ALL=(root) NOPASSWD: /usr/local/bin/paxvelo-install' > /etc/sudoers.d/paxvelo-deploy
 chmod 440 /etc/sudoers.d/paxvelo-deploy
 # Nightly backup of the data file at 3am, keeping 30 days, and a weekly copy
-# of the newsletter photos uploaded in the admin, keeping 8 weeks.
+# of the newsletter photos and minutes files uploaded in the admin, keeping 8 weeks.
+mkdir -p /opt/paxvelo/data/media /opt/paxvelo/data/files
+chown paxvelo:paxvelo /opt/paxvelo/data/media /opt/paxvelo/data/files
 cat > /etc/cron.d/paxvelo-backup <<'CRON'
 0 3 * * * paxvelo cp /opt/paxvelo/data/paxvelo.json /opt/paxvelo/backups/paxvelo-$(date +\%F).json && find /opt/paxvelo/backups -name '*.json' -mtime +30 -delete
-30 3 * * 0 paxvelo [ -d /opt/paxvelo/data/media ] && tar -czf /opt/paxvelo/backups/media-$(date +\%F).tgz -C /opt/paxvelo/data media && find /opt/paxvelo/backups -name 'media-*.tgz' -mtime +56 -delete
+30 3 * * 0 paxvelo tar -czf /opt/paxvelo/backups/media-$(date +\%F).tgz -C /opt/paxvelo/data media files && find /opt/paxvelo/backups -name 'media-*.tgz' -mtime +56 -delete
 CRON
 echo
 echo "Server ready. Next:"

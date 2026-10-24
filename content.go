@@ -119,12 +119,12 @@ func parsePage(file, src string, r *mdRenderer) (*contentPage, error) {
 	p.Intro, p.Body = intro, rest
 	switch {
 	case p.Path == "/" && p.Title == "":
-		p.Title = "PAXVELO"
+		p.Title = siteName
 	case p.Path == "/":
 	case p.Title == "":
-		p.Title = heading + " — PAXVELO"
+		p.Title = heading + " — " + siteName
 	default:
-		p.Title += " — PAXVELO"
+		p.Title += " — " + siteName
 	}
 	return p, nil
 }

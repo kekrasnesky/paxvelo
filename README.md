@@ -23,7 +23,7 @@ After changing any file, stop it (Ctrl+C) and run `go run .` again. `go test ./.
 | Colors, fonts, spacing | `web/static/site.css` (colors are at the top) |
 | The newsletter's layout | `web/templates/newsletter.html` (its content is edited in the admin) |
 | Add a page | Create `content/<name>.md` (no code changes needed) |
-| Logo and browser-tab icon | `web/static/img/` |
+| Logo and browser-tab icon | `web/static/img/` (see "Swapping in the real photos") |
 
 Every `##` heading gets its own address, like `/rides#weekend-rides`. Old Squarespace addresses still work: the two ride pages forward to the matching section of Our Rides, and the old waiver page forwards to the homepage. Short links for flyers and emails: `paxvelo.club/kit` (team store) and `paxvelo.club/strava`.
 
@@ -33,23 +33,30 @@ The photos are placeholders cut from a screenshot. Replace them with the origina
 
 - `content/photos/hero.webp`: the big group photo, about 2000px wide (and `hero-phone.webp`, a square crop for phones)
 - `content/photos/ride.webp` and `giving.webp`: the two homepage photos, about 1000px wide (cropped to the same shape automatically)
-- `web/static/img/logo.png`: the shield at about 280px wide, so it's sharp on phones
-- `web/static/img/favicon.png`: the browser-tab icon, 64×64
+- The club logo is `web/static/img/logo.svg`, also used as the browser-tab icon. `logo-light.svg` is the same logo with the black parts in cream, for the dark header. `logo.png` (for emails) and `og.jpg` (the picture shown when someone shares a link) are made from it.
 
 To make WebP files, drop photos into https://squoosh.app, choose WebP at quality 75, and download. JPGs work too if you change the file name in `content/home.md`.
 
 ## The Paceline newsletter
 
-The club's quarterly newsletter lives at `paxvelo.club/newsletter` (always the latest issue), and each issue keeps its own address, like `paxvelo.club/newsletter/2026-fall`. It's written in the admin portal, under **Newsletter**:
+The club's monthly newsletter lives at `paxvelo.club/newsletter` (always the latest issue), and each issue keeps its own address, like `paxvelo.club/newsletter/2026-10`. It's written in the admin portal, under **Newsletter**:
 
-1. **Start a new issue** and pick the season. The first issue comes filled in with sample text. Later issues copy the previous one, so regular sections like the new rider corner and the kit call-out carry over.
-2. Fill in each section: the featured story (with an optional video link and a quote), last quarter's highlights, upcoming rides with links to their Strava events, a spotlight, three smaller stories, the kit call-out, and a strip of photos. Photos upload right from the form.
-3. **Save**, then **Preview** to see exactly how it will look.
-4. **Publish** when it's ready. Then **Email members about it** drafts an announcement email on the Email tab.
+1. **Start a new draft** and pick the month. The first issue comes filled in with sample text. Later drafts copy the latest published issue, so regular sections like the new rider corner and the kit call-out carry over.
+2. Fill in each section: the featured story (with an optional video link and a quote), last month's highlights, upcoming rides with links to their Strava events, a spotlight, three smaller stories, the kit call-out, and a strip of photos. Photos upload right from the form.
+3. **Save and preview** to see exactly how it will look.
+4. **Save and publish** when it's ready. Then **Email members about it** drafts an announcement email on the Email tab.
+
+A month can have several drafts, for example two people trying different versions, or **Make another draft from this** to try a variation. Only one issue per month can be published: the others can't be published until it's unpublished. Admins type their name when they log in, and the list shows who started each draft and who edited it last.
 
 Text boxes use the same simple formatting as the pages in `content/` (bold, links, `{strava}`, `{kit}`). If something can't be shown, like a mistyped `{placeholder}`, the editor says what to fix and the live issue stays as it was. Published issues are rendered once and served from memory, like every other page.
 
-Uploaded photos are stored on the server in `data/media`. The server backs them up weekly to `/opt/paxvelo/backups`; the **Download a full backup** link covers the text only.
+Uploaded photos are stored on the server in `data/media`. The server backs them up weekly (with the minutes files) to `/opt/paxvelo/backups`; the **Download a full backup** link covers the text only.
+
+## Meeting minutes
+
+Upload minutes in the admin portal under **Minutes**: the meeting date, a title, an optional one-line summary, and the file (PDF or Word, up to 20 MB). They stay hidden until you press **Publish**, then appear on the public **Meeting Minutes** page (`paxvelo.club/minutes`, also in the Info menu), newest first and grouped by year. PDFs open in the browser; Word files download.
+
+Files are stored on the server in `data/files`. Like photos, they're not part of the **Download a full backup** file, so keep the originals.
 
 ## Membership dues
 

@@ -1,7 +1,3 @@
----
-title: PAXVELO
----
-
 # Welcome to PaxVelo
 
 Southern Maryland’s Premier Cycling Club

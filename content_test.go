@@ -167,7 +167,7 @@ func TestPageSettings(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if p.Path != "/rides" || p.Title != "Rides — PAXVELO" || p.Menu != "Our Rides" || p.Order != 2 {
+	if p.Path != "/rides" || p.Title != "Rides — PaxVelo Cycling Club" || p.Menu != "Our Rides" || p.Order != 2 {
 		t.Errorf("got %+v", p)
 	}
 	for _, tc := range []struct{ file, src, want string }{

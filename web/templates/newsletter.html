@@ -1,12 +1,11 @@
-{{define "head"}}<link rel="preload" href="/static/fonts/anton-400.woff2?v={{.V}}" as="font" type="font/woff2" crossorigin>{{if .Data.Preview}}
-<meta name="robots" content="noindex">{{end}}{{end}}
+{{define "head"}}{{if .Data.Preview}}<meta name="robots" content="noindex">{{end}}{{end}}
 
 {{define "content"}}{{with .Data}}
 {{if .Preview}}<p class="nl-preview">Preview{{if not .Published}}: not published yet{{end}}. <a href="/admin/newsletter/{{.ID}}">Back to editing</a></p>{{end}}
 {{if .Empty}}
 <article class="page">
   <h1>The Paceline</h1>
-  <p class="lead">PaxVelo’s quarterly newsletter is on its way. Stories from the road, upcoming rides, and club news, four times a year.</p>
+  <p class="lead">PaxVelo’s monthly newsletter is on its way: stories from the road, upcoming rides, and club news.</p>
   <p><a class="btn" href="/join">Join to get it by email</a></p>
 </article>
 {{else}}

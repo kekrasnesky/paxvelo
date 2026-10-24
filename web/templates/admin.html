@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>{{.Title}} – PaxVelo Admin</title>
-<link rel="icon" href="/static/img/favicon.png">
+<link rel="icon" href="/static/img/logo.svg" type="image/svg+xml">
 <style>{{.CSS}}</style>
 </head>
 <body>
@@ -15,9 +15,10 @@
     <a href="/admin"{{if eq .Tab "members"}} aria-current="page"{{end}}>Members</a>
     <a href="/admin/email"{{if eq .Tab "email"}} aria-current="page"{{end}}>Email</a>
     <a href="/admin/newsletter"{{if eq .Tab "newsletter"}} aria-current="page"{{end}}>Newsletter</a>
+    <a href="/admin/minutes"{{if eq .Tab "minutes"}} aria-current="page"{{end}}>Minutes</a>
     <a href="/" target="_blank" rel="noopener">View site</a>
   </nav>
-  <form method="post" action="/admin/logout"><button class="link light">Log out</button></form>
+  <form method="post" action="/admin/logout">{{with .Me}}<span class="me">{{.}}</span> · {{end}}<button class="link light">Log out</button></form>
 </header>{{end}}
 <main class="wrap">
 {{with .Flash}}<p class="flash">{{.}}</p>{{end}}
@@ -31,7 +32,9 @@
 {{define "login"}}{{template "head" .}}
 <form class="card login" method="post" action="/admin/login">
   <h1>PaxVelo Admin</h1>
-  <label>Password <input type="password" name="password" required autofocus autocomplete="current-password"></label>
+  <label>Your name <input name="name" required maxlength="60" autofocus autocomplete="name"></label>
+  <label>Password <input type="password" name="password" required autocomplete="current-password"></label>
+  <p class="muted small">Your name shows on the newsletter drafts you write and edit.</p>
   <button>Log in</button>
 </form>
 {{template "foot" .}}{{end}}
@@ -158,28 +161,29 @@
 {{define "newsletter"}}{{template "head" .}}
 <div class="title-row">
   <h1>The Paceline</h1>
-  <p class="muted">The club newsletter, four issues a year. The latest published issue is at <a href="/newsletter" target="_blank" rel="noopener">{{.SiteURL}}/newsletter</a>.</p>
+  <p class="muted">The club newsletter, one issue a month. A month can have several drafts, but only one can be published. The latest published issue is at <a href="/newsletter" target="_blank" rel="noopener">{{.SiteURL}}/newsletter</a>.</p>
 </div>
 <div class="table-wrap"><table>
-  <thead><tr><th>Issue</th><th>Status</th><th>Last edited</th><th><span class="sr">Actions</span></th></tr></thead>
+  <thead><tr><th>Issue</th><th>Status</th><th>Started by</th><th>Last edited</th><th><span class="sr">Actions</span></th></tr></thead>
   <tbody>
   {{range .Issues}}<tr>
     <td><a href="/admin/newsletter/{{.ID}}">{{.Label}}</a></td>
     <td>{{if .IsPublished}}<span class="paid">Live</span>{{else}}Draft{{end}}</td>
-    <td class="nowrap">{{date .Updated}}</td>
+    <td>{{or .CreatedBy "—"}}</td>
+    <td class="nowrap">{{date .Updated}}{{with .EditedBy}} by {{.}}{{end}}</td>
     <td class="right nowrap"><a href="/admin/newsletter/{{.ID}}">Edit</a>{{if .IsPublished}} · <a href="{{.Path}}" target="_blank" rel="noopener">View</a>{{end}}</td>
   </tr>
-  {{else}}<tr><td colspan="4" class="empty">No issues yet. Start the first one below: it comes filled in with sample text to replace.</td></tr>
+  {{else}}<tr><td colspan="5" class="empty">No issues yet. Start the first one below: it comes filled in with sample text to replace.</td></tr>
   {{end}}
   </tbody>
 </table></div>
 <form class="card new-issue" method="post" action="/admin/newsletter">
-  <h2>Start a new issue</h2>
-  <p class="muted small">{{if .Issues}}It starts as a copy of the latest issue, so the regular sections carry over. Rides and the main stories start empty.{{else}}It comes filled in with sample text and photos showing what goes where.{{end}} Nothing is public until you publish it.</p>
+  <h2>Start a new draft</h2>
+  <p class="muted small">{{if .Issues}}It starts as a copy of the latest published issue, so the regular sections carry over. Rides and the main stories start empty.{{else}}It comes filled in with sample text and photos showing what goes where.{{end}} Nothing is public until you publish it. You’re listed as its author.</p>
   <div class="send-row">
-    <label class="inline-label">Season <select name="season" class="cap">{{range .Seasons}}<option value="{{.}}"{{if eq . $.NewSeason}} selected{{end}}>{{.}}</option>{{end}}</select></label>
+    <label class="inline-label">Month <select name="month">{{range .Months}}<option value="{{.N}}"{{if eq .N $.NewMonth}} selected{{end}}>{{.Name}}</option>{{end}}</select></label>
     <label class="inline-label">Year <input type="number" name="year" value="{{.NewYear}}" min="2000" max="2100" class="year"></label>
-    <button>Start issue</button>
+    <button>Start draft</button>
   </div>
 </form>
 {{template "foot" .}}{{end}}
@@ -190,18 +194,23 @@
   <h1>{{$is.Label}}</h1>
   <p>{{if $is.IsPublished}}<span class="paid">Live</span> on the website{{else}}<span class="tag">Draft</span> Only admins can see it{{end}}</p>
 </div>
-{{if $is.IsPublished}}<div class="issue-actions">
+<p class="muted small">{{with $is.CreatedBy}}Started by {{.}}. {{end}}Last edited {{datetime $is.Updated}}{{with $is.EditedBy}} by {{.}}{{end}}.</p>
+{{with .MonthLive}}<p class="flash warn">{{.Label}} already has a published issue{{with .EditedBy}}, last edited by {{.}}{{end}}. This draft can’t be published until that one is unpublished. <a href="/admin/newsletter/{{.ID}}">Open the published one</a></p>{{end}}
+<div class="issue-actions">
+  {{if $is.IsPublished}}
   <a class="btn ghost" href="{{$is.Path}}" target="_blank" rel="noopener">View live</a>
   <form method="post" action="/admin/newsletter/{{$is.ID}}/email"><button class="ghost">Email members about it</button></form>
   <form method="post" action="/admin/newsletter/{{$is.ID}}/unpublish" onsubmit="return confirm('Take this issue off the website?')"><button class="ghost">Unpublish</button></form>
-</div>{{end}}
+  {{end}}
+  <form method="post" action="/admin/newsletter/{{$is.ID}}/copy"><button class="ghost">Make another draft from this</button></form>
+</div>
 <p class="muted small">The buttons at the bottom save your changes, then preview or publish. In the text boxes: leave a blank line between paragraphs, put **two stars** around words for bold, and write links as [words to click](https://example.com). In link boxes, {strava} and {kit} fill in the club’s Strava page and team store. Photos: JPG, PNG, or WebP under 8 MB (squoosh.app makes them smaller).</p>
 
 <form class="issue" method="post" action="/admin/newsletter/{{$is.ID}}" enctype="multipart/form-data">
   <section class="card">
     <h2>Cover</h2>
     <div class="send-row">
-      <label class="inline-label">Season <select name="season" class="cap">{{range .Seasons}}<option value="{{.}}"{{if eq . $is.Season}} selected{{end}}>{{.}}</option>{{end}}</select></label>
+      <label class="inline-label">Month <select name="month">{{range .Months}}<option value="{{.N}}"{{if eq .N $is.Month}} selected{{end}}>{{.Name}}</option>{{end}}</select></label>
       <label class="inline-label">Year <input type="number" name="year" value="{{$is.Year}}" min="2000" max="2100" class="year"></label>
     </div>
     <label>Tagline under the title <input name="tagline" value="{{$is.Tagline}}" maxlength="120"></label>
@@ -215,8 +224,8 @@
   </section>
 
   <section class="card">
-    <h2>Last quarter</h2>
-    <p class="muted small">First of the three columns: a look back at the last few months.</p>
+    <h2>Last month</h2>
+    <p class="muted small">First of the three columns: a look back at the past month.</p>
     {{template "story" (story "recap." $is.Recap "kicker video")}}
   </section>
 
@@ -278,7 +287,7 @@
   <div class="save-bar">
     <button{{if $is.IsPublished}} class="ghost"{{end}}>{{if $is.IsPublished}}Save and update live{{else}}Save draft{{end}}</button>
     <button class="ghost" formaction="/admin/newsletter/{{$is.ID}}?then=preview" formtarget="_blank">Save and preview</button>
-    {{if not $is.IsPublished}}<button formaction="/admin/newsletter/{{$is.ID}}?then=publish" onclick="return confirm('Save and publish {{$is.Label}} on the website?')">Save and publish</button>{{end}}
+    {{if and (not $is.IsPublished) (not .MonthLive)}}<button formaction="/admin/newsletter/{{$is.ID}}?then=publish" onclick="return confirm('Save and publish {{$is.Label}} on the website?')">Save and publish</button>{{end}}
   </div>
 </form>
 <script>
@@ -320,3 +329,39 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
     {{if $s.Photo}}<label class="check"><input type="checkbox" name="{{$p}}photo_remove"> Remove photo</label>{{end}}
   </div>
 </div>{{end}}
+
+{{define "minutes"}}{{template "head" .}}
+<div class="title-row">
+  <h1>Meeting minutes</h1>
+  <p class="muted">Published minutes are listed at <a href="/minutes" target="_blank" rel="noopener">{{.SiteURL}}/minutes</a>.</p>
+</div>
+<div class="table-wrap"><table>
+  <thead><tr><th>Meeting</th><th>File</th><th>Status</th><th>Uploaded by</th><th><span class="sr">Actions</span></th></tr></thead>
+  <tbody>
+  {{range .Minutes}}<tr>
+    <td><strong>{{.Title}}</strong><br><span class="muted small">{{.DateLabel}}</span></td>
+    <td><a href="{{.File}}" target="_blank" rel="noopener">{{.FileName}}</a><br><span class="muted small">{{.Kind}}, {{.SizeLabel}}</span></td>
+    <td>{{if .IsPublished}}<span class="paid">Public</span>{{else}}Hidden{{end}}</td>
+    <td>{{or .UploadedBy "—"}}</td>
+    <td class="right nowrap">
+      <form method="post" action="/admin/minutes/{{.ID}}/publish" class="inline">{{if .IsPublished}}<input type="hidden" name="publish" value="0"><button class="link">Unpublish</button>{{else}}<input type="hidden" name="publish" value="1"><button class="mini">Publish</button>{{end}}</form>
+      · <form method="post" action="/admin/minutes/{{.ID}}/delete" class="inline" onsubmit="return confirm('Delete the minutes for {{.DateLabel}}? This can’t be undone.')"><button class="link danger">Delete</button></form>
+    </td>
+  </tr>
+  {{else}}<tr><td colspan="5" class="empty">No minutes uploaded yet.</td></tr>
+  {{end}}
+  </tbody>
+</table></div>
+<form class="card new-issue" method="post" action="/admin/minutes" enctype="multipart/form-data">
+  <h2>Upload minutes</h2>
+  <div class="pair">
+    <label>Meeting title <input name="title" maxlength="100" placeholder="Monthly club meeting"></label>
+    <label>Meeting date <input type="date" name="date" required></label>
+  </div>
+  <label>Short summary (optional) <textarea name="summary" rows="3" maxlength="600" placeholder="Approved the 2027 ride calendar and the new kit order."></textarea></label>
+  <label>Minutes file <input type="file" name="file" accept=".pdf,.docx,application/pdf" required></label>
+  <p class="muted small">PDF or Word (.docx), up to 20 MB. PDF is best: anyone can open it in their browser. In Word or Google Docs, use File → Download → PDF.</p>
+  <label class="check"><input type="checkbox" name="publish"> Publish on the website right away</label>
+  <button>Upload</button>
+</form>
+{{template "foot" .}}{{end}}

@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -22,6 +23,9 @@ import (
 type navLink struct{ Path, Label string }
 
 const siteDescription = "Southern Maryland’s Premier Cycling Club"
+
+// siteName is the club's name in page titles and link previews.
+const siteName = "PaxVelo Cycling Club"
 
 type Page struct {
 	Path     string
@@ -41,6 +45,8 @@ type Site struct {
 	md          *mdRenderer
 	newsMu      sync.RWMutex
 	newsRefresh sync.Mutex
+	minutes     atomic.Pointer[Page] // the public meeting minutes page
+	minutesMu   sync.Mutex
 	news        map[string]*Page // the newsletter, rendered when it changes
 	css         template.CSS
 	js          template.JS
@@ -177,6 +183,7 @@ func newSite(cfg Config) (*Site, error) {
 			s.infoLinks = append(s.infoLinks, navLink{p.Path, p.Menu})
 		}
 	}
+	s.infoLinks = append(s.infoLinks, navLink{"/minutes", "Meeting Minutes"})
 	home, err := parse("home.html")
 	if err != nil {
 		return nil, err
@@ -198,13 +205,13 @@ func newSite(cfg Config) (*Site, error) {
 		}
 		s.pages = append(s.pages, &Page{Path: p.Path, html: buf.Bytes(), gz: gzipBytes(buf.Bytes()), etag: etag(buf.Bytes())})
 	}
-	for _, name := range []string{"join", "unsubscribe", "notfound", "newsletter"} {
+	for _, name := range []string{"join", "unsubscribe", "notfound", "newsletter", "minutes"} {
 		if s.dynamic[name], err = parse(name + ".html"); err != nil {
 			return nil, err
 		}
 	}
 	var nf bytes.Buffer
-	if err := s.dynamic["notfound"].ExecuteTemplate(&nf, "layout", s.view("", "Page not found — PAXVELO", nil)); err != nil {
+	if err := s.dynamic["notfound"].ExecuteTemplate(&nf, "layout", s.view("", "Page not found — "+siteName, nil)); err != nil {
 		return nil, err
 	}
 	s.notFound404 = nf.Bytes()

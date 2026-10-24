@@ -51,6 +51,7 @@ func main() {
 	app := &App{cfg: cfg, store: store, site: site, limit: newLimiter()}
 	app.mailer = newMailer(cfg, store, site)
 	app.refreshNewsletter()
+	app.refreshMinutes()
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -89,7 +90,7 @@ func (a *App) routes() http.Handler {
 	}
 	mux.Handle("GET /static/", a.site.staticFiles("/static/", a.site.static))
 	mux.Handle("GET /photos/", a.site.staticFiles("/photos/", a.site.photos))
-	mux.Handle("GET /favicon.ico", http.RedirectHandler("/static/img/favicon.png", http.StatusMovedPermanently))
+	mux.Handle("GET /favicon.ico", http.RedirectHandler("/static/img/logo.svg", http.StatusMovedPermanently))
 	mux.HandleFunc("GET /robots.txt", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.Write([]byte("User-agent: *\nDisallow: /admin\nDisallow: /unsubscribe\n"))
@@ -109,6 +110,10 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("GET /newsletter", a.newsletterPage)
 	mux.HandleFunc("GET /newsletter/{slug}", a.newsletterPage)
 	mux.Handle("GET /media/", a.site.staticFiles("/media/", os.DirFS(a.mediaDir())))
+
+	// Meeting minutes, and the files uploaded for them in the admin.
+	mux.HandleFunc("GET /minutes", a.minutesPage)
+	mux.Handle("GET /files/", a.serveFiles())
 
 	// Joining and leaving.
 	mux.HandleFunc("GET /join", a.joinPage)
@@ -143,6 +148,11 @@ func (a *App) routes() http.Handler {
 	mux.Handle("GET /admin/newsletter/{id}/preview", a.auth(a.previewIssue))
 	mux.Handle("POST /admin/newsletter/{id}/unpublish", a.auth(a.unpublishIssue))
 	mux.Handle("POST /admin/newsletter/{id}/delete", a.auth(a.deleteIssue))
+	mux.Handle("POST /admin/newsletter/{id}/copy", a.auth(a.copyIssue))
+	mux.Handle("GET /admin/minutes", a.auth(a.minutesAdmin))
+	mux.Handle("POST /admin/minutes", a.auth(a.addMinutes))
+	mux.Handle("POST /admin/minutes/{id}/publish", a.auth(a.publishMinutes))
+	mux.Handle("POST /admin/minutes/{id}/delete", a.auth(a.deleteMinutes))
 	mux.Handle("POST /admin/newsletter/{id}/email", a.auth(a.emailIssue))
 
 	mux.HandleFunc("/", a.site.notFound)
