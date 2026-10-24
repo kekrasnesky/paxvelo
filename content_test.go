@@ -25,8 +25,8 @@ func TestAllPagesBuild(t *testing.T) {
 		t.Fatal(err)
 	}
 	paths := map[string]bool{}
-	for _, p := range s.pages {
-		paths[p.Path] = true
+	for path := range *s.pages.Load() {
+		paths[path] = true
 	}
 	for _, want := range []string{"/", "/rides", "/bike-safety", "/committee"} {
 		if !paths[want] {

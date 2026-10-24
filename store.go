@@ -89,6 +89,7 @@ type storeData struct {
 	Issues       []*Issue     `json:"newsletter,omitempty"`
 	NextMinutes  int          `json:"next_minutes_id,omitempty"`
 	Minutes      []*Minutes   `json:"minutes,omitempty"`
+	Instagram    []string     `json:"instagram,omitempty"` // posts shown on the home page
 }
 
 type Store struct {

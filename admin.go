@@ -49,6 +49,9 @@ type adminView struct {
 	NewYear   int
 	// Minutes tab
 	Minutes []Minutes
+	// Instagram tab
+	Instagram     []string
+	InstagramText string
 }
 
 // ---- Sessions ----
@@ -199,6 +202,7 @@ var flashText = map[string]string{
 	"discarded":         "Draft discarded.",
 	"drafted":           "An email about the newsletter is ready below. Check it, send yourself a test, then send it.",
 	"copied":            "This is a new draft copied from the other one. Edit away: the original is unchanged.",
+	"instagram":         "Saved. The home page shows these posts now.",
 	"minutes-added":     "Minutes uploaded. They aren’t public until you publish them.",
 	"minutes-published": "Published. They’re on the Meeting Minutes page now.",
 	"minutes-hidden":    "Unpublished. They’re hidden from the website.",

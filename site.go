@@ -35,7 +35,11 @@ type Page struct {
 
 type Site struct {
 	cfg         Config
-	pages       []*Page
+	content     fs.FS                            // the content folder
+	pageTpl     map[string]*template.Template    // "home" and "page"
+	pagePaths   []string                         // every content page's address
+	pages       atomic.Pointer[map[string]*Page] // content pages, rebuilt when the Instagram posts change
+	contentMu   sync.Mutex
 	dynamic     map[string]*template.Template
 	email       *template.Template
 	admin       *template.Template
@@ -138,6 +142,8 @@ func newSite(cfg Config) (*Site, error) {
 		"story":       storyFields,
 		"photoStory":  photoStory,
 		"inc":         func(i int) int { return i + 1 },
+		"instagram":   instagramEmbeds,
+		"lines":       func(l []string) string { return strings.Join(l, "\n") },
 		"external":    func(u string) bool { return strings.HasPrefix(u, "http://") || strings.HasPrefix(u, "https://") },
 	}
 	base, err := template.New("").Funcs(funcs).ParseFS(webFS, "web/templates/layout.html")
@@ -173,37 +179,27 @@ func newSite(cfg Config) (*Site, error) {
 		}
 		md.widgets[w] = template.HTML(buf.String())
 	}
-	s.md = md
+	md.widgets["instagram"] = instagramWidget(nil)
+	s.md, s.content = md, content
 	pages, err := loadContent(content, md)
 	if err != nil {
 		return nil, err
 	}
 	for _, p := range pages {
+		s.pagePaths = append(s.pagePaths, p.Path)
 		if p.Menu != "" {
 			s.infoLinks = append(s.infoLinks, navLink{p.Path, p.Menu})
 		}
 	}
 	s.infoLinks = append(s.infoLinks, navLink{"/minutes", "Meeting Minutes"})
-	home, err := parse("home.html")
-	if err != nil {
-		return nil, err
-	}
-	inner, err := parse("page.html")
-	if err != nil {
-		return nil, err
-	}
-	for _, p := range pages {
-		t := inner
-		if p.Path == "/" {
-			t = home
+	s.pageTpl = map[string]*template.Template{}
+	for _, name := range []string{"home", "page"} {
+		if s.pageTpl[name], err = parse(name + ".html"); err != nil {
+			return nil, err
 		}
-		v := s.view(p.Path, p.Title, p)
-		v.Desc = p.Desc
-		var buf bytes.Buffer
-		if err := t.ExecuteTemplate(&buf, "layout", v); err != nil {
-			return nil, fmt.Errorf("content/%s: %w", p.File, err)
-		}
-		s.pages = append(s.pages, &Page{Path: p.Path, html: buf.Bytes(), gz: gzipBytes(buf.Bytes()), etag: etag(buf.Bytes())})
+	}
+	if err := s.renderContent(nil); err != nil {
+		return nil, err
 	}
 	for _, name := range []string{"join", "unsubscribe", "notfound", "newsletter", "minutes"} {
 		if s.dynamic[name], err = parse(name + ".html"); err != nil {
@@ -223,6 +219,50 @@ func newSite(cfg Config) (*Site, error) {
 		return nil, err
 	}
 	return s, nil
+}
+
+// renderContent renders every page in the content folder, with the home
+// page's Instagram posts. It runs at startup and when the posts change.
+func (s *Site) renderContent(instagram []string) error {
+	s.contentMu.Lock()
+	defer s.contentMu.Unlock()
+	md := *s.md
+	md.widgets = map[string]template.HTML{}
+	for k, v := range s.md.widgets {
+		md.widgets[k] = v
+	}
+	md.widgets["instagram"] = instagramWidget(instagram)
+	list, err := loadContent(s.content, &md)
+	if err != nil {
+		return err
+	}
+	pages := map[string]*Page{}
+	for _, p := range list {
+		t := s.pageTpl["page"]
+		if p.Path == "/" {
+			t = s.pageTpl["home"]
+		}
+		v := s.view(p.Path, p.Title, p)
+		v.Desc = p.Desc
+		var buf bytes.Buffer
+		if err := t.ExecuteTemplate(&buf, "layout", v); err != nil {
+			return fmt.Errorf("content/%s: %w", p.File, err)
+		}
+		pages[p.Path] = &Page{Path: p.Path, html: buf.Bytes(), gz: gzipBytes(buf.Bytes()), etag: etag(buf.Bytes())}
+	}
+	s.pages.Store(&pages)
+	return nil
+}
+
+// serveContent serves the current version of a content page.
+func (s *Site) serveContent(path string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if p := (*s.pages.Load())[path]; p != nil {
+			s.servePage(p).ServeHTTP(w, r)
+			return
+		}
+		s.notFound(w, r)
+	})
 }
 
 func (s *Site) view(path, title string, data any) view {

@@ -106,6 +106,7 @@ These words in curly brackets are filled in automatically from the club's settin
 | `{dues-family}` | The Family dues amount, like 45 |
 | `{membership-plans}` | On a line by itself: the two Join boxes with prices |
 | `{social-links}` | On a line by itself: the Discord, Strava, Facebook, and Instagram icons |
+| `{instagram}` | On a line by itself: the Instagram posts picked on the admin's Instagram tab, and a Follow button |
 
 The dues amounts, PayPal links, and Strava and kit addresses themselves are server settings. Ask whoever looks after the server to change those.
 

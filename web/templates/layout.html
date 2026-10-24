@@ -17,6 +17,7 @@
 <meta name="theme-color" content="#2d2d2d">
 <link rel="icon" href="/static/img/logo.svg?v={{.V}}" type="image/svg+xml">
 <link rel="preload" href="/static/fonts/anton-400.woff2?v={{.V}}" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/static/fonts/barlow-400-normal.woff2?v={{.V}}" as="font" type="font/woff2" crossorigin>
 {{block "head" .}}{{end}}
 <style>{{.CSS}}</style>
 <script type="speculationrules">{"prerender":[{"where":{"and":[{"href_matches":"/*"},{"not":{"href_matches":"/admin*"}},{"not":{"href_matches":"/unsubscribe*"}}]},"eagerness":"moderate"}]}</script>
@@ -31,7 +32,7 @@
 </svg>
 
 <header class="hdr">
-  <a class="logo" href="/" aria-label="PaxVelo Cycling Club home"><img src="/static/img/logo-light.svg?v={{.V}}" width="150" height="81" alt=""><span class="wordmark">PaxVelo <span>Cycling Club</span></span></a>
+  <a class="logo" href="/" aria-label="PaxVelo Cycling Club home"><img src="/static/img/logo-light.svg?v={{.V}}" width="150" height="81" alt=""><span class="wordmark">PaxVelo Cycling Club</span></a>
   <nav class="nav" id="nav" aria-label="Main">
     <a href="/"{{if eq .Path "/"}} aria-current="page"{{end}}>Home</a>
     <div class="dd">

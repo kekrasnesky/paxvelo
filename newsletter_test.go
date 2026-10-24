@@ -303,6 +303,41 @@ func TestNewsletterNeedsLogin(t *testing.T) {
 	}
 }
 
+func TestInstagramLinks(t *testing.T) {
+	posts, err := parseInstagramPosts("https://www.instagram.com/p/ABC123/?igsh=xyz\n\ninstagram.com/reel/XyZ-9_/\nhttps://instagram.com/paxvelo/p/ABC123/", 6)
+	if err == nil {
+		t.Fatalf("a link without https:// should be refused, got %v", posts)
+	}
+	posts, err = parseInstagramPosts("https://www.instagram.com/p/ABC123/?igsh=xyz\nhttps://instagram.com/paxvelo/p/ABC123/\nhttps://www.instagram.com/reel/XyZ-9_/", 6)
+	if err != nil || len(posts) != 2 || posts[0] != "https://www.instagram.com/p/ABC123/" || posts[1] != "https://www.instagram.com/reel/XyZ-9_/" {
+		t.Errorf("posts = %v, %v", posts, err)
+	}
+	if _, err := parseInstagramPosts("https://www.instagram.com/paxvelo/", 6); err == nil {
+		t.Error("a profile link was accepted as a post")
+	}
+	if _, err := parseInstagramPosts("https://www.instagram.com/p/a/\nhttps://www.instagram.com/p/b/", 1); err == nil {
+		t.Error("too many posts were accepted")
+	}
+}
+
+func TestInstagramOnHomePage(t *testing.T) {
+	_, h, admin := testApp(t)
+	ct, body := form(url.Values{"posts": {"https://www.instagram.com/p/ABC123/"}})
+	if w := do(t, h, admin, "POST", "/admin/instagram", ct, body); !strings.Contains(w.Header().Get("Location"), "ok=instagram") {
+		t.Fatalf("save: %d %s", w.Code, w.Body.String())
+	}
+	home := do(t, h, nil, "GET", "/", "", nil).Body.String()
+	for _, want := range []string{`data-instgrm-permalink="https://www.instagram.com/p/ABC123/"`, "instagram.com/embed.js", "Follow @paxvelo"} {
+		if !strings.Contains(home, want) {
+			t.Errorf("home page is missing %s", want)
+		}
+	}
+	ct, body = form(url.Values{"posts": {"not a link"}})
+	if w := do(t, h, admin, "POST", "/admin/instagram", ct, body); !strings.Contains(w.Body.String(), "Not saved") {
+		t.Errorf("bad link wasn't reported: %d", w.Code)
+	}
+}
+
 func TestMonths(t *testing.T) {
 	if m, y := nextMonth(12, 2026); m != 1 || y != 2027 {
 		t.Errorf("after December 2026: %d %d", m, y)

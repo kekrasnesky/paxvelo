@@ -52,6 +52,9 @@ func main() {
 	app.mailer = newMailer(cfg, store, site)
 	app.refreshNewsletter()
 	app.refreshMinutes()
+	if err := site.renderContent(store.Instagram()); err != nil {
+		log.Fatal(err)
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -81,12 +84,12 @@ func (a *App) routes() http.Handler {
 	mux := http.NewServeMux()
 
 	// Public pages, rendered once at startup and served from memory.
-	for _, p := range a.site.pages {
-		pattern := "GET " + p.Path
-		if p.Path == "/" {
+	for _, path := range a.site.pagePaths {
+		pattern := "GET " + path
+		if path == "/" {
 			pattern = "GET /{$}"
 		}
-		mux.Handle(pattern, a.site.servePage(p))
+		mux.Handle(pattern, a.site.serveContent(path))
 	}
 	mux.Handle("GET /static/", a.site.staticFiles("/static/", a.site.static))
 	mux.Handle("GET /photos/", a.site.staticFiles("/photos/", a.site.photos))
@@ -149,6 +152,8 @@ func (a *App) routes() http.Handler {
 	mux.Handle("POST /admin/newsletter/{id}/unpublish", a.auth(a.unpublishIssue))
 	mux.Handle("POST /admin/newsletter/{id}/delete", a.auth(a.deleteIssue))
 	mux.Handle("POST /admin/newsletter/{id}/copy", a.auth(a.copyIssue))
+	mux.Handle("GET /admin/instagram", a.auth(a.instagramAdmin))
+	mux.Handle("POST /admin/instagram", a.auth(a.saveInstagram))
 	mux.Handle("GET /admin/minutes", a.auth(a.minutesAdmin))
 	mux.Handle("POST /admin/minutes", a.auth(a.addMinutes))
 	mux.Handle("POST /admin/minutes/{id}/publish", a.auth(a.publishMinutes))

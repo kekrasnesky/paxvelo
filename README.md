@@ -52,6 +52,12 @@ Text boxes use the same simple formatting as the pages in `content/` (bold, link
 
 Uploaded photos are stored on the server in `data/media`. The server backs them up weekly (with the minutes files) to `/opt/paxvelo/backups`; the **Download a full backup** link covers the text only.
 
+## Instagram
+
+The home page has an "On Instagram" section. Pick which posts it shows in the admin portal under **Instagram**: paste up to 6 post links (on Instagram: ⋯ → Copy link). Each newsletter issue can also show up to 3 posts. Posts are shown with Instagram's own embed, so photos, carousels, and reels look as they do on Instagram, and they link back to the club's page. That embed loads a script from Instagram, which Instagram may use to track visitors who are logged in.
+
+Showing the newest posts automatically would mean switching the account to a Business account linked to a Facebook Page and setting up a Meta developer app, with a key to renew every 60 days. Picking posts by hand needs none of that.
+
 ## Meeting minutes
 
 Upload minutes in the admin portal under **Minutes**: the meeting date, a title, an optional one-line summary, and the file (PDF or Word, up to 20 MB). They stay hidden until you press **Publish**, then appear on the public **Meeting Minutes** page (`paxvelo.club/minutes`, also in the Info menu), newest first and grouped by year. PDFs open in the browser; Word files download.

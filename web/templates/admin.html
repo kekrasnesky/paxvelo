@@ -16,6 +16,7 @@
     <a href="/admin/email"{{if eq .Tab "email"}} aria-current="page"{{end}}>Email</a>
     <a href="/admin/newsletter"{{if eq .Tab "newsletter"}} aria-current="page"{{end}}>Newsletter</a>
     <a href="/admin/minutes"{{if eq .Tab "minutes"}} aria-current="page"{{end}}>Minutes</a>
+    <a href="/admin/instagram"{{if eq .Tab "instagram"}} aria-current="page"{{end}}>Instagram</a>
     <a href="/" target="_blank" rel="noopener">View site</a>
   </nav>
   <form method="post" action="/admin/logout">{{with .Me}}<span class="me">{{.}}</span> · {{end}}<button class="link light">Log out</button></form>
@@ -272,6 +273,12 @@
   </section>
 
   <section class="card">
+    <h2>From our Instagram</h2>
+    <p class="muted small">Up to 3 Instagram posts, shown as a row near the end. On Instagram, open the post, tap ⋯ → Copy link, and paste it here, one per line. Leave empty to skip this section.</p>
+    <label>Post links <textarea name="instagram" rows="3" placeholder="https://www.instagram.com/p/…">{{lines $is.Instagram}}</textarea></label>
+  </section>
+
+  <section class="card">
     <h2>Photo strip</h2>
     <p class="muted small">A row of photos near the bottom, up to 8.</p>
     <input type="hidden" name="gallery_form" value="1">
@@ -364,4 +371,18 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   <label class="check"><input type="checkbox" name="publish"> Publish on the website right away</label>
   <button>Upload</button>
 </form>
+{{template "foot" .}}{{end}}
+
+{{define "instagram"}}{{template "head" .}}
+<div class="title-row">
+  <h1>Instagram on the home page</h1>
+  <p class="muted">Pick up to 6 posts to show on the home page, under “On Instagram”.</p>
+</div>
+<form class="card new-issue" method="post" action="/admin/instagram">
+  <label>Post links, one per line <textarea name="posts" rows="7" placeholder="https://www.instagram.com/p/…">{{.InstagramText}}</textarea></label>
+  <p class="muted small">On Instagram, open a post, tap ⋯ → Copy link (on a computer, copy the address from the browser), and paste it here. Photos, carousels, and reels all work. Leave it empty to show just the “Follow @paxvelo” button. Each newsletter issue has its own Instagram section too.</p>
+  <button>Save</button>
+</form>
+{{if .Instagram}}<h2 class="section">On the home page now</h2>
+<ul class="small">{{range .Instagram}}<li><a href="{{.}}" target="_blank" rel="noopener">{{.}}</a></li>{{end}}</ul>{{end}}
 {{template "foot" .}}{{end}}

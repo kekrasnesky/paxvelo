@@ -90,6 +90,12 @@
   {{template "nl-media" .}}
 </section>{{end}}{{end}}
 
+{{if .Instagram}}<section class="nl-insta" aria-labelledby="nl-insta">
+  <p class="nl-kicker"><a href="https://www.instagram.com/paxvelo/" target="_blank" rel="noopener">@paxvelo</a></p>
+  <h2 class="nl-h" id="nl-insta">From our Instagram</h2>
+  {{instagram .Instagram}}
+</section>{{end}}
+
 {{if .Gallery}}<div class="nl-gallery">
   {{range .Gallery}}<img src="{{.}}" alt="" loading="lazy" decoding="async">
   {{end}}

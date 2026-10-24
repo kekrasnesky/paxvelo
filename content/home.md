@@ -27,6 +27,12 @@ As a nonprofit, PaxVelo exists to enrich the community we ride in. Each year we 
 <!-- This link only appears once DONATE_URL is set in the server settings. -->
 [Support the club]({donate}) 
 
+## On Instagram
+
+Club rides, race days, and the roads of Southern Maryland, as they happen.
+
+{instagram}
+
 ## Become a Member
 
 Membership runs January through December and supports club rides, events, and our work in the community.

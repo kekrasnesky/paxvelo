@@ -63,6 +63,7 @@ type Issue struct {
 	Corner    []Story    `json:"corner,omitempty"` // the row of three smaller stories
 	Kit       Story      `json:"kit"`
 	Gallery   []string   `json:"gallery,omitempty"`
+	Instagram []string   `json:"instagram,omitempty"` // Instagram post links
 	Closing   string     `json:"closing,omitempty"`
 	Published *time.Time `json:"published,omitempty"`
 	Updated   time.Time  `json:"updated"`
@@ -241,6 +242,7 @@ type newsView struct {
 	Corner         []shownStory
 	Kit            shownStory
 	Gallery        []string
+	Instagram      []string
 	Closing        string
 	StravaURL      string
 	Archive        []Issue
@@ -250,7 +252,7 @@ type newsView struct {
 func (s *Site) newsView(is Issue, archive []Issue) (newsView, error) {
 	v := newsView{
 		ID: is.ID, Published: is.IsPublished(), Label: is.Label(), Tagline: is.Tagline, Cover: is.Cover,
-		Gallery: is.Gallery, Closing: is.Closing, StravaURL: s.cfg.StravaURL, Archive: archive, Current: is.Path(),
+		Gallery: is.Gallery, Instagram: is.Instagram, Closing: is.Closing, StravaURL: s.cfg.StravaURL, Archive: archive, Current: is.Path(),
 	}
 	story := func(name string, st Story) (shownStory, error) {
 		out := shownStory{Story: st}
@@ -431,7 +433,7 @@ func (a *App) savePhotoFile(hdr *multipart.FileHeader) (string, error) {
 
 // ---- Admin ----
 
-const maxRides, maxGallery, cornerCount = 8, 8, 3
+const maxRides, maxGallery, cornerCount, maxNewsInstagram = 8, 8, 3, 3
 
 func (a *App) newsletterAdmin(w http.ResponseWriter, r *http.Request) {
 	v := adminView{Title: "Newsletter", Tab: "newsletter", Issues: a.store.Issues(), Months: months}
@@ -605,6 +607,13 @@ func (a *App) saveIssue(w http.ResponseWriter, r *http.Request) {
 	}
 	is.EditedBy, _ = a.adminName(r)
 	is.Tagline, is.Closing = val("tagline"), val("closing")
+	if v, ok := r.Form["instagram"]; ok {
+		posts, err := parseInstagramPosts(strings.Join(v, "\n"), maxNewsInstagram)
+		note(err)
+		if err == nil {
+			is.Instagram = posts
+		}
+	}
 	is.Cover = photo("cover.", old.Cover)
 	is.Featured = story("featured.", old.Featured)
 	is.Recap = story("recap.", old.Recap)
