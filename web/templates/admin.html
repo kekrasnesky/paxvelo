@@ -15,6 +15,7 @@
     <a href="/admin"{{if eq .Tab "members"}} aria-current="page"{{end}}>Members</a>
     <a href="/admin/email"{{if eq .Tab "email"}} aria-current="page"{{end}}>Email</a>
     <a href="/admin/newsletter"{{if eq .Tab "newsletter"}} aria-current="page"{{end}}>Newsletter</a>
+    <a href="/admin/rides"{{if eq .Tab "rides"}} aria-current="page"{{end}}>Rides</a>
     <a href="/admin/minutes"{{if eq .Tab "minutes"}} aria-current="page"{{end}}>Minutes</a>
     <a href="/admin/instagram"{{if eq .Tab "instagram"}} aria-current="page"{{end}}>Instagram</a>
     <a href="/" target="_blank" rel="noopener">View site</a>
@@ -385,4 +386,74 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
 </form>
 {{if .Instagram}}<h2 class="section">On the home page now</h2>
 <ul class="small">{{range .Instagram}}<li><a href="{{.}}" target="_blank" rel="noopener">{{.}}</a></li>{{end}}</ul>{{end}}
+{{template "foot" .}}{{end}}
+
+{{define "rides"}}{{template "head" .}}
+<div class="title-row">
+  <h1>Rides</h1>
+  <p class="muted">Everything here shows on the public <a href="/calendar" target="_blank" rel="noopener">ride calendar</a>.</p>
+</div>
+{{if not .StravaReady}}<p class="flash warn">“Sign in with Strava” isn’t set up yet, so riders can see the calendar but can’t sign up to lead. Until it is, assign leaders below. README.md, “Ride calendar”, explains the setup.</p>{{end}}
+
+<h2 class="section">Coming up</h2>
+<p class="muted small">The next 60 days. A ride with a leader can only be changed by its leader (stepping down), a club admin on Strava, or here. Changing a leader emails the club.</p>
+<div class="table-wrap"><table>
+  <thead><tr><th>Date</th><th>Ride</th><th>Leader</th><th><span class="sr">Actions</span></th></tr></thead>
+  <tbody>
+  {{range .Upcoming}}<tr{{if .Cancelled}} class="off"{{end}}>
+    <td class="nowrap">{{.DateLabel}}<br><span class="muted small">{{.TimeLabel}}</span></td>
+    <td><a href="/calendar/ride/{{.Key}}" target="_blank" rel="noopener">{{.Name}}</a>{{if .Custom}} <span class="tag">One-off</span>{{end}}{{if .Cancelled}} <span class="tag">Cancelled</span>{{end}}</td>
+    <td>
+      <form method="post" action="/admin/rides/{{.Key}}/leader" class="leader-form">
+        <input name="leader" value="{{with .Leader}}{{.Name}}{{end}}" placeholder="Needs a leader" aria-label="Leader for {{.Name}} on {{.DateLabel}}" maxlength="60">
+        <button class="mini">Save</button>
+      </form>
+      {{with .Leader}}{{if and (not .StravaAdmin) (not .SetBy)}}<span class="muted small">Not a Strava admin</span>{{end}}{{end}}
+    </td>
+    <td class="right nowrap"><form method="post" action="/admin/rides/{{.Key}}/cancel" class="inline">{{if .Cancelled}}<input type="hidden" name="cancel" value="0"><button class="link">Restore</button>{{else}}<input type="hidden" name="cancel" value="1"><button class="link danger">Cancel ride</button>{{end}}</form></td>
+  </tr>
+  {{else}}<tr><td colspan="4" class="empty">No rides in the next 60 days.</td></tr>
+  {{end}}
+  </tbody>
+</table></div>
+
+<h2 class="section">Weekly rides</h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Ride</th><th>When</th><th>Season</th><th>Start</th><th><span class="sr">Actions</span></th></tr></thead>
+  <tbody>
+  {{range .Series}}<tr>
+    <td><strong>{{.Name}}</strong>{{with .Details}}<br><span class="muted small">{{.}}</span>{{end}}</td>
+    <td class="nowrap">{{.WeekdayName}}s, {{timeLabel .Time}}</td>
+    <td class="nowrap">{{.SeasonLabel}}</td>
+    <td>{{.Place}}</td>
+    <td class="right"><form method="post" action="/admin/rides/series/{{.ID}}/delete" onsubmit="return confirm('Remove {{.Name}} from the calendar? Dates that already have a leader stay.')"><button class="link danger">Remove</button></form></td>
+  </tr>
+  {{else}}<tr><td colspan="5" class="empty">No weekly rides yet.</td></tr>
+  {{end}}
+  </tbody>
+</table></div>
+<p class="muted small">To change a weekly ride, add the new version and remove the old one.</p>
+<form class="card new-issue" method="post" action="/admin/rides/series">
+  <h2>Add a weekly ride</h2>
+  <div class="pair">
+    <label>Name <input name="name" required maxlength="80" placeholder="Saturday Coffee Ride"></label>
+    <label>Start time <input type="time" name="time" required value="08:00"></label>
+  </div>
+  <div class="pair">
+    <label>Day <select name="weekday">{{range .Weekdays}}<option value="{{.N}}">{{.Name}}</option>{{end}}</select></label>
+    <label>Start (optional) <input name="place" maxlength="100" placeholder="Leonardtown Square"></label>
+  </div>
+  <label>Details (optional) <input name="details" maxlength="100" placeholder="Casual · all levels · 25 mi"></label>
+  <label>Strava link (optional) <input type="url" name="strava_url" placeholder="https://www.strava.com/clubs/10197/…"></label>
+  <div class="pair">
+    <label>Season starts (optional) <input type="date" name="season_start"></label>
+    <label>Season ends <input type="date" name="season_end"></label>
+  </div>
+  <p class="muted small">The season repeats every year (only the month and day are used). Leave both empty for a ride that runs all year.</p>
+  <button>Add weekly ride</button>
+</form>
+
+<h2 class="section">Club admins on Strava</h2>
+<p class="muted small">Club admins on Strava can post club events, and on the calendar they can take over or cancel any ride. This list updates whenever someone signs in with Strava.{{with .StravaAdminsChecked}} Last checked {{datetime .}}.{{end}}</p>
+{{if .StravaAdmins}}<ul class="small">{{range .StravaAdmins}}<li>{{.}}</li>{{end}}</ul>{{else}}<p class="muted small">Not checked yet.</p>{{end}}
 {{template "foot" .}}{{end}}

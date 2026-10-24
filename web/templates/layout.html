@@ -42,6 +42,7 @@
         {{end}}
       </div>
     </div>
+    <a href="/calendar"{{if hasPrefix .Path "/calendar"}} aria-current="page"{{end}}>Calendar</a>
     <a href="/newsletter"{{if hasPrefix .Path "/newsletter"}} aria-current="page"{{end}}>The Paceline</a>
     <a href="{{.Club.KitURL}}" target="_blank" rel="noopener">Shop Kit</a>
     <a class="nav-join" href="/join"{{if eq .Path "/join"}} aria-current="page"{{end}}>Join</a>
@@ -87,3 +88,5 @@
     <span class="plan-go">Join</span>
   </a>
 </div>{{end}}
+
+{{define "rider-bar"}}{{with .Flash}}<p class="cal-msg" role="status">{{.}}</p>{{end}}{{with .Error}}<p class="cal-msg cal-err" role="alert">{{.}}</p>{{end}}{{with .Rider}}<form class="rider-bar" method="post" action="/strava/signout">Signed in with Strava as <strong>{{.Name}}</strong>{{if .Admin}} (club admin){{end}} · <button class="link-button">Sign out</button></form>{{end}}{{end}}

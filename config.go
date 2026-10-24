@@ -35,6 +35,13 @@ type Config struct {
 	KitURL           string
 	StravaURL        string
 	DonateURL        string
+
+	// Ride calendar: "Sign in with Strava" and notices about ride leaders
+	StravaClientID     string
+	StravaClientSecret string
+	StravaClubID       string // from STRAVA_URL unless set
+	StravaAPI          string // https://www.strava.com; tests point it elsewhere
+	RidesEmail         string // where ride leader notices go
 }
 
 const defaultKitURL = "https://jakroo.com/store-front?storeId=rJgx0naZoge&titleProp=paxvelo&bannerProp=https://jakroo.storage.googleapis.com/team_stores_banner/ryYi5fMige-8e8f3f54b2b9f-blob"
@@ -122,9 +129,18 @@ func loadConfig() (Config, error) {
 		KitURL:           get("KIT_URL", defaultKitURL),
 		StravaURL:        get("STRAVA_URL", "https://www.strava.com/clubs/10197"),
 		DonateURL:        get("DONATE_URL", ""),
+
+		StravaClientID:     get("STRAVA_CLIENT_ID", ""),
+		StravaClientSecret: get("STRAVA_CLIENT_SECRET", ""),
+		StravaAPI:          strings.TrimRight(get("STRAVA_API", "https://www.strava.com"), "/"),
 	}
 	c.FromEmail = get("FROM_EMAIL", c.SMTPUser)
 	c.AdminEmail = get("ADMIN_EMAIL", c.FromEmail)
+	c.RidesEmail = get("RIDES_EMAIL", c.AdminEmail)
+	if c.RidesEmail == "" {
+		c.RidesEmail = "PaxVeloClub@gmail.com"
+	}
+	c.StravaClubID = get("STRAVA_CLUB_ID", clubIDFrom(c.StravaURL))
 
 	if c.SMTPPort, err = strconv.Atoi(get("SMTP_PORT", "587")); err != nil {
 		return c, fmt.Errorf("SMTP_PORT must be a number: %w", err)
@@ -148,4 +164,20 @@ func loadConfig() (Config, error) {
 		return c, errors.New("set FROM_EMAIL (or SMTP_USER) so emails have a sender")
 	}
 	return c, nil
+}
+
+// clubIDFrom finds the club number in a Strava club address, like
+// https://www.strava.com/clubs/10197.
+func clubIDFrom(u string) string {
+	_, rest, ok := strings.Cut(u, "/clubs/")
+	if !ok {
+		return ""
+	}
+	id, _, _ := strings.Cut(rest, "/")
+	for _, c := range id {
+		if c < '0' || c > '9' {
+			return ""
+		}
+	}
+	return id
 }

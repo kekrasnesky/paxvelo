@@ -143,6 +143,7 @@ func newSite(cfg Config) (*Site, error) {
 		"photoStory":  photoStory,
 		"inc":         func(i int) int { return i + 1 },
 		"instagram":   instagramEmbeds,
+		"timeLabel":   timeLabel,
 		"lines":       func(l []string) string { return strings.Join(l, "\n") },
 		"external":    func(u string) bool { return strings.HasPrefix(u, "http://") || strings.HasPrefix(u, "https://") },
 	}
@@ -201,7 +202,7 @@ func newSite(cfg Config) (*Site, error) {
 	if err := s.renderContent(nil); err != nil {
 		return nil, err
 	}
-	for _, name := range []string{"join", "unsubscribe", "notfound", "newsletter", "minutes"} {
+	for _, name := range []string{"join", "unsubscribe", "notfound", "newsletter", "minutes", "calendar", "ride", "ride-new"} {
 		if s.dynamic[name], err = parse(name + ".html"); err != nil {
 			return nil, err
 		}

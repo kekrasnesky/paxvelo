@@ -90,6 +90,15 @@ type storeData struct {
 	NextMinutes  int          `json:"next_minutes_id,omitempty"`
 	Minutes      []*Minutes   `json:"minutes,omitempty"`
 	Instagram    []string     `json:"instagram,omitempty"` // posts shown on the home page
+
+	// Ride calendar
+	NextRide            int           `json:"next_ride_id,omitempty"`
+	NextSeries          int           `json:"next_series_id,omitempty"`
+	SeriesSeeded        bool          `json:"series_seeded,omitempty"`
+	Series              []*RideSeries `json:"weekly_rides,omitempty"`
+	CalRides            []*CalRide    `json:"rides,omitempty"`
+	StravaAdmins        []string      `json:"strava_admins,omitempty"`
+	StravaAdminsChecked *time.Time    `json:"strava_admins_checked,omitempty"`
 }
 
 type Store struct {
@@ -141,6 +150,9 @@ func openStore(dir string) (*Store, error) {
 	}
 	if s.d.NextCampaign == 0 {
 		s.d.NextCampaign = 1
+	}
+	if !s.d.SeriesSeeded {
+		s.d.Series, s.d.NextSeries, s.d.SeriesSeeded = defaultSeries(), 3, true
 	}
 	return s, s.save()
 }

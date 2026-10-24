@@ -85,4 +85,6 @@ tr.off td{color:var(--muted)}
 .send-row .year{flex:none;width:6.5rem;min-width:0}
 .cap{text-transform:capitalize}
 .new-issue{margin-top:2rem}
+.leader-form{display:flex;gap:.4rem;align-items:center}
+.leader-form input{min-width:9rem;padding:.4rem .55rem;font-size:.88rem}
 @media (max-width:900px){.trio,.pair{grid-template-columns:1fr}.photo-field{grid-template-columns:1fr}}

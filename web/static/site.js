@@ -16,7 +16,7 @@
   d.addEventListener('keydown',function(e){if(e.key==='Escape'){setMenu(false);setDD(false)}});
 
   // Join form: submit in the background and swap in the result
-  var form=d.querySelector('form.join');
+  var form=d.querySelector('form.join[action="/join"]');
   if(form&&window.fetch)form.addEventListener('submit',function(e){
     e.preventDefault();
     var btn=form.querySelector('button'),msg=form.querySelector('.msg');

@@ -96,7 +96,7 @@ func (a *App) routes() http.Handler {
 	mux.Handle("GET /favicon.ico", http.RedirectHandler("/static/img/logo.svg", http.StatusMovedPermanently))
 	mux.HandleFunc("GET /robots.txt", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.Write([]byte("User-agent: *\nDisallow: /admin\nDisallow: /unsubscribe\n"))
+		w.Write([]byte("User-agent: *\nDisallow: /admin\nDisallow: /unsubscribe\nDisallow: /strava/\nDisallow: /calendar/new\n"))
 	})
 	// Old Squarespace addresses, so existing links and bookmarks still land somewhere.
 	for _, old := range []string{"/info", "/home", "/cart", "/account", "/insurancewaiver"} {
@@ -117,6 +117,19 @@ func (a *App) routes() http.Handler {
 	// Meeting minutes, and the files uploaded for them in the admin.
 	mux.HandleFunc("GET /minutes", a.minutesPage)
 	mux.Handle("GET /files/", a.serveFiles())
+
+	// The ride calendar, and signing in with Strava to lead rides.
+	mux.HandleFunc("GET /calendar", a.calendarPage)
+	mux.HandleFunc("GET /calendar/new", a.newRidePage)
+	mux.HandleFunc("POST /calendar/new", a.addRide)
+	mux.HandleFunc("GET /calendar/ride/{key}", a.ridePage)
+	mux.HandleFunc("POST /calendar/ride/{key}/lead", a.leadRide)
+	mux.HandleFunc("POST /calendar/ride/{key}/stepdown", a.stepDown)
+	mux.HandleFunc("POST /calendar/ride/{key}/strava", a.setRideStrava)
+	mux.HandleFunc("POST /calendar/ride/{key}/cancel", a.cancelRide)
+	mux.HandleFunc("GET /strava/login", a.stravaLogin)
+	mux.HandleFunc("GET /strava/callback", a.stravaCallback)
+	mux.HandleFunc("POST /strava/signout", a.stravaSignOut)
 
 	// Joining and leaving.
 	mux.HandleFunc("GET /join", a.joinPage)
@@ -152,6 +165,11 @@ func (a *App) routes() http.Handler {
 	mux.Handle("POST /admin/newsletter/{id}/unpublish", a.auth(a.unpublishIssue))
 	mux.Handle("POST /admin/newsletter/{id}/delete", a.auth(a.deleteIssue))
 	mux.Handle("POST /admin/newsletter/{id}/copy", a.auth(a.copyIssue))
+	mux.Handle("GET /admin/rides", a.auth(a.ridesAdmin))
+	mux.Handle("POST /admin/rides/series", a.auth(a.addSeries))
+	mux.Handle("POST /admin/rides/series/{id}/delete", a.auth(a.deleteSeries))
+	mux.Handle("POST /admin/rides/{key}/leader", a.auth(a.setLeaderAdmin))
+	mux.Handle("POST /admin/rides/{key}/cancel", a.auth(a.cancelRideAdmin))
 	mux.Handle("GET /admin/instagram", a.auth(a.instagramAdmin))
 	mux.Handle("POST /admin/instagram", a.auth(a.saveInstagram))
 	mux.Handle("GET /admin/minutes", a.auth(a.minutesAdmin))

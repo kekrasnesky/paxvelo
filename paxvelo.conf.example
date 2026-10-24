@@ -24,6 +24,15 @@ STRAVA_URL=https://www.strava.com/clubs/10197
 # Optional: a separate PayPal donation link. Adds "Support the club" to the homepage.
 DONATE_URL=
 
+# ---- Ride calendar ----
+# Ride leaders sign in with Strava. To turn that on, create a Strava API
+# application (see README.md, "Ride calendar") and paste its two values here.
+# Until then the calendar is view-only, and admins assign leaders in the admin.
+STRAVA_CLIENT_ID=
+STRAVA_CLIENT_SECRET=
+# Where "new ride leader" notices go. Defaults to ADMIN_EMAIL.
+RIDES_EMAIL=
+
 # ---- Email ----
 # Sends through the club Gmail. To get the password:
 #   1. Turn on 2-Step Verification for PaxVeloClub@gmail.com

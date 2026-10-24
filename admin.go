@@ -52,6 +52,13 @@ type adminView struct {
 	// Instagram tab
 	Instagram     []string
 	InstagramText string
+	// Rides tab
+	Series              []RideSeries
+	Upcoming            []RideOcc
+	Weekdays            []monthOption
+	StravaReady         bool
+	StravaAdmins        []string
+	StravaAdminsChecked *time.Time
 }
 
 // ---- Sessions ----
@@ -203,6 +210,9 @@ var flashText = map[string]string{
 	"drafted":           "An email about the newsletter is ready below. Check it, send yourself a test, then send it.",
 	"copied":            "This is a new draft copied from the other one. Edit away: the original is unchanged.",
 	"instagram":         "Saved. The home page shows these posts now.",
+	"series-added":      "Weekly ride added to the calendar.",
+	"series-deleted":    "Weekly ride removed. Dates that already had a leader stay on the calendar.",
+	"leader":            "Saved, and the club has been emailed about any leader change.",
 	"minutes-added":     "Minutes uploaded. They aren’t public until you publish them.",
 	"minutes-published": "Published. They’re on the Meeting Minutes page now.",
 	"minutes-hidden":    "Unpublished. They’re hidden from the website.",
@@ -225,6 +235,8 @@ var errorText = map[string]string{
 	"welcome": "The welcome email needs a subject and a message.",
 	"save":    "Couldn’t save. Check the server log.",
 	"month":   "Choose a month and year.",
+	"series":  "A weekly ride needs a name, a day, and a start time.",
+	"season":  "Pick both season dates, or neither.",
 	"date":    "Enter the meeting date.",
 	"nofile":  "Choose the minutes file to upload.",
 	"bigfile": "That file is too big. Minutes can be up to 20 MB.",

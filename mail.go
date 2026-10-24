@@ -27,6 +27,8 @@ type Mailer struct {
 	store *Store
 	site  *Site
 	wake  chan struct{}
+
+	onNotify func(to, subject, body string) // lets tests see notices
 }
 
 func newMailer(cfg Config, store *Store, site *Site) *Mailer {
@@ -117,6 +119,22 @@ func (m *Mailer) SendTo(mem Member, subject, body string) error {
 
 func (m *Mailer) SendTest(to, subject, body string) error {
 	return m.SendTo(Member{Email: to, Token: "test"}, "[Test] "+subject, body)
+}
+
+// Notify emails a notice to the club (RIDES_EMAIL) in the background.
+func (m *Mailer) Notify(subject, body string) {
+	to := m.cfg.RidesEmail
+	if m.onNotify != nil {
+		m.onNotify(to, subject, body)
+	}
+	if to == "" {
+		return
+	}
+	go func() {
+		if err := m.send(m.cfg.FromName, to, subject, body, m.cfg.SiteURL); err != nil {
+			log.Printf("notice to %s failed: %v", to, err)
+		}
+	}()
 }
 
 func (m *Mailer) SendWelcome(mem Member) {

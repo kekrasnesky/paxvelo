@@ -1,0 +1,28 @@
+{{define "head"}}<meta name="robots" content="noindex">{{end}}
+{{define "content"}}{{with .Data}}
+<article class="page">
+  <p class="cal-back"><a href="/calendar">← Ride calendar</a></p>
+  <h1>Add a Ride</h1>
+  <p class="lead">Just the basics: the details and route go on Strava.</p>
+  {{template "rider-bar" .}}
+  {{if .Rider}}
+  <form class="join" method="post" action="/calendar/new">
+    <div class="pair">
+      <label>Date <input type="date" name="date" value="{{.Form.Date}}" required></label>
+      <label>Start time <input type="time" name="time" value="{{.Form.Time}}"></label>
+    </div>
+    <label>Ride name <input name="name" value="{{.Form.Name}}" required maxlength="80" placeholder="Saturday coffee ride"></label>
+    <label><span>Where it starts <span class="opt">optional</span></span> <input name="place" value="{{.Form.Place}}" maxlength="100" placeholder="Leonardtown Square"></label>
+    <label><span>Pace or distance <span class="opt">optional</span></span> <input name="details" value="{{.Form.Details}}" maxlength="100" placeholder="Casual · 30 mi"></label>
+    <label><span>Strava event link <span class="opt">optional, add it later if you like</span></span> <input type="url" name="strava_url" value="{{.Form.StravaURL}}" placeholder="https://www.strava.com/clubs/10197/group_events/…"></label>
+    <label class="check-row"><input type="checkbox" name="lead" checked> I’ll lead this ride</label>
+    <button class="btn" type="submit">Add to the calendar</button>
+  </form>
+  {{else if .StravaReady}}
+  <p>Sign in with Strava to add a ride. Only PaxVelo club members can add rides.</p>
+  <p><a class="btn btn-strava" href="/strava/login?next=/calendar/new">Sign in with Strava</a></p>
+  {{else}}
+  <p class="cal-note">Adding rides online isn’t open yet. Email <a href="mailto:PaxVeloClub@gmail.com">PaxVeloClub@gmail.com</a> with the date, time, and name of your ride.</p>
+  {{end}}
+</article>
+{{end}}{{end}}

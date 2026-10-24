@@ -52,6 +52,24 @@ Text boxes use the same simple formatting as the pages in `content/` (bold, link
 
 Uploaded photos are stored on the server in `data/media`. The server backs them up weekly (with the minutes files) to `/opt/paxvelo/backups`; the **Download a full backup** link covers the text only.
 
+## Ride calendar
+
+`paxvelo.club/calendar` shows every club ride by month, and anyone can look at it. Each ride shows its leader, or "Needs a leader".
+
+- **Weekly rides** (the Tuesday and Thursday rides to start with) are set up in the admin portal under **Rides**, with a day, a start time, and an optional season. The Thursday ride runs March 1 to October 10. Both are set to 6:00 PM for now: check the times and fix them on the Rides tab if they're wrong.
+- **Leading a ride:** riders sign in with Strava (only members of the PaxVelo club on Strava can) and press **I'll lead this ride**. A ride with no leader can be taken by anyone. Once it has a leader, only that leader (by stepping down), a club admin on Strava, or someone in the admin portal can change it.
+- **Adding a ride:** **Add a ride** (or the + on any day) needs just a date, a start time, and a name. The start, pace, and Strava link are optional.
+- **Emails:** every new leader, step-down, new ride, and cancellation is emailed to PaxVeloClub@gmail.com (or `RIDES_EMAIL`).
+- **Strava admins:** signing in tells the site whether the rider is an admin of the club on Strava. Club admins can take over or cancel any ride on the calendar, and the admin portal lists who they are. Strava doesn't let other websites create club events, so leaders still post their ride on Strava and can paste the link on the ride's page. When a leader isn't a Strava club admin, the email says so, with the link to make them one (Strava: club → Members → Make Admin).
+
+**Turning on "Sign in with Strava"** (once, by a club admin):
+
+1. Signed in to Strava, go to https://www.strava.com/settings/api and create an application: name *PaxVelo Cycling Club*, category *Social*, website `https://www.paxvelo.club`, and **Authorization Callback Domain** `www.paxvelo.club`.
+2. Copy its **Client ID** and **Client Secret** into `paxvelo.conf` as `STRAVA_CLIENT_ID` and `STRAVA_CLIENT_SECRET`, then restart the site.
+3. New Strava applications only allow a single athlete to sign in. Use **Request higher capacity** on that settings page (Strava reviews it, usually within a few weeks) so the whole club can sign in.
+
+Until then the calendar works, but signing up is turned off and admins assign leaders on the Rides tab.
+
 ## Instagram
 
 The home page has an "On Instagram" section. Pick which posts it shows in the admin portal under **Instagram**: paste up to 6 post links (on Instagram: ⋯ → Copy link). Each newsletter issue can also show up to 3 posts. Posts are shown with Instagram's own embed, so photos, carousels, and reels look as they do on Instagram, and they link back to the club's page. That embed loads a script from Instagram, which Instagram may use to track visitors who are logged in.
