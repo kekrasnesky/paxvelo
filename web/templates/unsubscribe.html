@@ -1,0 +1,21 @@
+{{define "head"}}<meta name="robots" content="noindex">{{end}}
+{{define "content"}}
+<article class="page">
+{{if eq .Data.State "ask"}}
+  <h1>Unsubscribe</h1>
+  <p class="lead">Stop club emails to <strong>{{.Data.Email}}</strong>?</p>
+  <form method="post" action="/unsubscribe">
+    <input type="hidden" name="t" value="{{.Data.Token}}">
+    <button class="btn" type="submit">Unsubscribe</button>
+  </form>
+{{else if eq .Data.State "done"}}
+  <h1>You’re unsubscribed</h1>
+  <p class="lead">You won’t get any more club emails{{with .Data.Email}} at {{.}}{{end}}.</p>
+  <p>Changed your mind? <a href="/join">Join again</a> anytime.</p>
+{{else}}
+  <h1>Link not recognized</h1>
+  <p class="lead">This unsubscribe link isn’t valid. It may have been copied incompletely.</p>
+  <p>Email <a href="mailto:PaxVeloClub@gmail.com">PaxVeloClub@gmail.com</a> and we’ll take you off the list.</p>
+{{end}}
+</article>
+{{end}}

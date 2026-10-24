@@ -1,0 +1,154 @@
+{{define "head"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>{{.Title}} – PaxVelo Admin</title>
+<link rel="icon" href="/static/img/favicon.png">
+<style>{{.CSS}}</style>
+</head>
+<body>
+{{if .Tab}}<header class="bar">
+  <a class="brand" href="/admin">PaxVelo Admin</a>
+  <nav>
+    <a href="/admin"{{if eq .Tab "members"}} aria-current="page"{{end}}>Members</a>
+    <a href="/admin/email"{{if eq .Tab "email"}} aria-current="page"{{end}}>Email</a>
+    <a href="/" target="_blank" rel="noopener">View site</a>
+  </nav>
+  <form method="post" action="/admin/logout"><button class="link light">Log out</button></form>
+</header>{{end}}
+<main class="wrap">
+{{with .Flash}}<p class="flash">{{.}}</p>{{end}}
+{{with .Error}}<p class="flash err">{{.}}</p>{{end}}
+{{end}}
+
+{{define "foot"}}</main>
+</body>
+</html>{{end}}
+
+{{define "login"}}{{template "head" .}}
+<form class="card login" method="post" action="/admin/login">
+  <h1>PaxVelo Admin</h1>
+  <label>Password <input type="password" name="password" required autofocus autocomplete="current-password"></label>
+  <button>Log in</button>
+</form>
+{{template "foot" .}}{{end}}
+
+{{define "members"}}{{template "head" .}}
+<div class="title-row">
+  <h1>Members</h1>
+  <p class="muted">{{.Active}} active, {{.Paid}} paid for {{.Year}}{{if .Unsub}}, {{.Unsub}} unsubscribed{{end}}</p>
+</div>
+<div class="tools">
+  <form class="search" method="get" action="/admin">
+    {{with .Dues}}<input type="hidden" name="dues" value="{{.}}">{{end}}
+    <input type="search" name="q" value="{{.Q}}" placeholder="Search name or email" aria-label="Search members">
+    <button class="ghost">Search</button>
+    {{if .Q}}<a href="/admin{{with .Dues}}?dues={{.}}{{end}}">Clear</a>{{end}}
+  </form>
+  <a class="btn ghost" href="/admin/members.csv">Export CSV</a>
+</div>
+<nav class="filter" aria-label="Filter by dues">
+  <a href="/admin{{with .Q}}?q={{.}}{{end}}"{{if eq .Dues ""}} aria-current="page"{{end}}>Everyone</a>
+  <a href="/admin?dues=unpaid{{with .Q}}&q={{.}}{{end}}"{{if eq .Dues "unpaid"}} aria-current="page"{{end}}>Not paid for {{.Year}} ({{.Unpaid}})</a>
+  <a href="/admin?dues=paid{{with .Q}}&q={{.}}{{end}}"{{if eq .Dues "paid"}} aria-current="page"{{end}}>Paid for {{.Year}} ({{.Paid}})</a>
+</nav>
+<div class="table-wrap"><table>
+  <thead><tr><th>Name</th><th>Email</th><th>Plan</th><th>{{.Year}} dues</th><th>Joined</th><th><span class="sr">Actions</span></th></tr></thead>
+  <tbody>
+  {{range .Members}}{{$paid := .PaidFor $.Year}}<tr{{if not .Active}} class="off"{{end}}>
+    <td>{{.Name}}</td>
+    <td><a href="mailto:{{.Email}}">{{.Email}}</a>{{if not .Active}} <span class="tag">Unsubscribed</span>{{end}}</td>
+    <td>{{.PlanName}}</td>
+    <td class="nowrap"><form method="post" action="/admin/members/{{.ID}}/paid" class="inline">
+      <input type="hidden" name="return" value="/admin?q={{$.Q}}&dues={{$.Dues}}">
+      {{if $paid}}<span class="paid">Paid</span> <input type="hidden" name="paid" value="0"><button class="link small">Undo</button>
+      {{else}}<input type="hidden" name="paid" value="1"><button class="mini">Mark paid</button>{{end}}
+    </form></td>
+    <td class="nowrap">{{date .Joined}}</td>
+    <td class="right"><form method="post" action="/admin/members/{{.ID}}/delete" onsubmit="return confirm('Delete {{.Email}}? This can’t be undone.')"><button class="link danger">Delete</button></form></td>
+  </tr>
+  {{else}}<tr><td colspan="6" class="empty">{{if or $.Q $.Dues}}Nobody matches that.{{else}}No members yet. Share the join page: <a href="{{$.SiteURL}}/join">{{$.SiteURL}}/join</a>{{end}}</td></tr>
+  {{end}}
+  </tbody>
+</table></div>
+<p class="muted small">When PayPal emails the club about a payment, find the member here and press <strong>Mark paid</strong>. Everyone shows as not paid again on January 1.</p>
+<div class="grid2">
+  <form class="card" method="post" action="/admin/members">
+    <h2>Add a member</h2>
+    <label>Full name <input name="name" required maxlength="100"></label>
+    <label>Email <input type="email" name="email" required maxlength="254"></label>
+    <label>Plan <select name="plan"><option value="individual">Individual</option><option value="family">Family</option></select></label>
+    <label class="check"><input type="checkbox" name="paid"> Paid for {{.Year}}</label>
+    <button>Add member</button>
+  </form>
+  <form class="card" method="post" action="/admin/import" enctype="multipart/form-data">
+    <h2>Import from a spreadsheet</h2>
+    <p class="muted small">Upload a CSV with an email column, such as the Squarespace contacts export. Names, plan, years paid, and join dates come across automatically. People who opted out of emails are imported as unsubscribed. Emails already on the list are skipped.</p>
+    <input type="file" name="file" accept=".csv,text/csv" required aria-label="CSV file">
+    <label>Who to import
+      <select name="who">
+        <option value="all">Everyone in the file</option>
+        <option value="members">Current and past members only</option>
+        <option value="current">Current members only</option>
+      </select>
+    </label>
+    <button>Import</button>
+  </form>
+</div>
+<p class="muted small footnote"><a href="/admin/backup">Download a full backup</a> of all club data.</p>
+{{template "foot" .}}{{end}}
+
+{{define "email"}}{{template "head" .}}
+{{if not .Live}}<p class="flash warn">Test mode: emails are written to the server log instead of being sent. Add the SMTP settings to paxvelo.conf to send for real.</p>{{end}}
+<h1>Email members</h1>
+<form class="card compose" method="post">
+  <label>Subject <input name="subject" maxlength="200" value="{{.Draft.Subject}}"></label>
+  <label>Message <textarea name="body" rows="14">{{.Draft.Body}}</textarea></label>
+  <p class="muted small">Plain text. Leave a blank line between paragraphs. Web addresses become links automatically. Type {first_name} to greet each member by name, or {pay_link} for a link to pay their dues ({dues} and {year} work too).</p>
+  <div class="send-row">
+    <input type="email" name="test_to" value="{{.TestTo}}" aria-label="Send test to">
+    <button class="ghost" formaction="/admin/email/test">Send test</button>
+  </div>
+  <div class="send-row">
+    <label class="inline-label">Send to
+      <select name="audience">
+        <option value="all">Everyone ({{.Active}})</option>
+        <option value="unpaid">Not paid for {{.Year}} ({{.Unpaid}})</option>
+        <option value="paid">Paid for {{.Year}} ({{.Paid}})</option>
+      </select>
+    </label>
+    <button formaction="/admin/email/send" onclick="return confirm('Send this email to: '+this.form.audience.selectedOptions[0].text+'?')">Send email</button>
+  </div>
+</form>
+
+<h2 class="section">Sent emails</h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Date</th><th>Subject</th><th>Sent to</th><th>Progress</th><th>Status</th><th><span class="sr">Actions</span></th></tr></thead>
+  <tbody>
+  {{range .Campaigns}}<tr data-id="{{.ID}}">
+    <td class="nowrap">{{datetime .Created}}</td>
+    <td>{{.Subject}}</td>
+    <td>{{or .Audience "Everyone"}}</td>
+    <td class="prog nowrap">{{progress .}}</td>
+    <td class="st">{{statusLabel .Status}}{{with .LastError}}<span class="small err-text">{{.}}</span>{{end}}</td>
+    <td class="right act">{{if eq .Status "sending"}}<form method="post" action="/admin/email/{{.ID}}/stop"><button class="link danger">Stop</button></form>{{else if eq .Status "paused"}}<form method="post" action="/admin/email/{{.ID}}/resume"><button class="link">Resume</button></form>{{end}}</td>
+  </tr>
+  {{else}}<tr><td colspan="6" class="empty">Nothing sent yet.</td></tr>
+  {{end}}
+  </tbody>
+</table></div>
+
+<h2 class="section" id="welcome">Welcome email</h2>
+<form class="card" method="post" action="/admin/welcome">
+  <label class="check"><input type="checkbox" name="enabled"{{if .Welcome.Enabled}} checked{{end}}> Send automatically when someone joins</label>
+  <label>Subject <input name="subject" required maxlength="200" value="{{.Welcome.Subject}}"></label>
+  <label>Message <textarea name="body" rows="12" required>{{.Welcome.Body}}</textarea></label>
+  <p class="muted small">{first_name} becomes the new member’s first name, {pay_link} their PayPal link, {year} the current year, and {site} the website address.</p>
+  <button>Save welcome email</button>
+</form>
+{{if .Sending}}<script>
+(function poll(){setTimeout(function(){fetch('/admin/email/status').then(function(r){return r.json()}).then(function(list){var busy=false;list.forEach(function(c){var tr=document.querySelector('tr[data-id="'+c.id+'"]');if(!tr)return;tr.querySelector('.prog').textContent=c.progress;tr.querySelector('.st').textContent=c.status+(c.error?' – '+c.error:'');if(c.status==='Sending')busy=true;else tr.querySelector('.act').textContent=''});if(busy)poll()}).catch(poll)},3000)})();
+</script>{{end}}
+{{template "foot" .}}{{end}}

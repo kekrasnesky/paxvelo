@@ -1,0 +1,15 @@
+{{define "content"}}
+<article class="page page-wide">
+  <h1>Executive Board Members</h1>
+  <p class="lead">The volunteers who keep PaxVelo rolling.</p>
+  {{/* PLACEHOLDER: replace each card with a real board member.
+       For photos, add them to web/static/img/board/ and swap the <span class="avatar"> for
+       <img class="avatar" src="/static/img/board/name.webp?v={{.V}}" alt="" width="160" height="160" loading="lazy"> */}}
+  <ul class="board">
+    <li><span class="avatar" aria-hidden="true"></span><strong>Name</strong><span>President</span></li>
+    <li><span class="avatar" aria-hidden="true"></span><strong>Name</strong><span>Vice President</span></li>
+    <li><span class="avatar" aria-hidden="true"></span><strong>Name</strong><span>Treasurer</span></li>
+    <li><span class="avatar" aria-hidden="true"></span><strong>Name</strong><span>Secretary</span></li>
+  </ul>
+</article>
+{{end}}

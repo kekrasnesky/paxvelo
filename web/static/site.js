@@ -1,0 +1,37 @@
+(function(){
+  var d=document,root=d.documentElement;
+
+  // Phone menu
+  var burger=d.querySelector('.burger');
+  function setMenu(open){root.classList.toggle('menu-open',open);if(burger){burger.setAttribute('aria-expanded',open);burger.setAttribute('aria-label',open?'Close menu':'Open menu')}}
+  if(burger)burger.addEventListener('click',function(){setMenu(!root.classList.contains('menu-open'))});
+
+  // Info dropdown
+  var dd=d.querySelector('.dd'),ddBtn=dd&&dd.querySelector('.dd-btn');
+  function setDD(open){if(dd){dd.classList.toggle('open',open);ddBtn.setAttribute('aria-expanded',open)}}
+  if(ddBtn){
+    ddBtn.addEventListener('click',function(e){e.stopPropagation();setDD(!dd.classList.contains('open'))});
+    d.addEventListener('click',function(e){if(!dd.contains(e.target))setDD(false)});
+  }
+  d.addEventListener('keydown',function(e){if(e.key==='Escape'){setMenu(false);setDD(false)}});
+
+  // Join form: submit in the background and swap in the result
+  var form=d.querySelector('form.join');
+  if(form&&window.fetch)form.addEventListener('submit',function(e){
+    e.preventDefault();
+    var btn=form.querySelector('button'),msg=form.querySelector('.msg');
+    function fail(text){msg.textContent=text;msg.classList.add('err');btn.disabled=false}
+    btn.disabled=true;msg.textContent='';msg.classList.remove('err');
+    fetch(form.action,{method:'POST',body:new URLSearchParams(new FormData(form)),headers:{Accept:'application/json'}})
+      .then(function(r){return r.json()})
+      .then(function(j){
+        if(!j.ok)return fail(j.message);
+        var done=d.querySelector('.joined'),pay=done.querySelector('.joined-pay');
+        done.querySelector('.joined-title').textContent=j.message;
+        done.querySelector('.joined-detail').textContent=j.detail||'';
+        if(j.pay_url){var a=pay.querySelector('a');a.href=j.pay_url;a.textContent=j.pay_label;pay.hidden=false}else{pay.hidden=true}
+        form.hidden=true;done.hidden=false;done.focus();
+      })
+      .catch(function(){fail('Couldn’t reach the server. Check your connection and try again.')});
+  });
+})();

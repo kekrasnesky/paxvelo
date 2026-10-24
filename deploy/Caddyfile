@@ -1,0 +1,11 @@
+# Caddy serves the site over HTTPS and renews the certificate automatically.
+www.paxvelo.club {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:8080
+	header Strict-Transport-Security "max-age=31536000"
+}
+
+# Send the bare domain to www, same as the current site.
+paxvelo.club {
+	redir https://www.paxvelo.club{uri} permanent
+}

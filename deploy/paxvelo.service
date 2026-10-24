@@ -1,0 +1,19 @@
+[Unit]
+Description=PaxVelo website
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=paxvelo
+WorkingDirectory=/opt/paxvelo
+ExecStart=/opt/paxvelo/paxvelo
+Restart=always
+RestartSec=2
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/paxvelo/data
+
+[Install]
+WantedBy=multi-user.target

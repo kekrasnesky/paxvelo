@@ -1,0 +1,53 @@
+{{define "content"}}
+<section class="hero">
+  <picture>
+    <source media="(max-width: 767px)" srcset="/static/img/hero-phone.webp?v={{.V}}" width="800" height="800">
+    <img class="hero-bg" src="/static/img/hero.webp?v={{.V}}" alt="PaxVelo riders on a group ride along a country road" width="1800" height="818" fetchpriority="high" decoding="async">
+  </picture>
+  <div class="hero-in">
+    <h1>Welcome to PaxVelo</h1>
+    <p class="hero-sub">Southern Maryland’s Premier Cycling Club</p>
+    <a class="hero-cta" href="{{.Club.StravaURL}}" target="_blank" rel="noopener">See upcoming rides on Strava</a>
+    {{template "social" .}}
+  </div>
+</section>
+
+<section class="welcome">
+  <h2>All Riders Welcome</h2>
+  <p class="intro">PaxVelo is a 501(c)(3) nonprofit cycling club. We’re here for great roads, good company, and the community we ride through.</p>
+  <div class="cols">
+    <article>
+      <img src="/static/img/ride.webp?v={{.V}}" alt="PaxVelo riders in club kit gathering for a group ride" width="457" height="271" loading="lazy" decoding="async">
+      <h3>Ride With Us</h3>
+      <p>From race-pace training to easy weekend spins, there’s a PaxVelo ride for every rider. We roll out on Southern Maryland’s beautiful roads all season long, and every ride is posted on Strava.</p>
+      <p class="more"><a href="/rides">About our rides</a><a href="{{.Club.StravaURL}}" target="_blank" rel="noopener">Find a ride on Strava</a></p>
+    </article>
+    <article>
+      <img src="/static/img/giving.webp?v={{.V}}" alt="PaxVelo members supporting a local cause" width="457" height="271" loading="lazy" decoding="async">
+      <h3>Giving Back</h3>
+      <p>As a nonprofit, PaxVelo exists to enrich the community we ride in. Each year we host the St. Mary’s Century, bringing riders from across the region to Southern Maryland, and proceeds support local causes chosen by our members.</p>
+      {{with .Club.DonateURL}}<p class="more"><a href="{{.}}" target="_blank" rel="noopener">Support the club</a></p>{{end}}
+    </article>
+  </div>
+</section>
+
+<section class="membership">
+  <h2>Become a Member</h2>
+  <p class="intro">Membership runs January through December and supports club rides, events, and our work in the community.</p>
+  <div class="plans">
+    <a class="plan" href="/join?plan=individual">
+      <span class="plan-name">Individual</span>
+      <span class="plan-price">${{.Club.DuesIndividual}}</span>
+      <span class="plan-per">per year</span>
+      <span class="plan-go">Join</span>
+    </a>
+    <a class="plan" href="/join?plan=family">
+      <span class="plan-name">Family</span>
+      <span class="plan-price">${{.Club.DuesFamily}}</span>
+      <span class="plan-per">per year, for your household</span>
+      <span class="plan-go">Join</span>
+    </a>
+  </div>
+  <p class="kit-note">Want to ride in club colors? <a href="{{.Club.KitURL}}" target="_blank" rel="noopener">Shop PaxVelo kit</a> in our team store.</p>
+</section>
+{{end}}

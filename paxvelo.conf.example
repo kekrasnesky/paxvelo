@@ -1,0 +1,46 @@
+# PaxVelo settings. Copy this file to paxvelo.conf and fill in the blanks.
+
+# The public address of the site (used for links in emails).
+SITE_URL=https://www.paxvelo.club
+
+# Password for the admin portal at /admin. Use 12+ characters.
+ADMIN_PASSWORD=
+
+# Where "Send test" goes by default.
+ADMIN_EMAIL=PaxVeloClub@gmail.com
+
+# ---- Membership dues (paid each calendar year) ----
+# Create two PayPal payment links in the club's PayPal Business account
+# (PayPal > Pay Links and Buttons): one for Individual, one for Family.
+DUES_INDIVIDUAL=35
+DUES_FAMILY=45
+PAYPAL_INDIVIDUAL_URL=
+PAYPAL_FAMILY_URL=
+
+# ---- Links ----
+# Shown as "Shop Kit" in the menu; paxvelo.club/kit also goes here.
+KIT_URL=https://jakroo.com/store-front?storeId=rJgx0naZoge&titleProp=paxvelo&bannerProp=https://jakroo.storage.googleapis.com/team_stores_banner/ryYi5fMige-8e8f3f54b2b9f-blob
+STRAVA_URL=https://www.strava.com/clubs/10197
+# Optional: a separate PayPal donation link. Adds "Support the club" to the homepage.
+DONATE_URL=
+
+# ---- Email ----
+# Sends through the club Gmail. To get the password:
+#   1. Turn on 2-Step Verification for PaxVeloClub@gmail.com
+#   2. Create an app password at https://myaccount.google.com/apppasswords
+#   3. Paste it below WITHOUT the spaces
+# Leave SMTP_HOST empty to test safely: emails get written to the log instead of sent.
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=PaxVeloClub@gmail.com
+SMTP_PASS=
+FROM_NAME=PaxVelo
+FROM_EMAIL=PaxVeloClub@gmail.com
+
+# Pause between emails when sending to everyone. Gmail allows about 500 a day.
+SEND_DELAY=2s
+
+# ---- Server (defaults are right for the standard setup) ----
+LISTEN=127.0.0.1:8080
+DATA_DIR=data
+TIMEZONE=America/New_York

@@ -1,0 +1,26 @@
+{{define "content"}}
+<article class="page">
+  <h1>Become a Member</h1>
+  <p class="lead">Membership runs January through December. Pick a plan, add your details, and finish up with PayPal.</p>
+  <form class="join" method="post" action="/join"{{if .Data.OK}} hidden{{end}}>
+    <input type="hidden" name="ft" value="{{.Data.Token}}">
+    <div class="hp" aria-hidden="true"><label>Leave this empty <input name="website" tabindex="-1" autocomplete="off"></label></div>
+    <fieldset class="pick">
+      <legend>Membership</legend>
+      <label><input type="radio" name="plan" value="individual"{{if ne .Data.Plan "family"}} checked{{end}}><span><strong>Individual</strong> ${{.Club.DuesIndividual}} a year</span></label>
+      <label><input type="radio" name="plan" value="family"{{if eq .Data.Plan "family"}} checked{{end}}><span><strong>Family</strong> ${{.Club.DuesFamily}} a year, one membership for your household</span></label>
+    </fieldset>
+    <label>Full name <input name="name" required maxlength="100" autocomplete="name" value="{{.Data.Name}}"></label>
+    <label>Email <input type="email" name="email" required maxlength="254" autocomplete="email" value="{{.Data.Email}}"></label>
+    <p class="hint">For a family membership, enter the main contact for your household.</p>
+    <button class="btn" type="submit">Continue to payment</button>
+    <p class="msg{{if .Data.Failed}} err{{end}}" role="status" aria-live="polite">{{if .Data.Failed}}{{.Data.Message}}{{end}}</p>
+  </form>
+  <div class="joined" tabindex="-1"{{if not .Data.OK}} hidden{{end}}>
+    <p class="joined-title">{{if .Data.OK}}{{.Data.Message}}{{end}}</p>
+    <p class="joined-detail">{{.Data.Detail}}</p>
+    <p class="joined-pay"{{if not .Data.PayURL}} hidden{{end}}><a class="btn" href="{{.Data.PayURL}}">{{.Data.PayLabel}}</a></p>
+    <p>While you’re here, read <a href="/bike-safety">Bike Safety 101</a> and <a href="{{.Club.StravaURL}}" target="_blank" rel="noopener">find a ride on Strava</a>.</p>
+  </div>
+</article>
+{{end}}
