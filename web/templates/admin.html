@@ -14,6 +14,7 @@
   <nav>
     <a href="/admin"{{if eq .Tab "members"}} aria-current="page"{{end}}>Members</a>
     <a href="/admin/email"{{if eq .Tab "email"}} aria-current="page"{{end}}>Email</a>
+    <a href="/admin/newsletter"{{if eq .Tab "newsletter"}} aria-current="page"{{end}}>Newsletter</a>
     <a href="/" target="_blank" rel="noopener">View site</a>
   </nav>
   <form method="post" action="/admin/logout"><button class="link light">Log out</button></form>
@@ -152,3 +153,164 @@
 (function poll(){setTimeout(function(){fetch('/admin/email/status').then(function(r){return r.json()}).then(function(list){var busy=false;list.forEach(function(c){var tr=document.querySelector('tr[data-id="'+c.id+'"]');if(!tr)return;tr.querySelector('.prog').textContent=c.progress;tr.querySelector('.st').textContent=c.status+(c.error?' – '+c.error:'');if(c.status==='Sending')busy=true;else tr.querySelector('.act').textContent=''});if(busy)poll()}).catch(poll)},3000)})();
 </script>{{end}}
 {{template "foot" .}}{{end}}
+
+{{define "newsletter"}}{{template "head" .}}
+<div class="title-row">
+  <h1>The Paceline</h1>
+  <p class="muted">The club newsletter, four issues a year. The latest published issue is at <a href="/newsletter" target="_blank" rel="noopener">{{.SiteURL}}/newsletter</a>.</p>
+</div>
+<div class="table-wrap"><table>
+  <thead><tr><th>Issue</th><th>Status</th><th>Last edited</th><th><span class="sr">Actions</span></th></tr></thead>
+  <tbody>
+  {{range .Issues}}<tr>
+    <td><a href="/admin/newsletter/{{.ID}}">{{.Label}}</a></td>
+    <td>{{if .IsPublished}}<span class="paid">Live</span>{{else}}Draft{{end}}</td>
+    <td class="nowrap">{{date .Updated}}</td>
+    <td class="right nowrap"><a href="/admin/newsletter/{{.ID}}">Edit</a>{{if .IsPublished}} · <a href="{{.Path}}" target="_blank" rel="noopener">View</a>{{end}}</td>
+  </tr>
+  {{else}}<tr><td colspan="4" class="empty">No issues yet. Start the first one below: it comes filled in with sample text to replace.</td></tr>
+  {{end}}
+  </tbody>
+</table></div>
+<form class="card new-issue" method="post" action="/admin/newsletter">
+  <h2>Start a new issue</h2>
+  <p class="muted small">{{if .Issues}}It starts as a copy of the latest issue, so the regular sections carry over. Rides and the main stories start empty.{{else}}It comes filled in with sample text and photos showing what goes where.{{end}} Nothing is public until you publish it.</p>
+  <div class="send-row">
+    <label class="inline-label">Season <select name="season" class="cap">{{range .Seasons}}<option value="{{.}}"{{if eq . $.NewSeason}} selected{{end}}>{{.}}</option>{{end}}</select></label>
+    <label class="inline-label">Year <input type="number" name="year" value="{{.NewYear}}" min="2000" max="2100" class="year"></label>
+    <button>Start issue</button>
+  </div>
+</form>
+{{template "foot" .}}{{end}}
+
+{{define "issue"}}{{template "head" .}}{{$is := .Issue}}
+<p class="crumb"><a href="/admin/newsletter">← All issues</a></p>
+<div class="title-row">
+  <h1>{{$is.Label}}</h1>
+  <p>{{if $is.IsPublished}}<span class="paid">Live</span> on the website{{else}}<span class="tag">Draft</span> Only admins can see it{{end}}</p>
+</div>
+<div class="issue-actions">
+  <a class="btn ghost" href="/admin/newsletter/{{$is.ID}}/preview" target="_blank" rel="noopener">Preview</a>
+  {{if $is.IsPublished}}
+    <a class="btn ghost" href="{{$is.Path}}" target="_blank" rel="noopener">View live</a>
+    <form method="post" action="/admin/newsletter/{{$is.ID}}/email"><button class="ghost">Email members about it</button></form>
+    <form method="post" action="/admin/newsletter/{{$is.ID}}/publish" onsubmit="return confirm('Take this issue off the website?')"><input type="hidden" name="publish" value="0"><button class="ghost">Unpublish</button></form>
+  {{else}}
+    <form method="post" action="/admin/newsletter/{{$is.ID}}/publish" onsubmit="return confirm('Publish the saved version of {{$is.Label}} to the website? Save any changes first.')"><input type="hidden" name="publish" value="1"><button>Publish</button></form>
+  {{end}}
+</div>
+<p class="muted small">Save your changes before previewing or publishing. In the text boxes: leave a blank line between paragraphs, put **two stars** around words for bold, and write links as [words to click](https://example.com). In link boxes, {strava} and {kit} fill in the club’s Strava page and team store. Photos: JPG, PNG, or WebP under 8 MB (squoosh.app makes them smaller).</p>
+
+<form class="issue" method="post" action="/admin/newsletter/{{$is.ID}}" enctype="multipart/form-data">
+  <section class="card">
+    <h2>Cover</h2>
+    <div class="send-row">
+      <label class="inline-label">Season <select name="season" class="cap">{{range .Seasons}}<option value="{{.}}"{{if eq . $is.Season}} selected{{end}}>{{.}}</option>{{end}}</select></label>
+      <label class="inline-label">Year <input type="number" name="year" value="{{$is.Year}}" min="2000" max="2100" class="year"></label>
+    </div>
+    <label>Tagline under the title <input name="tagline" value="{{$is.Tagline}}" maxlength="120"></label>
+    {{template "photo" (story "cover." (photoStory $is.Cover) "")}}
+  </section>
+
+  <section class="card">
+    <h2>Featured story</h2>
+    <p class="muted small">The big story at the top, with a photo or video in the middle and a quote on the right.</p>
+    {{template "story" (story "featured." $is.Featured "kicker subhead video quote")}}
+  </section>
+
+  <section class="card">
+    <h2>Last quarter</h2>
+    <p class="muted small">First of the three columns: a look back at the last few months.</p>
+    {{template "story" (story "recap." $is.Recap "kicker video")}}
+  </section>
+
+  <section class="card">
+    <h2>Up next: rides</h2>
+    <p class="muted small">The middle column. Each ride links to its Strava event: open the event on Strava and copy the address. Leave the link empty to use the club’s Strava page. Rides without a name are left out.</p>
+    <div class="table-wrap"><table class="rides">
+      <thead><tr><th>Date</th><th>Ride</th><th>Time</th><th>Where</th><th>Details</th><th>Strava event link</th></tr></thead>
+      <tbody>
+      {{range $i, $r := $is.Rides}}<tr>
+        <td><input type="date" name="ride{{$i}}.date" value="{{$r.Date}}" aria-label="Date"></td>
+        <td><input name="ride{{$i}}.name" value="{{$r.Name}}" maxlength="80" aria-label="Ride name" placeholder="Tuesday Night Ride"></td>
+        <td><input name="ride{{$i}}.time" value="{{$r.Time}}" maxlength="20" aria-label="Time" placeholder="6:00 PM"></td>
+        <td><input name="ride{{$i}}.place" value="{{$r.Place}}" maxlength="80" aria-label="Where"></td>
+        <td><input name="ride{{$i}}.details" value="{{$r.Details}}" maxlength="80" aria-label="Details" placeholder="Fast · 40 mi"></td>
+        <td><input type="url" name="ride{{$i}}.url" value="{{$r.URL}}" aria-label="Strava event link" placeholder="https://www.strava.com/clubs/…"></td>
+      </tr>{{end}}
+      </tbody>
+    </table></div>
+    <p class="muted small">Need more rows? Save, and two more appear (up to 8).</p>
+  </section>
+
+  <section class="card">
+    <h2>Spotlight</h2>
+    <p class="muted small">Third column: a ride leader, volunteer, or sponsor.</p>
+    {{template "story" (story "spotlight." $is.Spotlight "kicker video")}}
+  </section>
+
+  <section class="card">
+    <h2>Row of three</h2>
+    <p class="muted small">Three smaller stories, like the swap meet, new rider corner, and community news. Leave one empty to hide it.</p>
+    <div class="trio">
+    {{range $i, $c := $is.Corner}}<div>
+      <h3>Story {{inc $i}}</h3>
+      {{template "story" (story (printf "corner%d." $i) $c "kicker")}}
+    </div>{{end}}
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Kit and club call-out</h2>
+    <p class="muted small">The dark band near the end. Right now it asks for kit designers and links to the team store.</p>
+    {{template "story" (story "kit." $is.Kit "kicker")}}
+  </section>
+
+  <section class="card">
+    <h2>Photo strip</h2>
+    <p class="muted small">A row of photos near the bottom, up to 8.</p>
+    {{if $is.Gallery}}<div class="thumbs">{{range $i, $g := $is.Gallery}}<label><img src="{{$g}}" alt=""><span class="check"><input type="checkbox" name="gallery{{$i}}_remove"> Remove</span></label>{{end}}</div>{{end}}
+    <label>Add photos <input type="file" name="gallery_files" accept="image/jpeg,image/png,image/webp" multiple></label>
+  </section>
+
+  <section class="card">
+    <h2>Closing line</h2>
+    <label>Big line at the very end <input name="closing" value="{{$is.Closing}}" maxlength="80" placeholder="Your next ride starts here."></label>
+  </section>
+
+  <div class="save-bar">
+    <button>Save</button>
+    <span class="muted small">{{if $is.IsPublished}}Saving updates the live newsletter right away.{{else}}Saving keeps it as a draft.{{end}}</span>
+  </div>
+</form>
+
+<form class="footnote" method="post" action="/admin/newsletter/{{$is.ID}}/delete" onsubmit="return confirm('Delete the {{$is.Label}} issue? This can’t be undone.')"><button class="link danger">Delete this issue</button></form>
+{{template "foot" .}}{{end}}
+
+{{define "story"}}{{$p := .P}}{{$s := .S}}<div class="fields">
+  {{if .Has "kicker"}}<label>Small line above the heading <input name="{{$p}}kicker" value="{{$s.Kicker}}" maxlength="80"></label>{{end}}
+  <label>Heading <input name="{{$p}}heading" value="{{$s.Heading}}" maxlength="120"></label>
+  {{if .Has "subhead"}}<label>Subheading <input name="{{$p}}subhead" value="{{$s.Subhead}}" maxlength="160"></label>{{end}}
+  <label>Text <textarea name="{{$p}}body" rows="5">{{$s.Body}}</textarea></label>
+  {{template "photo" .}}
+  {{if .Has "video"}}<div class="pair">
+    <label>Video link (optional) <input type="url" name="{{$p}}video_url" value="{{$s.VideoURL}}" placeholder="YouTube, Instagram, or Strava"></label>
+    <label>Video length <input name="{{$p}}video_length" value="{{$s.VideoLength}}" maxlength="10" placeholder="2:48"></label>
+  </div>
+  <p class="muted small">With a video link, the photo gets a play button that opens the video.</p>{{end}}
+  <div class="pair">
+    <label>Link words <input name="{{$p}}link_label" value="{{$s.LinkLabel}}" maxlength="60" placeholder="Read more"></label>
+    <label>Link goes to <input name="{{$p}}link_url" value="{{$s.LinkURL}}" placeholder="https://… or /rides or {strava}"></label>
+  </div>
+  {{if .Has "quote"}}<label>Quote <textarea name="{{$p}}quote" rows="3">{{$s.Quote}}</textarea></label>
+  <label>Quote from <input name="{{$p}}quote_by" value="{{$s.QuoteBy}}" maxlength="80"></label>{{end}}
+</div>{{end}}
+
+{{define "photo"}}{{$p := .P}}{{$s := .S}}<div class="photo-field">
+  {{with $s.Photo}}<img src="{{.}}" alt="">{{end}}
+  <div class="fields">
+    <label>{{if $s.Photo}}Replace photo{{else}}Photo{{end}} <input type="file" name="{{$p}}photo_file" accept="image/jpeg,image/png,image/webp"></label>
+    {{if ne $p "cover."}}<label>Describe the photo for screen readers <input name="{{$p}}photo_alt" value="{{$s.PhotoAlt}}" maxlength="160"></label>{{end}}
+    {{if $s.Photo}}<label class="check"><input type="checkbox" name="{{$p}}photo_remove"> Remove photo</label>{{end}}
+  </div>
+</div>{{end}}

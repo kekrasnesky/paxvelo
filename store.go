@@ -85,6 +85,8 @@ type storeData struct {
 	Campaigns    []*Campaign  `json:"campaigns"`
 	Welcome      WelcomeEmail `json:"welcome_email"`
 	Draft        EmailDraft   `json:"draft"`
+	NextIssue    int          `json:"next_issue_id,omitempty"`
+	Issues       []*Issue     `json:"newsletter,omitempty"`
 }
 
 type Store struct {

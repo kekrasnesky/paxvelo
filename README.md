@@ -21,6 +21,7 @@ After changing any file, stop it (Ctrl+C) and run `go run .` again. `go test ./.
 | Dues amounts, PayPal links, kit store, Strava | `paxvelo.conf` (no code changes needed) |
 | Header, menu, footer, social links | `web/templates/layout.html` |
 | Colors, fonts, spacing | `web/static/site.css` (colors are at the top) |
+| The newsletter's layout | `web/templates/newsletter.html` (its content is edited in the admin) |
 | Add a page | Create `content/<name>.md` (no code changes needed) |
 | Logo and browser-tab icon | `web/static/img/` |
 
@@ -36,6 +37,19 @@ The photos are placeholders cut from a screenshot. Replace them with the origina
 - `web/static/img/favicon.png`: the browser-tab icon, 64×64
 
 To make WebP files, drop photos into https://squoosh.app, choose WebP at quality 75, and download. JPGs work too if you change the file name in `content/home.md`.
+
+## The Paceline newsletter
+
+The club's quarterly newsletter lives at `paxvelo.club/newsletter` (always the latest issue), and each issue keeps its own address, like `paxvelo.club/newsletter/2026-fall`. It's written in the admin portal, under **Newsletter**:
+
+1. **Start a new issue** and pick the season. The first issue comes filled in with sample text. Later issues copy the previous one, so regular sections like the new rider corner and the kit call-out carry over.
+2. Fill in each section: the featured story (with an optional video link and a quote), last quarter's highlights, upcoming rides with links to their Strava events, a spotlight, three smaller stories, the kit call-out, and a strip of photos. Photos upload right from the form.
+3. **Save**, then **Preview** to see exactly how it will look.
+4. **Publish** when it's ready. Then **Email members about it** drafts an announcement email on the Email tab.
+
+Text boxes use the same simple formatting as the pages in `content/` (bold, links, `{strava}`, `{kit}`). If something can't be shown, like a mistyped `{placeholder}`, the editor says what to fix and the live issue stays as it was. Published issues are rendered once and served from memory, like every other page.
+
+Uploaded photos are stored on the server in `data/media`. The server backs them up weekly to `/opt/paxvelo/backups`; the **Download a full backup** link covers the text only.
 
 ## Membership dues
 

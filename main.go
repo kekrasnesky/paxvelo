@@ -50,6 +50,7 @@ func main() {
 	}
 	app := &App{cfg: cfg, store: store, site: site, limit: newLimiter()}
 	app.mailer = newMailer(cfg, store, site)
+	app.refreshNewsletter()
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -104,6 +105,11 @@ func (a *App) routes() http.Handler {
 	mux.Handle("GET /kit", http.RedirectHandler(a.cfg.KitURL, http.StatusFound))
 	mux.Handle("GET /strava", http.RedirectHandler(a.cfg.StravaURL, http.StatusFound))
 
+	// The Paceline newsletter, and photos uploaded for it in the admin.
+	mux.HandleFunc("GET /newsletter", a.newsletterPage)
+	mux.HandleFunc("GET /newsletter/{slug}", a.newsletterPage)
+	mux.Handle("GET /media/", a.site.staticFiles("/media/", os.DirFS(a.mediaDir())))
+
 	// Joining and leaving.
 	mux.HandleFunc("GET /join", a.joinPage)
 	mux.HandleFunc("POST /join", a.join)
@@ -129,6 +135,14 @@ func (a *App) routes() http.Handler {
 	mux.Handle("POST /admin/email/{id}/stop", a.auth(a.stopCampaign))
 	mux.Handle("POST /admin/email/{id}/resume", a.auth(a.resumeCampaign))
 	mux.Handle("POST /admin/welcome", a.auth(a.saveWelcome))
+	mux.Handle("GET /admin/newsletter", a.auth(a.newsletterAdmin))
+	mux.Handle("POST /admin/newsletter", a.auth(a.createIssue))
+	mux.Handle("GET /admin/newsletter/{id}", a.auth(a.editIssuePage))
+	mux.Handle("POST /admin/newsletter/{id}", a.auth(a.saveIssue))
+	mux.Handle("GET /admin/newsletter/{id}/preview", a.auth(a.previewIssue))
+	mux.Handle("POST /admin/newsletter/{id}/publish", a.auth(a.publishIssue))
+	mux.Handle("POST /admin/newsletter/{id}/delete", a.auth(a.deleteIssue))
+	mux.Handle("POST /admin/newsletter/{id}/email", a.auth(a.emailIssue))
 
 	mux.HandleFunc("/", a.site.notFound)
 	return secureHeaders(mux)

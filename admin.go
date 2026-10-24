@@ -38,6 +38,12 @@ type adminView struct {
 	Welcome       WelcomeEmail
 	TestTo        string
 	Live, Sending bool
+	// Newsletter tab
+	Issues    []Issue
+	Issue     Issue
+	Seasons   []string
+	NewSeason string
+	NewYear   int
 }
 
 // ---- Sessions ----
@@ -155,16 +161,23 @@ func (a *App) logout(w http.ResponseWriter, r *http.Request) {
 // ---- Flash messages (passed as short codes in the URL after an action) ----
 
 var flashText = map[string]string{
-	"added":    "Member added.",
-	"exists":   "That email is already on the list.",
-	"deleted":  "Member deleted.",
-	"sending":  "Sending now. It keeps going in the background, so you can close this page.",
-	"stopped":  "Sending stopped.",
-	"resumed":  "Sending resumed.",
-	"welcome":  "Welcome email saved.",
-	"paid":     "Marked as paid.",
-	"unpaid":   "Marked as not paid.",
-	"loggedin": "",
+	"added":         "Member added.",
+	"exists":        "That email is already on the list.",
+	"deleted":       "Member deleted.",
+	"sending":       "Sending now. It keeps going in the background, so you can close this page.",
+	"stopped":       "Sending stopped.",
+	"resumed":       "Sending resumed.",
+	"welcome":       "Welcome email saved.",
+	"paid":          "Marked as paid.",
+	"unpaid":        "Marked as not paid.",
+	"loggedin":      "",
+	"drafted":       "An email about the newsletter is ready below. Check it, send yourself a test, then send it.",
+	"created":       "New issue started. Replace the text and photos, then preview and publish.",
+	"saved":         "Saved. It isn’t public until you publish it.",
+	"updated":       "Saved. The live newsletter is updated.",
+	"published":     "Published. It’s live on the website now.",
+	"unpublished":   "Unpublished. It’s hidden from the website.",
+	"issue-deleted": "Issue deleted.",
 }
 
 var errorText = map[string]string{
@@ -176,6 +189,9 @@ var errorText = map[string]string{
 	"empty":   "Add a subject and a message first.",
 	"welcome": "The welcome email needs a subject and a message.",
 	"save":    "Couldn’t save. Check the server log.",
+	"season":  "Choose a season and year.",
+	"exists":  "There’s already an issue for that season. Open it from the list below.",
+	"gone":    "That issue was deleted.",
 }
 
 func flashFrom(r *http.Request) (flash, errMsg string) {

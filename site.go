@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -37,6 +38,9 @@ type Site struct {
 	static      fs.FS
 	photos      fs.FS
 	infoLinks   []navLink
+	md          *mdRenderer
+	newsMu      sync.RWMutex
+	news        map[string]*Page // the newsletter, rendered when it changes
 	css         template.CSS
 	js          template.JS
 	adminCSS    template.CSS
@@ -123,6 +127,11 @@ func newSite(cfg Config) (*Site, error) {
 		"datetime":    func(t time.Time) string { return t.In(cfg.Location).Format("Jan 2, 2006, 3:04 PM") },
 		"statusLabel": statusLabel,
 		"progress":    progress,
+		"hasPrefix":   strings.HasPrefix,
+		"story":       storyFields,
+		"photoStory":  photoStory,
+		"inc":         func(i int) int { return i + 1 },
+		"external":    func(u string) bool { return strings.HasPrefix(u, "http://") || strings.HasPrefix(u, "https://") },
 	}
 	base, err := template.New("").Funcs(funcs).ParseFS(webFS, "web/templates/layout.html")
 	if err != nil {
@@ -157,6 +166,7 @@ func newSite(cfg Config) (*Site, error) {
 		}
 		md.widgets[w] = template.HTML(buf.String())
 	}
+	s.md = md
 	pages, err := loadContent(content, md)
 	if err != nil {
 		return nil, err
@@ -187,7 +197,7 @@ func newSite(cfg Config) (*Site, error) {
 		}
 		s.pages = append(s.pages, &Page{Path: p.Path, html: buf.Bytes(), gz: gzipBytes(buf.Bytes()), etag: etag(buf.Bytes())})
 	}
-	for _, name := range []string{"join", "unsubscribe", "notfound"} {
+	for _, name := range []string{"join", "unsubscribe", "notfound", "newsletter"} {
 		if s.dynamic[name], err = parse(name + ".html"); err != nil {
 			return nil, err
 		}
