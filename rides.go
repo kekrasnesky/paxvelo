@@ -10,10 +10,11 @@ import (
 )
 
 // The ride calendar shows every club ride: the weekly rides (set up by admins
-// on the Rides tab) and one-off rides anyone signed in can add. Each ride can
-// have one leader. A ride with no leader can be taken by anyone signed in with
-// Strava; once it has one, only the leader (stepping down) or an admin can
-// change it. Admins here are the club's admins on Strava, plus anyone using
+// on the Rides tab) and one-off rides anyone signed in can add. A ride can be
+// split into pace groups (like A and B), each with its own leader; a ride
+// without groups has one leader. A spot with no leader can be taken by anyone
+// signed in with Strava; once it has one, only that leader (stepping down) or
+// an admin can change it. Admins here are the club's admins on Strava, plus anyone using
 // the admin portal.
 
 // RideSeries is a weekly ride, like the Tuesday Night Ride.
@@ -25,6 +26,9 @@ type RideSeries struct {
 	Place     string `json:"place,omitempty"`
 	Details   string `json:"details,omitempty"`
 	StravaURL string `json:"strava_url,omitempty"`
+	// Pace groups, each led by its own leader, like "A group · 24–28 mph".
+	// None means the ride has one leader.
+	Groups []string `json:"groups,omitempty"`
 	// The part of each year it runs, as month-day ("03-01" to "10-10").
 	// Empty means all year.
 	SeasonStart string `json:"season_start,omitempty"`
@@ -63,8 +67,9 @@ func (s RideSeries) runsOn(d time.Time) bool {
 	return md >= s.SeasonStart || md <= s.SeasonEnd // a season across New Year
 }
 
-// Leader is who is leading a ride.
+// Leader is who is leading a ride, or one pace group of it.
 type Leader struct {
+	Group       string    `json:"group,omitempty"`
 	Name        string    `json:"name"`
 	StravaID    int64     `json:"strava_id,omitempty"`
 	StravaAdmin bool      `json:"strava_admin,omitempty"`
@@ -83,7 +88,8 @@ type CalRide struct {
 	Place     string    `json:"place,omitempty"`
 	Details   string    `json:"details,omitempty"`
 	StravaURL string    `json:"strava_url,omitempty"`
-	Leader    *Leader   `json:"leader,omitempty"`
+	Groups    []string  `json:"groups,omitempty"`
+	Leaders   []Leader  `json:"leaders,omitempty"`
 	Cancelled bool      `json:"cancelled,omitempty"`
 	AddedBy   string    `json:"added_by,omitempty"`
 	Added     time.Time `json:"added"`
@@ -97,6 +103,116 @@ type RideOcc struct {
 }
 
 func (o RideOcc) TimeLabel() string { return timeLabel(o.Time) }
+
+// Slot is one leader's place on a ride: a pace group, or the whole ride.
+type Slot struct {
+	Group  string // empty for a ride without pace groups
+	Leader *Leader
+}
+
+// groupNames is the ride's pace groups, or one unnamed group.
+func (c CalRide) groupNames() []string {
+	if len(c.Groups) == 0 {
+		return []string{""}
+	}
+	return c.Groups
+}
+
+func (c CalRide) Slots() []Slot {
+	var out []Slot
+	for _, g := range c.groupNames() {
+		out = append(out, Slot{Group: g, Leader: c.leaderFor(g)})
+	}
+	return out
+}
+
+func (c CalRide) leaderFor(group string) *Leader {
+	for i := range c.Leaders {
+		if c.Leaders[i].Group == group {
+			l := c.Leaders[i]
+			return &l
+		}
+	}
+	return nil
+}
+
+func (c CalRide) hasGroup(group string) bool {
+	for _, g := range c.groupNames() {
+		if g == group {
+			return true
+		}
+	}
+	return false
+}
+
+// setLeader puts a leader in a group's spot, or empties it (nil).
+func (c *CalRide) setLeader(group string, l *Leader) {
+	kept := c.Leaders[:0:0]
+	for _, x := range c.Leaders {
+		if x.Group != group {
+			kept = append(kept, x)
+		}
+	}
+	if l != nil {
+		l.Group = group
+		kept = append(kept, *l)
+	}
+	c.Leaders = kept
+}
+
+// groupOf finds the group a rider leads on this ride.
+func (c CalRide) groupOf(stravaID int64) (string, bool) {
+	for _, l := range c.Leaders {
+		if l.StravaID != 0 && l.StravaID == stravaID {
+			return l.Group, true
+		}
+	}
+	return "", false
+}
+
+// Status is how the calendar colors a ride: led, partly led, or open.
+func (o RideOcc) Status() string {
+	led := 0
+	for _, s := range o.Slots() {
+		if s.Leader != nil {
+			led++
+		}
+	}
+	switch {
+	case o.Cancelled:
+		return "cancelled"
+	case led == len(o.groupNames()):
+		return "led"
+	case led > 0:
+		return "partial"
+	}
+	return "open"
+}
+
+// LeaderSummary is the short line under a ride on the calendar.
+func (o RideOcc) LeaderSummary() string {
+	if o.Cancelled {
+		return "Cancelled"
+	}
+	var names []string
+	missing := 0
+	for _, s := range o.Slots() {
+		if s.Leader == nil {
+			missing++
+		} else {
+			names = append(names, s.Leader.Name)
+		}
+	}
+	switch {
+	case missing == 0:
+		return strings.Join(names, ", ")
+	case len(o.groupNames()) == 1:
+		return "Needs a leader"
+	case missing == 1:
+		return "Needs 1 more leader"
+	}
+	return fmt.Sprintf("Needs %d leaders", missing)
+}
 func (o RideOcc) DateLabel() string {
 	t, err := time.Parse("2006-01-02", o.Date)
 	if err != nil {
@@ -133,10 +249,8 @@ func (s *Store) seriesByID(id int) *RideSeries {
 
 func occOf(r *CalRide) RideOcc {
 	c := *r
-	if r.Leader != nil {
-		l := *r.Leader
-		c.Leader = &l
-	}
+	c.Leaders = append([]Leader(nil), r.Leaders...)
+	c.Groups = append([]string(nil), r.Groups...)
 	if r.SeriesID != 0 {
 		return RideOcc{Key: seriesKey(r.SeriesID, r.Date), CalRide: c}
 	}
@@ -165,7 +279,7 @@ func (s *Store) Rides(from, to time.Time) []RideOcc {
 			date := d.Format("2006-01-02")
 			if key := seriesKey(se.ID, date); !stored[key] {
 				out = append(out, RideOcc{Key: key, CalRide: CalRide{SeriesID: se.ID, Date: date, Time: se.Time,
-					Name: se.Name, Place: se.Place, Details: se.Details, StravaURL: se.StravaURL}})
+					Name: se.Name, Place: se.Place, Details: se.Details, StravaURL: se.StravaURL, Groups: append([]string(nil), se.Groups...)}})
 			}
 		}
 	}
@@ -204,7 +318,8 @@ func (s *Store) ride(key string, create bool) (*CalRide, error) {
 	if se == nil || err != nil || !se.runsOn(d) {
 		return nil, errNoRide
 	}
-	r := &CalRide{SeriesID: id, Date: date, Time: se.Time, Name: se.Name, Place: se.Place, Details: se.Details, StravaURL: se.StravaURL, Added: time.Now().UTC()}
+	r := &CalRide{SeriesID: id, Date: date, Time: se.Time, Name: se.Name, Place: se.Place, Details: se.Details, StravaURL: se.StravaURL,
+		Groups: append([]string(nil), se.Groups...), Added: time.Now().UTC()}
 	if create {
 		s.d.NextRide = max(s.d.NextRide, 1)
 		r.ID = s.d.NextRide
@@ -234,6 +349,7 @@ func (s *Store) UpdateRide(key string, change func(r *CalRide) error) (RideOcc, 
 		return RideOcc{}, err
 	}
 	test := *r
+	test.Leaders = append([]Leader(nil), r.Leaders...)
 	if err := change(&test); err != nil {
 		return RideOcc{}, err
 	}
@@ -297,7 +413,7 @@ func (s *Store) DeleteSeries(id int) error {
 	kept := s.d.CalRides[:0]
 	for _, r := range s.d.CalRides {
 		if r.SeriesID == id {
-			if r.Leader == nil {
+			if len(r.Leaders) == 0 {
 				continue
 			}
 			r.SeriesID = 0
@@ -326,7 +442,8 @@ func (s *Store) SetStravaAdmins(names []string) {
 // site starts. Admins can change them on the Rides tab.
 func defaultSeries() []*RideSeries {
 	return []*RideSeries{
-		{ID: 1, Name: "Tuesday Night Ride", Weekday: 2, Time: "18:00", Place: "NAS Pax", Details: "Fast · A group 24–28 mph, B group 20–22 mph"},
+		{ID: 1, Name: "Tuesday Night Ride", Weekday: 2, Time: "18:00", Place: "NAS Pax", Details: "Fast, for race prep and high-intensity work",
+			Groups: []string{"A group · 24–28 mph", "B group · 20–22 mph"}},
 		{ID: 2, Name: "Thursday Night Ride", Weekday: 4, Time: "18:00", Place: "Park & Ride by NAS Pax Gate 2", Details: "Members · paceline, 20–24 mph, about 40 miles",
 			SeasonStart: "03-01", SeasonEnd: "10-10"},
 	}

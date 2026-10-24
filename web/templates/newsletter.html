@@ -11,7 +11,7 @@
 {{else}}
 <div class="nl">
 <header class="nl-mast">
-  {{with .Cover}}<img class="nl-mast-bg" src="{{.}}" alt="" fetchpriority="high" decoding="async">{{end}}
+  {{with .Cover}}<img class="nl-mast-bg" src="{{.}}" alt="" fetchpriority="high" decoding="async"{{with $.Data.CoverFocus}} style="object-position:{{.}}"{{end}}>{{end}}
   <div class="nl-mast-in">
     <p class="nl-issue">{{.Label}}</p>
     <h1 class="nl-title">The Paceline</h1>
@@ -97,7 +97,7 @@
 </section>{{end}}
 
 {{if .Gallery}}<div class="nl-gallery">
-  {{range .Gallery}}<img src="{{.}}" alt="" loading="lazy" decoding="async">
+  {{range .Gallery}}<img src="{{.URL}}" alt="" loading="lazy" decoding="async"{{with .Focus}} style="object-position:{{.}}"{{end}}>
   {{end}}
 </div>{{end}}
 
@@ -115,8 +115,8 @@
 {{end}}{{end}}
 
 {{define "nl-media"}}{{if .Photo}}{{if .VideoURL}}<a class="nl-media nl-video" href="{{.VideoURL}}" target="_blank" rel="noopener" aria-label="Watch the video{{with .Heading}}: {{.}}{{end}}">
-  <img src="{{.Photo}}" alt="{{.PhotoAlt}}" loading="lazy" decoding="async">
+  <img src="{{.Photo}}" alt="{{.PhotoAlt}}" loading="lazy" decoding="async"{{with .PhotoFocus}} style="object-position:{{.}}"{{end}}>
   <span class="nl-play" aria-hidden="true"></span>{{with .VideoLength}}<span class="nl-len">{{.}}</span>{{end}}
-</a>{{else}}<img class="nl-media" src="{{.Photo}}" alt="{{.PhotoAlt}}" loading="lazy" decoding="async">{{end}}{{else if .VideoURL}}<p class="nl-more"><a href="{{.VideoURL}}" target="_blank" rel="noopener">Watch the video{{with .VideoLength}} ({{.}}){{end}}</a></p>{{end}}{{end}}
+</a>{{else}}<img class="nl-media" src="{{.Photo}}" alt="{{.PhotoAlt}}" loading="lazy" decoding="async"{{with .PhotoFocus}} style="object-position:{{.}}"{{end}}>{{end}}{{else if .VideoURL}}<p class="nl-more"><a href="{{.VideoURL}}" target="_blank" rel="noopener">Watch the video{{with .VideoLength}} ({{.}}){{end}}</a></p>{{end}}{{end}}
 
 {{define "nl-link"}}{{with .Link}}<p class="nl-more"><a href="{{.}}"{{if external .}} target="_blank" rel="noopener"{{end}}>{{or $.LinkLabel "Read more"}}</a></p>{{end}}{{end}}

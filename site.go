@@ -38,6 +38,7 @@ type Site struct {
 	content     fs.FS                            // the content folder
 	pageTpl     map[string]*template.Template    // "home" and "page"
 	pagePaths   []string                         // every content page's address
+	pageInfo    []*contentPage                   // the content pages as first loaded, for the admin's Pages tab
 	pages       atomic.Pointer[map[string]*Page] // content pages, rebuilt when the Instagram posts change
 	contentMu   sync.Mutex
 	dynamic     map[string]*template.Template
@@ -141,9 +142,11 @@ func newSite(cfg Config) (*Site, error) {
 		"hasPrefix":   strings.HasPrefix,
 		"story":       storyFields,
 		"photoStory":  photoStory,
+		"framer":      framer,
 		"inc":         func(i int) int { return i + 1 },
 		"instagram":   instagramEmbeds,
 		"timeLabel":   timeLabel,
+		"join":        strings.Join,
 		"lines":       func(l []string) string { return strings.Join(l, "\n") },
 		"external":    func(u string) bool { return strings.HasPrefix(u, "http://") || strings.HasPrefix(u, "https://") },
 	}
@@ -181,11 +184,13 @@ func newSite(cfg Config) (*Site, error) {
 		md.widgets[w] = template.HTML(buf.String())
 	}
 	md.widgets["instagram"] = instagramWidget(nil)
+	md.widgets["board"] = boardWidget(nil)
 	s.md, s.content = md, content
-	pages, err := loadContent(content, md)
+	pages, err := loadContent(content, nil, md)
 	if err != nil {
 		return nil, err
 	}
+	s.pageInfo = pages
 	for _, p := range pages {
 		s.pagePaths = append(s.pagePaths, p.Path)
 		if p.Menu != "" {
@@ -199,7 +204,7 @@ func newSite(cfg Config) (*Site, error) {
 			return nil, err
 		}
 	}
-	if err := s.renderContent(nil); err != nil {
+	if err := s.renderContent(contentData{}); err != nil {
 		return nil, err
 	}
 	for _, name := range []string{"join", "unsubscribe", "notfound", "newsletter", "minutes", "calendar", "ride", "ride-new"} {
@@ -222,18 +227,32 @@ func newSite(cfg Config) (*Site, error) {
 	return s, nil
 }
 
-// renderContent renders every page in the content folder, with the home
-// page's Instagram posts. It runs at startup and when the posts change.
-func (s *Site) renderContent(instagram []string) error {
-	s.contentMu.Lock()
-	defer s.contentMu.Unlock()
+// renderer is the page renderer with the admin's current Instagram posts and
+// board members.
+func (s *Site) renderer(d contentData) *mdRenderer {
 	md := *s.md
 	md.widgets = map[string]template.HTML{}
 	for k, v := range s.md.widgets {
 		md.widgets[k] = v
 	}
-	md.widgets["instagram"] = instagramWidget(instagram)
-	list, err := loadContent(s.content, &md)
+	md.widgets["instagram"] = instagramWidget(d.Instagram)
+	md.widgets["board"] = boardWidget(d.Board)
+	return &md
+}
+
+// checkPage reports whether a page's text can be shown, before it's saved.
+func (s *Site) checkPage(file, text string) error {
+	_, err := parsePage(file, text, s.renderer(contentData{}))
+	return err
+}
+
+// renderContent renders every page in the content folder, with the admin's
+// changes (Instagram posts, board members, edited pages). It runs at startup
+// and whenever those change.
+func (s *Site) renderContent(d contentData) error {
+	s.contentMu.Lock()
+	defer s.contentMu.Unlock()
+	list, err := loadContent(s.content, d.Pages, s.renderer(d))
 	if err != nil {
 		return err
 	}

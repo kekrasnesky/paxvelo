@@ -10,13 +10,8 @@ people: yes
 The volunteers who keep PaxVelo rolling.
 
 <!--
-PLACEHOLDER: replace "Name" with each board member's real name.
-To add a photo, upload it to content/photos/board/ and put it at the
-start of the line, like this:
-- ![](photos/board/jane.webp) **Jane Smith** President
+The board members are edited in the admin portal, on the Board tab,
+with their photos. {board} below is where they appear.
 -->
 
-- **Name** President
-- **Name** Vice President
-- **Name** Treasurer
-- **Name** Secretary
+{board}

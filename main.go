@@ -52,7 +52,7 @@ func main() {
 	app.mailer = newMailer(cfg, store, site)
 	app.refreshNewsletter()
 	app.refreshMinutes()
-	if err := site.renderContent(store.Instagram()); err != nil {
+	if err := app.rebuildContent(); err != nil {
 		log.Fatal(err)
 	}
 
@@ -170,6 +170,13 @@ func (a *App) routes() http.Handler {
 	mux.Handle("POST /admin/rides/series/{id}/delete", a.auth(a.deleteSeries))
 	mux.Handle("POST /admin/rides/{key}/leader", a.auth(a.setLeaderAdmin))
 	mux.Handle("POST /admin/rides/{key}/cancel", a.auth(a.cancelRideAdmin))
+	mux.Handle("GET /admin/pages", a.auth(a.pagesAdmin))
+	mux.Handle("POST /admin/pages/photo", a.auth(a.pagePhoto))
+	mux.Handle("GET /admin/pages/{file}", a.auth(a.editPagePage))
+	mux.Handle("POST /admin/pages/{file}", a.auth(a.savePage))
+	mux.Handle("POST /admin/pages/{file}/reset", a.auth(a.resetPage))
+	mux.Handle("GET /admin/board", a.auth(a.boardAdmin))
+	mux.Handle("POST /admin/board", a.auth(a.saveBoard))
 	mux.Handle("GET /admin/instagram", a.auth(a.instagramAdmin))
 	mux.Handle("POST /admin/instagram", a.auth(a.saveInstagram))
 	mux.Handle("GET /admin/minutes", a.auth(a.minutesAdmin))

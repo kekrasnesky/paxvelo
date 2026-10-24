@@ -48,8 +48,9 @@ var (
 	personRE  = regexp.MustCompile(`^(?:!\[[^\]]*\]\(\s*([^)\s]*)\s*\)\s*)?\*\*([^*]+)\*\*\s*[-–—,:]?\s*(.*)$`)
 )
 
-// loadContent reads every page in the content folder.
-func loadContent(content fs.FS, r *mdRenderer) ([]*contentPage, error) {
+// loadContent reads every page in the content folder. A page edited in the
+// admin (in edits, by file name) is used instead of the file.
+func loadContent(content fs.FS, edits map[string]string, r *mdRenderer) ([]*contentPage, error) {
 	files, err := fs.Glob(content, "*.md")
 	if err != nil {
 		return nil, err
@@ -59,11 +60,15 @@ func loadContent(content fs.FS, r *mdRenderer) ([]*contentPage, error) {
 		if strings.EqualFold(file, "README.md") {
 			continue // the editing guide, not a page
 		}
-		b, err := fs.ReadFile(content, file)
-		if err != nil {
-			return nil, err
+		src, edited := edits[file]
+		if !edited {
+			b, err := fs.ReadFile(content, file)
+			if err != nil {
+				return nil, err
+			}
+			src = string(b)
 		}
-		p, err := parsePage(file, string(b), r)
+		p, err := parsePage(file, src, r)
 		if err != nil {
 			return nil, fmt.Errorf("content/%s: %w", file, err)
 		}

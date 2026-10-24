@@ -93,7 +93,7 @@ func (a *App) saveInstagram(w http.ResponseWriter, r *http.Request) {
 		back(w, r, "/admin/instagram?err=save")
 		return
 	}
-	if err := a.site.renderContent(posts); err != nil {
+	if err := a.rebuildContent(); err != nil {
 		back(w, r, "/admin/instagram?err=save")
 		return
 	}

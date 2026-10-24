@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -25,13 +26,14 @@ import (
 // /newsletter/2026-10 (each issue's permanent address).
 
 type Story struct {
-	Kicker      string `json:"kicker,omitempty"`  // the small red line above the heading
-	Heading     string `json:"heading,omitempty"` // shown in Anton
+	Kicker      string `json:"kicker,omitempty"` // the small red line above the heading
+	Heading     string `json:"heading,omitempty"`
 	Subhead     string `json:"subhead,omitempty"`
 	Body        string `json:"body,omitempty"` // same simple formatting as content/*.md
 	Photo       string `json:"photo,omitempty"`
 	PhotoAlt    string `json:"photo_alt,omitempty"`
-	VideoURL    string `json:"video_url,omitempty"` // the photo becomes a play button linking here
+	PhotoFocus  string `json:"photo_focus,omitempty"` // the spot to keep in view when cropped, like "50% 20%"
+	VideoURL    string `json:"video_url,omitempty"`   // the photo becomes a play button linking here
 	VideoLength string `json:"video_length,omitempty"`
 	LinkLabel   string `json:"link_label,omitempty"`
 	LinkURL     string `json:"link_url,omitempty"`
@@ -49,24 +51,26 @@ type Ride struct {
 }
 
 type Issue struct {
-	ID        int        `json:"id"`
-	Month     int        `json:"month"` // 1-12; a month can have several drafts but only one published issue
-	Year      int        `json:"year"`
-	CreatedBy string     `json:"created_by,omitempty"`
-	EditedBy  string     `json:"edited_by,omitempty"`
-	Tagline   string     `json:"tagline,omitempty"`
-	Cover     string     `json:"cover,omitempty"`
-	Featured  Story      `json:"featured"`
-	Recap     Story      `json:"recap"`
-	Rides     []Ride     `json:"rides,omitempty"`
-	Spotlight Story      `json:"spotlight"`
-	Corner    []Story    `json:"corner,omitempty"` // the row of three smaller stories
-	Kit       Story      `json:"kit"`
-	Gallery   []string   `json:"gallery,omitempty"`
-	Instagram []string   `json:"instagram,omitempty"` // Instagram post links
-	Closing   string     `json:"closing,omitempty"`
-	Published *time.Time `json:"published,omitempty"`
-	Updated   time.Time  `json:"updated"`
+	ID           int               `json:"id"`
+	Month        int               `json:"month"` // 1-12; a month can have several drafts but only one published issue
+	Year         int               `json:"year"`
+	CreatedBy    string            `json:"created_by,omitempty"`
+	EditedBy     string            `json:"edited_by,omitempty"`
+	Tagline      string            `json:"tagline,omitempty"`
+	Cover        string            `json:"cover,omitempty"`
+	CoverFocus   string            `json:"cover_focus,omitempty"`
+	Featured     Story             `json:"featured"`
+	Recap        Story             `json:"recap"`
+	Rides        []Ride            `json:"rides,omitempty"`
+	Spotlight    Story             `json:"spotlight"`
+	Corner       []Story           `json:"corner,omitempty"` // the row of three smaller stories
+	Kit          Story             `json:"kit"`
+	Gallery      []string          `json:"gallery,omitempty"`
+	GalleryFocus map[string]string `json:"gallery_focus,omitempty"` // photo address → focus
+	Instagram    []string          `json:"instagram,omitempty"`     // Instagram post links
+	Closing      string            `json:"closing,omitempty"`
+	Published    *time.Time        `json:"published,omitempty"`
+	Updated      time.Time         `json:"updated"`
 }
 
 // monthOption is one choice in the admin's month menus.
@@ -223,6 +227,8 @@ type shownStory struct {
 
 func (st shownStory) Show() bool { return st.Heading != "" || st.Body != "" }
 
+type shownPhoto struct{ URL, Focus string }
+
 type shownRide struct {
 	Ride
 	Month, Day string
@@ -235,13 +241,14 @@ type newsView struct {
 	Published      bool
 	Label, Tagline string
 	Cover          string
+	CoverFocus     string
 	Featured       shownStory
 	Recap          shownStory
 	Rides          []shownRide
 	Spotlight      shownStory
 	Corner         []shownStory
 	Kit            shownStory
-	Gallery        []string
+	Gallery        []shownPhoto
 	Instagram      []string
 	Closing        string
 	StravaURL      string
@@ -251,8 +258,8 @@ type newsView struct {
 
 func (s *Site) newsView(is Issue, archive []Issue) (newsView, error) {
 	v := newsView{
-		ID: is.ID, Published: is.IsPublished(), Label: is.Label(), Tagline: is.Tagline, Cover: is.Cover,
-		Gallery: is.Gallery, Instagram: is.Instagram, Closing: is.Closing, StravaURL: s.cfg.StravaURL, Archive: archive, Current: is.Path(),
+		ID: is.ID, Published: is.IsPublished(), Label: is.Label(), Tagline: is.Tagline, Cover: is.Cover, CoverFocus: is.CoverFocus,
+		Instagram: is.Instagram, Closing: is.Closing, StravaURL: s.cfg.StravaURL, Archive: archive, Current: is.Path(),
 	}
 	story := func(name string, st Story) (shownStory, error) {
 		out := shownStory{Story: st}
@@ -291,6 +298,9 @@ func (s *Site) newsView(is Issue, archive []Issue) (newsView, error) {
 		if sc.Show() {
 			v.Corner = append(v.Corner, sc)
 		}
+	}
+	for _, g := range is.Gallery {
+		v.Gallery = append(v.Gallery, shownPhoto{g, is.GalleryFocus[g]})
 	}
 	for _, r := range is.Rides {
 		sr := shownRide{Ride: r, Link: r.URL}
@@ -591,11 +601,19 @@ func (a *App) saveIssue(w http.ResponseWriter, r *http.Request) {
 		}
 		return current
 	}
+	// A new photo starts centered; otherwise keep the spot picked on the form.
+	focusFor := func(prefix string) string {
+		if r.MultipartForm != nil && len(r.MultipartForm.File[prefix+"photo_file"]) > 0 && r.MultipartForm.File[prefix+"photo_file"][0].Size > 0 {
+			return ""
+		}
+		return cleanFocus(val(prefix + "photo_focus"))
+	}
 	story := func(prefix string, cur Story) Story {
 		return Story{
 			Kicker: val(prefix + "kicker"), Heading: val(prefix + "heading"), Subhead: val(prefix + "subhead"),
 			Body: strings.ReplaceAll(val(prefix+"body"), "\r\n", "\n"), Photo: photo(prefix, cur.Photo), PhotoAlt: val(prefix + "photo_alt"),
-			VideoURL: val(prefix + "video_url"), VideoLength: val(prefix + "video_length"),
+			PhotoFocus: focusFor(prefix),
+			VideoURL:   val(prefix + "video_url"), VideoLength: val(prefix + "video_length"),
 			LinkLabel: val(prefix + "link_label"), LinkURL: val(prefix + "link_url"),
 			Quote: val(prefix + "quote"), QuoteBy: val(prefix + "quote_by"),
 		}
@@ -615,6 +633,7 @@ func (a *App) saveIssue(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	is.Cover = photo("cover.", old.Cover)
+	is.CoverFocus = focusFor("cover.")
 	is.Featured = story("featured.", old.Featured)
 	is.Recap = story("recap.", old.Recap)
 	is.Spotlight = story("spotlight.", old.Spotlight)
@@ -645,10 +664,15 @@ func (a *App) saveIssue(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	is.Gallery = nil
+	is.Gallery, is.GalleryFocus = nil, map[string]string{}
 	for i, g := range gallery {
 		if r.FormValue(fmt.Sprintf("gallery%d_remove", i)) == "" {
 			is.Gallery = append(is.Gallery, g)
+			if f := cleanFocus(val(fmt.Sprintf("gallery%d_focus", i))); f != "" {
+				is.GalleryFocus[g] = f
+			} else if f := old.GalleryFocus[g]; f != "" && r.FormValue("gallery_form") == "" {
+				is.GalleryFocus[g] = f
+			}
 		}
 	}
 	var uploads []*multipart.FileHeader
@@ -871,7 +895,13 @@ func (f storyForm) Has(opt string) bool { return strings.Contains(" "+f.Opts+" "
 
 func storyFields(prefix string, s Story, opts string) storyForm { return storyForm{prefix, s, opts} }
 
-func photoStory(photo string) Story { return Story{Photo: photo} }
+func photoStory(photo, focus string) Story { return Story{Photo: photo, PhotoFocus: focus} }
+
+// framerView feeds the "framer" admin template: a photo, its focus, and the
+// form field the focus is saved in.
+type framerView struct{ URL, Focus, Field string }
+
+func framer(url, focus, field string) framerView { return framerView{url, focus, field} }
 
 // or returns s, or def if s is empty.
 func or(s, def string) string {
@@ -879,4 +909,15 @@ func or(s, def string) string {
 		return def
 	}
 	return s
+}
+
+var focusRE = regexp.MustCompile(`^(100|[1-9]?[0-9])% (100|[1-9]?[0-9])%$`)
+
+// cleanFocus keeps a photo focus point ("50% 20%") or drops anything else.
+// The middle is the default, so it's stored as empty.
+func cleanFocus(f string) string {
+	if !focusRE.MatchString(f) || f == "50% 50%" {
+		return ""
+	}
+	return f
 }

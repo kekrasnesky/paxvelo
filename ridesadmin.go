@@ -34,7 +34,7 @@ func (a *App) addSeries(w http.ResponseWriter, r *http.Request) {
 	se := RideSeries{
 		Name: cleanName(r.FormValue("name")), Weekday: wd, Time: strings.TrimSpace(r.FormValue("time")),
 		Place: cleanName(r.FormValue("place")), Details: cleanName(r.FormValue("details")),
-		StravaURL: strings.TrimSpace(r.FormValue("strava_url")),
+		StravaURL: strings.TrimSpace(r.FormValue("strava_url")), Groups: parseGroups(r.FormValue("groups")),
 	}
 	if from, until := r.FormValue("season_start"), r.FormValue("season_end"); from != "" && until != "" {
 		f, err1 := time.Parse("2006-01-02", from)
@@ -65,19 +65,33 @@ func (a *App) deleteSeries(w http.ResponseWriter, r *http.Request) {
 	back(w, r, "/admin/rides?ok=series-deleted")
 }
 
-// setLeaderAdmin assigns a leader by name, or clears it, from the admin portal.
+// setLeaderAdmin assigns leaders by name, or clears them, from the admin
+// portal: one box per pace group (leader0, leader1, …).
 func (a *App) setLeaderAdmin(w http.ResponseWriter, r *http.Request) {
 	key := r.PathValue("key")
 	me, _ := a.adminName(r)
-	name := cleanName(r.FormValue("leader"))
-	var was string
+	r.ParseForm()
+	type change struct{ group, was, now string }
+	var changes []change
 	o, err := a.store.UpdateRide(key, func(c *CalRide) error {
-		if c.Leader != nil {
-			was = c.Leader.Name
-		}
-		c.Leader = nil
-		if name != "" {
-			c.Leader = &Leader{Name: name, SetBy: me, Since: time.Now().UTC()}
+		for i, g := range c.groupNames() {
+			field := "leader" + strconv.Itoa(i)
+			if _, sent := r.Form[field]; !sent {
+				continue
+			}
+			name, was := cleanName(r.FormValue(field)), ""
+			if l := c.leaderFor(g); l != nil {
+				was = l.Name
+			}
+			if name == was {
+				continue
+			}
+			changes = append(changes, change{g, was, name})
+			if name == "" {
+				c.setLeader(g, nil)
+			} else {
+				c.setLeader(g, &Leader{Name: name, SetBy: me, Since: time.Now().UTC()})
+			}
 		}
 		return nil
 	})
@@ -85,13 +99,15 @@ func (a *App) setLeaderAdmin(w http.ResponseWriter, r *http.Request) {
 		back(w, r, "/admin/rides?err=save")
 		return
 	}
-	switch {
-	case name == "" && was != "":
-		a.notifyRide(fmt.Sprintf("%s on %s needs a leader", o.Name, shortDate(o.Date)),
-			fmt.Sprintf("%s removed %s as the leader of %s on %s.", me, was, o.Name, rideWhen(o)), o, true)
-	case name != "" && name != was:
-		a.notifyRide(fmt.Sprintf("%s will lead %s on %s", name, o.Name, shortDate(o.Date)),
-			fmt.Sprintf("%s made %s the leader of %s on %s.", me, name, o.Name, rideWhen(o)), o, true)
+	for _, ch := range changes {
+		what := rideAndGroup(o.Name, ch.group)
+		if ch.now == "" {
+			a.notifyRide(fmt.Sprintf("%s on %s needs a leader", what, shortDate(o.Date)),
+				fmt.Sprintf("%s removed %s as the leader of %s on %s.", me, ch.was, what, rideWhen(o)), o, "")
+		} else {
+			a.notifyRide(fmt.Sprintf("%s will lead %s on %s", ch.now, what, shortDate(o.Date)),
+				fmt.Sprintf("%s made %s the leader of %s on %s.", me, ch.now, what, rideWhen(o)), o, "")
+		}
 	}
 	back(w, r, "/admin/rides?ok=leader")
 }

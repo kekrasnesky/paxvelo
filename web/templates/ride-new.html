@@ -14,6 +14,7 @@
     <label>Ride name <input name="name" value="{{.Form.Name}}" required maxlength="80" placeholder="Saturday coffee ride"></label>
     <label><span>Where it starts <span class="opt">optional</span></span> <input name="place" value="{{.Form.Place}}" maxlength="100" placeholder="Leonardtown Square"></label>
     <label><span>Pace or distance <span class="opt">optional</span></span> <input name="details" value="{{.Form.Details}}" maxlength="100" placeholder="Casual · 30 mi"></label>
+    <label><span>Pace groups <span class="opt">optional, each gets its own leader</span></span> <input name="groups" value="{{join .Form.Groups ", "}}" maxlength="200" placeholder="Fast, Social"></label>
     <label><span>Strava event link <span class="opt">optional, add it later if you like</span></span> <input type="url" name="strava_url" value="{{.Form.StravaURL}}" placeholder="https://www.strava.com/clubs/10197/group_events/…"></label>
     <label class="check-row"><input type="checkbox" name="lead" checked> I’ll lead this ride</label>
     <button class="btn" type="submit">Add to the calendar</button>

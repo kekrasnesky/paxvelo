@@ -99,6 +99,11 @@ type storeData struct {
 	CalRides            []*CalRide    `json:"rides,omitempty"`
 	StravaAdmins        []string      `json:"strava_admins,omitempty"`
 	StravaAdminsChecked *time.Time    `json:"strava_admins_checked,omitempty"`
+
+	// Pages and board members edited in the admin
+	PageEdits   map[string]PageEdit `json:"page_edits,omitempty"`
+	Board       []BoardMember       `json:"board,omitempty"`
+	BoardSeeded bool                `json:"board_seeded,omitempty"`
 }
 
 type Store struct {
@@ -150,6 +155,9 @@ func openStore(dir string) (*Store, error) {
 	}
 	if s.d.NextCampaign == 0 {
 		s.d.NextCampaign = 1
+	}
+	if !s.d.BoardSeeded {
+		s.d.Board, s.d.BoardSeeded = defaultBoard(), true
 	}
 	if !s.d.SeriesSeeded {
 		s.d.Series, s.d.NextSeries, s.d.SeriesSeeded = defaultSeries(), 3, true

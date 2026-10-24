@@ -52,6 +52,11 @@ type adminView struct {
 	// Instagram tab
 	Instagram     []string
 	InstagramText string
+	// Pages and Board tabs
+	Pages    []pageRow
+	Page     pageRow
+	PageText string
+	Board    []BoardMember
 	// Rides tab
 	Series              []RideSeries
 	Upcoming            []RideOcc
@@ -210,6 +215,9 @@ var flashText = map[string]string{
 	"drafted":           "An email about the newsletter is ready below. Check it, send yourself a test, then send it.",
 	"copied":            "This is a new draft copied from the other one. Edit away: the original is unchanged.",
 	"instagram":         "Saved. The home page shows these posts now.",
+	"page-saved":        "Saved. The page is updated on the website.",
+	"page-reset":        "Done. The page is back to the GitHub version.",
+	"board":             "Saved. The board page is updated.",
 	"series-added":      "Weekly ride added to the calendar.",
 	"series-deleted":    "Weekly ride removed. Dates that already had a leader stay on the calendar.",
 	"leader":            "Saved, and the club has been emailed about any leader change.",

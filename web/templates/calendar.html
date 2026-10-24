@@ -15,7 +15,7 @@
     <a href="/calendar?m={{.Next}}" aria-label="Next month">›</a>
   </nav>
 
-  <div class="cal-key"><span class="dot dot-led"></span> Has a leader <span class="dot dot-open"></span> Needs a leader</div>
+  <div class="cal-key"><span class="dot dot-led"></span> Has its leaders <span class="dot dot-partial"></span> Needs another leader <span class="dot dot-open"></span> Needs a leader</div>
 
   <table class="cal-grid">
     <thead><tr><th>Sun</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th></tr></thead>
@@ -23,9 +23,9 @@
     {{range .Weeks}}<tr>
       {{range .}}<td class="{{if not .InMonth}}out {{end}}{{if .Today}}today {{end}}{{if .Past}}past{{end}}">
         <div class="cal-day"><span>{{.Day}}</span>{{if and .InMonth (not .Past)}}<a class="cal-add" href="/calendar/new?date={{.Date}}" aria-label="Add a ride on {{.Date}}">+</a>{{end}}</div>
-        {{range .Rides}}<a class="cal-ride{{if .Cancelled}} cancelled{{else if .Leader}} led{{else}} open{{end}}" href="/calendar/ride/{{.Key}}">
+        {{range .Rides}}<a class="cal-ride {{.Status}}" href="/calendar/ride/{{.Key}}">
           <span class="cal-time">{{.TimeLabel}}</span> {{.Name}}
-          <span class="cal-lead">{{if .Cancelled}}Cancelled{{else}}{{with .Leader}}{{.Name}}{{else}}Needs a leader{{end}}{{end}}</span>
+          <span class="cal-lead">{{.LeaderSummary}}</span>
         </a>{{end}}
       </td>{{end}}
     </tr>{{end}}
@@ -35,9 +35,9 @@
   <ol class="cal-list">
     {{range .Days}}<li>
       <h3>{{(index .Rides 0).DateLabel}}</h3>
-      {{range .Rides}}<a class="cal-ride{{if .Cancelled}} cancelled{{else if .Leader}} led{{else}} open{{end}}" href="/calendar/ride/{{.Key}}">
+      {{range .Rides}}<a class="cal-ride {{.Status}}" href="/calendar/ride/{{.Key}}">
         <span class="cal-time">{{.TimeLabel}}</span> {{.Name}}
-        <span class="cal-lead">{{if .Cancelled}}Cancelled{{else}}{{with .Leader}}Led by {{.Name}}{{else}}Needs a leader{{end}}{{end}}</span>
+        <span class="cal-lead">{{if eq .Status "led"}}Led by {{end}}{{.LeaderSummary}}</span>
       </a>{{end}}
     </li>
     {{else}}<li class="cal-none">No rides on the calendar this month yet.</li>

@@ -127,6 +127,8 @@ func TestRideLeaders(t *testing.T) {
 
 	// The weekly Tuesday ride has no leader, so anyone can take it.
 	key := seriesKey(1, nextWeekday(a, time.Tuesday))
+	groupA, groupB := "A group · 24–28 mph", "B group · 20–22 mph"
+	gA, gB := url.Values{"group": {groupA}}, url.Values{"group": {groupB}}
 	if w := do(t, h, nil, "GET", "/calendar/ride/"+key, "", nil); !strings.Contains(w.Body.String(), "Sign in with Strava") {
 		t.Errorf("signed-out ride page: %d", w.Code)
 	}
@@ -134,40 +136,55 @@ func TestRideLeaders(t *testing.T) {
 		ct, body := form(vals)
 		return do(t, h, c, "POST", path, ct, body).Header().Get("Location")
 	}
-	if loc := post(jane, "/calendar/ride/"+key+"/lead", nil); !strings.Contains(loc, "ok=led") {
+	if loc := post(jane, "/calendar/ride/"+key+"/lead", gA); !strings.Contains(loc, "ok=led") {
 		t.Fatalf("jane lead: %q", loc)
 	}
-	if o, _ := a.store.Ride(key); o.Leader == nil || o.Leader.Name != "Jane D." {
-		t.Fatalf("leader: %+v", o.Leader)
+	if o, _ := a.store.Ride(key); func() bool { l := o.leaderFor(groupA); return l == nil || l.Name != "Jane D." }() {
+		t.Fatalf("leader: %+v", o.Leaders)
 	}
-	if len(*sent) != 1 || (*sent)[0].to != "PaxVeloClub@gmail.com" || !strings.Contains((*sent)[0].subject, "Jane D. will lead Tuesday Night Ride") ||
+	if len(*sent) != 1 || (*sent)[0].to != "PaxVeloClub@gmail.com" || !strings.Contains((*sent)[0].subject, "Jane D. will lead Tuesday Night Ride (A group") ||
 		!strings.Contains((*sent)[0].body, "isn’t an admin of the PaxVelo club on Strava") {
 		t.Errorf("notice: %+v", *sent)
 	}
 
-	// Once it has a leader, other riders can't take it or remove her...
-	if loc := post(bob, "/calendar/ride/"+key+"/lead", nil); !strings.Contains(loc, "err=taken") {
+	// Each pace group has its own leader: Bob can lead B, but Jane can't lead both.
+	if loc := post(jane, "/calendar/ride/"+key+"/lead", gB); !strings.Contains(loc, "err=already") {
+		t.Errorf("jane led two groups: %q", loc)
+	}
+	if loc := post(bob, "/calendar/ride/"+key+"/lead", gB); !strings.Contains(loc, "ok=led") {
+		t.Errorf("bob lead B: %q", loc)
+	}
+	if o, _ := a.store.Ride(key); o.Status() != "led" || o.LeaderSummary() != "Jane D., Bob S." {
+		t.Errorf("both groups led: %q %q", o.Status(), o.LeaderSummary())
+	}
+	post(bob, "/calendar/ride/"+key+"/stepdown", gB)
+	if o, _ := a.store.Ride(key); o.Status() != "partial" || o.LeaderSummary() != "Needs 1 more leader" {
+		t.Errorf("one group led: %q %q", o.Status(), o.LeaderSummary())
+	}
+
+	// Once a group has a leader, other riders can't take it or remove her...
+	if loc := post(bob, "/calendar/ride/"+key+"/lead", gA); !strings.Contains(loc, "err=taken") {
 		t.Errorf("bob took a led ride: %q", loc)
 	}
-	if loc := post(bob, "/calendar/ride/"+key+"/stepdown", nil); !strings.Contains(loc, "err=notyours") {
+	if loc := post(bob, "/calendar/ride/"+key+"/stepdown", gA); !strings.Contains(loc, "err=notyours") {
 		t.Errorf("bob removed the leader: %q", loc)
 	}
 	// ...but a club admin can.
-	if loc := post(ann, "/calendar/ride/"+key+"/lead", nil); !strings.Contains(loc, "ok=led") {
+	if loc := post(ann, "/calendar/ride/"+key+"/lead", gA); !strings.Contains(loc, "ok=led") {
 		t.Errorf("admin take over: %q", loc)
 	}
-	if o, _ := a.store.Ride(key); o.Leader == nil || o.Leader.Name != "Ann A." || !o.Leader.StravaAdmin {
-		t.Errorf("after take over: %+v", o.Leader)
+	if o, _ := a.store.Ride(key); func() bool { l := o.leaderFor(groupA); return l == nil || l.Name != "Ann A." || !l.StravaAdmin }() {
+		t.Errorf("after take over: %+v", o.Leaders)
 	}
 	if last := (*sent)[len(*sent)-1]; !strings.Contains(last.subject, "took over") || strings.Contains(last.body, "isn’t an admin") {
 		t.Errorf("take over notice: %+v", last)
 	}
 	// The leader can step down, and then anyone can take it again.
-	post(ann, "/calendar/ride/"+key+"/stepdown", nil)
-	if o, _ := a.store.Ride(key); o.Leader != nil {
-		t.Errorf("leader after stepping down: %+v", o.Leader)
+	post(ann, "/calendar/ride/"+key+"/stepdown", gA)
+	if o, _ := a.store.Ride(key); o.leaderFor(groupA) != nil {
+		t.Errorf("leader after stepping down: %+v", o.Leaders)
 	}
-	if loc := post(bob, "/calendar/ride/"+key+"/lead", nil); !strings.Contains(loc, "ok=led") {
+	if loc := post(bob, "/calendar/ride/"+key+"/lead", gA); !strings.Contains(loc, "ok=led") {
 		t.Errorf("bob lead after step down: %q", loc)
 	}
 
@@ -193,7 +210,7 @@ func TestRideLeaders(t *testing.T) {
 	}
 
 	// Signing up needs a sign-in, and a form from this site.
-	if loc := post(nil, "/calendar/ride/"+key+"/lead", nil); !strings.HasPrefix(loc, "/strava/login") {
+	if loc := post(nil, "/calendar/ride/"+key+"/lead", gA); !strings.HasPrefix(loc, "/strava/login") {
 		t.Errorf("signed out lead: %q", loc)
 	}
 	r := httptest.NewRequest("POST", "/calendar/ride/"+key+"/lead", nil)
@@ -247,10 +264,10 @@ func TestRidesAdmin(t *testing.T) {
 	a.setSession(cookie, "Board Member", 3600)
 	admin := cookie.Result().Cookies()[0]
 	key := seriesKey(1, nextWeekday(a, time.Tuesday))
-	ct, body := form(url.Values{"leader": {"Chris T."}})
+	ct, body := form(url.Values{"leader0": {"Chris T."}, "leader1": {""}})
 	do(t, h, admin, "POST", "/admin/rides/"+key+"/leader", ct, body)
-	if o, _ := a.store.Ride(key); o.Leader == nil || o.Leader.Name != "Chris T." || o.Leader.SetBy != "Board Member" {
-		t.Errorf("admin-assigned leader: %+v", o.Leader)
+	if o, _ := a.store.Ride(key); len(o.Leaders) != 1 || o.Leaders[0].Name != "Chris T." || o.Leaders[0].SetBy != "Board Member" || o.Leaders[0].Group != "A group · 24–28 mph" {
+		t.Errorf("admin-assigned leader: %+v", o.Leaders)
 	}
 	if len(*sent) != 1 || !strings.Contains((*sent)[0].body, "Board Member made Chris T. the leader") {
 		t.Errorf("notice: %+v", *sent)
@@ -268,7 +285,7 @@ func TestRidesAdmin(t *testing.T) {
 	found := false
 	for _, o := range a.store.Rides(a.today(), a.today().AddDate(0, 0, 14)) {
 		if o.Name == "Tuesday Night Ride" {
-			found = found || (o.Leader != nil && o.Custom)
+			found = found || (len(o.Leaders) > 0 && o.Custom)
 		}
 	}
 	if !found {

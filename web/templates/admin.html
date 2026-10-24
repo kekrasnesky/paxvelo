@@ -15,6 +15,8 @@
     <a href="/admin"{{if eq .Tab "members"}} aria-current="page"{{end}}>Members</a>
     <a href="/admin/email"{{if eq .Tab "email"}} aria-current="page"{{end}}>Email</a>
     <a href="/admin/newsletter"{{if eq .Tab "newsletter"}} aria-current="page"{{end}}>Newsletter</a>
+    <a href="/admin/pages"{{if eq .Tab "pages"}} aria-current="page"{{end}}>Pages</a>
+    <a href="/admin/board"{{if eq .Tab "board"}} aria-current="page"{{end}}>Board</a>
     <a href="/admin/rides"{{if eq .Tab "rides"}} aria-current="page"{{end}}>Rides</a>
     <a href="/admin/minutes"{{if eq .Tab "minutes"}} aria-current="page"{{end}}>Minutes</a>
     <a href="/admin/instagram"{{if eq .Tab "instagram"}} aria-current="page"{{end}}>Instagram</a>
@@ -28,6 +30,17 @@
 {{end}}
 
 {{define "foot"}}</main>
+<script>
+// Photo framing: click a photo to choose the spot every crop keeps in view.
+document.querySelectorAll('.framer').forEach(function(f){
+  var input=f.querySelector('input[type=hidden]'),pick=f.querySelector('.framer-pick'),dot=f.querySelector('.framer-dot'),pv=f.querySelectorAll('.framer-previews img');
+  function apply(v){var p=(v||'50% 50%').split(' ');dot.style.left=p[0];dot.style.top=p[1];pv.forEach(function(i){i.style.objectPosition=v||'50% 50%'})}
+  apply(input.value);
+  pick.addEventListener('click',function(e){var r=pick.querySelector('img').getBoundingClientRect();
+    var x=Math.max(0,Math.min(100,Math.round((e.clientX-r.left)/r.width*100))),y=Math.max(0,Math.min(100,Math.round((e.clientY-r.top)/r.height*100)));
+    input.value=x+'% '+y+'%';apply(input.value);input.dispatchEvent(new Event('change',{bubbles:true}))});
+});
+</script>
 </body>
 </html>{{end}}
 
@@ -216,7 +229,7 @@
       <label class="inline-label">Year <input type="number" name="year" value="{{$is.Year}}" min="2000" max="2100" class="year"></label>
     </div>
     <label>Tagline under the title <input name="tagline" value="{{$is.Tagline}}" maxlength="120"></label>
-    {{template "photo" (story "cover." (photoStory $is.Cover) "")}}
+    {{template "photo" (story "cover." (photoStory $is.Cover $is.CoverFocus) "")}}
   </section>
 
   <section class="card">
@@ -283,7 +296,7 @@
     <h2>Photo strip</h2>
     <p class="muted small">A row of photos near the bottom, up to 8.</p>
     <input type="hidden" name="gallery_form" value="1">
-    {{if $is.Gallery}}<div class="thumbs">{{range $i, $g := $is.Gallery}}<label><img src="{{$g}}" alt=""><input type="hidden" name="gallery_current" value="{{$g}}"><span class="check"><input type="checkbox" name="gallery{{$i}}_remove"> Remove</span></label>{{end}}</div>{{end}}
+    {{if $is.Gallery}}<div class="thumbs">{{range $i, $g := $is.Gallery}}<div class="thumb">{{template "framer" (framer $g (index $is.GalleryFocus $g) (printf "gallery%d_focus" $i))}}<input type="hidden" name="gallery_current" value="{{$g}}"><label class="check"><input type="checkbox" name="gallery{{$i}}_remove"> Remove</label></div>{{end}}</div>{{end}}
     <label>Add photos <input type="file" name="gallery_files" accept="image/jpeg,image/png,image/webp" multiple></label>
   </section>
 
@@ -329,7 +342,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
 </div>{{end}}
 
 {{define "photo"}}{{$p := .P}}{{$s := .S}}<div class="photo-field">
-  {{with $s.Photo}}<img src="{{.}}" alt="">{{end}}
+  {{if $s.Photo}}{{template "framer" (framer $s.Photo $s.PhotoFocus (printf "%sphoto_focus" $p))}}{{else}}<span></span>{{end}}
   <input type="hidden" name="{{$p}}photo_current" value="{{$s.Photo}}">
   <div class="fields">
     <label>{{if $s.Photo}}Replace photo{{else}}Photo{{end}} <input type="file" name="{{$p}}photo_file" accept="image/jpeg,image/png,image/webp"></label>
@@ -404,11 +417,13 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
     <td class="nowrap">{{.DateLabel}}<br><span class="muted small">{{.TimeLabel}}</span></td>
     <td><a href="/calendar/ride/{{.Key}}" target="_blank" rel="noopener">{{.Name}}</a>{{if .Custom}} <span class="tag">One-off</span>{{end}}{{if .Cancelled}} <span class="tag">Cancelled</span>{{end}}</td>
     <td>
-      <form method="post" action="/admin/rides/{{.Key}}/leader" class="leader-form">
-        <input name="leader" value="{{with .Leader}}{{.Name}}{{end}}" placeholder="Needs a leader" aria-label="Leader for {{.Name}} on {{.DateLabel}}" maxlength="60">
+      {{$o := .}}<form method="post" action="/admin/rides/{{.Key}}/leader" class="leader-form">
+        {{range $i, $s := .Slots}}<label class="leader-row">{{with $s.Group}}<span class="small">{{.}}</span>{{end}}
+          <input name="leader{{$i}}" value="{{with $s.Leader}}{{.Name}}{{end}}" placeholder="Needs a leader" aria-label="Leader{{with $s.Group}} for {{.}}{{end}} on {{$o.DateLabel}}" maxlength="60">
+          {{with $s.Leader}}{{if and .StravaID (not .StravaAdmin)}}<span class="muted small">Not a Strava admin</span>{{end}}{{end}}
+        </label>{{end}}
         <button class="mini">Save</button>
       </form>
-      {{with .Leader}}{{if and (not .StravaAdmin) (not .SetBy)}}<span class="muted small">Not a Strava admin</span>{{end}}{{end}}
     </td>
     <td class="right nowrap"><form method="post" action="/admin/rides/{{.Key}}/cancel" class="inline">{{if .Cancelled}}<input type="hidden" name="cancel" value="0"><button class="link">Restore</button>{{else}}<input type="hidden" name="cancel" value="1"><button class="link danger">Cancel ride</button>{{end}}</form></td>
   </tr>
@@ -422,7 +437,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   <thead><tr><th>Ride</th><th>When</th><th>Season</th><th>Start</th><th><span class="sr">Actions</span></th></tr></thead>
   <tbody>
   {{range .Series}}<tr>
-    <td><strong>{{.Name}}</strong>{{with .Details}}<br><span class="muted small">{{.}}</span>{{end}}</td>
+    <td><strong>{{.Name}}</strong>{{with .Details}}<br><span class="muted small">{{.}}</span>{{end}}{{with .Groups}}<br><span class="muted small">Groups: {{join . ", "}}</span>{{end}}</td>
     <td class="nowrap">{{.WeekdayName}}s, {{timeLabel .Time}}</td>
     <td class="nowrap">{{.SeasonLabel}}</td>
     <td>{{.Place}}</td>
@@ -444,6 +459,8 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
     <label>Start (optional) <input name="place" maxlength="100" placeholder="Leonardtown Square"></label>
   </div>
   <label>Details (optional) <input name="details" maxlength="100" placeholder="Casual · all levels · 25 mi"></label>
+  <label>Pace groups (optional) <input name="groups" maxlength="200" placeholder="A group · 24–28 mph, B group · 20–22 mph"></label>
+  <p class="muted small">Separate groups with commas. Each group gets its own leader. Leave empty for one leader.</p>
   <label>Strava link (optional) <input type="url" name="strava_url" placeholder="https://www.strava.com/clubs/10197/…"></label>
   <div class="pair">
     <label>Season starts (optional) <input type="date" name="season_start"></label>
@@ -456,4 +473,60 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
 <h2 class="section">Club admins on Strava</h2>
 <p class="muted small">Club admins on Strava can post club events, and on the calendar they can take over or cancel any ride. This list updates whenever someone signs in with Strava.{{with .StravaAdminsChecked}} Last checked {{datetime .}}.{{end}}</p>
 {{if .StravaAdmins}}<ul class="small">{{range .StravaAdmins}}<li>{{.}}</li>{{end}}</ul>{{else}}<p class="muted small">Not checked yet.</p>{{end}}
+{{template "foot" .}}{{end}}
+
+{{define "framer"}}<div class="framer">
+  <button type="button" class="framer-pick" aria-label="Click the spot to keep in view"><img src="{{.URL}}" alt=""><span class="framer-dot"></span></button>
+  <div class="framer-previews" aria-hidden="true"><img src="{{.URL}}" alt="" class="pv-wide"><img src="{{.URL}}" alt="" class="pv-tall"><img src="{{.URL}}" alt="" class="pv-round"></div>
+  <input type="hidden" name="{{.Field}}" value="{{.Focus}}">
+  <p class="muted small">Click the spot to keep in view, like faces. The small previews show how it will be cropped.</p>
+</div>{{end}}
+
+{{define "pages"}}{{template "head" .}}
+<div class="title-row"><h1>Pages</h1><p class="muted">Edit the text of any page. Board members have their own Board tab.</p></div>
+<div class="table-wrap"><table>
+  <thead><tr><th>Page</th><th>Address</th><th>Status</th></tr></thead>
+  <tbody>{{range .Pages}}<tr>
+    <td><a href="/admin/pages/{{.File}}">{{.Title}}</a></td><td><a href="{{.Path}}" target="_blank" rel="noopener">{{.Path}}</a></td>
+    <td>{{with .Edit}}Edited here {{date .Edited}}{{with .EditedBy}} by {{.}}{{end}}{{else}}GitHub version{{end}}</td>
+  </tr>{{end}}</tbody>
+</table></div>
+{{template "foot" .}}{{end}}
+
+{{define "page-edit"}}{{template "head" .}}
+<p class="crumb"><a href="/admin/pages">← All pages</a></p>
+<div class="title-row"><h1>{{.Page.Title}}</h1><p><a href="{{.Page.Path}}" target="_blank" rel="noopener">View page</a></p></div>
+<form class="card new-issue" method="post" action="/admin/pages/{{.Page.File}}">
+  <label>Page text <textarea name="text" rows="24" id="page-text">{{.PageText}}</textarea></label>
+  <p class="muted small"># Title, ## section, **bold**, [link words](https://…), - list item. Leave a blank line between paragraphs.</p>
+  <div class="send-row"><button>Save</button><label class="inline-label">Add a photo <input type="file" id="page-photo" accept="image/jpeg,image/png,image/webp"></label></div>
+</form>
+{{if .Page.Edit}}<form class="footnote" method="post" action="/admin/pages/{{.Page.File}}/reset" onsubmit="return confirm('Undo all edits made here and go back to the GitHub version?')"><button class="link danger">Go back to the GitHub version</button></form>{{end}}
+<script>
+document.getElementById('page-photo').addEventListener('change',function(){var f=this.files[0];if(!f)return;var fd=new FormData();fd.append('photo',f);
+fetch('/admin/pages/photo',{method:'POST',body:fd}).then(function(r){return r.json()}).then(function(j){if(j.error){alert(j.error);return}
+var t=document.getElementById('page-text'),p=t.selectionStart;t.value=t.value.slice(0,p)+'\n\n'+j.markdown+'\n\n'+t.value.slice(p);t.focus()})});
+</script>
+{{template "foot" .}}{{end}}
+
+{{define "board"}}{{template "head" .}}
+<div class="title-row"><h1>Board members</h1><p class="muted">Shown on the <a href="/committee" target="_blank" rel="noopener">Executive Board page</a>.</p></div>
+<form class="issue" method="post" action="/admin/board" enctype="multipart/form-data">
+  <input type="hidden" name="count" value="{{len .Board}}">
+  {{range $i, $m := .Board}}<section class="card">
+    <h2>{{if $m.Name}}{{$m.Name}}{{else}}Add a board member{{end}}</h2>
+    <div class="pair"><label>Name <input name="name{{$i}}" value="{{$m.Name}}" maxlength="60"></label><label>Role <input name="role{{$i}}" value="{{$m.Role}}" maxlength="60"></label></div>
+    <div class="photo-field">
+      {{if $m.Photo}}{{template "framer" (framer $m.Photo $m.Focus (printf "focus%d" $i))}}{{else}}<span></span>{{end}}
+      <input type="hidden" name="photo_current{{$i}}" value="{{$m.Photo}}">
+      <div class="fields">
+        <label>{{if $m.Photo}}Replace photo{{else}}Photo{{end}} <input type="file" name="photo{{$i}}_file" accept="image/jpeg,image/png,image/webp"></label>
+        <label>Position <input type="number" name="order{{$i}}" value="{{inc $i}}" min="1" max="40" class="year"></label>
+        {{if $m.Photo}}<label class="check"><input type="checkbox" name="photo_remove{{$i}}"> Remove photo</label>{{end}}
+        {{if $m.Name}}<label class="check"><input type="checkbox" name="remove{{$i}}"> Remove this person</label>{{end}}
+      </div>
+    </div>
+  </section>{{end}}
+  <div class="save-bar"><button>Save</button><span class="muted small">Photos show as circles: click a photo to keep their face in view.</span></div>
+</form>
 {{template "foot" .}}{{end}}

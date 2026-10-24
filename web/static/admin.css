@@ -73,18 +73,27 @@ tr.off td{color:var(--muted)}
 .fields{display:grid;gap:.9rem}
 .pair{display:grid;grid-template-columns:2fr 1fr;gap:.9rem}
 .photo-field{display:grid;grid-template-columns:auto 1fr;gap:1rem;align-items:start}
-.photo-field>img{width:140px;aspect-ratio:4/3;object-fit:cover;border:1px solid var(--line)}
+.framer{display:grid;gap:.5rem;max-width:260px}
+.framer-pick{position:relative;display:block;padding:0;border:1px solid var(--line);background:none;cursor:crosshair;justify-self:start}
+.framer-pick img{display:block;max-width:260px;max-height:220px;width:auto;height:auto}
+.framer-dot{position:absolute;width:18px;height:18px;margin:-9px 0 0 -9px;border:2px solid #fff;border-radius:50%;background:var(--red);box-shadow:0 0 0 1px rgba(0,0,0,.4);pointer-events:none}
+.framer-previews{display:flex;gap:.4rem;align-items:flex-end}
+.framer-previews img{height:56px;object-fit:cover;border:1px solid var(--line)}
+.pv-wide{width:90px}
+.pv-tall{width:42px}
+.pv-round{width:56px;border-radius:50%}
+.framer p{margin:0}
 .trio{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1.5rem}
 .trio .pair,.trio .photo-field{grid-template-columns:1fr}
 .rides input{min-width:7rem;padding:.45rem .55rem;font-size:.85rem}
 .rides td{padding:.4rem}
 .thumbs{display:flex;flex-wrap:wrap;gap:.8rem}
-.thumbs label{gap:.3rem;font-weight:300}
-.thumbs img{width:130px;aspect-ratio:4/3;object-fit:cover;border:1px solid var(--line)}
+.thumb{display:grid;gap:.3rem}
 .save-bar{position:sticky;bottom:0;display:flex;align-items:center;gap:1rem;padding:.9rem 1.5rem;border:1px solid var(--line);background:#fff;box-shadow:0 -6px 18px rgba(0,0,0,.06)}
 .send-row .year{flex:none;width:6.5rem;min-width:0}
 .cap{text-transform:capitalize}
 .new-issue{margin-top:2rem}
-.leader-form{display:flex;gap:.4rem;align-items:center}
+.leader-form{display:grid;gap:.4rem;justify-items:start}
+.leader-row{display:grid;gap:.15rem;font-weight:300}
 .leader-form input{min-width:9rem;padding:.4rem .55rem;font-size:.88rem}
 @media (max-width:900px){.trio,.pair{grid-template-columns:1fr}.photo-field{grid-template-columns:1fr}}
