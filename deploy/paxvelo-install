@@ -1,0 +1,25 @@
+#!/bin/sh
+# Installs a new build uploaded by the automatic publisher (or by hand) as
+# ~deploy/paxvelo.new. If the new version doesn't start, the old one is put back.
+set -eu
+NEW=/home/deploy/paxvelo.new
+[ -f "$NEW" ] || { echo "No new build at $NEW"; exit 1; }
+install -m 755 -o root -g root "$NEW" /opt/paxvelo/paxvelo.next
+rm -f "$NEW"
+[ -f /opt/paxvelo/paxvelo ] && cp -p /opt/paxvelo/paxvelo /opt/paxvelo/paxvelo.prev
+mv /opt/paxvelo/paxvelo.next /opt/paxvelo/paxvelo
+systemctl restart paxvelo
+for i in 1 2 3 4 5 6 7 8 9 10; do
+	if curl -fsS -o /dev/null http://127.0.0.1:8080/; then
+		echo "Live."
+		exit 0
+	fi
+	sleep 1
+done
+echo "The new version didn't start. Putting the previous version back."
+journalctl -u paxvelo -n 20 --no-pager || true
+if [ -f /opt/paxvelo/paxvelo.prev ]; then
+	mv /opt/paxvelo/paxvelo.prev /opt/paxvelo/paxvelo
+	systemctl restart paxvelo
+fi
+exit 1

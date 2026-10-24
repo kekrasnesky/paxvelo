@@ -1,7 +1,7 @@
 // Command paxvelo runs the PaxVelo club website: the public pages, the join
 // form, and the admin portal for managing members and emailing them.
 //
-// Everything the site needs (templates, CSS, fonts, images) is compiled into
+// Everything the site needs (page text, templates, CSS, fonts, photos) is compiled into
 // the program, so deploying means copying one file. Member data lives in a
 // single JSON file in DATA_DIR. There are no third-party Go dependencies.
 package main
@@ -21,6 +21,11 @@ import (
 
 //go:embed web
 var webFS embed.FS
+
+// The page text and photos, edited by club volunteers (see content/README.md).
+//
+//go:embed content
+var contentFS embed.FS
 
 type App struct {
 	cfg    Config
@@ -81,7 +86,8 @@ func (a *App) routes() http.Handler {
 		}
 		mux.Handle(pattern, a.site.servePage(p))
 	}
-	mux.Handle("GET /static/", a.site.staticFiles())
+	mux.Handle("GET /static/", a.site.staticFiles("/static/", a.site.static))
+	mux.Handle("GET /photos/", a.site.staticFiles("/photos/", a.site.photos))
 	mux.Handle("GET /favicon.ico", http.RedirectHandler("/static/img/favicon.png", http.StatusMovedPermanently))
 	mux.HandleFunc("GET /robots.txt", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -91,8 +97,8 @@ func (a *App) routes() http.Handler {
 	for _, old := range []string{"/info", "/home", "/cart", "/account", "/insurancewaiver"} {
 		mux.Handle("GET "+old, http.RedirectHandler("/", http.StatusMovedPermanently))
 	}
-	mux.Handle("GET /tnrinfo", http.RedirectHandler("/rides#tuesday", http.StatusMovedPermanently))
-	mux.Handle("GET /thnr-info", http.RedirectHandler("/rides#thursday", http.StatusMovedPermanently))
+	mux.Handle("GET /tnrinfo", http.RedirectHandler("/rides#tuesday-night-ride", http.StatusMovedPermanently))
+	mux.Handle("GET /thnr-info", http.RedirectHandler("/rides#thursday-night-ride", http.StatusMovedPermanently))
 
 	// Short, memorable links for emails and flyers: paxvelo.club/kit and /strava.
 	mux.Handle("GET /kit", http.RedirectHandler(a.cfg.KitURL, http.StatusFound))

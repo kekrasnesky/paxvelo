@@ -1,0 +1,62 @@
+# Checks the site and puts it live whenever someone saves a change to main.
+# If the check fails (a missing photo, a typo in a page's settings), nothing is
+# published and GitHub emails whoever made the change with what went wrong.
+#
+# One-time setup is in README.md under "Automatic publishing".
+name: Publish website
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check the site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Check the code
+        run: go vet ./...
+      - name: Check every page
+        run: go test ./...
+
+  publish:
+    name: Put it live
+    needs: check
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+    steps:
+      - name: Skip if the server isn't connected yet
+        if: env.DEPLOY_HOST == ''
+        run: echo "::notice::The check passed, but nothing was published because the DEPLOY_HOST secret isn't set yet. See README.md, Automatic publishing."
+      - uses: actions/checkout@v4
+        if: env.DEPLOY_HOST != ''
+      - uses: actions/setup-go@v5
+        if: env.DEPLOY_HOST != ''
+        with:
+          go-version-file: go.mod
+      - name: Build
+        if: env.DEPLOY_HOST != ''
+        run: GOOS=linux GOARCH="${{ vars.SERVER_ARCH || 'amd64' }}" CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o paxvelo-linux .
+      - name: Upload and restart
+        if: env.DEPLOY_HOST != ''
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          scp -q paxvelo-linux "deploy@$DEPLOY_HOST:paxvelo.new"
+          ssh "deploy@$DEPLOY_HOST" sudo /usr/local/bin/paxvelo-install

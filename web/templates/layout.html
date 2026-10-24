@@ -65,3 +65,21 @@
   <li><a href="https://www.facebook.com/paxveloadmin/" target="_blank" rel="noopener" aria-label="Facebook"><svg aria-hidden="true"><use href="#i-facebook"/></svg></a></li>
   <li><a href="https://www.instagram.com/paxvelo/" target="_blank" rel="noopener" aria-label="Instagram"><svg aria-hidden="true"><use href="#i-instagram"/></svg></a></li>
 </ul>{{end}}
+
+
+{{define "social-links"}}{{template "social" .}}{{end}}
+
+{{define "membership-plans"}}<div class="plans">
+  <a class="plan" href="/join?plan=individual">
+    <span class="plan-name">Individual</span>
+    <span class="plan-price">${{.Club.DuesIndividual}}</span>
+    <span class="plan-per">per year</span>
+    <span class="plan-go">Join</span>
+  </a>
+  <a class="plan" href="/join?plan=family">
+    <span class="plan-name">Family</span>
+    <span class="plan-price">${{.Club.DuesFamily}}</span>
+    <span class="plan-per">per year, for your household</span>
+    <span class="plan-go">Join</span>
+  </a>
+</div>{{end}}

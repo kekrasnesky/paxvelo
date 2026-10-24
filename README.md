@@ -1,5 +1,7 @@
 # PaxVelo website
 
+> **Want to change the words or photos on the site?** See [content/README.md](content/README.md). Everything is edited right here on GitHub, and the site updates itself.
+
 The whole club site in one small program: the public pages, membership signup with PayPal dues, and an admin portal for managing members and emailing them. It has no database, no plugins, no frameworks, and no third-party code. Everything (pages, styles, fonts, images) is built into a single file you copy to a server. Member data lives in one readable file, `data/paxvelo.json`.
 
 ## Try it on your computer
@@ -8,31 +10,32 @@ The whole club site in one small program: the public pages, membership signup wi
 2. In this folder: `cp paxvelo.conf.example paxvelo.conf`, then set `ADMIN_PASSWORD`. Leave `SMTP_HOST` empty for now so emails are only written to the log.
 3. Run `go run .` and open http://localhost:8080. The admin portal is at http://localhost:8080/admin.
 
-After changing any file, stop it (Ctrl+C) and run `go run .` again.
+After changing any file, stop it (Ctrl+C) and run `go run .` again. `go test ./...` runs the same checks GitHub runs before publishing.
 
 ## Where things live
 
 | To change… | Edit |
 |---|---|
-| Text on a page | `web/templates/<page>.html` (home, rides, bike-safety, committee, join) |
+| Text and photos on a page | `content/<page>.md` and `content/photos/` (guide: [content/README.md](content/README.md)) |
+| The Join page | `web/templates/join.html` |
 | Dues amounts, PayPal links, kit store, Strava | `paxvelo.conf` (no code changes needed) |
 | Header, menu, footer, social links | `web/templates/layout.html` |
 | Colors, fonts, spacing | `web/static/site.css` (colors are at the top) |
-| Add a page | Create a template, then add one line to `pageList` (and `infoLinks` for the Info menu) in `site.go` |
-| Photos and logo | `web/static/img/` (see below) |
+| Add a page | Create `content/<name>.md` (no code changes needed) |
+| Logo and browser-tab icon | `web/static/img/` |
 
-Old Squarespace addresses still work: the two ride pages forward to the matching section of Our Rides, and the old waiver page forwards to the homepage. Short links for flyers and emails: `paxvelo.club/kit` (team store) and `paxvelo.club/strava`.
+Every `##` heading gets its own address, like `/rides#weekend-rides`. Old Squarespace addresses still work: the two ride pages forward to the matching section of Our Rides, and the old waiver page forwards to the homepage. Short links for flyers and emails: `paxvelo.club/kit` (team store) and `paxvelo.club/strava`.
 
 ## Swapping in the real photos
 
-The images in `web/static/img/` are placeholders cut from a screenshot. Replace them with the originals, keeping the same file names:
+The photos are placeholders cut from a screenshot. Replace them with the originals, keeping the same file names:
 
-- `hero.webp`: the big group photo, about 2000px wide
-- `ride.webp` and `giving.webp`: the two homepage photos, about 1000px wide (cropped to the same shape automatically)
-- `logo.png`: the shield at about 280px wide, so it's sharp on phones
-- `favicon.png`: the browser-tab icon, 64×64
+- `content/photos/hero.webp`: the big group photo, about 2000px wide (and `hero-phone.webp`, a square crop for phones)
+- `content/photos/ride.webp` and `giving.webp`: the two homepage photos, about 1000px wide (cropped to the same shape automatically)
+- `web/static/img/logo.png`: the shield at about 280px wide, so it's sharp on phones
+- `web/static/img/favicon.png`: the browser-tab icon, 64×64
 
-To make WebP files, drop photos into https://squoosh.app, choose WebP at quality 75, and download. JPGs work too if you change the file name in `web/templates/home.html`.
+To make WebP files, drop photos into https://squoosh.app, choose WebP at quality 75, and download. JPGs work too if you change the file name in `content/home.md`.
 
 ## Membership dues
 
@@ -64,9 +67,29 @@ You need a small Ubuntu 24.04 server (about $5/month at Hetzner, DigitalOcean, o
 1. **DNS:** point both `paxvelo.club` and `www.paxvelo.club` (A records) at the server's IP address.
 2. **One-time server setup:** `scp -r deploy root@SERVER:/root/ && ssh root@SERVER 'cd deploy && sh setup.sh'`
 3. **Settings:** `scp paxvelo.conf root@SERVER:/opt/paxvelo/` then `ssh root@SERVER 'chown paxvelo /opt/paxvelo/paxvelo.conf && chmod 600 /opt/paxvelo/paxvelo.conf'`
-4. **Deploy:** `./deploy/deploy.sh root@SERVER`. Run this again any time you change something.
+4. **Publishing:** connect GitHub (below) so every saved change goes live by itself. To publish by hand instead, run `./deploy/deploy.sh root@SERVER`.
 
 HTTPS certificates are set up and renewed automatically by Caddy, and security updates install themselves. A send that was in progress during a deploy picks up where it left off.
+
+## Automatic publishing
+
+Every change saved to the `main` branch runs [.github/workflows/publish.yml](.github/workflows/publish.yml). It checks that every page builds, then uploads the new version to the server and restarts it. If the check fails, nothing is published and GitHub emails whoever made the change. If the new version doesn't start on the server, the previous one is put back automatically.
+
+One-time setup, after the server setup above:
+
+1. **Make a key for GitHub** on your computer: `ssh-keygen -t ed25519 -N "" -C paxvelo-github -f paxvelo-github`. This makes two files, `paxvelo-github` (private) and `paxvelo-github.pub`.
+2. **Let that key publish:** `scp paxvelo-github.pub root@SERVER:/home/deploy/.ssh/authorized_keys`. The `deploy` user that `setup.sh` created can only upload a new version and restart the site.
+3. **Give GitHub the details.** In the repository, go to **Settings → Secrets and variables → Actions → New repository secret** and add:
+   - `DEPLOY_HOST`: the server's IP address
+   - `DEPLOY_SSH_KEY`: the whole contents of the private `paxvelo-github` file
+   - `DEPLOY_KNOWN_HOSTS`: the output of `ssh-keyscan SERVER` (this lets GitHub check it's talking to the right server)
+4. **Try it:** on the **Actions** tab, open **Publish website** and press **Run workflow**. Then delete the `paxvelo-github` files from your computer: GitHub has the key it needs.
+
+For an ARM server (e.g. Hetzner CAX), also add a variable (same page, **Variables** tab) named `SERVER_ARCH` with the value `arm64`.
+
+Until `DEPLOY_HOST` is set, the workflow still checks every change but doesn't publish anything.
+
+**Recommended:** under **Settings → Collaborators**, give club volunteers the Write role so they can edit pages. Anyone with Write access can publish, so only add people you trust with the website.
 
 ## Moving members over from Squarespace
 

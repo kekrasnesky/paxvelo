@@ -15,23 +15,10 @@ import (
 	"time"
 )
 
-// The public pages. Paths match the old Squarespace site so existing links keep working.
-// To add a page: create web/templates/<file>, add a line here, and (if it belongs
-// in the Info menu) add it to infoLinks below.
-var pageList = []struct{ Path, File, Title string }{
-	{"/", "home.html", "PAXVELO"},
-	{"/committee", "committee.html", "Executive Board Members — PAXVELO"},
-	{"/rides", "rides.html", "Our Rides — PAXVELO"},
-	{"/bike-safety", "bike-safety.html", "Bike Safety 101 — PAXVELO"},
-}
+// The public pages come from content/*.md (see content.go). Their file names
+// match the old Squarespace addresses so existing links keep working.
 
 type navLink struct{ Path, Label string }
-
-var infoLinks = []navLink{
-	{"/committee", "Executive Board Members"},
-	{"/rides", "Our Rides"},
-	{"/bike-safety", "Bike Safety 101"},
-}
 
 const siteDescription = "Southern Maryland’s Premier Cycling Club"
 
@@ -48,6 +35,8 @@ type Site struct {
 	email       *template.Template
 	admin       *template.Template
 	static      fs.FS
+	photos      fs.FS
+	infoLinks   []navLink
 	css         template.CSS
 	js          template.JS
 	adminCSS    template.CSS
@@ -82,21 +71,30 @@ func newSite(cfg Config) (*Site, error) {
 		return nil, err
 	}
 	s.static = static
-
-	// Asset version: changes whenever any static file changes, so browsers can
-	// cache fonts and images forever and still pick up new versions instantly.
-	h := sha256.New()
-	err = fs.WalkDir(static, ".", func(p string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
-			return err
-		}
-		b, err := fs.ReadFile(static, p)
-		h.Write([]byte(p))
-		h.Write(b)
-		return err
-	})
+	content, err := fs.Sub(contentFS, "content")
 	if err != nil {
 		return nil, err
+	}
+	if s.photos, err = fs.Sub(content, "photos"); err != nil {
+		return nil, err
+	}
+
+	// Asset version: changes whenever any static file or photo changes, so browsers
+	// can cache fonts and images forever and still pick up new versions instantly.
+	h := sha256.New()
+	for _, dir := range []fs.FS{static, s.photos} {
+		err = fs.WalkDir(dir, ".", func(p string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() {
+				return err
+			}
+			b, err := fs.ReadFile(dir, p)
+			h.Write([]byte(p))
+			h.Write(b)
+			return err
+		})
+		if err != nil {
+			return nil, err
+		}
 	}
 	s.version = hex.EncodeToString(h.Sum(nil))[:10]
 
@@ -119,8 +117,8 @@ func newSite(cfg Config) (*Site, error) {
 	s.css, s.js, s.adminCSS = template.CSS(css), template.JS(js), template.CSS(adminCSS)
 
 	funcs := template.FuncMap{
-		"infoLinks":   func() []navLink { return infoLinks },
-		"isInfo":      isInfo,
+		"infoLinks":   func() []navLink { return s.infoLinks },
+		"isInfo":      s.isInfo,
 		"date":        func(t time.Time) string { return t.In(cfg.Location).Format("Jan 2, 2006") },
 		"datetime":    func(t time.Time) string { return t.In(cfg.Location).Format("Jan 2, 2006, 3:04 PM") },
 		"statusLabel": statusLabel,
@@ -138,14 +136,54 @@ func newSite(cfg Config) (*Site, error) {
 		return t.ParseFS(webFS, "web/templates/"+file)
 	}
 
-	for _, p := range pageList {
-		t, err := parse(p.File)
-		if err != nil {
+	// Pieces a page can drop in with a line like {membership-plans}.
+	md := &mdRenderer{
+		vars: map[string]string{
+			"strava": cfg.StravaURL, "kit": cfg.KitURL, "donate": cfg.DonateURL,
+			"dues-individual": strconv.Itoa(cfg.DuesIndividual), "dues-family": strconv.Itoa(cfg.DuesFamily),
+		},
+		widgets: map[string]template.HTML{},
+		photos:  s.photos,
+		version: s.version,
+	}
+	widgets, err := base.Clone() // base itself must never run, or it can't be cloned
+	if err != nil {
+		return nil, err
+	}
+	for _, w := range []string{"membership-plans", "social-links"} {
+		var buf bytes.Buffer
+		if err := widgets.ExecuteTemplate(&buf, w, s.view("", "", nil)); err != nil {
 			return nil, err
 		}
+		md.widgets[w] = template.HTML(buf.String())
+	}
+	pages, err := loadContent(content, md)
+	if err != nil {
+		return nil, err
+	}
+	for _, p := range pages {
+		if p.Menu != "" {
+			s.infoLinks = append(s.infoLinks, navLink{p.Path, p.Menu})
+		}
+	}
+	home, err := parse("home.html")
+	if err != nil {
+		return nil, err
+	}
+	inner, err := parse("page.html")
+	if err != nil {
+		return nil, err
+	}
+	for _, p := range pages {
+		t := inner
+		if p.Path == "/" {
+			t = home
+		}
+		v := s.view(p.Path, p.Title, p)
+		v.Desc = p.Desc
 		var buf bytes.Buffer
-		if err := t.ExecuteTemplate(&buf, "layout", s.view(p.Path, p.Title, nil)); err != nil {
-			return nil, fmt.Errorf("%s: %w", p.File, err)
+		if err := t.ExecuteTemplate(&buf, "layout", v); err != nil {
+			return nil, fmt.Errorf("content/%s: %w", p.File, err)
 		}
 		s.pages = append(s.pages, &Page{Path: p.Path, html: buf.Bytes(), gz: gzipBytes(buf.Bytes()), etag: etag(buf.Bytes())})
 	}
@@ -224,10 +262,10 @@ func (s *Site) notFound(w http.ResponseWriter, r *http.Request) {
 	w.Write(s.notFound404)
 }
 
-// staticFiles serves fonts and images. Versioned URLs (?v=...) are cached by
-// browsers for a year, since a new version gets a new URL.
-func (s *Site) staticFiles() http.Handler {
-	files := http.StripPrefix("/static/", http.FileServer(http.FS(s.static)))
+// staticFiles serves fonts, images, and photos under prefix. Versioned URLs
+// (?v=...) are cached by browsers for a year, since a new version gets a new URL.
+func (s *Site) staticFiles(prefix string, dir fs.FS) http.Handler {
+	files := http.StripPrefix(prefix, http.FileServer(http.FS(dir)))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasSuffix(r.URL.Path, "/") {
 			s.notFound(w, r)
@@ -250,8 +288,8 @@ func (s *Site) renderEmail(subject, text, unsubURL string) (string, error) {
 	return b.String(), err
 }
 
-func isInfo(path string) bool {
-	for _, l := range infoLinks {
+func (s *Site) isInfo(path string) bool {
+	for _, l := range s.infoLinks {
 		if l.Path == path {
 			return true
 		}
