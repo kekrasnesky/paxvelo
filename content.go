@@ -28,6 +28,7 @@ type contentPage struct {
 	Menu       string // label in the Info menu; empty means not in the menu
 	Order      int
 	Wide       bool
+	People     bool          // bullet lists starting with a bold name show as people cards
 	Intro      template.HTML // the # heading and everything before the first ##
 	Body       template.HTML // the ## sections
 }
@@ -102,11 +103,13 @@ func parsePage(file, src string, r *mdRenderer) (*contentPage, error) {
 			}
 		case "wide":
 			p.Wide = isYes(s.value)
+		case "people":
+			p.People = isYes(s.value)
 		default:
-			return nil, fmt.Errorf("line %d: unknown setting %q (use title, description, menu, order, or wide)", s.line, s.key)
+			return nil, fmt.Errorf("line %d: unknown setting %q (use title, description, menu, order, wide, or people)", s.line, s.key)
 		}
 	}
-	heading, intro, rest, err := r.render(body, bodyLine, p.Path == "/")
+	heading, intro, rest, err := r.render(body, bodyLine, pageStyle{Home: p.Path == "/", People: p.People})
 	if err != nil {
 		return nil, err
 	}
@@ -190,10 +193,17 @@ type mdBlock struct {
 	line  int
 }
 
+// pageStyle is what a page's layout changes about how its text is shown.
+type pageStyle struct {
+	Home   bool // sections are full-width bands
+	People bool // bullet lists starting with a bold name become people cards
+}
+
 // render turns a page body into HTML. It returns the text of the # heading,
 // everything before the first ## (the intro), and the ## sections. On the
 // home page sections are full-width bands; elsewhere they sit in the article.
-func (r *mdRenderer) render(src string, firstLine int, home bool) (string, template.HTML, template.HTML, error) {
+func (r *mdRenderer) render(src string, firstLine int, style pageStyle) (string, template.HTML, template.HTML, error) {
+	home := style.Home
 	// Hidden notes for editors: <!-- like this --> (keep line numbers right).
 	src = commentRE.ReplaceAllStringFunc(src, func(c string) string { return strings.Repeat("\n", strings.Count(c, "\n")) })
 
@@ -311,7 +321,7 @@ func (r *mdRenderer) render(src string, firstLine int, home bool) (string, templ
 			}
 			out.WriteString(h)
 		case "ul", "ol":
-			h, err := r.list(b.kind, b.items)
+			h, err := r.list(b.kind, b.items, style.People)
 			if err != nil {
 				return "", "", "", fail("%v", err)
 			}
@@ -340,8 +350,18 @@ func (r *mdRenderer) paragraph(text, class string) (string, error) {
 		}
 	}
 	if m := linkRE.FindAllStringSubmatchIndex(text, -1); len(m) > 0 && strings.TrimSpace(linkRE.ReplaceAllString(text, "")) == "" {
-		if len(m) == 1 && text[m[0][2]:m[0][3]] == "!" {
+		photos := 0
+		for _, x := range m {
+			if text[x[2]:x[3]] == "!" {
+				photos++
+			}
+		}
+		switch {
+		case len(m) == 1 && photos == 1:
 			return r.inline(text) // a photo on its own line
+		case photos > 0:
+			h, err := r.inline(text) // photos and links together: an ordinary paragraph
+			return "<p" + attr + ">" + h + "</p>\n", err
 		}
 		var links []string
 		for _, s := range linkRE.FindAllStringSubmatch(text, -1) {
@@ -378,8 +398,9 @@ func (r *mdRenderer) paragraph(text, class string) (string, error) {
 }
 
 // list renders a numbered list, a plain bullet list, or one of two special
-// bullet lists: facts ("- **Pace:** 20 mph") and people ("- **Jane Smith** President").
-func (r *mdRenderer) list(kind string, items []string) (string, error) {
+// bullet lists: facts ("- **Pace:** 20 mph") and, on pages with the people
+// setting, people ("- **Jane Smith** President").
+func (r *mdRenderer) list(kind string, items []string, people bool) (string, error) {
 	var b strings.Builder
 	if kind == "ol" {
 		b.WriteString("<ol class=\"rules\">\n")
@@ -410,7 +431,7 @@ func (r *mdRenderer) list(kind string, items []string) (string, error) {
 		b.WriteString("</dl>\n")
 		return b.String(), nil
 	}
-	if all(items, personRE) {
+	if people && all(items, personRE) {
 		b.WriteString("<ul class=\"board\">\n")
 		for _, it := range items {
 			m := personRE.FindStringSubmatch(it)
@@ -546,6 +567,9 @@ func (r *mdRenderer) url(raw string) (string, error) {
 	// A link to another page by its file name, like rides.md or rides#weekend-rides.
 	page, frag, _ := strings.Cut(u, "#")
 	page = strings.TrimSuffix(page, ".md")
+	if strings.ContainsAny(page, "./") {
+		return "", fmt.Errorf("web addresses need to start with https:// (got %s)", u)
+	}
 	if page == "home" {
 		page = ""
 	}

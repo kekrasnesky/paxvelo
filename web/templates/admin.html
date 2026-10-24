@@ -111,6 +111,7 @@
   <div class="send-row">
     <input type="email" name="test_to" value="{{.TestTo}}" aria-label="Send test to">
     <button class="ghost" formaction="/admin/email/test">Send test</button>
+    {{if or .Draft.Subject .Draft.Body}}<button class="link danger" formaction="/admin/email/discard" onclick="return confirm('Discard this draft?')">Discard draft</button>{{end}}
   </div>
   <div class="send-row">
     <label class="inline-label">Send to
@@ -189,17 +190,12 @@
   <h1>{{$is.Label}}</h1>
   <p>{{if $is.IsPublished}}<span class="paid">Live</span> on the website{{else}}<span class="tag">Draft</span> Only admins can see it{{end}}</p>
 </div>
-<div class="issue-actions">
-  <a class="btn ghost" href="/admin/newsletter/{{$is.ID}}/preview" target="_blank" rel="noopener">Preview</a>
-  {{if $is.IsPublished}}
-    <a class="btn ghost" href="{{$is.Path}}" target="_blank" rel="noopener">View live</a>
-    <form method="post" action="/admin/newsletter/{{$is.ID}}/email"><button class="ghost">Email members about it</button></form>
-    <form method="post" action="/admin/newsletter/{{$is.ID}}/publish" onsubmit="return confirm('Take this issue off the website?')"><input type="hidden" name="publish" value="0"><button class="ghost">Unpublish</button></form>
-  {{else}}
-    <form method="post" action="/admin/newsletter/{{$is.ID}}/publish" onsubmit="return confirm('Publish the saved version of {{$is.Label}} to the website? Save any changes first.')"><input type="hidden" name="publish" value="1"><button>Publish</button></form>
-  {{end}}
-</div>
-<p class="muted small">Save your changes before previewing or publishing. In the text boxes: leave a blank line between paragraphs, put **two stars** around words for bold, and write links as [words to click](https://example.com). In link boxes, {strava} and {kit} fill in the club’s Strava page and team store. Photos: JPG, PNG, or WebP under 8 MB (squoosh.app makes them smaller).</p>
+{{if $is.IsPublished}}<div class="issue-actions">
+  <a class="btn ghost" href="{{$is.Path}}" target="_blank" rel="noopener">View live</a>
+  <form method="post" action="/admin/newsletter/{{$is.ID}}/email"><button class="ghost">Email members about it</button></form>
+  <form method="post" action="/admin/newsletter/{{$is.ID}}/unpublish" onsubmit="return confirm('Take this issue off the website?')"><button class="ghost">Unpublish</button></form>
+</div>{{end}}
+<p class="muted small">The buttons at the bottom save your changes, then preview or publish. In the text boxes: leave a blank line between paragraphs, put **two stars** around words for bold, and write links as [words to click](https://example.com). In link boxes, {strava} and {kit} fill in the club’s Strava page and team store. Photos: JPG, PNG, or WebP under 8 MB (squoosh.app makes them smaller).</p>
 
 <form class="issue" method="post" action="/admin/newsletter/{{$is.ID}}" enctype="multipart/form-data">
   <section class="card">
@@ -269,7 +265,8 @@
   <section class="card">
     <h2>Photo strip</h2>
     <p class="muted small">A row of photos near the bottom, up to 8.</p>
-    {{if $is.Gallery}}<div class="thumbs">{{range $i, $g := $is.Gallery}}<label><img src="{{$g}}" alt=""><span class="check"><input type="checkbox" name="gallery{{$i}}_remove"> Remove</span></label>{{end}}</div>{{end}}
+    <input type="hidden" name="gallery_form" value="1">
+    {{if $is.Gallery}}<div class="thumbs">{{range $i, $g := $is.Gallery}}<label><img src="{{$g}}" alt=""><input type="hidden" name="gallery_current" value="{{$g}}"><span class="check"><input type="checkbox" name="gallery{{$i}}_remove"> Remove</span></label>{{end}}</div>{{end}}
     <label>Add photos <input type="file" name="gallery_files" accept="image/jpeg,image/png,image/webp" multiple></label>
   </section>
 
@@ -279,10 +276,18 @@
   </section>
 
   <div class="save-bar">
-    <button>Save</button>
-    <span class="muted small">{{if $is.IsPublished}}Saving updates the live newsletter right away.{{else}}Saving keeps it as a draft.{{end}}</span>
+    <button{{if $is.IsPublished}} class="ghost"{{end}}>{{if $is.IsPublished}}Save and update live{{else}}Save draft{{end}}</button>
+    <button class="ghost" formaction="/admin/newsletter/{{$is.ID}}?then=preview" formtarget="_blank">Save and preview</button>
+    {{if not $is.IsPublished}}<button formaction="/admin/newsletter/{{$is.ID}}?then=publish" onclick="return confirm('Save and publish {{$is.Label}} on the website?')">Save and publish</button>{{end}}
   </div>
 </form>
+<script>
+// Warn before leaving the page with changes that haven't been saved.
+(function(){var f=document.querySelector('form.issue'),dirty=false;if(!f)return;
+f.addEventListener('input',function(){dirty=true});f.addEventListener('change',function(){dirty=true});
+f.addEventListener('submit',function(e){if(!e.submitter||e.submitter.formTarget!=='_blank')dirty=false});
+window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();e.returnValue=''}})})();
+</script>
 
 <form class="footnote" method="post" action="/admin/newsletter/{{$is.ID}}/delete" onsubmit="return confirm('Delete the {{$is.Label}} issue? This can’t be undone.')"><button class="link danger">Delete this issue</button></form>
 {{template "foot" .}}{{end}}
@@ -308,6 +313,7 @@
 
 {{define "photo"}}{{$p := .P}}{{$s := .S}}<div class="photo-field">
   {{with $s.Photo}}<img src="{{.}}" alt="">{{end}}
+  <input type="hidden" name="{{$p}}photo_current" value="{{$s.Photo}}">
   <div class="fields">
     <label>{{if $s.Photo}}Replace photo{{else}}Photo{{end}} <input type="file" name="{{$p}}photo_file" accept="image/jpeg,image/png,image/webp"></label>
     {{if ne $p "cover."}}<label>Describe the photo for screen readers <input name="{{$p}}photo_alt" value="{{$s.PhotoAlt}}" maxlength="160"></label>{{end}}

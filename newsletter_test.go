@@ -106,9 +106,30 @@ func TestNewsletterFlow(t *testing.T) {
 		t.Errorf("uploaded photo: %d", w.Code)
 	}
 
-	// Publish, then the issue is live at both addresses.
-	ct, body = form(url.Values{"publish": {"1"}})
-	do(t, h, admin, "POST", "/admin/newsletter/1/publish", ct, body)
+	// Publishing a version that can't be shown is refused, and nothing is saved.
+	broken := url.Values{"season": {"fall"}, "year": {"2026"}, "featured.heading": {"Meet Pat"}, "featured.body": {"See {stravva}"}}
+	ct, body = form(broken)
+	if w := do(t, h, admin, "POST", "/admin/newsletter/1?then=publish", ct, body); !strings.Contains(w.Body.String(), "unknown placeholder {stravva}") {
+		t.Errorf("broken publish wasn't reported: %d", w.Code)
+	}
+	if is, _ := a.store.Issue(1); is.IsPublished() || strings.Contains(is.Featured.Body, "stravva") {
+		t.Fatalf("broken edit was published or saved: %+v", is.Featured)
+	}
+
+	// Save and publish, then the issue is live at both addresses.
+	cur, _ := a.store.Issue(1)
+	vals := url.Values{"season": {"fall"}, "year": {"2026"}, "featured.heading": {cur.Featured.Heading}, "featured.body": {cur.Featured.Body},
+		"featured.photo_current": {cur.Featured.Photo}, "featured.video_url": {cur.Featured.VideoURL}, "featured.quote": {cur.Featured.Quote},
+		"kit.heading": {cur.Kit.Heading}, "kit.link_label": {cur.Kit.LinkLabel}, "kit.link_url": {cur.Kit.LinkURL},
+		"ride0.date": {"2026-11-03"}, "ride0.name": {"Turkey Trot Ride"}, "ride0.url": {"https://www.strava.com/clubs/10197/group_events/1"},
+		"ride1.name": {"Holiday Lights Ride"}}
+	ct, body = form(vals)
+	if w := do(t, h, admin, "POST", "/admin/newsletter/1?then=publish", ct, body); !strings.Contains(w.Header().Get("Location"), "ok=published") {
+		t.Fatalf("save and publish: %d %s", w.Code, w.Header().Get("Location"))
+	}
+	if is, _ := a.store.Issue(1); !is.IsPublished() || is.Featured.Photo != cur.Featured.Photo || is.Rides[1].Name != "Holiday Lights Ride" {
+		t.Errorf("after publish: published=%v photo=%q rides=%+v (undated rides go last)", is.IsPublished(), is.Featured.Photo, is.Rides)
+	}
 	for _, path := range []string{"/newsletter", "/newsletter/2026-fall"} {
 		w := do(t, h, nil, "GET", path, "", nil)
 		page := w.Body.String()
@@ -126,19 +147,35 @@ func TestNewsletterFlow(t *testing.T) {
 		}
 	}
 
-	// A broken edit is saved but doesn't break the live page.
-	ct, body = form(url.Values{"season": {"fall"}, "year": {"2026"}, "featured.heading": {"Meet Pat"}, "featured.body": {"See {stravva}"}})
+	// A broken edit to the live issue isn't saved, so the issue still shows
+	// after a restart, and the edit comes back in the form to fix.
+	ct, body = form(broken)
 	w := do(t, h, admin, "POST", "/admin/newsletter/1", ct, body)
-	if !strings.Contains(w.Body.String(), "unknown placeholder {stravva}") {
-		t.Errorf("broken edit wasn't reported: %s", w.Body.String())
+	if !strings.Contains(w.Body.String(), "unknown placeholder {stravva}") || !strings.Contains(w.Body.String(), "See {stravva}") {
+		t.Errorf("broken edit wasn't reported with the text kept: %d", w.Code)
 	}
+	a.site.news = nil // as after a restart
+	a.refreshNewsletter()
 	if w := do(t, h, nil, "GET", "/newsletter", "", nil); !strings.Contains(w.Body.String(), "<strong>every</strong>") {
 		t.Error("a broken edit replaced the live issue")
 	}
 
+	// Announcing it doesn't write over an email in progress.
+	a.store.SetDraft(EmailDraft{Subject: "Dues reminder", Body: "Half written"})
+	if w := do(t, h, admin, "POST", "/admin/newsletter/1/email", "", nil); !strings.Contains(w.Header().Get("Location"), "err=draft") {
+		t.Errorf("email over a draft: %s", w.Header().Get("Location"))
+	}
+	if d := a.store.Draft(); d.Subject != "Dues reminder" {
+		t.Errorf("draft was replaced: %+v", d)
+	}
+	a.store.SetDraft(EmailDraft{})
+	do(t, h, admin, "POST", "/admin/newsletter/1/email", "", nil)
+	if d := a.store.Draft(); !strings.Contains(d.Body, "/newsletter/2026-fall") {
+		t.Errorf("announcement draft: %+v", d)
+	}
+
 	// Unpublish hides it again.
-	ct, body = form(url.Values{"publish": {"0"}})
-	do(t, h, admin, "POST", "/admin/newsletter/1/publish", ct, body)
+	do(t, h, admin, "POST", "/admin/newsletter/1/unpublish", "", nil)
 	if w := do(t, h, nil, "GET", "/newsletter/2026-fall", "", nil); w.Code != 404 {
 		t.Errorf("unpublished issue still public: %d", w.Code)
 	}

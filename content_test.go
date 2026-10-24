@@ -75,7 +75,7 @@ Intro text with **bold** and *italics*.
 {membership-plans}
 <!-- a note for editors -->
 `
-	heading, intro, body, err := testRenderer().render(src, 1, false)
+	heading, intro, body, err := testRenderer().render(src, 1, pageStyle{People: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,7 +114,7 @@ Intro text with **bold** and *italics*.
 }
 
 func TestRenderEscapesHTML(t *testing.T) {
-	_, intro, _, err := testRenderer().render("# Hi\n\n<script>alert(1)</script>", 1, false)
+	_, intro, _, err := testRenderer().render("# Hi\n\n<script>alert(1)</script>", 1, pageStyle{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,11 +129,35 @@ func TestRenderErrors(t *testing.T) {
 		{"# A\n\nSee {stravva}", "line 3: unknown placeholder {stravva}"},
 		{"# A\n\n[x](javascript:alert(1))", "links must start with"},
 		{"# A\n# B", "line 2: a page can only have one title line"},
+		{"# A\n\n[Strava](www.strava.com/clubs/1)", "web addresses need to start with https://"},
 	} {
-		_, _, _, err := testRenderer().render(tc.src, 1, false)
+		_, _, _, err := testRenderer().render(tc.src, 1, pageStyle{})
 		if err == nil || !strings.Contains(err.Error(), tc.want) {
 			t.Errorf("render(%q) error = %v, want %q", tc.src, err, tc.want)
 		}
+	}
+}
+
+func TestRenderPhotoWithLink(t *testing.T) {
+	_, intro, _, err := testRenderer().render("# A\n\n![A ride](photos/ride.webp) [Read more](rides.md)", 1, pageStyle{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`<img src="/photos/ride.webp?v=v1" alt="A ride"`, `<a href="/rides">Read more</a>`} {
+		if !strings.Contains(string(intro), want) {
+			t.Errorf("missing %s in %s", want, intro)
+		}
+	}
+}
+
+func TestPeopleCardsNeedTheSetting(t *testing.T) {
+	src := "# A\n\n- **Water** two full bottles\n- **Spare tube** and a pump"
+	_, intro, _, err := testRenderer().render(src, 1, pageStyle{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(intro), "board") || !strings.Contains(string(intro), "<li><strong>Water</strong> two full bottles</li>") {
+		t.Errorf("an ordinary list became people cards: %s", intro)
 	}
 }
 

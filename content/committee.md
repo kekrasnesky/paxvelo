@@ -2,6 +2,7 @@
 menu: Executive Board Members
 order: 1
 wide: yes
+people: yes
 ---
 
 # Executive Board Members

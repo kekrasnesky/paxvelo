@@ -171,6 +171,7 @@ var flashText = map[string]string{
 	"paid":          "Marked as paid.",
 	"unpaid":        "Marked as not paid.",
 	"loggedin":      "",
+	"discarded":     "Draft discarded.",
 	"drafted":       "An email about the newsletter is ready below. Check it, send yourself a test, then send it.",
 	"created":       "New issue started. Replace the text and photos, then preview and publish.",
 	"saved":         "Saved. It isn’t public until you publish it.",
@@ -192,6 +193,7 @@ var errorText = map[string]string{
 	"season":  "Choose a season and year.",
 	"exists":  "There’s already an issue for that season. Open it from the list below.",
 	"gone":    "That issue was deleted.",
+	"draft":   "There’s already an unsent email here, so the newsletter announcement didn’t replace it. Send it, or press Discard draft, then try “Email members about it” again.",
 }
 
 func flashFrom(r *http.Request) (flash, errMsg string) {
@@ -623,6 +625,15 @@ func (a *App) resumeCampaign(w http.ResponseWriter, r *http.Request) {
 	a.store.ResumeCampaign(id)
 	a.mailer.Wake()
 	back(w, r, "/admin/email?ok=resumed")
+}
+
+// discardDraft empties the saved email draft.
+func (a *App) discardDraft(w http.ResponseWriter, r *http.Request) {
+	if err := a.store.SetDraft(EmailDraft{}); err != nil {
+		back(w, r, "/admin/email?err=save")
+		return
+	}
+	back(w, r, "/admin/email?ok=discarded")
 }
 
 func (a *App) saveWelcome(w http.ResponseWriter, r *http.Request) {

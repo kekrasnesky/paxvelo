@@ -217,7 +217,7 @@ func (s *Site) newsView(is Issue, archive []Issue) (newsView, error) {
 	story := func(name string, st Story) (shownStory, error) {
 		out := shownStory{Story: st}
 		if strings.TrimSpace(st.Body) != "" {
-			_, intro, body, err := s.md.render(st.Body, 1, false)
+			_, intro, body, err := s.md.render(st.Body, 1, pageStyle{})
 			if err != nil {
 				return out, fmt.Errorf("%s: %w", name, err)
 			}
@@ -278,6 +278,9 @@ func (s *Site) renderNews(v newsView, path, title string) ([]byte, error) {
 // refreshNewsletter re-renders every published issue. An issue that fails to
 // render keeps its previous page, so a mistake never takes the newsletter down.
 func (a *App) refreshNewsletter() {
+	// One refresh at a time, so an older snapshot can never replace a newer one.
+	a.site.newsRefresh.Lock()
+	defer a.site.newsRefresh.Unlock()
 	var published []Issue
 	for _, is := range a.store.Issues() {
 		if is.IsPublished() {
@@ -414,16 +417,17 @@ func (a *App) createIssue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	is := sampleIssue()
-	// Sample rides on the first Tuesday, Thursday, and Saturday of the season.
+	// Sample rides on the first Tuesday, Thursday, and Saturday of the season
+	// (or from today, for the season we're in).
 	start := time.Date(year, time.Month(seasonIndex(season)*3+1), 1, 0, 0, 0, 0, a.cfg.Location)
-	if now := time.Now().In(a.cfg.Location); now.After(start) {
+	if now := time.Now().In(a.cfg.Location); now.After(start) && now.Before(start.AddDate(0, 3, 0)) {
 		start = now
 	}
 	for i, wd := range []time.Weekday{time.Tuesday, time.Thursday, time.Saturday} {
 		d := start.AddDate(0, 0, (int(wd)-int(start.Weekday())+7)%7)
 		is.Rides[i].Date = d.Format("2006-01-02")
 	}
-	sort.SliceStable(is.Rides, func(i, j int) bool { return is.Rides[i].Date < is.Rides[j].Date })
+	sortRides(is.Rides)
 	if list := a.store.Issues(); len(list) > 0 {
 		is = list[0]
 		is.Rides = nil
@@ -497,7 +501,15 @@ func (a *App) saveIssue(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	val := func(name string) string { return strings.TrimSpace(r.FormValue(name)) }
+	// The form carries each photo's current address, so photos uploaded with an
+	// edit that couldn't be saved aren't lost when it's fixed and saved again.
 	photo := func(prefix, current string) string {
+		if v, ok := r.Form[prefix+"photo_current"]; ok {
+			current = ""
+			if len(v) > 0 && sitePhoto(v[0]) {
+				current = v[0]
+			}
+		}
 		if r.FormValue(prefix+"photo_remove") != "" {
 			current = ""
 		}
@@ -545,9 +557,18 @@ func (a *App) saveIssue(w http.ResponseWriter, r *http.Request) {
 			is.Rides = append(is.Rides, rd)
 		}
 	}
-	sort.SliceStable(is.Rides, func(i, j int) bool { return is.Rides[i].Date < is.Rides[j].Date })
+	sortRides(is.Rides)
+	gallery := old.Gallery
+	if r.FormValue("gallery_form") != "" {
+		gallery = nil
+		for _, g := range r.Form["gallery_current"] {
+			if sitePhoto(g) {
+				gallery = append(gallery, g)
+			}
+		}
+	}
 	is.Gallery = nil
-	for i, g := range old.Gallery {
+	for i, g := range gallery {
 		if r.FormValue(fmt.Sprintf("gallery%d_remove", i)) == "" {
 			is.Gallery = append(is.Gallery, g)
 		}
@@ -568,9 +589,25 @@ func (a *App) saveIssue(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// The save buttons can also publish or preview, so neither ever skips
+	// changes that haven't been saved yet.
+	then := r.URL.Query().Get("then")
+	_, renderErr := a.site.newsView(is, nil)
+	if renderErr != nil && (is.IsPublished() || then == "publish") {
+		// A live issue only ever holds a version that can be shown: otherwise the
+		// page would disappear the next time the site restarts. Keep the edit in
+		// the form instead, ready to fix.
+		problems = append(problems, "Not saved yet, so the live newsletter is unchanged. Fix this and save again: "+renderErr.Error())
+		a.renderIssueForm(w, r, is, strings.Join(problems, " "))
+		return
+	}
+	if then == "publish" && !is.IsPublished() && len(problems) == 0 {
+		now := time.Now().UTC()
+		is.Published = &now
+	}
 	saved, err := a.store.SaveIssue(is)
 	if errors.Is(err, errIssueExists) {
-		saved, problems = old, append(problems, "There’s already an issue for "+is.Label()+", so the season wasn’t changed.")
+		problems = append(problems, "There’s already an issue for "+is.Label()+", so the season wasn’t changed.")
 		is.Season, is.Year = old.Season, old.Year
 		saved, err = a.store.SaveIssue(is)
 	}
@@ -578,41 +615,59 @@ func (a *App) saveIssue(w http.ResponseWriter, r *http.Request) {
 		a.renderIssueForm(w, r, is, "Couldn’t save: "+err.Error())
 		return
 	}
-	if _, err := a.site.newsView(saved, nil); err != nil {
-		problems = append(problems, "Saved, but fix this before it can go live: "+err.Error())
+	if renderErr != nil {
+		problems = append(problems, "Saved, but fix this before it can go live: "+renderErr.Error())
 	}
-	if saved.IsPublished() {
+	if saved.IsPublished() || old.IsPublished() {
 		a.refreshNewsletter()
 	}
 	if len(problems) > 0 {
 		a.renderIssueForm(w, r, saved, strings.Join(problems, " "))
 		return
 	}
-	back(w, r, fmt.Sprintf("/admin/newsletter/%d?ok=%s", saved.ID, map[bool]string{true: "updated", false: "saved"}[saved.IsPublished()]))
+	switch {
+	case then == "preview":
+		back(w, r, fmt.Sprintf("/admin/newsletter/%d/preview", saved.ID))
+	case then == "publish" && !old.IsPublished():
+		back(w, r, fmt.Sprintf("/admin/newsletter/%d?ok=published", saved.ID))
+	case saved.IsPublished():
+		back(w, r, fmt.Sprintf("/admin/newsletter/%d?ok=updated", saved.ID))
+	default:
+		back(w, r, fmt.Sprintf("/admin/newsletter/%d?ok=saved", saved.ID))
+	}
 }
 
-func (a *App) publishIssue(w http.ResponseWriter, r *http.Request) {
+// sitePhoto reports whether u is a photo this site serves: one uploaded in
+// the admin or one from content/photos.
+func sitePhoto(u string) bool {
+	return (strings.HasPrefix(u, "/media/") || strings.HasPrefix(u, "/photos/")) && !strings.Contains(u, "..")
+}
+
+// sortRides puts rides in date order, with undated ones ("TBA") last.
+func sortRides(rides []Ride) {
+	sort.SliceStable(rides, func(i, j int) bool {
+		a, b := rides[i].Date, rides[j].Date
+		if a == "" || b == "" {
+			return a != "" && b == ""
+		}
+		return a < b
+	})
+}
+
+// unpublishIssue takes an issue off the website. (Publishing goes through the
+// save button, so it always includes the latest edits.)
+func (a *App) unpublishIssue(w http.ResponseWriter, r *http.Request) {
 	is, ok := a.issueFromPath(w, r)
 	if !ok {
 		return
 	}
-	code := "unpublished"
-	if r.FormValue("publish") == "1" {
-		if _, err := a.site.newsView(is, nil); err != nil {
-			a.renderIssueForm(w, r, is, "Fix this first: "+err.Error())
-			return
-		}
-		now := time.Now().UTC()
-		is.Published, code = &now, "published"
-	} else {
-		is.Published = nil
-	}
+	is.Published = nil
 	if _, err := a.store.SaveIssue(is); err != nil {
 		back(w, r, fmt.Sprintf("/admin/newsletter/%d?err=save", is.ID))
 		return
 	}
 	a.refreshNewsletter()
-	back(w, r, fmt.Sprintf("/admin/newsletter/%d?ok=%s", is.ID, code))
+	back(w, r, fmt.Sprintf("/admin/newsletter/%d?ok=unpublished", is.ID))
 }
 
 func (a *App) deleteIssue(w http.ResponseWriter, r *http.Request) {
@@ -660,6 +715,11 @@ func (a *App) emailIssue(w http.ResponseWriter, r *http.Request) {
 		body += ", and the rides coming up this season."
 	}
 	body += "\n\nSee you on the road!\nPaxVelo"
+	if d := a.store.Draft(); d.Subject != "" || d.Body != "" {
+		// Don't write over an email someone is still working on.
+		back(w, r, "/admin/email?err=draft")
+		return
+	}
 	if err := a.store.SetDraft(EmailDraft{Subject: "The Paceline: " + is.Label(), Body: body}); err != nil {
 		back(w, r, "/admin/email?err=save")
 		return

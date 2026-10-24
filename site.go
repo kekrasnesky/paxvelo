@@ -40,6 +40,7 @@ type Site struct {
 	infoLinks   []navLink
 	md          *mdRenderer
 	newsMu      sync.RWMutex
+	newsRefresh sync.Mutex
 	news        map[string]*Page // the newsletter, rendered when it changes
 	css         template.CSS
 	js          template.JS

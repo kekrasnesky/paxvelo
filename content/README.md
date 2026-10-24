@@ -30,7 +30,7 @@ That's it. About two minutes later the change is on www.paxvelo.club.
 | **Bold** | `**Bold**` |
 | *Italics* | `*Italics*` |
 | A link | `[the words to click](https://example.com)` |
-| A link to another page on the site | `[Bike Safety 101](bike-safety.md)` |
+| A link to another page on the site | `[Bike Safety 101](bike-safety.md)` or `[Bike Safety 101](/bike-safety)` |
 | A big button | Put a link on a line by itself |
 | A row of links | Put two or more links on one line, with nothing else |
 | A note only editors can see | `<!-- like this -->` |
@@ -76,7 +76,7 @@ The first paragraph after the title is shown a little larger.
 - **Start:** Park & Ride by NAS Pax Gate 2
 ```
 
-**People cards** (like the board page): start every line with a bold name, then the role. To add a photo, put it at the start of the line.
+**People cards** (like the board page): start every line with a bold name, then the role. To add a photo, put it at the start of the line. This only works on pages with `people: yes` in their settings (see "Adding a new page"), so ordinary lists elsewhere stay lists.
 
 ```
 - **Jane Smith** President
@@ -135,6 +135,7 @@ The lines between the `---` marks are the page's settings, and all of them are o
 | `title` | The name in the browser tab, if it should differ from the `#` title. |
 | `description` | The summary search engines and link previews show. |
 | `wide` | `wide: yes` gives the page a wider layout, like the board page. |
+| `people` | `people: yes` shows lists that start with a bold name as people cards, like the board page. |
 
 To remove a page, open its file, click the **⋯** menu, and choose **Delete file**. If other pages link to it, update those links too.
 
