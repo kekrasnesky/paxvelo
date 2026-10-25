@@ -343,6 +343,37 @@ td:hover .cal-add,.cal-add:focus-visible{opacity:1}
 .joined-title{margin-bottom:.4rem!important;font-size:1.6rem;font-weight:500;line-height:1.3}
 .joined-pay{margin:1.4rem 0 1.8rem!important}
 
+/* ---------- Desktops and tablets ----------
+   The spacing above follows the original Squarespace site, which grows with
+   the window and leaves big empty bands on a desktop. From tablet width up,
+   tighten it so more fits on a screen. Phones keep the layout below. */
+@media (min-width:768px){
+  .hdr{min-height:92px}
+  .hero{min-height:360px}
+  .hero-in{padding:clamp(40px,4.5vw,80px) max(20px,2vw)}
+  .hero h1{font-size:clamp(2.4rem,6.2vw,6rem)}
+  .hero .lead{margin-top:clamp(14px,1.8vw,28px);font-size:clamp(1.3rem,2.8vw,2.6rem)}
+  .hero .btn{margin-top:clamp(20px,2.4vw,34px)}
+  .hero .social{margin-top:clamp(18px,2vw,28px)}
+  .band{padding:clamp(52px,5.5vw,96px) var(--pad)}
+  .band h2{font-size:clamp(2rem,3.4vw,3.2rem)}
+  .band>p{margin-top:clamp(24px,2.4vw,36px)}
+  .band>.intro{margin-top:1.1rem}
+  .cols{gap:clamp(40px,5vw,88px);max-width:1200px;margin-top:clamp(32px,3.6vw,56px)}
+  .cols h3{margin-bottom:14px}
+  .cols p{margin-top:18px}
+  .plans{margin-top:clamp(28px,3vw,44px)}
+  .page{max-width:calc(800px + 2 * var(--pad));padding:clamp(40px,4.5vw,72px) var(--pad) clamp(56px,6vw,96px)}
+  .page-wide{max-width:calc(1100px + 2 * var(--pad))}
+  .page h1{margin-bottom:1.1rem;font-size:clamp(2rem,3.4vw,3rem)}
+  .section{margin:2.4rem 0}
+  .facts{margin:1.6rem 0}
+  .facts div{padding:.7rem 0}
+  .ftr{padding:28px var(--pad)}
+}
+/* Narrow tablets don't have room for the club name beside the menu; the logo stays. */
+@media (min-width:768px) and (max-width:960px){.wordmark{display:none}}
+
 /* ---------- Phones ---------- */
 @media (max-width:767px){
   :root{--pad:24px}
