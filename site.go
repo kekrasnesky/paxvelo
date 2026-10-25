@@ -390,10 +390,13 @@ func (s *Site) staticFiles(prefix string, dir fs.FS) http.Handler {
 	})
 }
 
-func (s *Site) renderEmail(subject, text, unsubURL string) (string, error) {
+// renderEmail lays out an email. base starts every on-site address: the site
+// address for a real email, or "" for the admin's preview, so the preview's
+// logo and photos load from whichever server shows it.
+func (s *Site) renderEmail(subject, text, unsubURL, base string) (string, error) {
 	var b bytes.Buffer
 	err := s.email.ExecuteTemplate(&b, "email", map[string]any{
-		"Subject": subject, "Body": textToHTML(text), "SiteURL": s.cfg.SiteURL, "UnsubURL": unsubURL,
+		"Subject": subject, "Body": emailHTML(text, base), "SiteURL": base, "UnsubURL": unsubURL,
 	})
 	return b.String(), err
 }

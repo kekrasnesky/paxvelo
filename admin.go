@@ -648,6 +648,23 @@ func draftFrom(r *http.Request) EmailDraft {
 	return EmailDraft{Subject: strings.TrimSpace(r.FormValue("subject")), Body: strings.TrimSpace(r.FormValue("body"))}
 }
 
+// emailPreview answers with the email as a member would see it, for the
+// preview beside the message box. It fills in the {placeholders} for a
+// sample member named Pat.
+func (a *App) emailPreview(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 256<<10)
+	d := draftFrom(r)
+	pat := Member{Name: "Pat Rider", Plan: "individual"}
+	page, err := a.site.renderEmail(a.mailer.personalize(d.Subject, pat), a.mailer.personalize(d.Body, pat), "#", "")
+	if err != nil {
+		http.Error(w, "The preview couldn’t be made.", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	io.WriteString(w, page)
+}
+
 func (a *App) sendTest(w http.ResponseWriter, r *http.Request) {
 	d := draftFrom(r)
 	a.store.SetDraft(d) // keep what was typed, so "Send to everyone" is one click after the test

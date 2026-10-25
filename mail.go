@@ -5,8 +5,6 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
-	"html"
-	"html/template"
 	"log"
 	"mime"
 	"mime/quotedprintable"
@@ -14,7 +12,6 @@ import (
 	"net/mail"
 	"net/smtp"
 	"net/url"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -147,11 +144,11 @@ func (m *Mailer) SendWelcome(mem Member) {
 }
 
 func (m *Mailer) send(toName, toEmail, subject, text, unsubURL string) error {
-	htmlBody, err := m.site.renderEmail(subject, text, unsubURL)
+	htmlBody, err := m.site.renderEmail(subject, text, unsubURL, m.cfg.SiteURL)
 	if err != nil {
 		return err
 	}
-	plain := text + "\n\n--\nPaxVelo, " + m.cfg.SiteURL + "\nUnsubscribe: " + unsubURL + "\n"
+	plain := emailText(text, m.cfg.SiteURL) + "\n\n--\nPaxVelo, " + m.cfg.SiteURL + "\nUnsubscribe: " + unsubURL + "\n"
 	if !m.live() {
 		log.Printf("[test mode, not sent] To: %s | Subject: %s\n%s\n", toEmail, subject, text)
 		return nil
@@ -265,41 +262,4 @@ func domainOf(email string) string {
 		return d
 	}
 	return "localhost"
-}
-
-var (
-	paraBreak = regexp.MustCompile(`\n[ \t]*\n`)
-	urlRe     = regexp.MustCompile(`https?://[^\s<>"']*[^\s<>"'.,;:!?)\]]`)
-)
-
-// textToHTML turns the plain text typed in the admin into email HTML:
-// blank lines become paragraphs and web addresses become links.
-func textToHTML(s string) template.HTML {
-	s = strings.TrimSpace(strings.ReplaceAll(s, "\r\n", "\n"))
-	var b strings.Builder
-	for _, para := range paraBreak.Split(s, -1) {
-		para = strings.TrimSpace(para)
-		if para == "" {
-			continue
-		}
-		lines := strings.Split(para, "\n")
-		for i, line := range lines {
-			lines[i] = linkify(line)
-		}
-		b.WriteString(`<p style="margin:0 0 16px">` + strings.Join(lines, "<br>") + "</p>\n")
-	}
-	return template.HTML(b.String())
-}
-
-func linkify(s string) string {
-	var b strings.Builder
-	last := 0
-	for _, loc := range urlRe.FindAllStringIndex(s, -1) {
-		b.WriteString(html.EscapeString(s[last:loc[0]]))
-		u := html.EscapeString(s[loc[0]:loc[1]])
-		b.WriteString(`<a href="` + u + `" style="color:#9a2b29">` + u + `</a>`)
-		last = loc[1]
-	}
-	b.WriteString(html.EscapeString(s[last:]))
-	return b.String()
 }

@@ -268,8 +268,14 @@ initBlock(document);
 <h1>Email members</h1>
 <form class="card compose" method="post">
   <label>Subject <input name="subject" maxlength="200" value="{{.Draft.Subject}}"></label>
-  <label>Message <textarea name="body" rows="14">{{.Draft.Body}}</textarea></label>
-  <p class="muted small">Plain text. Leave a blank line between paragraphs. Web addresses become links automatically. Type {first_name} to greet each member by name, or {pay_link} for a link to pay their dues ({dues} and {year} work too).</p>
+  <div class="mail-edit">
+    <div class="mail-write">
+      {{template "mail-bar"}}
+      <label>Message <textarea name="body" rows="16">{{.Draft.Body}}</textarea></label>
+      <p class="muted small">Select some words and use the buttons above, or type the marks yourself: **bold**, [words to click](https://…), ## Heading, - list item, and [[Button words](https://…)] for a button. Leave a blank line between paragraphs; web addresses become links on their own. {first_name} greets each member by name, and {pay_link} is a link to pay their dues ({dues} and {year} work too).</p>
+    </div>
+    {{template "mail-preview"}}
+  </div>
   <div class="send-row">
     <input type="email" name="test_to" value="{{.TestTo}}" aria-label="Send test to">
     <button class="ghost" formaction="/admin/email/test">Send test</button>
@@ -308,14 +314,78 @@ initBlock(document);
 <form class="card" method="post" action="/admin/welcome">
   <label class="check"><input type="checkbox" name="enabled"{{if .Welcome.Enabled}} checked{{end}}> Send automatically when someone joins</label>
   <label>Subject <input name="subject" required maxlength="200" value="{{.Welcome.Subject}}"></label>
-  <label>Message <textarea name="body" rows="12" required>{{.Welcome.Body}}</textarea></label>
-  <p class="muted small">{first_name} becomes the new member’s first name, {pay_link} their PayPal link, {year} the current year, and {site} the website address.</p>
+  <div class="mail-edit">
+    <div class="mail-write">
+      {{template "mail-bar"}}
+      <label>Message <textarea name="body" rows="14" required>{{.Welcome.Body}}</textarea></label>
+      <p class="muted small">The same buttons and marks work here. {first_name} becomes the new member’s first name, {pay_link} their PayPal link, {year} the current year, and {site} the website address.</p>
+    </div>
+    {{template "mail-preview"}}
+  </div>
   <button>Save welcome email</button>
 </form>
+<script>
+// Formatting buttons and the live preview for each email on this page.
+function initMail(form){
+  var ta=form.querySelector('textarea[name=body]'),subj=form.querySelector('input[name=subject]'),
+      frame=form.querySelector('.mail-preview iframe'),file=form.querySelector('.mail-photo input'),timer,asked=0;
+  function refresh(){var n=++asked,fd=new FormData();fd.append('subject',subj.value);fd.append('body',ta.value);
+    fetch('/admin/email/preview',{method:'POST',body:fd}).then(function(r){return r.text()}).then(function(h){if(n===asked)frame.srcdoc=h})}
+  function later(){clearTimeout(timer);timer=setTimeout(refresh,350)}
+  // Grow the preview to fit the email, again as each photo finishes loading.
+  function fit(){try{frame.style.height=frame.contentDocument.documentElement.scrollHeight+'px'}catch(e){}}
+  frame.addEventListener('load',function(){fit();try{frame.contentDocument.querySelectorAll('img').forEach(function(i){i.addEventListener('load',fit)})}catch(e){}});
+  ta.addEventListener('input',later);subj.addEventListener('input',later);refresh();
+  form.querySelectorAll('[data-w]').forEach(function(b){b.addEventListener('click',function(){
+    form.querySelectorAll('[data-w]').forEach(function(o){o.setAttribute('aria-pressed',o===b)});
+    frame.style.maxWidth=b.dataset.w+'px';setTimeout(fit,50)})});
+  function picked(){return ta.value.slice(ta.selectionStart,ta.selectionEnd)}
+  // Types text where the cursor is (keeping undo working where the browser allows).
+  function put(text){ta.focus();if(!document.execCommand('insertText',false,text)){ta.setRangeText(text,ta.selectionStart,ta.selectionEnd,'end');later()}}
+  // Puts something on lines of its own, with a blank line before and after.
+  function block(text){var before=ta.value.slice(0,ta.selectionStart);
+    put((before===''||/\n\n$/.test(before)?'':/\n$/.test(before)?'\n':'\n\n')+text+'\n\n')}
+  var act={
+    bold:function(){put('**'+(picked()||'bold words')+'**')},
+    link:function(){var u=prompt('The web address to link to:','https://');if(!u||u==='https://')return;
+      var w=picked()||prompt('The words to click:','')||u;put('['+w+']('+u+')')},
+    button:function(){var w=picked()||prompt('The words on the button:','Sign up');if(!w)return;
+      var u=prompt('Where the button goes (a web address):','https://');if(!u||u==='https://')return;block('[['+w+']('+u+')]')},
+    heading:function(){block('## '+(picked()||'Heading'))},
+    list:function(){var p=picked();block(p?p.split('\n').filter(Boolean).map(function(l){return '- '+l.replace(/^- /,'')}).join('\n'):'- First thing\n- Second thing')},
+    name:function(){put('{first_name}')}
+  };
+  form.querySelectorAll('.mail-bar [data-do]').forEach(function(b){b.addEventListener('click',function(){act[b.dataset.do]()})});
+  file.addEventListener('change',function(){var f=file.files[0];if(!f)return;var fd=new FormData();fd.append('photo',f);file.value='';
+    var st=form.querySelector('.mail-bar-status');st.textContent='Uploading the photo…';
+    fetch('/admin/pages/photo',{method:'POST',body:fd}).then(function(r){return r.json()}).then(function(j){
+      if(j.error){st.textContent=j.error;return}st.textContent='';var m=/\((\/[^)]+)\)/.exec(j.markdown);if(m)block('![Photo]('+m[1]+')')})
+    .catch(function(){st.textContent='The photo didn’t upload. Try again.'})});
+}
+document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('form'))});
+</script>
 {{if .Sending}}<script>
 (function poll(){setTimeout(function(){fetch('/admin/email/status').then(function(r){return r.json()}).then(function(list){var busy=false;list.forEach(function(c){var tr=document.querySelector('tr[data-id="'+c.id+'"]');if(!tr)return;tr.querySelector('.prog').textContent=c.progress;tr.querySelector('.st').textContent=c.status+(c.error?' – '+c.error:'');if(c.status==='Sending')busy=true;else tr.querySelector('.act').textContent=''});if(busy)poll()}).catch(poll)},3000)})();
 </script>{{end}}
 {{template "foot" .}}{{end}}
+
+{{define "mail-bar"}}<div class="mail-bar" role="toolbar" aria-label="Formatting">
+  <button type="button" class="ghost" data-do="bold" title="Bold"><strong>B</strong></button>
+  <button type="button" class="ghost" data-do="link">Link</button>
+  <button type="button" class="ghost" data-do="button">Button</button>
+  <button type="button" class="ghost" data-do="heading">Heading</button>
+  <button type="button" class="ghost" data-do="list">List</button>
+  <label class="ghost mail-photo">Photo<input type="file" accept="image/jpeg,image/png,image/webp"></label>
+  <button type="button" class="ghost" data-do="name" title="Each member’s first name">First name</button>
+  <span class="mail-bar-status muted small" role="status"></span>
+</div>{{end}}
+
+{{define "mail-preview"}}<div class="mail-preview">
+  <div class="mail-preview-top"><strong>Preview</strong>
+    <span class="seg"><button type="button" class="ghost" data-w="600" aria-pressed="true">Computer</button><button type="button" class="ghost" data-w="375" aria-pressed="false">Phone</button></span></div>
+  <iframe title="Email preview" sandbox="allow-same-origin"></iframe>
+  <p class="muted small">As a member sees it, with {first_name} filled in for a sample member named Pat.</p>
+</div>{{end}}
 
 {{define "newsletter"}}{{template "head" .}}
 <div class="title-row">

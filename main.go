@@ -162,6 +162,7 @@ func (a *App) routes() http.Handler {
 	mux.Handle("GET /admin/email", a.auth(a.emailPage))
 	mux.Handle("GET /admin/email/status", a.auth(a.emailStatus))
 	mux.Handle("POST /admin/email/test", a.auth(a.sendTest))
+	mux.Handle("POST /admin/email/preview", a.auth(a.emailPreview))
 	mux.Handle("POST /admin/email/send", a.auth(a.sendAll))
 	mux.Handle("POST /admin/email/{id}/stop", a.auth(a.stopCampaign))
 	mux.Handle("POST /admin/email/{id}/resume", a.auth(a.resumeCampaign))
