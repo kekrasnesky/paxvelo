@@ -43,6 +43,7 @@ type Story struct {
 	VideoLength string `json:"video_length,omitempty"`
 	LinkLabel   string `json:"link_label,omitempty"`
 	LinkURL     string `json:"link_url,omitempty"`
+	Caption     string `json:"caption,omitempty"` // a short line under the photo
 }
 
 // Block is one part of an issue. Which fields it uses depends on its kind.
@@ -85,18 +86,19 @@ func (b Block) Name() string {
 }
 
 type Issue struct {
-	ID         int        `json:"id"`
-	Month      int        `json:"month"` // 1-12; a month can have several drafts but only one published issue
-	Year       int        `json:"year"`
-	CreatedBy  string     `json:"created_by,omitempty"`
-	EditedBy   string     `json:"edited_by,omitempty"`
-	Tagline    string     `json:"tagline,omitempty"`
-	Cover      string     `json:"cover,omitempty"`
-	CoverFocus string     `json:"cover_focus,omitempty"`
-	Blocks     []Block    `json:"blocks,omitempty"`
-	Closing    string     `json:"closing,omitempty"`
-	Published  *time.Time `json:"published,omitempty"`
-	Updated    time.Time  `json:"updated"`
+	ID           int        `json:"id"`
+	Month        int        `json:"month"` // 1-12; a month can have several drafts but only one published issue
+	Year         int        `json:"year"`
+	CreatedBy    string     `json:"created_by,omitempty"`
+	EditedBy     string     `json:"edited_by,omitempty"`
+	Tagline      string     `json:"tagline,omitempty"`
+	Cover        string     `json:"cover,omitempty"`
+	CoverFocus   string     `json:"cover_focus,omitempty"`
+	CoverCaption string     `json:"cover_caption,omitempty"`
+	Blocks       []Block    `json:"blocks,omitempty"`
+	Closing      string     `json:"closing,omitempty"`
+	Published    *time.Time `json:"published,omitempty"`
+	Updated      time.Time  `json:"updated"`
 	oldIssue
 }
 
@@ -155,7 +157,7 @@ func (is *Issue) upgrade() {
 		add("story", o.Recap)
 	}
 	if shows("rides") {
-		is.Blocks = append(is.Blocks, Block{ID: randHex(4), Kind: "rides", Story: Story{Kicker: "Up next", Heading: "Rides coming up"}})
+		is.Blocks = append(is.Blocks, Block{ID: randHex(4), Kind: "rides", Story: Story{Heading: ridesHeading}})
 	}
 	if shows("spotlight") {
 		add("story", o.Spotlight)
@@ -237,6 +239,12 @@ func cloneIssue(is *Issue) Issue {
 func (s *Store) upgradeIssues() {
 	for _, is := range s.d.Issues {
 		is.upgrade()
+		// The rides block used to be "Up next / Rides coming up".
+		for i, b := range is.Blocks {
+			if b.Kind == "rides" && b.Kicker == "Up next" && b.Heading == "Rides coming up" {
+				is.Blocks[i].Kicker, is.Blocks[i].Heading = "", ridesHeading
+			}
+		}
 	}
 }
 
@@ -341,6 +349,9 @@ func (s *Store) DeleteIssue(id int) error {
 // is published (or today, for a draft).
 const rideWeeks = 5
 
+// ridesHeading is the rides block's heading unless an admin changes it.
+const ridesHeading = "Upcoming Rides"
+
 // rideWindow is the first and last day the issue's rides block covers.
 func (a *App) rideWindow(is Issue) (time.Time, time.Time) {
 	from := a.today()
@@ -403,9 +414,13 @@ type shownSlot struct{ Group, Leader string }
 
 type shownStory struct {
 	Story
+	ID   string // the anchor "In this issue" links to
 	Body template.HTML
 	Link string // resolved, with {kit} and friends filled in
 }
+
+// tocItem is one line of "In this issue".
+type tocItem struct{ ID, Heading string }
 
 func (st shownStory) Show() bool { return st.Heading != "" || st.Body != "" || st.Photo != "" }
 
@@ -428,6 +443,8 @@ type newsView struct {
 	Label, Tagline string
 	Cover          string
 	CoverFocus     string
+	CoverCaption   string
+	Contents       []tocItem // "In this issue", shown when there are at least two
 	Parts          []newsPart
 	Closing        string
 	StravaURL      string
@@ -439,10 +456,10 @@ type newsView struct {
 func (s *Site) newsView(is Issue, archive []Issue, rides ridesView) (newsView, error) {
 	v := newsView{
 		ID: is.ID, Published: is.IsPublished(), Label: is.Label(), Tagline: is.Tagline, Cover: is.Cover, CoverFocus: is.CoverFocus,
-		Closing: is.Closing, StravaURL: s.cfg.StravaURL, Archive: archive, Current: is.Path(),
+		CoverCaption: is.CoverCaption, Closing: is.Closing, StravaURL: s.cfg.StravaURL, Archive: archive, Current: is.Path(),
 	}
 	story := func(b Block) (shownStory, error) {
-		out := shownStory{Story: b.Story}
+		out := shownStory{Story: b.Story, ID: "s-" + b.ID}
 		if strings.TrimSpace(b.Body) != "" {
 			_, intro, body, err := s.md.render(b.Body, 1, pageStyle{})
 			if err != nil {
@@ -467,6 +484,9 @@ func (s *Site) newsView(is Issue, archive []Issue, rides ridesView) (newsView, e
 			if !st.Show() {
 				continue
 			}
+			if st.Heading != "" {
+				v.Contents = append(v.Contents, tocItem{st.ID, st.Heading})
+			}
 			if b.Kind != "story" {
 				v.Parts = append(v.Parts, newsPart{Kind: b.Kind, Story: st})
 				continue
@@ -478,8 +498,9 @@ func (s *Site) newsView(is Issue, archive []Issue, rides ridesView) (newsView, e
 				v.Parts = append(v.Parts, newsPart{Kind: "row", Row: []shownStory{st}})
 			}
 		case "rides":
-			p := newsPart{Kind: "rides", Story: shownStory{Story: b.Story}, Rides: rides}
+			p := newsPart{Kind: "rides", Story: shownStory{Story: b.Story, ID: "s-" + b.ID}, Rides: rides}
 			v.Parts = append(v.Parts, p)
+			v.Contents = append(v.Contents, tocItem{p.Story.ID, or(b.Heading, ridesHeading)})
 		case "gallery":
 			p := newsPart{Kind: "gallery"}
 			for _, g := range b.Photos {
@@ -493,6 +514,9 @@ func (s *Site) newsView(is Issue, archive []Issue, rides ridesView) (newsView, e
 				v.Parts = append(v.Parts, newsPart{Kind: "instagram", Posts: b.Posts})
 			}
 		}
+	}
+	if len(v.Contents) < 2 {
+		v.Contents = nil
 	}
 	return v, nil
 }
@@ -836,7 +860,7 @@ func (a *App) saveIssue(w http.ResponseWriter, r *http.Request) {
 			Body: strings.ReplaceAll(val(prefix+"body"), "\r\n", "\n"), Photo: photo(prefix, cur.Photo),
 			PhotoFocus: focusFor(prefix),
 			VideoURL:   val(prefix + "video_url"), VideoLength: val(prefix + "video_length"),
-			LinkLabel: val(prefix + "link_label"), LinkURL: val(prefix + "link_url"),
+			LinkLabel: val(prefix + "link_label"), LinkURL: val(prefix + "link_url"), Caption: val(prefix + "caption"),
 		}
 	}
 	month, _ := strconv.Atoi(r.FormValue("month"))
@@ -848,6 +872,7 @@ func (a *App) saveIssue(w http.ResponseWriter, r *http.Request) {
 	is.Tagline, is.Closing = val("tagline"), val("closing")
 	is.Cover = photo("cover.", old.Cover)
 	is.CoverFocus = focusFor("cover.")
+	is.CoverCaption = val("cover.caption")
 
 	// The blocks, in the order the form lists them ("id:kind"). Each block's
 	// fields start with "b.<id>.". Only the edit form sends them (with
@@ -1091,7 +1116,7 @@ func sampleIssue() Issue {
 				Body:      "Start with Bike Safety 101 and a weekend social ride. Everyone was new once.",
 				LinkLabel: "Read Bike Safety 101", LinkURL: "/bike-safety",
 			}},
-			{ID: randHex(4), Kind: "rides", Story: Story{Kicker: "Up next", Heading: "Rides coming up"}},
+			{ID: randHex(4), Kind: "rides", Story: Story{Heading: ridesHeading}},
 			{ID: randHex(4), Kind: "gallery", Photos: []string{"/photos/hero.webp", "/photos/ride.webp", "/photos/giving.webp"}},
 		},
 		Closing: "Your next ride starts here.",
@@ -1110,7 +1135,9 @@ func (f storyForm) Has(opt string) bool { return strings.Contains(" "+f.Opts+" "
 
 func storyFields(prefix string, s Story, opts string) storyForm { return storyForm{prefix, s, opts} }
 
-func photoStory(photo, focus string) Story { return Story{Photo: photo, PhotoFocus: focus} }
+func photoStory(photo, focus, caption string) Story {
+	return Story{Photo: photo, PhotoFocus: focus, Caption: caption}
+}
 
 // blockForm feeds the "block" admin template: one block on the edit page.
 type blockForm struct {

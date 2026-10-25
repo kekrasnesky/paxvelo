@@ -9,46 +9,49 @@
   <p><a class="btn" href="/join">Join to get it by email</a></p>
 </article>
 {{else}}
-<div class="nl">
+<article class="nl">
 <header class="nl-mast">
-  {{with .Cover}}<img class="nl-mast-bg" src="{{.}}" alt="" fetchpriority="high" decoding="async"{{with $.Data.CoverFocus}} style="object-position:{{.}}"{{end}}>{{end}}
-  <div class="nl-mast-in">
-    <p class="nl-issue">{{.Label}}</p>
-    <h1 class="nl-title">Newsletter</h1>
-    {{with .Tagline}}<p class="nl-tagline">{{.}}</p>{{end}}
-  </div>
+  <p class="nl-dateline"><span>{{.Label}}</span><span>Southern Maryland</span></p>
+  <h1 class="nl-name"><span>The</span> PaxVelo Newsletter</h1>
+  {{with .Tagline}}<p class="nl-tagline">{{.}}</p>{{end}}
 </header>
 
+{{with .Contents}}<nav class="nl-toc" aria-label="In this issue">
+  <span class="nl-toc-label">In this issue</span>
+  <ul>{{range .}}<li><a href="#{{.ID}}">{{.Heading}}</a></li>{{end}}</ul>
+</nav>{{end}}
+
+{{with .Cover}}<figure class="nl-cover">
+  <img src="{{.}}" alt="" fetchpriority="high" decoding="async"{{with $.Data.CoverFocus}} style="object-position:{{.}}"{{end}}>
+  {{with $.Data.CoverCaption}}<figcaption>{{.}}</figcaption>{{end}}
+</figure>{{end}}
+
 {{range .Parts}}{{if eq .Kind "big"}}{{with .Story}}
-<section class="nl-feature">
+<section class="nl-feature" id="{{.ID}}">
   <div class="nl-feature-text">
     {{with .Kicker}}<p class="nl-kicker">{{.}}</p>{{end}}
     {{with .Heading}}<h2 class="nl-h nl-h-big">{{.}}</h2>{{end}}
     {{with .Subhead}}<p class="nl-sub">{{.}}</p>{{end}}
-    {{.Body}}
+    <div class="nl-body nl-lead-story">{{.Body}}</div>
     {{template "nl-link" .}}
   </div>
   {{template "nl-media" .}}
 </section>
 {{end}}{{else if eq .Kind "row"}}
 <div class="nl-row">
-  {{range .Row}}<section class="nl-card">
+  {{range .Row}}<section class="nl-card" id="{{.ID}}">
     {{with .Kicker}}<p class="nl-kicker">{{.}}</p>{{end}}
     {{with .Heading}}<h2 class="nl-h">{{.}}</h2>{{end}}
     {{template "nl-media" .}}
-    {{.Body}}
+    <div class="nl-body">{{.Body}}</div>
     {{template "nl-link" .}}
   </section>{{end}}
 </div>
 {{else if eq .Kind "rides"}}{{$r := .Rides}}
-<section class="nl-rides-block">
-  <div class="nl-rides-head">
-    <div>
-      <p class="nl-kicker">{{or .Story.Kicker "Up next"}}</p>
-      <h2 class="nl-h nl-h-big">{{or .Story.Heading "Rides coming up"}}</h2>
-      <p class="nl-sub">{{$r.From}} – {{$r.To}}</p>
-    </div>
-    {{if $r.Need}}<p class="nl-help"><strong>{{$r.Need}} {{if eq $r.Need 1}}ride needs{{else}}rides need{{end}} a leader.</strong> Pick one below and type your name to lead it. No account needed.</p>{{end}}
+<section class="nl-sched" id="{{.Story.ID}}">
+  <div class="nl-sched-head">
+    <h2 class="nl-h nl-h-big">{{or .Story.Heading ridesHeading}}</h2>
+    <p class="nl-sub">Ride schedule, {{$r.From}} – {{$r.To}}</p>
   </div>
   {{if $r.Rides}}<ol class="nl-cal">
     {{range $r.Rides}}<li class="{{if .Past}}past{{else if .Open}}open{{end}}">
@@ -57,7 +60,7 @@
         <strong>{{.Name}}</strong>
         <span>{{.Weekday}}{{with .Time}} · {{.}}{{end}}{{with .Place}} · {{.}}{{end}}</span>
         {{with .Details}}<span>{{.}}</span>{{end}}
-        <ul class="nl-leaders">{{range .Slots}}<li>{{with .Group}}{{.}}: {{end}}{{if .Leader}}led by <strong>{{.Leader}}</strong>{{else}}<em>needs a leader</em>{{end}}</li>{{end}}</ul>
+        <ul class="nl-leaders">{{range .Slots}}<li>{{with .Group}}{{.}}: {{end}}{{if .Leader}}led by <strong>{{.Leader}}</strong>{{else}}<strong class="nl-needs">needs a leader</strong>{{end}}</li>{{end}}</ul>
       </div>
       {{if and .Open (not .Past)}}<a class="btn nl-lead" href="/calendar/ride/{{.Key}}">Lead this ride</a>{{else}}<a class="nl-go" href="/calendar/ride/{{.Key}}" aria-label="Ride details">›</a>{{end}}
     </li>{{end}}
@@ -65,12 +68,12 @@
   <p class="nl-more"><a href="{{$r.CalendarURL}}">See the full ride calendar</a></p>
 </section>
 {{else if eq .Kind "banner"}}{{with .Story}}
-<section class="nl-kit">
-  <div class="nl-kit-in">
+<section class="nl-notice" id="{{.ID}}">
+  <div class="nl-notice-text">
     {{with .Kicker}}<p class="nl-kicker">{{.}}</p>{{end}}
     {{with .Heading}}<h2 class="nl-h nl-h-big">{{.}}</h2>{{end}}
-    {{.Body}}
-    {{$label := .LinkLabel}}{{with .Link}}<p><a class="btn nl-btn-light" href="{{.}}"{{if external .}} target="_blank" rel="noopener"{{end}}>{{or $label "Learn more"}}</a></p>{{end}}
+    <div class="nl-body">{{.Body}}</div>
+    {{$label := .LinkLabel}}{{with .Link}}<p><a class="btn" href="{{.}}"{{if external .}} target="_blank" rel="noopener"{{end}}>{{or $label "Learn more"}}</a></p>{{end}}
   </div>
   {{template "nl-media" .}}
 </section>
@@ -89,20 +92,23 @@
 
 <section class="nl-close">
   <h2 class="nl-h nl-h-big">{{or .Closing "Your next ride starts here."}}</h2>
-  <p class="nl-close-links"><a class="btn nl-btn-light" href="{{.StravaURL}}" target="_blank" rel="noopener">Find a ride on Strava</a><a class="btn" href="/join">Become a member</a></p>
+  <p class="nl-close-links"><a class="btn" href="{{.StravaURL}}" target="_blank" rel="noopener">Find a ride on Strava</a><a class="btn nl-btn-ghost" href="/join">Become a member</a></p>
+  <p class="nl-colophon">Published by PaxVelo Cycling Club · <a href="mailto:PaxVeloClub@gmail.com">PaxVeloClub@gmail.com</a></p>
 </section>
 
-{{if gt (len .Archive) 1}}<nav class="nl-archive" aria-label="Past issues">
-  <h2>Past issues</h2>
+{{if gt (len .Archive) 1}}<nav class="nl-archive" aria-label="Back issues">
+  <h2>Back issues</h2>
   <ul>{{range .Archive}}<li><a href="{{.Path}}"{{if eq .Path $.Data.Current}} aria-current="page"{{end}}>{{.Label}}</a></li>{{end}}</ul>
 </nav>{{end}}
-</div>
+</article>
 {{end}}
 {{end}}{{end}}
 
-{{define "nl-media"}}{{if .Photo}}{{if .VideoURL}}<a class="nl-media nl-video" href="{{.VideoURL}}" target="_blank" rel="noopener" aria-label="Watch the video{{with .Heading}}: {{.}}{{end}}">
+{{define "nl-media"}}{{if or .Photo .VideoURL}}<figure class="nl-media">{{if .Photo}}{{if .VideoURL}}<a class="nl-video" href="{{.VideoURL}}" target="_blank" rel="noopener" aria-label="Watch the video{{with .Heading}}: {{.}}{{end}}">
   <img src="{{.Photo}}" alt="" loading="lazy" decoding="async"{{with .PhotoFocus}} style="object-position:{{.}}"{{end}}>
   <span class="nl-play" aria-hidden="true"></span>{{with .VideoLength}}<span class="nl-len">{{.}}</span>{{end}}
-</a>{{else}}<img class="nl-media" src="{{.Photo}}" alt="" loading="lazy" decoding="async"{{with .PhotoFocus}} style="object-position:{{.}}"{{end}}>{{end}}{{else if .VideoURL}}<p class="nl-more"><a href="{{.VideoURL}}" target="_blank" rel="noopener">Watch the video{{with .VideoLength}} ({{.}}){{end}}</a></p>{{end}}{{end}}
+</a>{{else}}<img src="{{.Photo}}" alt="" loading="lazy" decoding="async"{{with .PhotoFocus}} style="object-position:{{.}}"{{end}}>{{end}}{{else}}<p class="nl-more"><a href="{{.VideoURL}}" target="_blank" rel="noopener">Watch the video{{with .VideoLength}} ({{.}}){{end}}</a></p>{{end}}
+  {{with .Caption}}<figcaption>{{.}}</figcaption>{{end}}
+</figure>{{end}}{{end}}
 
 {{define "nl-link"}}{{with .Link}}<p class="nl-more"><a href="{{.}}"{{if external .}} target="_blank" rel="noopener"{{end}}>{{or $.LinkLabel "Read more"}}</a></p>{{end}}{{end}}

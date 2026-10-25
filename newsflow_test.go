@@ -72,8 +72,9 @@ func TestNewsletterFlow(t *testing.T) {
 		return url.Values{"blocks_form": {"1"}, "month": {"10"}, "year": {"2026"},
 			"block":                 {big + ":big", "beef0001:banner", rides + ":rides"},
 			"b." + big + ".heading": {"Meet Pat"}, "b." + big + ".body": {bigBody}, "b." + big + ".photo_current": {photo},
-			"b." + big + ".video_url": {"https://youtube.com/watch?v=x"},
-			"b.beef0001.heading":      {"Design our next kit"}, "b.beef0001.link_label": {"Visit the team store"}, "b.beef0001.link_url": {"{kit}"}}
+			"b." + big + ".video_url": {"https://youtube.com/watch?v=x"}, "b." + big + ".caption": {"Pat after the Thursday ride"},
+			"cover.photo_current": {"/photos/hero.webp"}, "cover.caption": {"The Tuesday ride at NAS Pax"},
+			"b.beef0001.heading": {"Design our next kit"}, "b.beef0001.link_label": {"Visit the team store"}, "b.beef0001.link_url": {"{kit}"}}
 	}
 
 	// Publishing a version that can't be shown is refused, and nothing is saved.
@@ -102,7 +103,12 @@ func TestNewsletterFlow(t *testing.T) {
 		for _, want := range []string{
 			"October 2026", "MEET PAT", "<strong>every</strong>", "nl-play", photo,
 			`href="https://example.com/kit"`, "Visit the team store",
-			"Tuesday Night Ride", `href="/calendar/ride/` + tue + `"`, "Lead this ride", "need a leader",
+			"Tuesday Night Ride", `href="/calendar/ride/` + tue + `"`, "Lead this ride", `<strong class="nl-needs">needs a leader</strong>`,
+			// Laid out like a printed newsletter: the nameplate, captions, and
+			// "In this issue" linking down to each story.
+			"The</span> PaxVelo Newsletter", "<figcaption>Pat after the Thursday ride</figcaption>",
+			"<figcaption>The Tuesday ride at NAS Pax</figcaption>", `href="#s-` + big + `">Meet Pat</a>`, `id="s-` + big + `"`,
+			`href="#s-beef0001">Design our next kit</a>`, `href="#s-` + rides + `">Upcoming Rides</a>`,
 		} {
 			if !strings.Contains(strings.ToUpper(page), strings.ToUpper(want)) {
 				t.Errorf("%s is missing %q", path, want)
@@ -212,11 +218,30 @@ func TestNewsletterPhotoStrip(t *testing.T) {
 		t.Errorf("photo strip: %v %v", g.Photos, g.Focus)
 	}
 	page := do(t, h, nil, "GET", "/newsletter", "", nil).Body.String()
+	if !strings.Contains(page, `class="nl-toc"`) {
+		t.Error("two stories with headings should get an In this issue list")
+	}
 	if strings.Count(page, `<div class="nl-row">`) != 1 || !strings.Contains(page, "New Rider Corner") || strings.Contains(page, "evil.example") {
 		t.Error("the two stories should share one row, and only the site's photos show")
 	}
 	if strings.Contains(page, "Paceline") {
 		t.Error("the page still says Paceline")
+	}
+}
+
+func TestInThisIssueNeedsTwoStories(t *testing.T) {
+	cfg := testConfig()
+	site, err := newSite(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	one := Issue{Month: 10, Year: 2026, Blocks: []Block{{ID: "aaaa0001", Kind: "big", Story: Story{Heading: "Only story"}}}}
+	if v, _ := site.newsView(one, nil, ridesView{}); v.Contents != nil {
+		t.Errorf("one story shouldn't get a list: %+v", v.Contents)
+	}
+	one.Blocks = append(one.Blocks, Block{ID: "aaaa0002", Kind: "story", Story: Story{Heading: "Second"}})
+	if v, _ := site.newsView(one, nil, ridesView{}); len(v.Contents) != 2 || v.Contents[1].ID != "s-aaaa0002" {
+		t.Errorf("two stories: %+v", v.Contents)
 	}
 }
 
@@ -231,7 +256,7 @@ func TestOldIssuesBecomeBlocks(t *testing.T) {
 	for _, b := range is.Blocks {
 		kinds = append(kinds, b.Kind+" "+b.Heading)
 	}
-	if got := strings.Join(kinds, ", "); got != "big Meet Pat, story Last month, rides Rides coming up, story Swap meet, banner Kit, gallery " {
+	if got := strings.Join(kinds, ", "); got != "big Meet Pat, story Last month, rides Upcoming Rides, story Swap meet, banner Kit, gallery " {
 		t.Errorf("blocks: %s", got)
 	}
 	if b, _ := json.Marshal(is); strings.Contains(string(b), `"featured"`) || strings.Contains(string(b), `"corner"`) {

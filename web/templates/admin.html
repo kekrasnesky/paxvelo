@@ -363,7 +363,7 @@ initBlock(document);
   {{end}}
   <form method="post" action="/admin/newsletter/{{$is.ID}}/copy"><button class="ghost">Make another draft from this</button></form>
 </div>
-<p class="muted small">The issue is made of blocks: add the ones you want with <strong>Add a block</strong> at the bottom, and move or remove them with the buttons on each. Photos upload as soon as you pick or drop them: click a photo to choose the spot to keep in view. The buttons at the bottom save your changes, then preview or publish. In the text boxes: leave a blank line between paragraphs, put **two stars** around words for bold, and write links as [words to click](https://example.com). In link boxes, {strava} and {kit} fill in the club’s Strava page and team store.</p>
+<p class="muted small">The issue is made of blocks: add the ones you want with <strong>Add a block</strong> at the bottom, and move or remove them with the buttons on each. Photos upload as soon as you pick or drop them: click a photo to choose the spot to keep in view, and add a caption if you like. Stories with a heading are listed under “In this issue” at the top. The buttons at the bottom save your changes, then preview or publish. In the text boxes: leave a blank line between paragraphs, put **two stars** around words for bold, and write links as [words to click](https://example.com). In link boxes, {strava} and {kit} fill in the club’s Strava page and team store.</p>
 
 <form class="issue" method="post" action="/admin/newsletter/{{$is.ID}}" enctype="multipart/form-data">
   <section class="card">
@@ -373,7 +373,7 @@ initBlock(document);
       <label class="inline-label">Year <input type="number" name="year" value="{{$is.Year}}" min="2000" max="2100" class="year"></label>
     </div>
     <label>Tagline under the title <input name="tagline" value="{{$is.Tagline}}" maxlength="120"></label>
-    {{template "photo" (story "cover." (photoStory $is.Cover $is.CoverFocus) "")}}
+    {{template "photo" (story "cover." (photoStory $is.Cover $is.CoverFocus $is.CoverCaption) "")}}
   </section>
 
   <input type="hidden" name="blocks_form" value="1">
@@ -442,10 +442,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   {{else if eq .Kind.Kind "rides"}}{{$r := .Rides}}
     <p class="muted small">Filled in from the ride calendar, and kept up to date: the rides for the {{rideWeeks}} weeks after the issue is published (cancelled rides are left out). Rides that need a leader get a link to sign up. To change a ride or its leaders, use the <a href="/admin/calendar" target="_blank" rel="noopener">Calendar tab</a>.</p>
     <p class="rides-now">Right now that’s <strong>{{len $r.Rides}} {{if eq (len $r.Rides) 1}}ride{{else}}rides{{end}}</strong> from {{$r.From}} to {{$r.To}}{{if $r.Need}}, and <strong class="danger">{{$r.Need}} still {{if eq $r.Need 1}}needs{{else}}need{{end}} a leader</strong>{{end}}.</p>
-    <div class="pair">
-      <label>Small line above the heading <input name="{{$p}}kicker" value="{{.Kicker}}" maxlength="80" placeholder="Up next"></label>
-      <label>Heading <input name="{{$p}}heading" value="{{.Heading}}" maxlength="120" placeholder="Rides coming up"></label>
-    </div>
+    <label>Heading <input name="{{$p}}heading" value="{{.Heading}}" maxlength="120" placeholder="{{ridesHeading}}"></label>
   {{else if eq .Kind.Kind "gallery"}}
     <p class="muted small">Up to {{maxGallery}} photos in a row. Each shows cropped like the small preview under it: click a photo to choose the spot to keep in view. Use the arrows to change the order.</p>
     <div class="strip" data-p="{{$p}}" data-max="{{maxGallery}}">{{range $g := .Photos}}{{template "strip-item" (stripPhoto $p $g (index $.Focus $g))}}{{end}}</div>
@@ -484,6 +481,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
     <label class="drop"><input type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden><strong>{{if $s.Photo}}Replace photo{{else}}Add a photo{{end}}</strong> <span class="muted small">Click, or drop one here</span></label>
     <button type="button" class="link danger photo-remove"{{if not $s.Photo}} hidden{{end}}>Remove photo</button>
     <p class="photo-status muted small" role="status"></p>
+    <label>Caption (optional) <input name="{{$p}}caption" value="{{$s.Caption}}" maxlength="160" placeholder="A short line under the photo"></label>
   </div>
 </div>{{end}}
 

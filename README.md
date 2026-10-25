@@ -49,7 +49,7 @@ The club's monthly newsletter lives at `paxvelo.club/newsletter` (always the lat
    - **Rides from the calendar:** filled in automatically with every ride in the 5 weeks after the issue is published (cancelled rides are left out), with each pace group's leader. Rides that still need a leader get a **Lead this ride** button to their calendar page, and a line at the top says how many need leaders. It stays live: when someone signs up on the calendar, the newsletter shows it.
    - **Banner:** a dark band with a button, for one-off asks like a kit order or a fundraiser.
    - **Photo strip** (up to 8 photos) and **Instagram posts** (up to 3).
-3. **Save and preview** to see exactly how it will look.
+3. **Save and preview** to see exactly how it will look. The page is laid out like a printed newsletter: a "The PaxVelo Newsletter" nameplate between rules, serif type, the cover photo framed below it, a drop cap on the big story, stories divided by thin rules, the rides as a boxed ride schedule, and banners as boxed notices. Any photo (and the cover) can have a short caption. "In this issue" at the top lists the stories with headings, linking down the page (it shows once there are at least two). Printing the page gives just the newsletter, without the website's menu.
 4. **Save and publish** when it's ready. Then **Email members about it** drafts an announcement email on the Email tab, listing the rides that still need leaders with a link to each.
 
 A month can have several drafts, for example two people trying different versions, or **Make another draft from this** to try a variation. Only one issue per month can be published: the others can't be published until it's unpublished. The list shows which admin started each draft and who edited it last.
