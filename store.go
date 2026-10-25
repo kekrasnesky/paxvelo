@@ -102,6 +102,7 @@ type storeData struct {
 
 	// Pages and board members edited in the admin
 	PageEdits   map[string]PageEdit `json:"page_edits,omitempty"`
+	StravaLink  *StravaLink         `json:"strava_link,omitempty"`
 	Board       []BoardMember       `json:"board,omitempty"`
 	BoardSeeded bool                `json:"board_seeded,omitempty"`
 }

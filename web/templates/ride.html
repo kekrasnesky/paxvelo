@@ -17,7 +17,7 @@
 
   <section class="cal-act">
     <h2>{{if gt (len .Spots) 1}}Ride leaders{{else}}Ride leader{{end}}</h2>
-    {{if and (not .Past) (not $r.Cancelled) (not .Rider)}}<p>{{if .StravaReady}}To lead {{if gt (len .Spots) 1}}a group{{else}}this ride{{end}}, sign in with Strava. Only PaxVelo club members can sign up.{{else}}Signing up online isn’t open yet. Email <a href="mailto:PaxVeloClub@gmail.com">PaxVeloClub@gmail.com</a> to lead this ride.{{end}}</p>{{end}}
+    {{if and (not .Past) (not $r.Cancelled)}}<p>Want to lead{{if gt (len .Spots) 1}} a group{{end}}? Type your name and press the button. The club gets an email.</p>{{end}}
     <ul class="spots">
       {{range .Spots}}<li class="spot {{if .Leader}}led{{else}}open{{end}}">
         <div class="spot-who">
@@ -25,13 +25,18 @@
           <strong>{{with .Leader}}{{.Name}}{{if $d.Rider}}{{if eq .StravaID $d.Rider.ID}} (you){{end}}{{end}}{{else}}Needs a leader{{end}}</strong>
         </div>
         <div class="spot-act">
-          {{if .CanLead}}<form method="post" action="/calendar/ride/{{$r.Key}}/lead"><input type="hidden" name="group" value="{{.Group}}"><button class="btn">I’ll lead{{if .Group}} this group{{else}} this ride{{end}}</button></form>{{end}}
-          {{if .CanTakeOver}}<form method="post" action="/calendar/ride/{{$r.Key}}/lead" onsubmit="return confirm('Take over from {{.Leader.Name}}?')"><input type="hidden" name="group" value="{{.Group}}"><button class="btn btn-quiet">Take over</button></form>{{end}}
+          {{if .CanLead}}<form class="lead-form" method="post" action="/calendar/ride/{{$r.Key}}/lead">
+            <input type="hidden" name="ft" value="{{$d.Token}}"><input type="hidden" name="group" value="{{.Group}}">
+            <span class="hp" aria-hidden="true"><input name="website" tabindex="-1" autocomplete="off"></span>
+            {{if not $d.Rider}}<input name="leader_name" required maxlength="60" autocomplete="name" placeholder="Your name" aria-label="Your name{{with .Group}}, to lead {{.}}{{end}}">{{end}}
+            <button class="btn">I’ll lead{{if .Group}} this group{{else}} this ride{{end}}</button>
+          </form>{{end}}
+          {{if .CanTakeOver}}<form method="post" action="/calendar/ride/{{$r.Key}}/lead" onsubmit="return confirm('Take over from {{.Leader.Name}}?')"><input type="hidden" name="ft" value="{{$d.Token}}"><input type="hidden" name="group" value="{{.Group}}"><button class="btn btn-quiet">Take over</button></form>{{end}}
           {{if .CanStepDown}}<form method="post" action="/calendar/ride/{{$r.Key}}/stepdown" onsubmit="return confirm('{{if .Mine}}Step down? Someone else will need to lead.{{else}}Remove {{.Leader.Name}} as the leader?{{end}}')"><input type="hidden" name="group" value="{{.Group}}"><button class="btn btn-quiet">{{if .Mine}}Step down{{else}}Remove{{end}}</button></form>{{end}}
         </div>
       </li>{{end}}
     </ul>
-    {{if and .StravaReady (not .Rider) (not .Past) (not $r.Cancelled)}}<p><a class="btn btn-strava" href="/strava/login?next=/calendar/ride/{{$r.Key}}">Sign in with Strava</a></p>{{end}}
+    {{if and .StravaReady (not .Rider) (not .Past)}}<p class="muted-note">Club admin? <a href="/strava/login?next=/calendar/ride/{{$r.Key}}">Sign in with Strava</a> to change leaders or cancel the ride.</p>{{end}}
     {{if .Past}}<p class="cal-note">This ride has already happened.</p>{{end}}
 
     {{if and .Leading (not .Rider.Admin)}}<p class="muted-note">To post this ride as a club event on Strava you need to be a club admin there. We’ve let the club admins know, so they can add you or post it for you. Once it’s on Strava, paste the link below.</p>

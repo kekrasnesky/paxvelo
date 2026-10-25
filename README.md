@@ -1,6 +1,6 @@
 # PaxVelo website
 
-> **Want to change the words or photos on the site?** See [content/README.md](content/README.md). Everything is edited right here on GitHub, and the site updates itself.
+> **Want to change the words or photos on the site?** The easiest way is the admin portal (`paxvelo.club/admin`): the **Pages** tab edits any page, and the **Board** tab edits the board members. Pages can also be edited here on GitHub: see [content/README.md](content/README.md).
 
 The whole club site in one small program: the public pages, membership signup with PayPal dues, and an admin portal for managing members and emailing them. It has no database, no plugins, no frameworks, and no third-party code. Everything (pages, styles, fonts, images) is built into a single file you copy to a server. Member data lives in one readable file, `data/paxvelo.json`.
 
@@ -16,7 +16,8 @@ After changing any file, stop it (Ctrl+C) and run `go run .` again. `go test ./.
 
 | To change… | Edit |
 |---|---|
-| Text and photos on a page | `content/<page>.md` and `content/photos/` (guide: [content/README.md](content/README.md)) |
+| Text and photos on a page | Admin portal → **Pages**, or `content/<page>.md` on GitHub (guide: [content/README.md](content/README.md)) |
+| Board members and their photos | Admin portal → **Board** |
 | The Join page | `web/templates/join.html` |
 | Dues amounts, PayPal links, kit store, Strava | `paxvelo.conf` (no code changes needed) |
 | Header, menu, footer, social links | `web/templates/layout.html` |
@@ -50,25 +51,69 @@ A month can have several drafts, for example two people trying different version
 
 Text boxes use the same simple formatting as the pages in `content/` (bold, links, `{strava}`, `{kit}`). If something can't be shown, like a mistyped `{placeholder}`, the editor says what to fix and the live issue stays as it was. Published issues are rendered once and served from memory, like every other page.
 
+Every photo has framing: click the spot to keep in view (like faces), and the small previews show how it's cropped in wide, tall, and round places.
+
 Uploaded photos are stored on the server in `data/media`. The server backs them up weekly (with the minutes files) to `/opt/paxvelo/backups`; the **Download a full backup** link covers the text only.
+
+## Editing pages and the board in the admin
+
+- **Pages** lists every page. Open one to change its text, using the same simple formatting described in [content/README.md](content/README.md). **Add a photo** uploads a photo and puts it where your cursor is. A page that can't be shown (like a missing title) isn't saved, so the live page never breaks.
+- An edit made in the admin wins over the GitHub version of that page. **Go back to the GitHub version** undoes the admin edits. The Pages list shows which pages were edited where.
+- **Board** lists the board members: name, role, photo, and their position on the page. Click a photo to keep the person's face in view; board photos show as circles.
 
 ## Ride calendar
 
-`paxvelo.club/calendar` shows every club ride by month, and anyone can look at it. Each ride shows its leader, or "Needs a leader".
+`paxvelo.club/calendar` shows every club ride by month, and anyone can look at it.
 
-- **Weekly rides** (the Tuesday and Thursday rides to start with) are set up in the admin portal under **Rides**, with a day, a start time, and an optional season. The Thursday ride runs March 1 to October 10. Both are set to 6:00 PM for now: check the times and fix them on the Rides tab if they're wrong.
-- **Leading a ride:** riders sign in with Strava (only members of the PaxVelo club on Strava can) and press **I'll lead this ride**. A ride with no leader can be taken by anyone. Once it has a leader, only that leader (by stepping down), a club admin on Strava, or someone in the admin portal can change it.
-- **Adding a ride:** **Add a ride** (or the + on any day) needs just a date, a start time, and a name. The start, pace, and Strava link are optional.
-- **Emails:** every new leader, step-down, new ride, and cancellation is emailed to PaxVeloClub@gmail.com (or `RIDES_EMAIL`).
-- **Strava admins:** signing in tells the site whether the rider is an admin of the club on Strava. Club admins can take over or cancel any ride on the calendar, and the admin portal lists who they are. Strava doesn't let other websites create club events, so leaders still post their ride on Strava and can paste the link on the ride's page. When a leader isn't a Strava club admin, the email says so, with the link to make them one (Strava: club → Members → Make Admin).
+- **Weekly rides** (the Tuesday and Thursday rides to start with) are set up in the admin portal under **Rides**, with a day, a start time, an optional season, and optional **pace groups**. The Thursday ride runs March 1 to October 10. Both are set to 6:00 PM for now: check the times and fix them on the Rides tab if they're wrong.
+- **Pace groups:** a ride can have groups (the Tuesday ride has an A group and a B group), and each group has its own leader. The calendar shows green when every group has a leader, blue when some do, and amber when none do.
+- **Leading a ride:** no account or sign-in needed. On the ride's page, type your name and press **I'll lead**. A spot with no leader can be taken by anyone. Once it has a leader, only an admin can change it (on the Rides tab, or a Strava club admin signed in on the calendar).
+- **Adding a ride:** **Add a ride** (or the + on any day) needs just your name, a date, a start time, and a ride name. Everything else is optional.
+- **Emails:** every new leader, step-down, new ride, and cancellation is emailed to PaxVeloClub@gmail.com (or `RIDES_EMAIL`), with the current leaders of each group.
+- **Spam:** the sign-up forms use the same checks as the Join form, so bots can't fill the calendar.
 
-**Turning on "Sign in with Strava"** (once, by a club admin):
+**About Strava RSVPs:** Strava only lets a person RSVP to an event themselves, from their own Strava account, so the website can't RSVP someone for an event by name. Leaders who sign up with just a name show on the calendar and in the email; the club's Strava event is linked from every ride's page.
+
+### Importing the club's Strava events
+
+The club's upcoming Strava events can show up on the calendar automatically:
+
+1. Set up the Strava API application (below).
+2. On the admin's **Rides** tab, press **Connect Strava** and approve with a Strava account that's in the club (a club admin is best).
+
+From then on, the site reads the club's events every hour (and whenever you press **Import now**). An event that matches a weekly ride (same day, and the same name or start time) is linked to that weekly ride instead of being added twice. Leaders who signed up on the website are kept when an event changes. An event deleted on Strava leaves the calendar, unless leaders had signed up for it, in which case it's marked cancelled.
+
+Strava's public API documents clubs but not club events, so this reads them the way Strava's own apps do. If Strava ever changes that, the Rides tab shows the error and the calendar carries on without the import.
+
+**Setting up the Strava API application** (once, by a club admin):
 
 1. Signed in to Strava, go to https://www.strava.com/settings/api and create an application: name *PaxVelo Cycling Club*, category *Social*, website `https://www.paxvelo.club`, and **Authorization Callback Domain** `www.paxvelo.club`.
 2. Copy its **Client ID** and **Client Secret** into `paxvelo.conf` as `STRAVA_CLIENT_ID` and `STRAVA_CLIENT_SECRET`, then restart the site.
-3. New Strava applications only allow a single athlete to sign in. Use **Request higher capacity** on that settings page (Strava reviews it, usually within a few weeks) so the whole club can sign in.
 
-Until then the calendar works, but signing up is turned off and admins assign leaders on the Rides tab.
+New Strava applications allow one connected athlete, which is all the import needs. Club admins can also **Sign in with Strava** on the calendar to change leaders there; for more than one of them, use **Request higher capacity** on the same Strava page.
+
+### Calendar API
+
+Scripts and other tools can read and change the calendar. Set `CALENDAR_API_KEY` in `paxvelo.conf` to a long random password (for example the output of `openssl rand -hex 24`) to turn on changes; reading needs no key.
+
+```sh
+# Every ride in November, as JSON (leaders included)
+curl "https://www.paxvelo.club/api/rides?from=2026-11-01&to=2026-11-30"
+
+# Add or update a ride. "coffee-2026-11-07" is your own name for it:
+# send it again with changes to update the same ride.
+curl -X PUT https://www.paxvelo.club/api/rides/coffee-2026-11-07 \
+  -H "Authorization: Bearer $CALENDAR_API_KEY" \
+  -d '{"date":"2026-11-07","time":"08:30","name":"Coffee Ride","place":"Leonardtown Square","groups":["Fast","Social"],"strava_url":"https://www.strava.com/clubs/10197/group_events/123"}'
+
+# Remove it (or mark it cancelled, if leaders had signed up)
+curl -X DELETE https://www.paxvelo.club/api/rides/coffee-2026-11-07 -H "Authorization: Bearer $CALENDAR_API_KEY"
+
+# Import the club's Strava events right now
+curl -X POST https://www.paxvelo.club/api/strava/sync -H "Authorization: Bearer $CALENDAR_API_KEY"
+```
+
+Ride fields: `date` (required, `2026-11-07`), `name` (required), `time` (24-hour, `08:30`), `place`, `details`, `groups` (pace groups, each gets a leader), `strava_url`, and `cancelled` (true or false). Changes made through the API keep any leaders who signed up on the website.
 
 ## Instagram
 

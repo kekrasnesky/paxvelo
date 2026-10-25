@@ -5,8 +5,10 @@
   <h1>Add a Ride</h1>
   <p class="lead">Just the basics: the details and route go on Strava.</p>
   {{template "rider-bar" .}}
-  {{if .Rider}}
   <form class="join" method="post" action="/calendar/new">
+    <input type="hidden" name="ft" value="{{.Token}}">
+    <div class="hp" aria-hidden="true"><label>Leave this empty <input name="website" tabindex="-1" autocomplete="off"></label></div>
+    {{if not .Rider}}<label>Your name <input name="leader_name" value="{{.FormName}}" required maxlength="60" autocomplete="name"></label>{{end}}
     <div class="pair">
       <label>Date <input type="date" name="date" value="{{.Form.Date}}" required></label>
       <label>Start time <input type="time" name="time" value="{{.Form.Time}}"></label>
@@ -19,11 +21,5 @@
     <label class="check-row"><input type="checkbox" name="lead" checked> I’ll lead this ride</label>
     <button class="btn" type="submit">Add to the calendar</button>
   </form>
-  {{else if .StravaReady}}
-  <p>Sign in with Strava to add a ride. Only PaxVelo club members can add rides.</p>
-  <p><a class="btn btn-strava" href="/strava/login?next=/calendar/new">Sign in with Strava</a></p>
-  {{else}}
-  <p class="cal-note">Adding rides online isn’t open yet. Email <a href="mailto:PaxVeloClub@gmail.com">PaxVeloClub@gmail.com</a> with the date, time, and name of your ride.</p>
-  {{end}}
 </article>
 {{end}}{{end}}

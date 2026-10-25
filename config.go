@@ -42,6 +42,7 @@ type Config struct {
 	StravaClubID       string // from STRAVA_URL unless set
 	StravaAPI          string // https://www.strava.com; tests point it elsewhere
 	RidesEmail         string // where ride leader notices go
+	CalendarAPIKey     string // lets scripts change the calendar through /api
 }
 
 const defaultKitURL = "https://jakroo.com/store-front?storeId=rJgx0naZoge&titleProp=paxvelo&bannerProp=https://jakroo.storage.googleapis.com/team_stores_banner/ryYi5fMige-8e8f3f54b2b9f-blob"
@@ -133,6 +134,7 @@ func loadConfig() (Config, error) {
 		StravaClientID:     get("STRAVA_CLIENT_ID", ""),
 		StravaClientSecret: get("STRAVA_CLIENT_SECRET", ""),
 		StravaAPI:          strings.TrimRight(get("STRAVA_API", "https://www.strava.com"), "/"),
+		CalendarAPIKey:     get("CALENDAR_API_KEY", ""),
 	}
 	c.FromEmail = get("FROM_EMAIL", c.SMTPUser)
 	c.AdminEmail = get("ADMIN_EMAIL", c.FromEmail)

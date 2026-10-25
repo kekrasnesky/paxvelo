@@ -470,6 +470,25 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   <button>Add weekly ride</button>
 </form>
 
+<h2 class="section">Import the club’s Strava events</h2>
+{{with .StravaLink}}
+<div class="card">
+  <p>Connected as <strong>{{.Athlete}}</strong>. The club’s upcoming Strava events are added to the calendar every hour. Events that match a weekly ride (same day, and the same name or start time) are linked to it instead of added twice.</p>
+  <p class="small">{{with .LastSync}}Last checked {{datetime .}}.{{end}} {{with .LastResult}}{{.}}.{{end}}</p>
+  {{with .LastError}}<p class="flash err">The last import didn’t work: {{.}}</p>{{end}}
+  <div class="send-row">
+    <form method="post" action="/admin/strava/sync"><button>Import now</button></form>
+    <form method="post" action="/admin/strava/disconnect" onsubmit="return confirm('Stop importing Strava events? Events already on the calendar stay.')"><button class="link danger">Disconnect</button></form>
+  </div>
+</div>
+{{else}}
+<div class="card">
+  <p>Connect a Strava account that’s in the PaxVelo club (a club admin is best), and the club’s upcoming Strava events show up on the calendar automatically, every hour. Members can then sign up to lead them here.</p>
+  {{if .StravaReady}}<form method="post" action="/admin/strava/connect"><button>Connect Strava</button></form>{{else}}<p class="muted small">First add the Strava API settings to paxvelo.conf (README.md, “Ride calendar”).</p>{{end}}
+</div>
+{{end}}
+<p class="muted small">Scripts can also add rides through the calendar API{{if not .APIEnabled}} (turned off until CALENDAR_API_KEY is set){{end}}. README.md, “Calendar API”, has examples.</p>
+
 <h2 class="section">Club admins on Strava</h2>
 <p class="muted small">Club admins on Strava can post club events, and on the calendar they can take over or cancel any ride. This list updates whenever someone signs in with Strava.{{with .StravaAdminsChecked}} Last checked {{datetime .}}.{{end}}</p>
 {{if .StravaAdmins}}<ul class="small">{{range .StravaAdmins}}<li>{{.}}</li>{{end}}</ul>{{else}}<p class="muted small">Not checked yet.</p>{{end}}

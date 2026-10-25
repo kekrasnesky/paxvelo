@@ -30,6 +30,7 @@ type calView struct {
 	StravaReady            bool
 	Flash, Error           string
 	ClubURL                string
+	Token                  string // form token, for spam checks
 
 	// One ride
 	Ride       RideOcc
@@ -41,7 +42,8 @@ type calView struct {
 	MembersURL string
 
 	// Adding a ride
-	Form CalRide
+	Form     CalRide
+	FormName string
 }
 
 var calFlash = map[string]string{
@@ -61,6 +63,9 @@ var calError = map[string]string{
 	"taken":     "Someone else just took that spot. Only an admin can change its leader now.",
 	"noride":    "That ride (or pace group) isn’t on the calendar anymore.",
 	"already":   "You’re already leading a group on this ride. Step down from it first to switch.",
+	"name":      "Type your name, so riders know who’s leading.",
+	"expired":   "This page was open a long time. Try again.",
+	"limit":     "Too many sign-ups from your connection. Wait a bit and try again.",
 	"past":      "That ride has already happened.",
 	"notyours":  "Only the ride’s leader or a club admin can do that.",
 	"form":      "Add at least a date and a name for the ride.",
@@ -68,7 +73,7 @@ var calError = map[string]string{
 }
 
 func (a *App) calBase(r *http.Request) calView {
-	v := calView{StravaReady: a.stravaReady(), ClubURL: a.cfg.StravaURL,
+	v := calView{StravaReady: a.stravaReady(), ClubURL: a.cfg.StravaURL, Token: a.formToken(),
 		Flash: calFlash[r.URL.Query().Get("ok")], Error: calError[r.URL.Query().Get("err")]}
 	if rd, ok := a.rider(r); ok {
 		v.Rider = &rd
@@ -147,26 +152,61 @@ type spotView struct {
 	Mine, CanLead, CanTakeOver, CanStepDown bool
 }
 
+// rideRights works out what the visitor can do. Anyone can take an empty
+// spot by typing their name; changing a filled spot needs a club admin
+// (signed in with Strava) or the admin portal, or the leader themselves if
+// they signed up while signed in with Strava.
 func (a *App) rideRights(v *calView, o RideOcc) {
 	v.Ride, v.Series = o, o.SeriesID != 0
 	v.MembersURL = strings.TrimRight(a.cfg.StravaURL, "/") + "/members"
 	v.Past = o.Date < a.today().Format("2006-01-02")
-	open := v.Rider != nil && !v.Past && !o.Cancelled
+	open := !v.Past && !o.Cancelled
 	if v.Rider != nil {
-		_, v.Leading = o.groupOf(v.Rider.ID)
+		_, v.Leading = o.groupOf(*v.Rider)
 	}
 	for _, s := range o.Slots() {
 		sp := spotView{Slot: s}
 		if open {
-			rd := v.Rider
-			sp.Mine = s.Leader != nil && s.Leader.StravaID == rd.ID
 			sp.CanLead = s.Leader == nil && !v.Leading
-			sp.CanTakeOver = s.Leader != nil && !sp.Mine && rd.Admin && !v.Leading
-			sp.CanStepDown = s.Leader != nil && (sp.Mine || rd.Admin)
+			if rd := v.Rider; rd != nil {
+				sp.Mine = s.Leader != nil && sameLeader(*s.Leader, *rd)
+				sp.CanTakeOver = s.Leader != nil && !sp.Mine && rd.Admin && !v.Leading
+				sp.CanStepDown = s.Leader != nil && (sp.Mine || rd.Admin)
+			}
 		}
 		v.Spots = append(v.Spots, sp)
 	}
-	v.CanEdit = open && (v.Leading || v.Rider.Admin)
+	v.CanEdit = open && v.Rider != nil && (v.Leading || v.Rider.Admin)
+}
+
+// sameLeader reports whether a leader is this rider: by Strava account when
+// there is one, otherwise by name.
+func sameLeader(l Leader, rd Rider) bool {
+	if rd.ID != 0 {
+		return l.StravaID == rd.ID
+	}
+	return l.StravaID == 0 && strings.EqualFold(l.Name, rd.Name)
+}
+
+// signupPost checks a sign-up or add-a-ride form. Signing in with Strava is
+// optional: without it, people just type their name. The same spam checks as
+// the join form apply: a hidden field only bots fill in, a form token that
+// must be a couple of seconds old, and a cap per connection.
+func (a *App) signupPost(r *http.Request) (Rider, string) {
+	if r.FormValue("website") != "" || !a.validFormToken(r.FormValue("ft")) {
+		return Rider{}, "expired"
+	}
+	rd, signedIn := a.rider(r)
+	if !signedIn {
+		rd = Rider{Name: cleanName(r.FormValue("leader_name"))}
+		if rd.Name == "" {
+			return Rider{}, "name"
+		}
+	}
+	if !a.limit.Allow("signup:"+clientIP(r), 20, time.Hour) {
+		return Rider{}, "limit"
+	}
+	return rd, ""
 }
 
 // back to a ride's page with a message.
@@ -201,8 +241,13 @@ func rideAndGroup(name, group string) string {
 // most one group per ride.
 func (a *App) leadRide(w http.ResponseWriter, r *http.Request) {
 	key := r.PathValue("key")
-	rd, ok := a.riderPost(w, r)
-	if !ok {
+	if !sameOrigin(r) {
+		http.Error(w, "Blocked a request from another website.", http.StatusForbidden)
+		return
+	}
+	rd, code := a.signupPost(r)
+	if code != "" {
+		rideBack(w, r, key, "err="+code)
 		return
 	}
 	group := strings.TrimSpace(r.FormValue("group"))
@@ -214,10 +259,10 @@ func (a *App) leadRide(w http.ResponseWriter, r *http.Request) {
 			return errPastRide
 		case c.Cancelled || !c.hasGroup(group):
 			return errNoRide
-		case current != nil && current.StravaID == rd.ID:
+		case current != nil && sameLeader(*current, rd):
 			return nil
 		}
-		if _, leading := c.groupOf(rd.ID); leading {
+		if _, leading := c.groupOf(rd); leading {
 			return errAlreadyLeading
 		}
 		if current != nil && !rd.Admin {
@@ -256,7 +301,7 @@ func (a *App) stepDown(w http.ResponseWriter, r *http.Request) {
 		if current == nil {
 			return nil
 		}
-		if current.StravaID != rd.ID && !rd.Admin {
+		if !sameLeader(*current, rd) && !rd.Admin {
 			return errNotYours
 		}
 		was = current.Name
@@ -292,7 +337,7 @@ func (a *App) setRideStrava(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, err := a.store.UpdateRide(key, func(c *CalRide) error {
-		if _, leading := c.groupOf(rd.ID); !leading && !rd.Admin {
+		if _, leading := c.groupOf(rd); !leading && !rd.Admin {
 			return errNotYours
 		}
 		c.StravaURL = link
@@ -348,10 +393,11 @@ func (a *App) newRidePage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) addRide(w http.ResponseWriter, r *http.Request) {
-	rd, ok := a.riderPost(w, r)
-	if !ok {
+	if !sameOrigin(r) {
+		http.Error(w, "Blocked a request from another website.", http.StatusForbidden)
 		return
 	}
+	rd, code := a.signupPost(r)
 	c := CalRide{
 		Date: strings.TrimSpace(r.FormValue("date")), Time: strings.TrimSpace(r.FormValue("time")),
 		Name: cleanName(r.FormValue("name")), Place: cleanName(r.FormValue("place")),
@@ -359,10 +405,12 @@ func (a *App) addRide(w http.ResponseWriter, r *http.Request) {
 		Groups: parseGroups(r.FormValue("groups")),
 	}
 	v := a.calBase(r)
-	v.Form = c
+	v.Form, v.FormName = c, r.FormValue("leader_name")
 	_, dateErr := time.Parse("2006-01-02", c.Date)
 	_, timeErr := time.Parse("15:04", c.Time)
 	switch {
+	case code != "":
+		v.Error = calError[code]
 	case dateErr != nil || c.Name == "":
 		v.Error = calError["form"]
 	case c.Time != "" && timeErr != nil:
@@ -482,7 +530,10 @@ func (a *App) notifyRide(subject, body string, o RideOcc, group string) {
 	if len(lines) > 0 {
 		body += "\n\nLeaders now:\n" + strings.Join(lines, "\n")
 	}
-	if l := o.leaderFor(group); l != nil && l.StravaID != 0 && !l.StravaAdmin {
+	if l := o.leaderFor(group); l != nil && l.StravaID == 0 && l.SetBy == "" {
+		body += fmt.Sprintf("\n\n%s signed up with just their name, so they aren’t linked to a Strava account. "+
+			"Make sure the ride is posted on Strava (%s) and that %s knows they’re leading.", l.Name, a.cfg.StravaURL, l.Name)
+	} else if l != nil && l.StravaID != 0 && !l.StravaAdmin {
 		body += fmt.Sprintf("\n\n%s isn’t an admin of the PaxVelo club on Strava, so they can’t post this ride as a club event. "+
 			"Either post it for them, or make them an admin: open %s, find %s, and choose Make Admin.",
 			l.Name, strings.TrimRight(a.cfg.StravaURL, "/")+"/members", l.Name)

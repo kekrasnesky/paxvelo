@@ -90,6 +90,7 @@ type CalRide struct {
 	StravaURL string    `json:"strava_url,omitempty"`
 	Groups    []string  `json:"groups,omitempty"`
 	Leaders   []Leader  `json:"leaders,omitempty"`
+	External  string    `json:"external,omitempty"` // "strava:<event>:<date>", or an ID sent through the calendar API
 	Cancelled bool      `json:"cancelled,omitempty"`
 	AddedBy   string    `json:"added_by,omitempty"`
 	Added     time.Time `json:"added"`
@@ -161,9 +162,9 @@ func (c *CalRide) setLeader(group string, l *Leader) {
 }
 
 // groupOf finds the group a rider leads on this ride.
-func (c CalRide) groupOf(stravaID int64) (string, bool) {
+func (c CalRide) groupOf(rd Rider) (string, bool) {
 	for _, l := range c.Leaders {
-		if l.StravaID != 0 && l.StravaID == stravaID {
+		if sameLeader(l, rd) {
 			return l.Group, true
 		}
 	}

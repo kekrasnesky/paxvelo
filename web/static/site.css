@@ -264,6 +264,8 @@ td:hover .cal-add,.cal-add:focus-visible{opacity:1}
 .spot.open strong{color:var(--c)}
 .spot-act{display:flex;flex-wrap:wrap;gap:.6rem}
 .spot-act .btn{padding:.75rem 1.2rem}
+.lead-form{display:flex;flex-wrap:wrap;gap:.5rem}
+.lead-form input[name=leader_name]{min-width:11rem;padding:.7rem .85rem;border:1px solid #cdbfb5;font:300 1rem var(--font)}
 .muted-note{font-size:.95rem}
 .btn.btn-quiet{background:var(--paper);color:var(--ink);border:1px solid var(--rule)}
 .btn.btn-strava{background:#fc4c02}

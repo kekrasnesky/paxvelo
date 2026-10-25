@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -27,12 +29,16 @@ func fakeStrava(t *testing.T) *httptest.Server {
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /oauth/token", func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
+		if r.FormValue("grant_type") == "refresh_token" {
+			json.NewEncoder(w).Encode(map[string]any{"access_token": "tok-ann", "refresh_token": "refresh-2", "expires_at": time.Now().Add(6 * time.Hour).Unix()})
+			return
+		}
 		p, ok := people[r.FormValue("code")]
 		if !ok || r.FormValue("client_secret") != "secret" {
 			http.Error(w, "bad code", http.StatusBadRequest)
 			return
 		}
-		json.NewEncoder(w).Encode(map[string]any{"access_token": "tok-" + r.FormValue("code"),
+		json.NewEncoder(w).Encode(map[string]any{"access_token": "tok-" + r.FormValue("code"), "refresh_token": "refresh-1", "expires_at": 1,
 			"athlete": map[string]any{"id": p.id, "firstname": p.first, "lastname": p.last}})
 	})
 	mux.HandleFunc("GET /api/v3/athlete/clubs", func(w http.ResponseWriter, r *http.Request) {
@@ -45,6 +51,15 @@ func fakeStrava(t *testing.T) *httptest.Server {
 	})
 	mux.HandleFunc("GET /api/v3/clubs/10197/admins", func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode([]map[string]any{{"firstname": "Ann", "lastname": "A."}})
+	})
+	mux.HandleFunc("GET /api/v3/clubs/10197/group_events", func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer tok-ann" {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		fakeEventsMu.Lock()
+		defer fakeEventsMu.Unlock()
+		json.NewEncoder(w).Encode(fakeEvents)
 	})
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
@@ -133,7 +148,11 @@ func TestRideLeaders(t *testing.T) {
 		t.Errorf("signed-out ride page: %d", w.Code)
 	}
 	post := func(c *http.Cookie, path string, vals url.Values) string {
-		ct, body := form(vals)
+		v := url.Values{"ft": {oldToken(a)}}
+		for k, x := range vals {
+			v[k] = x
+		}
+		ct, body := form(v)
 		return do(t, h, c, "POST", path, ct, body).Header().Get("Location")
 	}
 	if loc := post(jane, "/calendar/ride/"+key+"/lead", gA); !strings.Contains(loc, "ok=led") {
@@ -209,9 +228,9 @@ func TestRideLeaders(t *testing.T) {
 		t.Errorf("past ride: %q", loc)
 	}
 
-	// Signing up needs a sign-in, and a form from this site.
-	if loc := post(nil, "/calendar/ride/"+key+"/lead", gA); !strings.HasPrefix(loc, "/strava/login") {
-		t.Errorf("signed out lead: %q", loc)
+	// Signing up without Strava needs a name, and a form from this site.
+	if loc := post(nil, "/calendar/ride/"+key+"/lead", gA); !strings.Contains(loc, "err=name") {
+		t.Errorf("signed out lead without a name: %q", loc)
 	}
 	r := httptest.NewRequest("POST", "/calendar/ride/"+key+"/lead", nil)
 	r.Header.Set("Origin", "https://evil.example")
@@ -233,7 +252,7 @@ func TestAddRideAndCalendar(t *testing.T) {
 	a, h, sent := rideApp(t)
 	jane, _ := signIn(t, h, "jane", "/calendar/new")
 	date := nextWeekday(a, time.Saturday)
-	ct, body := form(url.Values{"date": {date}, "time": {"08:30"}, "name": {"Coffee Ride"}, "place": {"Leonardtown Square"}, "lead": {"on"}})
+	ct, body := form(url.Values{"date": {date}, "time": {"08:30"}, "name": {"Coffee Ride"}, "place": {"Leonardtown Square"}, "lead": {"on"}, "ft": {oldToken(a)}})
 	w := do(t, h, jane, "POST", "/calendar/new", ct, body)
 	if !strings.Contains(w.Header().Get("Location"), "ok=added") {
 		t.Fatalf("add ride: %d %s", w.Code, w.Body.String())
@@ -248,7 +267,7 @@ func TestAddRideAndCalendar(t *testing.T) {
 		}
 	}
 	// Only a name and date are needed.
-	ct, body = form(url.Values{"date": {date}, "name": {""}})
+	ct, body = form(url.Values{"date": {date}, "name": {""}, "ft": {oldToken(a)}})
 	if w := do(t, h, jane, "POST", "/calendar/new", ct, body); w.Code != http.StatusBadRequest {
 		t.Errorf("ride without a name: %d", w.Code)
 	}
@@ -301,5 +320,144 @@ func TestStravaStateCantBeForged(t *testing.T) {
 	}
 	if got := safeNext("//evil.example/x"); got != "/calendar" {
 		t.Errorf("safeNext let an outside address through: %q", got)
+	}
+}
+
+// oldToken is a join-form token from a few seconds ago, like a real visitor's.
+func oldToken(a *App) string {
+	ts := strconv.FormatInt(time.Now().Add(-10*time.Second).Unix(), 10)
+	return ts + "." + sign(a.formKey(), ts)[:24]
+}
+
+func TestLeadWithJustAName(t *testing.T) {
+	a, h, sent := rideApp(t)
+	key := seriesKey(2, nextWeekday(a, time.Thursday))
+	if _, ok := a.store.Ride(key); !ok {
+		key = seriesKey(1, nextWeekday(a, time.Tuesday))
+	}
+	o, _ := a.store.Ride(key)
+	group := o.groupNames()[0]
+	post := func(vals url.Values) string {
+		ct, body := form(vals)
+		return do(t, h, nil, "POST", "/calendar/ride/"+key+"/lead", ct, body).Header().Get("Location")
+	}
+	if loc := post(url.Values{"group": {group}, "leader_name": {"Pat Rider"}, "ft": {a.formToken()}}); !strings.Contains(loc, "err=expired") {
+		t.Errorf("brand-new form accepted (bot check): %q", loc)
+	}
+	if loc := post(url.Values{"group": {group}, "ft": {oldToken(a)}}); !strings.Contains(loc, "err=name") {
+		t.Errorf("no name: %q", loc)
+	}
+	if loc := post(url.Values{"group": {group}, "leader_name": {"Pat Rider"}, "ft": {oldToken(a)}}); !strings.Contains(loc, "ok=led") {
+		t.Fatalf("lead by name: %q", loc)
+	}
+	if o, _ := a.store.Ride(key); o.leaderFor(group) == nil || o.leaderFor(group).Name != "Pat Rider" {
+		t.Errorf("leader: %+v", o.Leaders)
+	}
+	if len(*sent) != 1 || !strings.Contains((*sent)[0].body, "signed up with just their name") {
+		t.Errorf("notice: %+v", *sent)
+	}
+	// Someone else can't replace them by typing a different name.
+	if loc := post(url.Values{"group": {group}, "leader_name": {"Someone Else"}, "ft": {oldToken(a)}}); !strings.Contains(loc, "err=taken") {
+		t.Errorf("name-only takeover: %q", loc)
+	}
+	// Adding a ride works without Strava too.
+	ct, body := form(url.Values{"date": {nextWeekday(a, time.Sunday)}, "name": {"Sunday Spin"}, "leader_name": {"Pat Rider"}, "lead": {"on"}, "ft": {oldToken(a)}})
+	if w := do(t, h, nil, "POST", "/calendar/new", ct, body); !strings.Contains(w.Header().Get("Location"), "ok=added") {
+		t.Errorf("add ride by name: %d %s", w.Code, w.Header().Get("Location"))
+	}
+}
+
+var (
+	fakeEventsMu sync.Mutex
+	fakeEvents   []map[string]any
+)
+
+func TestStravaImportAndAPI(t *testing.T) {
+	a, h, _ := rideApp(t)
+	a.cfg.CalendarAPIKey = "secret-key"
+	h = a.routes()
+	tue, sat := nextWeekday(a, time.Tuesday), nextWeekday(a, time.Saturday)
+	fakeEventsMu.Lock()
+	fakeEvents = []map[string]any{
+		{"id": 501, "title": "Tuesday Night Ride", "address": "NAS Pax", "upcoming_occurrences": []string{tue + "T18:00:00Z"}},
+		{"id": 502, "title": "Gravel Saturday", "address": "St. Mary’s River State Park", "upcoming_occurrences": []string{sat + "T08:00:00Z"}},
+	}
+	fakeEventsMu.Unlock()
+
+	// Connecting: the admin approves on Strava, which sends them back here.
+	cookie := httptest.NewRecorder()
+	a.setSession(cookie, "Board Member", 3600)
+	admin := cookie.Result().Cookies()[0]
+	w := do(t, h, admin, "POST", "/admin/strava/connect", "", nil)
+	u, _ := url.Parse(w.Header().Get("Location"))
+	w = do(t, h, admin, "GET", "/admin/strava/callback?code=ann&state="+url.QueryEscape(u.Query().Get("state")), "", nil)
+	if !strings.Contains(w.Header().Get("Location"), "ok=connected") {
+		t.Fatalf("connect: %s", w.Header().Get("Location"))
+	}
+	if l, ok := a.store.StravaLink(); !ok || l.Athlete != "Ann A." || l.LastError != "" {
+		t.Errorf("link: %+v", l)
+	}
+	rides := a.store.Rides(a.today(), a.today().AddDate(0, 0, 14))
+	var tuesdays, gravel int
+	for _, o := range rides {
+		if o.Date == tue && o.Name == "Tuesday Night Ride" {
+			tuesdays++
+			if !strings.HasSuffix(o.StravaURL, "/group_events/501") || o.SeriesID == 0 {
+				t.Errorf("weekly ride not linked to its Strava event: %+v", o)
+			}
+		}
+		if o.Name == "Gravel Saturday" {
+			gravel++
+			if o.Date != sat || o.Time != "08:00" || o.Place != "St. Mary’s River State Park" {
+				t.Errorf("imported ride: %+v", o)
+			}
+		}
+	}
+	if tuesdays != 1 || gravel != 1 {
+		t.Errorf("tuesdays=%d gravel=%d", tuesdays, gravel)
+	}
+
+	// An event deleted on Strava leaves the calendar on the next import.
+	fakeEventsMu.Lock()
+	fakeEvents = fakeEvents[:1]
+	fakeEventsMu.Unlock()
+	if res, err := a.syncStrava(context.Background()); err != nil || res.Removed != 1 {
+		t.Errorf("second sync: %+v %v", res, err)
+	}
+
+	// The API: anyone can read; changes need the key.
+	ride := `{"date":"` + sat + `","time":"09:00","name":"Coffee Ride","groups":["Fast","Social"]}`
+	put := func(key, body string) *httptest.ResponseRecorder {
+		r := httptest.NewRequest("PUT", "/api/rides/coffee-1", strings.NewReader(body))
+		if key != "" {
+			r.Header.Set("Authorization", "Bearer "+key)
+		}
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		return w
+	}
+	if w := put("", ride); w.Code != http.StatusUnauthorized {
+		t.Errorf("no key: %d", w.Code)
+	}
+	if w := put("secret-key", ride); w.Code != http.StatusCreated {
+		t.Fatalf("put: %d %s", w.Code, w.Body.String())
+	}
+	if w := put("secret-key", `{"date":"`+sat+`","time":"09:30","name":"Coffee Ride"}`); w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"09:30"`) {
+		t.Errorf("update: %d %s", w.Code, w.Body.String())
+	}
+	if w := put("secret-key", `{"date":"soon","name":"x"}`); w.Code != http.StatusBadRequest {
+		t.Errorf("bad date: %d", w.Code)
+	}
+	list := do(t, h, nil, "GET", "/api/rides?from="+sat+"&to="+sat, "", nil)
+	var got []apiRide
+	if err := json.Unmarshal(list.Body.Bytes(), &got); err != nil || len(got) != 1 || got[0].ID != "coffee-1" || len(got[0].Leaders) != 2 {
+		t.Errorf("list: %v %s", err, list.Body.String())
+	}
+	r := httptest.NewRequest("DELETE", "/api/rides/coffee-1", nil)
+	r.Header.Set("Authorization", "Bearer secret-key")
+	dw := httptest.NewRecorder()
+	h.ServeHTTP(dw, r)
+	if dw.Code != http.StatusOK || len(a.store.Rides(a.today(), a.today().AddDate(0, 0, 14))) == 0 {
+		t.Errorf("delete: %d", dw.Code)
 	}
 }

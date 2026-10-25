@@ -64,6 +64,8 @@ type adminView struct {
 	StravaReady         bool
 	StravaAdmins        []string
 	StravaAdminsChecked *time.Time
+	StravaLink          *StravaLink
+	APIEnabled          bool
 }
 
 // ---- Sessions ----
@@ -218,6 +220,10 @@ var flashText = map[string]string{
 	"page-saved":        "Saved. The page is updated on the website.",
 	"page-reset":        "Done. The page is back to the GitHub version.",
 	"board":             "Saved. The board page is updated.",
+	"connected":         "Strava is connected, and the club’s events are on the calendar.",
+	"connected-error":   "Strava is connected, but reading the club’s events didn’t work. See the error below.",
+	"disconnected":      "Strava disconnected. Events already imported stay on the calendar.",
+	"synced":            "The club’s Strava events are up to date.",
 	"series-added":      "Weekly ride added to the calendar.",
 	"series-deleted":    "Weekly ride removed. Dates that already had a leader stay on the calendar.",
 	"leader":            "Saved, and the club has been emailed about any leader change.",
@@ -234,22 +240,25 @@ var flashText = map[string]string{
 }
 
 var errorText = map[string]string{
-	"name":    "Enter a name.",
-	"email":   "Enter a valid email address.",
-	"file":    "Choose a CSV file to import.",
-	"csv":     "That file couldn’t be read as a CSV. Export it from your spreadsheet as “CSV” and try again.",
-	"nocol":   "Couldn’t find an email column in that file.",
-	"empty":   "Add a subject and a message first.",
-	"welcome": "The welcome email needs a subject and a message.",
-	"save":    "Couldn’t save. Check the server log.",
-	"month":   "Choose a month and year.",
-	"series":  "A weekly ride needs a name, a day, and a start time.",
-	"season":  "Pick both season dates, or neither.",
-	"date":    "Enter the meeting date.",
-	"nofile":  "Choose the minutes file to upload.",
-	"bigfile": "That file is too big. Minutes can be up to 20 MB.",
-	"gone":    "That issue was deleted.",
-	"draft":   "There’s already an unsent email here, so the newsletter announcement didn’t replace it. Send it, or press Discard draft, then try “Email members about it” again.",
+	"name":     "Enter a name.",
+	"email":    "Enter a valid email address.",
+	"file":     "Choose a CSV file to import.",
+	"csv":      "That file couldn’t be read as a CSV. Export it from your spreadsheet as “CSV” and try again.",
+	"nocol":    "Couldn’t find an email column in that file.",
+	"empty":    "Add a subject and a message first.",
+	"welcome":  "The welcome email needs a subject and a message.",
+	"save":     "Couldn’t save. Check the server log.",
+	"month":    "Choose a month and year.",
+	"series":   "A weekly ride needs a name, a day, and a start time.",
+	"connect":  "Connecting to Strava didn’t work. Try again.",
+	"sync":     "Reading the club’s events from Strava didn’t work. See the error below.",
+	"nostrava": "Add the Strava API settings to paxvelo.conf first (README.md, “Ride calendar”).",
+	"season":   "Pick both season dates, or neither.",
+	"date":     "Enter the meeting date.",
+	"nofile":   "Choose the minutes file to upload.",
+	"bigfile":  "That file is too big. Minutes can be up to 20 MB.",
+	"gone":     "That issue was deleted.",
+	"draft":    "There’s already an unsent email here, so the newsletter announcement didn’t replace it. Send it, or press Discard draft, then try “Email members about it” again.",
 }
 
 func flashFrom(r *http.Request) (flash, errMsg string) {

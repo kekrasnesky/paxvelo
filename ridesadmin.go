@@ -17,6 +17,10 @@ func (a *App) ridesAdmin(w http.ResponseWriter, r *http.Request) {
 	v := adminView{Title: "Rides", Tab: "rides", Series: a.store.AllSeries(), Upcoming: a.store.Rides(today, today.AddDate(0, 0, 60)),
 		StravaReady: a.stravaReady(), Weekdays: weekdays}
 	v.StravaAdmins, v.StravaAdminsChecked = a.store.StravaAdmins()
+	if l, ok := a.store.StravaLink(); ok {
+		v.StravaLink = &l
+	}
+	v.APIEnabled = a.cfg.CalendarAPIKey != ""
 	v.Flash, v.Error = flashFrom(r)
 	a.renderAdmin(w, r, http.StatusOK, "rides", v)
 }

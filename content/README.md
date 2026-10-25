@@ -1,5 +1,7 @@
 # How to update the website
 
+> **Easier option:** the admin portal at www.paxvelo.club/admin can edit every page (the **Pages** tab) and the board members with their photos (the **Board** tab), with no GitHub needed. A page edited there uses the admin version until someone presses "Go back to the GitHub version". This guide is for editing on GitHub, and its formatting tips apply in the admin too.
+
 Every page of the PaxVelo website is a text file in this folder. Change the text, save, and the website updates by itself in about two minutes. You don't need to install anything.
 
 | Page | File |
@@ -76,7 +78,7 @@ The first paragraph after the title is shown a little larger.
 - **Start:** Park & Ride by NAS Pax Gate 2
 ```
 
-**People cards** (like the board page): start every line with a bold name, then the role. To add a photo, put it at the start of the line. This only works on pages with `people: yes` in their settings (see "Adding a new page"), so ordinary lists elsewhere stay lists.
+**People cards** (the board page uses the admin's **Board** tab instead, which handles photos and framing): start every line with a bold name, then the role. To add a photo, put it at the start of the line. This only works on pages with `people: yes` in their settings (see "Adding a new page"), so ordinary lists elsewhere stay lists.
 
 ```
 - **Jane Smith** President

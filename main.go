@@ -59,6 +59,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	go app.mailer.run(ctx)
+	go app.stravaSyncLoop(ctx)
 
 	srv := &http.Server{
 		Addr:              cfg.Listen,
@@ -166,6 +167,16 @@ func (a *App) routes() http.Handler {
 	mux.Handle("POST /admin/newsletter/{id}/delete", a.auth(a.deleteIssue))
 	mux.Handle("POST /admin/newsletter/{id}/copy", a.auth(a.copyIssue))
 	mux.Handle("GET /admin/rides", a.auth(a.ridesAdmin))
+	mux.Handle("POST /admin/strava/connect", a.auth(a.stravaConnect))
+	mux.Handle("GET /admin/strava/callback", a.auth(a.stravaConnectCallback))
+	mux.Handle("POST /admin/strava/disconnect", a.auth(a.stravaDisconnect))
+	mux.Handle("POST /admin/strava/sync", a.auth(a.stravaSyncNow))
+
+	// The calendar API, for scripts (see README.md, "Calendar API").
+	mux.HandleFunc("GET /api/rides", a.apiRides)
+	mux.HandleFunc("PUT /api/rides/{id}", a.apiPutRide)
+	mux.HandleFunc("DELETE /api/rides/{id}", a.apiDeleteRide)
+	mux.HandleFunc("POST /api/strava/sync", a.apiStravaSync)
 	mux.Handle("POST /admin/rides/series", a.auth(a.addSeries))
 	mux.Handle("POST /admin/rides/series/{id}/delete", a.auth(a.deleteSeries))
 	mux.Handle("POST /admin/rides/{key}/leader", a.auth(a.setLeaderAdmin))

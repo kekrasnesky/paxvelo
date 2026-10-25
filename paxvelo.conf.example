@@ -32,6 +32,9 @@ STRAVA_CLIENT_ID=
 STRAVA_CLIENT_SECRET=
 # Where "new ride leader" notices go. Defaults to ADMIN_EMAIL.
 RIDES_EMAIL=
+# A long random password for the calendar API (README.md, "Calendar API").
+# Leave empty to turn the API's write access off.
+CALENDAR_API_KEY=
 
 # ---- Email ----
 # Sends through the club Gmail. To get the password:

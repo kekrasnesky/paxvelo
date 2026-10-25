@@ -11,7 +11,8 @@ h2.section{margin:2.75rem 0 .9rem}
 .bar{display:flex;align-items:center;gap:2rem;padding:.85rem 1.5rem;background:var(--ink);color:var(--paper)}
 .bar a{text-decoration:none}
 .bar a:hover,.bar a[aria-current]{text-decoration:underline}
-.bar nav{display:flex;flex:1;gap:1.4rem}
+.bar nav{display:flex;flex:1;flex-wrap:wrap;gap:.3rem 1.2rem}
+.bar a,.bar form{white-space:nowrap}
 .brand{font-weight:500}
 .wrap{max-width:1040px;margin:0 auto;padding:2rem 1.25rem 4rem}
 .title-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:.25rem 1rem}
@@ -97,3 +98,4 @@ tr.off td{color:var(--muted)}
 .leader-row{display:grid;gap:.15rem;font-weight:300}
 .leader-form input{min-width:9rem;padding:.4rem .55rem;font-size:.88rem}
 @media (max-width:900px){.trio,.pair{grid-template-columns:1fr}.photo-field{grid-template-columns:1fr}}
+.fields .year{width:6.5rem}
