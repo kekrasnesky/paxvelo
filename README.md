@@ -75,6 +75,7 @@ Passwords are stored as PBKDF2 hashes, never as the password itself. In test mod
 ## Editing pages and the board in the admin
 
 - **Pages** lists every page. Open one to change its text, using the same simple formatting described in [content/README.md](content/README.md). **Add a photo** uploads a photo and puts it where your cursor is. A page that can't be shown (like a missing title) isn't saved, so the live page never breaks.
+- **Add a page** (at the bottom of the Pages tab) makes a new page from just a title: the address is filled in from it (like `/group-ride-etiquette`), and it can go straight into the Info menu, at the end. It starts with sample text showing the formatting and opens to edit. It's live as soon as it's added. Pages added here can be deleted again; pages from GitHub can only go back to their GitHub version.
 - An edit made in the admin wins over the GitHub version of that page. **Go back to the GitHub version** undoes the admin edits. The Pages list shows which pages were edited where.
 - **Board** lists the board members: name, role, photo, and their position on the page. Click a photo to keep the person's face in view; board photos show as circles.
 

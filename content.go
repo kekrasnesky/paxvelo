@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"io/fs"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -49,7 +50,8 @@ var (
 )
 
 // loadContent reads every page in the content folder. A page edited in the
-// admin (in edits, by file name) is used instead of the file.
+// admin (in edits, by file name) is used instead of the file, and pages added
+// in the admin are included too.
 func loadContent(content fs.FS, edits map[string]string, r *mdRenderer) ([]*contentPage, error) {
 	files, err := fs.Glob(content, "*.md")
 	if err != nil {
@@ -69,6 +71,21 @@ func loadContent(content fs.FS, edits map[string]string, r *mdRenderer) ([]*cont
 			src = string(b)
 		}
 		p, err := parsePage(file, src, r)
+		if err != nil {
+			return nil, fmt.Errorf("content/%s: %w", file, err)
+		}
+		pages = append(pages, p)
+	}
+	// Pages added in the admin, which have no file in the content folder.
+	var added []string
+	for file := range edits {
+		if !slices.Contains(files, file) {
+			added = append(added, file)
+		}
+	}
+	sort.Strings(added)
+	for _, file := range added {
+		p, err := parsePage(file, edits[file], r)
 		if err != nil {
 			return nil, fmt.Errorf("content/%s: %w", file, err)
 		}

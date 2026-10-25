@@ -33,7 +33,7 @@ func TestAllPagesBuild(t *testing.T) {
 			t.Errorf("page %s is missing", want)
 		}
 	}
-	if len(s.infoLinks) == 0 {
+	if len(*s.infoLinks.Load()) == 0 {
 		t.Error("the Info menu is empty")
 	}
 }

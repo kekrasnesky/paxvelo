@@ -200,7 +200,9 @@ func (a *App) routes() http.Handler {
 	mux.Handle("POST /admin/weekly/{id}/delete", a.auth(a.deleteSeries))
 	mux.Handle("GET /admin/pages", a.auth(a.pagesAdmin))
 	mux.Handle("POST /admin/pages/photo", a.auth(a.pagePhoto))
+	mux.Handle("POST /admin/pages", a.auth(a.createPage))
 	mux.Handle("GET /admin/pages/{file}", a.auth(a.editPagePage))
+	mux.Handle("POST /admin/pages/{file}/delete", a.auth(a.deletePage))
 	mux.Handle("POST /admin/pages/{file}", a.auth(a.savePage))
 	mux.Handle("POST /admin/pages/{file}/reset", a.auth(a.resetPage))
 	mux.Handle("GET /admin/board", a.auth(a.boardAdmin))
@@ -213,7 +215,7 @@ func (a *App) routes() http.Handler {
 	mux.Handle("POST /admin/minutes/{id}/delete", a.auth(a.deleteMinutes))
 	mux.Handle("POST /admin/newsletter/{id}/email", a.auth(a.emailIssue))
 
-	mux.HandleFunc("/", a.site.notFound)
+	mux.HandleFunc("/", a.site.serveAny)
 	return secureHeaders(mux)
 }
 

@@ -37,8 +37,8 @@ type Site struct {
 	cfg         Config
 	content     fs.FS                            // the content folder
 	pageTpl     map[string]*template.Template    // "home" and "page"
-	pagePaths   []string                         // every content page's address
-	pageInfo    []*contentPage                   // the content pages as first loaded, for the admin's Pages tab
+	pagePaths   []string                         // every content page's address at startup (pages added in the admin are found by serveAny)
+	pageList    atomic.Pointer[[]*contentPage]   // the content pages as last rendered, for the admin's Pages tab
 	pages       atomic.Pointer[map[string]*Page] // content pages, rebuilt when the Instagram posts change
 	contentMu   sync.Mutex
 	dynamic     map[string]*template.Template
@@ -46,7 +46,7 @@ type Site struct {
 	admin       *template.Template
 	static      fs.FS
 	photos      fs.FS
-	infoLinks   []navLink
+	infoLinks   atomic.Pointer[[]navLink] // the Info menu, rebuilt with the pages
 	md          *mdRenderer
 	newsMu      sync.RWMutex
 	newsRefresh sync.Mutex
@@ -135,7 +135,7 @@ func newSite(cfg Config) (*Site, error) {
 	s.css, s.js, s.adminCSS = template.CSS(css), template.JS(js), template.CSS(adminCSS)
 
 	funcs := template.FuncMap{
-		"infoLinks":   func() []navLink { return s.infoLinks },
+		"infoLinks":   func() []navLink { return *s.infoLinks.Load() },
 		"isInfo":      s.isInfo,
 		"date":        func(t time.Time) string { return t.In(cfg.Location).Format("Jan 2, 2006") },
 		"datetime":    func(t time.Time) string { return t.In(cfg.Location).Format("Jan 2, 2006, 3:04 PM") },
@@ -202,14 +202,9 @@ func newSite(cfg Config) (*Site, error) {
 	if err != nil {
 		return nil, err
 	}
-	s.pageInfo = pages
 	for _, p := range pages {
 		s.pagePaths = append(s.pagePaths, p.Path)
-		if p.Menu != "" {
-			s.infoLinks = append(s.infoLinks, navLink{p.Path, p.Menu})
-		}
 	}
-	s.infoLinks = append(s.infoLinks, navLink{"/minutes", "Meeting Minutes"})
 	s.pageTpl = map[string]*template.Template{}
 	for _, name := range []string{"home", "page"} {
 		if s.pageTpl[name], err = parse(name + ".html"); err != nil {
@@ -268,6 +263,16 @@ func (s *Site) renderContent(d contentData) error {
 	if err != nil {
 		return err
 	}
+	// The Info menu first, since every page shows it.
+	var links []navLink
+	for _, p := range list {
+		if p.Menu != "" {
+			links = append(links, navLink{p.Path, p.Menu})
+		}
+	}
+	links = append(links, navLink{"/minutes", "Meeting Minutes"})
+	s.infoLinks.Store(&links)
+	s.pageList.Store(&list)
 	pages := map[string]*Page{}
 	for _, p := range list {
 		t := s.pageTpl["page"]
@@ -309,12 +314,14 @@ func (s *Site) view(path, title string, data any) view {
 }
 
 // servePage serves a pre-rendered page straight from memory, gzipped when the
-// browser supports it, with a short cache so repeat visits are instant.
+// browser supports it. Browsers keep a copy but check it's current on every
+// visit (a quick "not modified" when it is), so a page edited or published in
+// the admin shows up right away.
 func (s *Site) servePage(p *Page) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
 		h.Set("Content-Type", "text/html; charset=utf-8")
-		h.Set("Cache-Control", "public, max-age=300")
+		h.Set("Cache-Control", "public, no-cache")
 		h.Set("ETag", p.etag)
 		h.Set("Vary", "Accept-Encoding")
 		if r.Header.Get("If-None-Match") == p.etag {
@@ -344,6 +351,18 @@ func (s *Site) render(w http.ResponseWriter, status int, name, path, title strin
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
 	w.Write(buf.Bytes())
+}
+
+// serveAny serves a page added in the admin since the site started (those
+// don't have their own route), or the not-found page.
+func (s *Site) serveAny(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet || r.Method == http.MethodHead {
+		if p := (*s.pages.Load())[r.URL.Path]; p != nil {
+			s.servePage(p).ServeHTTP(w, r)
+			return
+		}
+	}
+	s.notFound(w, r)
 }
 
 func (s *Site) notFound(w http.ResponseWriter, r *http.Request) {
@@ -379,7 +398,7 @@ func (s *Site) renderEmail(subject, text, unsubURL string) (string, error) {
 }
 
 func (s *Site) isInfo(path string) bool {
-	for _, l := range s.infoLinks {
+	for _, l := range *s.infoLinks.Load() {
 		if l.Path == path {
 			return true
 		}

@@ -111,6 +111,11 @@ func TestNewsletterFlow(t *testing.T) {
 		if w.Header().Get("ETag") == "" {
 			t.Errorf("%s isn't served from the cache", path)
 		}
+		// Browsers must check back every time, or an issue published after
+		// someone looked at the page wouldn't show up for them.
+		if cc := w.Header().Get("Cache-Control"); !strings.Contains(cc, "no-cache") {
+			t.Errorf("%s lets browsers reuse an old copy: %q", path, cc)
+		}
 	}
 
 	// The rides block follows the calendar: once the ride has its leaders, the page says so.

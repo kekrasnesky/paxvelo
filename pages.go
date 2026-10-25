@@ -8,6 +8,8 @@ import (
 	"html/template"
 	"io/fs"
 	"net/http"
+	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -111,16 +113,20 @@ func defaultBoard() []BoardMember {
 type pageRow struct {
 	File, Path, Title string
 	Edit              *PageEdit
+	New               bool // added in the admin: there's no GitHub version
+	InMenu            bool
 }
 
 func (a *App) pageRows() []pageRow {
 	edits := a.store.PageEdits()
 	var rows []pageRow
-	for _, p := range a.site.pageInfo {
-		row := pageRow{File: p.File, Path: p.Path, Title: strings.TrimSuffix(p.Title, " — "+siteName)}
+	for _, p := range *a.site.pageList.Load() {
+		row := pageRow{File: p.File, Path: p.Path, Title: strings.TrimSuffix(p.Title, " — "+siteName), InMenu: p.Menu != ""}
 		if e, ok := edits[p.File]; ok {
 			row.Edit = &e
 		}
+		_, err := fs.Stat(a.site.content, p.File)
+		row.New = err != nil
 		rows = append(rows, row)
 	}
 	return rows
@@ -130,6 +136,90 @@ func (a *App) pagesAdmin(w http.ResponseWriter, r *http.Request) {
 	v := adminView{Title: "Pages", Tab: "pages", Pages: a.pageRows()}
 	v.Flash, v.Error = flashFrom(r)
 	a.renderAdmin(w, r, http.StatusOK, "pages", v)
+}
+
+// takenPaths are addresses the site already uses for something other than a
+// content page, so a new page can't have them.
+var takenPaths = []string{"admin", "api", "calendar", "files", "home", "join", "kit", "media", "minutes", "newsletter",
+	"photos", "static", "strava", "unsubscribe", "info", "cart", "account", "insurancewaiver", "tnrinfo", "thnr-info", "robots", "favicon"}
+
+var nonSlug = regexp.MustCompile(`[^a-z0-9]+`)
+
+// slugFor turns a page title into an address, like "Group Ride Etiquette" →
+// "group-ride-etiquette".
+func slugFor(title string) string {
+	s := strings.Trim(nonSlug.ReplaceAllString(strings.ToLower(title), "-"), "-")
+	if len(s) > 60 {
+		s = strings.TrimRight(s[:60], "-")
+	}
+	return s
+}
+
+// newPageText is what a new page starts with: its title and a sample section
+// showing the formatting, ready to replace. order is its place in the Info menu.
+func newPageText(title string, inMenu bool, order int) string {
+	var b strings.Builder
+	if inMenu {
+		fmt.Fprintf(&b, "---\nmenu: %s\norder: %d\n---\n\n", title, order)
+	}
+	fmt.Fprintf(&b, "# %s\n\nA sentence or two about what this page is for. Replace this text with your own.\n\n", title)
+	b.WriteString("## A section heading\n\nWrite the section here. Leave a blank line between paragraphs, put **two stars** around words for bold, and write links as [words to click](https://www.paxvelo.club).\n\n")
+	b.WriteString("- A list item\n- Another list item\n")
+	return b.String()
+}
+
+// createPage adds a new page from the Pages tab and opens it to edit.
+func (a *App) createPage(w http.ResponseWriter, r *http.Request) {
+	title := cleanName(r.FormValue("title"))
+	slug := slugFor(r.FormValue("address"))
+	if slug == "" {
+		slug = slugFor(title)
+	}
+	file := slug + ".md"
+	_, onGitHub := fs.Stat(a.site.content, file)
+	_, exists := a.pageRow(file)
+	switch {
+	case title == "":
+		back(w, r, "/admin/pages?err=page-title")
+		return
+	case !slugRE.MatchString(slug):
+		back(w, r, "/admin/pages?err=page-address")
+		return
+	case exists || onGitHub == nil || slices.Contains(takenPaths, slug):
+		back(w, r, "/admin/pages?err=page-taken")
+		return
+	}
+	// In the Info menu, it goes after the pages already there.
+	order := 1
+	for _, p := range *a.site.pageList.Load() {
+		order = max(order, p.Order+1)
+	}
+	text := newPageText(title, r.FormValue("menu") != "", order)
+	if err := a.site.checkPage(file, text); err != nil {
+		back(w, r, "/admin/pages?err=save")
+		return
+	}
+	me, _ := a.adminName(r)
+	if err := a.store.SetPageEdit(file, &PageEdit{Text: text, EditedBy: me, Edited: time.Now().UTC()}); err != nil || a.rebuildContent() != nil {
+		back(w, r, "/admin/pages?err=save")
+		return
+	}
+	back(w, r, "/admin/pages/"+file+"?ok=page-created")
+}
+
+// deletePage removes a page that was added in the admin. (Pages from GitHub
+// can only go back to their GitHub version.)
+func (a *App) deletePage(w http.ResponseWriter, r *http.Request) {
+	row, ok := a.pageRow(r.PathValue("file"))
+	if !ok || !row.New {
+		back(w, r, "/admin/pages")
+		return
+	}
+	if err := a.store.SetPageEdit(row.File, nil); err != nil || a.rebuildContent() != nil {
+		back(w, r, "/admin/pages?err=save")
+		return
+	}
+	back(w, r, "/admin/pages?ok=page-deleted")
 }
 
 func (a *App) pageRow(file string) (pageRow, bool) {

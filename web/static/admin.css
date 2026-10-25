@@ -157,3 +157,5 @@ details.more[open]{display:grid;gap:.6rem;padding-bottom:.8rem}
 .rides-now{margin:0;padding:.7rem .9rem;background:#faf8f5}
 .add-block{border-style:dashed}
 .kinds{margin:0;padding-left:1.1rem;display:grid;gap:.25rem}
+.addr{display:flex;align-items:center;gap:.2rem;font-weight:300}
+.addr input{flex:1}

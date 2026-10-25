@@ -715,10 +715,24 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
 <div class="table-wrap"><table>
   <thead><tr><th>Page</th><th>Address</th><th>Status</th></tr></thead>
   <tbody>{{range .Pages}}<tr>
-    <td><a href="/admin/pages/{{.File}}">{{.Title}}</a></td><td><a href="{{.Path}}" target="_blank" rel="noopener">{{.Path}}</a></td>
-    <td>{{with .Edit}}Edited here {{date .Edited}}{{with .EditedBy}} by {{.}}{{end}}{{else}}GitHub version{{end}}</td>
+    <td><a href="/admin/pages/{{.File}}">{{.Title}}</a>{{if .InMenu}} <span class="tag">In the Info menu</span>{{end}}</td><td><a href="{{.Path}}" target="_blank" rel="noopener">{{.Path}}</a></td>
+    <td>{{if .New}}Added here{{with .Edit}} {{date .Edited}}{{with .EditedBy}} by {{.}}{{end}}{{end}}{{else}}{{with .Edit}}Edited here {{date .Edited}}{{with .EditedBy}} by {{.}}{{end}}{{else}}GitHub version{{end}}{{end}}</td>
   </tr>{{end}}</tbody>
 </table></div>
+<form class="card new-issue" method="post" action="/admin/pages">
+  <h2>Add a page</h2>
+  <label>Page title <input name="title" id="new-title" required maxlength="80" placeholder="Group Ride Etiquette"></label>
+  <label>Address <span class="addr"><span class="muted">{{.SiteURL}}/</span><input name="address" id="new-address" maxlength="60" placeholder="group-ride-etiquette" pattern="[a-z0-9]+(-[a-z0-9]+)*"></span><span class="muted small">Filled in from the title. Change it if you like: lowercase letters, numbers, and dashes.</span></label>
+  <label class="check"><input type="checkbox" name="menu" checked> Add it to the Info menu</label>
+  <p class="muted small">The page starts with your title and some sample text showing the formatting, and opens so you can write it. It’s live as soon as it’s added, so replace the sample text right away (or untick the menu box until it’s ready).</p>
+  <button>Add page</button>
+</form>
+<script>
+// Suggest an address from the title, until someone types their own.
+(function(){var t=document.getElementById('new-title'),a=document.getElementById('new-address'),own=false;
+a.addEventListener('input',function(){own=a.value!==''});
+t.addEventListener('input',function(){if(!own)a.value=t.value.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60).replace(/-+$/,'')})})();
+</script>
 {{template "foot" .}}{{end}}
 
 {{define "page-edit"}}{{template "head" .}}
@@ -729,7 +743,9 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   <p class="muted small"># Title, ## section, **bold**, [link words](https://…), - list item. Leave a blank line between paragraphs.</p>
   <div class="send-row"><button>Save</button><label class="inline-label">Add a photo <input type="file" id="page-photo" accept="image/jpeg,image/png,image/webp"></label></div>
 </form>
-{{if .Page.Edit}}<form class="footnote" method="post" action="/admin/pages/{{.Page.File}}/reset" onsubmit="return confirm('Undo all edits made here and go back to the GitHub version?')"><button class="link danger">Go back to the GitHub version</button></form>{{end}}
+{{if .Page.New}}<form class="footnote" method="post" action="/admin/pages/{{.Page.File}}/delete" onsubmit="return confirm('Delete the {{.Page.Title}} page? It comes off the website, and this can’t be undone.')"><button class="link danger">Delete this page</button></form>
+{{else if .Page.Edit}}<form class="footnote" method="post" action="/admin/pages/{{.Page.File}}/reset" onsubmit="return confirm('Undo all edits made here and go back to the GitHub version?')"><button class="link danger">Go back to the GitHub version</button></form>{{end}}
+<p class="muted small">At the top, between the --- lines: <strong>menu:</strong> adds the page to the Info menu with that label (delete the line to take it out), and <strong>order:</strong> sets its place in the menu (a number).</p>
 <script>
 document.getElementById('page-photo').addEventListener('change',function(){var f=this.files[0];if(!f)return;var fd=new FormData();fd.append('photo',f);
 fetch('/admin/pages/photo',{method:'POST',body:fd}).then(function(r){return r.json()}).then(function(j){if(j.error){alert(j.error);return}
