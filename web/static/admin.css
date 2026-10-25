@@ -16,7 +16,7 @@ h2.section{margin:2.75rem 0 .9rem}
 @media (max-width:700px){.bar{flex-wrap:wrap;justify-content:space-between;gap:.5rem 1rem}.bar nav{order:3;flex-basis:100%;padding-bottom:.15rem}}
 .bar a,.bar form{white-space:nowrap}
 .brand{font-weight:500}
-.wrap{max-width:1040px;margin:0 auto;padding:2rem 1.25rem 4rem}
+.wrap{max-width:1240px;margin:0 auto;padding:2rem 1.25rem 4rem}
 .title-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:.25rem 1rem}
 .title-row p{margin:0}
 .card{display:grid;align-content:start;gap:1rem;padding:1.5rem;border:1px solid var(--line);background:#fff}
@@ -180,3 +180,24 @@ details.more[open]{display:grid;gap:.6rem;padding-bottom:.8rem}
 .mail-preview iframe{display:block;width:100%;max-width:600px;height:420px;margin:0 auto;border:1px solid var(--line);background:#f5f2ec}
 .tag-pres{border-color:var(--red);color:var(--red)}
 .opt{font-weight:300;color:var(--muted)}
+/* Tables with many columns: actions stack instead of running off the edge,
+   long emails can break, and the Members table is a little tighter. */
+.acts{display:flex;flex-direction:column;align-items:flex-end;gap:.35rem}
+.acts form{margin:0}
+.acts .link{white-space:nowrap}
+td.email{min-width:9rem;overflow-wrap:anywhere}
+.tight th,.tight td{padding:.55rem .6rem}
+/* On tablets and phones, the Members table becomes one card per member, each
+   value with its column name beside it, so nothing scrolls off the side. */
+@media (max-width:900px){
+  .cards thead{display:none}
+  .cards,.cards tbody,.cards tr,.cards td{display:block}
+  .cards tr{padding:.6rem .8rem;border-bottom:1px solid var(--line)}
+  .cards tbody tr:last-child{border-bottom:0}
+  .cards td{position:relative;padding:.25rem 0 .25rem 9.75rem;border:0;white-space:normal}
+  .cards td::before{content:attr(data-label);position:absolute;left:0;top:.25rem;width:9rem;color:var(--muted);font-weight:500}
+  .cards td.cell-act{padding:.4rem 0 .1rem;text-align:left}
+  .cards td.empty{padding:2rem;text-align:center}
+  .cards td.empty::before{content:none}
+}
+@media (max-width:900px){.cards .acts{align-items:flex-start}}

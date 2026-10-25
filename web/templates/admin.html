@@ -159,20 +159,20 @@ initBlock(document);
   <p class="muted">Everyone here can log in to the admin portal with their email and their own password.</p>
 </div>
 {{with .TestLink}}<p class="flash warn">Test mode: emails go to the server log instead of being sent. Here’s the link that would have been emailed: <a href="{{.}}">{{.}}</a></p>{{end}}
-<div class="table-wrap"><table>
+<div class="table-wrap"><table class="cards">
   <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Last login</th><th>Added</th><th><span class="sr">Actions</span></th></tr></thead>
   <tbody>
   {{range .Admins}}<tr>
-    <td>{{.Name}}{{if .President}} <span class="tag tag-pres">President</span>{{end}}{{if eq .ID $.Account.ID}} <span class="tag">You</span>{{end}}</td>
-    <td><a href="mailto:{{.Email}}">{{.Email}}</a></td>
-    <td>{{if .HasPassword}}<span class="paid">Active</span>{{else}}Invited, no password yet{{end}}</td>
-    <td class="nowrap">{{with .LastLogin}}{{datetime .}}{{else}}<span class="muted">Never</span>{{end}}</td>
-    <td class="nowrap">{{date .Added}}{{with .AddedBy}}<br><span class="muted small">by {{.}}</span>{{end}}</td>
-    <td class="right nowrap">
-      <form method="post" action="/admin/admins/{{.ID}}/link" class="inline"><button class="link">{{if .HasPassword}}Send a reset link{{else}}Send a new link{{end}}</button></form>
-      {{if and $.CanNamePresident (not .President)}} · <form method="post" action="/admin/admins/{{.ID}}/president" class="inline" onsubmit="return confirm('Make {{.Name}} the president? Only the president can remove admins and delete members{{if $.Account.President}}, so you won’t be able to anymore{{end}}.')"><button class="link">Make president</button></form>{{end}}
-      {{if and $.CanManage (ne .ID $.Account.ID)}} · <form method="post" action="/admin/admins/{{.ID}}/remove" class="inline" onsubmit="return confirm('Remove {{.Name}} as an admin? They won’t be able to log in.')"><button class="link danger">Remove</button></form>{{end}}
-    </td>
+    <td data-label="Name">{{.Name}}{{if .President}} <span class="tag tag-pres">President</span>{{end}}{{if eq .ID $.Account.ID}} <span class="tag">You</span>{{end}}</td>
+    <td class="email" data-label="Email"><a href="mailto:{{.Email}}">{{.Email}}</a></td>
+    <td data-label="Status">{{if .HasPassword}}<span class="paid">Active</span>{{else}}Invited, no password yet{{end}}</td>
+    <td data-label="Last login">{{with .LastLogin}}<span class="nowrap">{{date .}}</span><br><span class="muted small">{{clock .}}</span>{{else}}<span class="muted">Never</span>{{end}}</td>
+    <td data-label="Added"><span class="nowrap">{{date .Added}}</span>{{with .AddedBy}}<br><span class="muted small">by {{.}}</span>{{end}}</td>
+    <td class="right cell-act"><div class="acts">
+      <form method="post" action="/admin/admins/{{.ID}}/link"><button class="link">{{if .HasPassword}}Send a reset link{{else}}Send a new link{{end}}</button></form>
+      {{if and $.CanNamePresident (not .President)}}<form method="post" action="/admin/admins/{{.ID}}/president" onsubmit="return confirm('Make {{.Name}} the president? Only the president can remove admins and delete members{{if $.Account.President}}, so you won’t be able to anymore{{end}}.')"><button class="link">Make president</button></form>{{end}}
+      {{if and $.CanManage (ne .ID $.Account.ID)}}<form method="post" action="/admin/admins/{{.ID}}/remove" onsubmit="return confirm('Remove {{.Name}} as an admin? They won’t be able to log in.')"><button class="link danger">Remove</button></form>{{end}}
+    </div></td>
   </tr>
   {{else}}<tr><td colspan="6" class="empty">No admin accounts yet. Add yourself first, then everyone else.</td></tr>
   {{end}}
@@ -220,23 +220,23 @@ initBlock(document);
   <a href="/admin?dues=unpaid{{with .Q}}&q={{.}}{{end}}"{{if eq .Dues "unpaid"}} aria-current="page"{{end}}>Not paid for {{.Year}} ({{.Unpaid}})</a>
   <a href="/admin?dues=paid{{with .Q}}&q={{.}}{{end}}"{{if eq .Dues "paid"}} aria-current="page"{{end}}>Paid for {{.Year}} ({{.Paid}})</a>
 </nav>
-<div class="table-wrap"><table>
+<div class="table-wrap"><table class="tight cards">
   <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Emergency contact</th><th>Emergency phone</th><th>Plan</th><th>{{.Year}} dues</th><th>Joined</th>{{if .CanManage}}<th><span class="sr">Actions</span></th>{{end}}</tr></thead>
   <tbody>
   {{range .Members}}{{$paid := .PaidFor $.Year}}<tr{{if not .Active}} class="off"{{end}}>
-    <td>{{.Name}}</td>
-    <td><a href="mailto:{{.Email}}">{{.Email}}</a>{{if not .Active}} <span class="tag">Unsubscribed</span>{{end}}</td>
-    <td class="nowrap">{{with .Phone}}<a href="tel:{{.}}">{{.}}</a>{{else}}<span class="muted">—</span>{{end}}</td>
-    <td>{{or .EmergencyName "—"}}</td>
-    <td class="nowrap">{{with .EmergencyPhone}}<a href="tel:{{.}}">{{.}}</a>{{else}}<span class="muted">—</span>{{end}}</td>
-    <td>{{.PlanName}}</td>
-    <td class="nowrap"><form method="post" action="/admin/members/{{.ID}}/paid" class="inline">
+    <td data-label="Name">{{.Name}}</td>
+    <td class="email" data-label="Email"><a href="mailto:{{.Email}}">{{.Email}}</a>{{if not .Active}} <span class="tag">Unsubscribed</span>{{end}}</td>
+    <td class="nowrap" data-label="Phone">{{with .Phone}}<a href="tel:{{.}}">{{.}}</a>{{else}}<span class="muted">—</span>{{end}}</td>
+    <td data-label="Emergency contact">{{or .EmergencyName "—"}}</td>
+    <td class="nowrap" data-label="Emergency phone">{{with .EmergencyPhone}}<a href="tel:{{.}}">{{.}}</a>{{else}}<span class="muted">—</span>{{end}}</td>
+    <td data-label="Plan">{{.PlanName}}</td>
+    <td class="nowrap" data-label="{{$.Year}} dues"><form method="post" action="/admin/members/{{.ID}}/paid" class="inline">
       <input type="hidden" name="return" value="/admin?q={{$.Q}}&dues={{$.Dues}}">
       {{if $paid}}<span class="paid">Paid</span> <input type="hidden" name="paid" value="0"><button class="link small">Undo</button>
       {{else}}<input type="hidden" name="paid" value="1"><button class="mini">Mark paid</button>{{end}}
     </form></td>
-    <td class="nowrap">{{date .Joined}}</td>
-    {{if $.CanManage}}<td class="right"><form method="post" action="/admin/members/{{.ID}}/delete" onsubmit="return confirm('Delete {{.Email}}? This can’t be undone.')"><button class="link danger">Delete</button></form></td>{{end}}
+    <td class="nowrap" data-label="Joined">{{date .Joined}}</td>
+    {{if $.CanManage}}<td class="right cell-act"><form method="post" action="/admin/members/{{.ID}}/delete" onsubmit="return confirm('Delete {{.Email}}? This can’t be undone.')"><button class="link danger">Delete</button></form></td>{{end}}
   </tr>
   {{else}}<tr><td colspan="9" class="empty">{{if or $.Q $.Dues}}Nobody matches that.{{else}}No members yet. Share the join page: <a href="{{$.SiteURL}}/join">{{$.SiteURL}}/join</a>{{end}}</td></tr>
   {{end}}

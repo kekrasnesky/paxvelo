@@ -139,6 +139,7 @@ func newSite(cfg Config) (*Site, error) {
 		"isInfo":       s.isInfo,
 		"date":         func(t time.Time) string { return t.In(cfg.Location).Format("Jan 2, 2006") },
 		"datetime":     func(t time.Time) string { return t.In(cfg.Location).Format("Jan 2, 2006, 3:04 PM") },
+		"clock":        func(t time.Time) string { return t.In(cfg.Location).Format("3:04 PM") },
 		"statusLabel":  statusLabel,
 		"progress":     progress,
 		"hasPrefix":    strings.HasPrefix,
