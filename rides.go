@@ -3,6 +3,8 @@ package main
 import (
 	"errors"
 	"fmt"
+	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -26,8 +28,8 @@ type RideSeries struct {
 	Place     string `json:"place,omitempty"`
 	Details   string `json:"details,omitempty"`
 	StravaURL string `json:"strava_url,omitempty"`
-	// Pace groups, each led by its own leader, like "A group · 24–28 mph".
-	// None means the ride has one leader.
+	// Pace groups, each led by its own leader: "A group", "B group", and so on
+	// (see paceGroups). None means the ride has one leader.
 	Groups []string `json:"groups,omitempty"`
 	// The part of each year it runs, as month-day ("03-01" to "10-10").
 	// Empty means all year.
@@ -109,6 +111,69 @@ func (o RideOcc) TimeLabel() string { return timeLabel(o.Time) }
 type Slot struct {
 	Group  string // empty for a ride without pace groups
 	Leader *Leader
+}
+
+// The club rides in up to three pace groups. Admins and riders pick how many
+// from a menu instead of typing them, so every ride names them the same way.
+var paceGroups = []string{"A group", "B group", "C group"}
+
+type paceChoice struct{ Value, Label string }
+
+var paceChoices = []paceChoice{{"", "One leader (no pace groups)"}, {"2", "A and B groups"}, {"3", "A, B and C groups"}}
+
+// groupsFor turns a choice from the pace menu into a ride's groups. "keep"
+// keeps groups the menu doesn't offer, like ones from a Strava event.
+func groupsFor(choice string, current []string) []string {
+	switch choice {
+	case "2":
+		return append([]string(nil), paceGroups[:2]...)
+	case "3":
+		return append([]string(nil), paceGroups...)
+	case "keep":
+		return append([]string(nil), current...)
+	}
+	return nil
+}
+
+// paceOf is the menu choice for a ride's groups, or "keep" when the menu
+// doesn't have one.
+func paceOf(groups []string) string {
+	for _, c := range paceChoices {
+		if slices.Equal(groupsFor(c.Value, nil), groups) {
+			return c.Value
+		}
+	}
+	return "keep"
+}
+
+// tidyGroup turns the pace groups typed before the menu existed, like
+// "A group · 24–28 mph", into the menu's names.
+func tidyGroup(g string) string {
+	if m := oldGroupRE.FindStringSubmatch(g); m != nil {
+		return m[1] + " group"
+	}
+	return g
+}
+
+var oldGroupRE = regexp.MustCompile(`^([ABC]) group\b`)
+
+// fitLeaders keeps the leaders whose group the ride still has. When a ride
+// goes from one leader to pace groups (or back), that leader moves to the
+// first group (or becomes the ride's leader).
+func (c *CalRide) fitLeaders() {
+	names := c.groupNames()
+	var kept []Leader
+	for _, l := range c.Leaders {
+		switch {
+		case slices.Contains(names, l.Group):
+		case len(c.Leaders) == 1 && (l.Group == "" || len(c.Groups) == 0):
+			l.Group = names[0]
+		default:
+			continue
+		}
+		kept = append(kept, l)
+	}
+	c.Leaders = kept
 }
 
 // groupNames is the ride's pace groups, or one unnamed group.
@@ -400,6 +465,90 @@ func (s *Store) AddSeries(se RideSeries) error {
 	return s.save()
 }
 
+func (s *Store) Series(id int) (RideSeries, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if se := s.seriesByID(id); se != nil {
+		return *se, true
+	}
+	return RideSeries{}, false
+}
+
+// UpdateSeries changes a weekly ride. Its dates from `from` on follow the
+// change, except for anything changed on that date alone. A date the ride no
+// longer runs on (after a new day or season) stays only if it has leaders,
+// as a one-off ride.
+func (s *Store) UpdateSeries(se RideSeries, from string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	cur := s.seriesByID(se.ID)
+	if cur == nil {
+		return errNoRide
+	}
+	old := *cur
+	*cur = se
+	follow := func(field *string, was, now string) {
+		if *field == was {
+			*field = now
+		}
+	}
+	kept := s.d.CalRides[:0]
+	for _, r := range s.d.CalRides {
+		if r.SeriesID == se.ID && r.Date >= from {
+			if d, _ := time.Parse("2006-01-02", r.Date); !se.runsOn(d) {
+				if len(r.Leaders) == 0 {
+					continue
+				}
+				r.SeriesID = 0
+			} else {
+				follow(&r.Name, old.Name, se.Name)
+				follow(&r.Time, old.Time, se.Time)
+				follow(&r.Place, old.Place, se.Place)
+				follow(&r.Details, old.Details, se.Details)
+				follow(&r.StravaURL, old.StravaURL, se.StravaURL)
+				if slices.Equal(r.Groups, old.Groups) {
+					r.Groups = append([]string(nil), se.Groups...)
+					r.fitLeaders()
+				}
+			}
+		}
+		kept = append(kept, r)
+	}
+	s.d.CalRides = kept
+	return s.save()
+}
+
+// DeleteRide removes a one-off ride. (A weekly ride's date is cancelled
+// instead, or it would just come back.)
+func (s *Store) DeleteRide(key string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	r, err := s.ride(key, false)
+	if err != nil || r.SeriesID != 0 {
+		return errNoRide
+	}
+	s.d.CalRides = slices.DeleteFunc(s.d.CalRides, func(x *CalRide) bool { return x == r })
+	return s.save()
+}
+
+// tidyGroups renames pace groups typed before the menu existed.
+// Callers must hold s.mu.
+func (s *Store) tidyGroups() {
+	for _, se := range s.d.Series {
+		for i, g := range se.Groups {
+			se.Groups[i] = tidyGroup(g)
+		}
+	}
+	for _, r := range s.d.CalRides {
+		for i, g := range r.Groups {
+			r.Groups[i] = tidyGroup(g)
+		}
+		for i := range r.Leaders {
+			r.Leaders[i].Group = tidyGroup(r.Leaders[i].Group)
+		}
+	}
+}
+
 // DeleteSeries removes a weekly ride. Dates that already have a leader stay
 // on the calendar as one-off rides.
 func (s *Store) DeleteSeries(id int) error {
@@ -443,8 +592,8 @@ func (s *Store) SetStravaAdmins(names []string) {
 // site starts. Admins can change them on the Rides tab.
 func defaultSeries() []*RideSeries {
 	return []*RideSeries{
-		{ID: 1, Name: "Tuesday Night Ride", Weekday: 2, Time: "18:00", Place: "NAS Pax", Details: "Fast, for race prep and high-intensity work",
-			Groups: []string{"A group · 24–28 mph", "B group · 20–22 mph"}},
+		{ID: 1, Name: "Tuesday Night Ride", Weekday: 2, Time: "18:00", Place: "NAS Pax", Details: "Fast · A 24–28 mph, B 20–22 mph",
+			Groups: []string{"A group", "B group"}},
 		{ID: 2, Name: "Thursday Night Ride", Weekday: 4, Time: "18:00", Place: "Park & Ride by NAS Pax Gate 2", Details: "Members · paceline, 20–24 mph, about 40 miles",
 			SeasonStart: "03-01", SeasonEnd: "10-10"},
 	}

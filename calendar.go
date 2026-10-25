@@ -99,12 +99,20 @@ func (a *App) today() time.Time {
 	return time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 }
 
-// calendarPage shows a month, Sunday to Saturday, with every ride.
-func (a *App) calendarPage(w http.ResponseWriter, r *http.Request) {
+// calMonth is one month of the calendar, Sunday to Saturday, with every ride.
+// The public calendar and the admin's Calendar tab both show it.
+type calMonth struct {
+	MonthLabel, Prev, Next string
+	Weeks                  [][]calDay
+	Days                   []calDay // days of the month that have rides, for phones
+}
+
+// month builds the month given as "2006-01", or the current one.
+func (a *App) month(m string) calMonth {
 	today := a.today()
 	first := time.Date(today.Year(), today.Month(), 1, 0, 0, 0, 0, time.UTC)
-	if m, err := time.Parse("2006-01", r.URL.Query().Get("m")); err == nil && m.Year() > 2000 && m.Year() < 2100 {
-		first = m
+	if t, err := time.Parse("2006-01", m); err == nil && t.Year() > 2000 && t.Year() < 2100 {
+		first = t
 	}
 	start := first.AddDate(0, 0, -int(first.Weekday()))
 	last := first.AddDate(0, 1, -1)
@@ -114,9 +122,8 @@ func (a *App) calendarPage(w http.ResponseWriter, r *http.Request) {
 	for _, o := range a.store.Rides(start, end) {
 		byDate[o.Date] = append(byDate[o.Date], o)
 	}
-	v := a.calBase(r)
-	v.MonthLabel = first.Format("January 2006")
-	v.Prev, v.Next = first.AddDate(0, -1, 0).Format("2006-01"), first.AddDate(0, 1, 0).Format("2006-01")
+	cm := calMonth{MonthLabel: first.Format("January 2006"),
+		Prev: first.AddDate(0, -1, 0).Format("2006-01"), Next: first.AddDate(0, 1, 0).Format("2006-01")}
 	var week []calDay
 	for d := start; !d.After(end); d = d.AddDate(0, 0, 1) {
 		date := d.Format("2006-01-02")
@@ -125,12 +132,20 @@ func (a *App) calendarPage(w http.ResponseWriter, r *http.Request) {
 		// The phone list skips days already gone in the current month.
 		thisMonth := first.Year() == today.Year() && first.Month() == today.Month()
 		if day.InMonth && len(day.Rides) > 0 && !(thisMonth && day.Past) {
-			v.Days = append(v.Days, day)
+			cm.Days = append(cm.Days, day)
 		}
 		if len(week) == 7 {
-			v.Weeks, week = append(v.Weeks, week), nil
+			cm.Weeks, week = append(cm.Weeks, week), nil
 		}
 	}
+	return cm
+}
+
+// calendarPage shows a month, Sunday to Saturday, with every ride.
+func (a *App) calendarPage(w http.ResponseWriter, r *http.Request) {
+	v := a.calBase(r)
+	m := a.month(r.URL.Query().Get("m"))
+	v.MonthLabel, v.Prev, v.Next, v.Weeks, v.Days = m.MonthLabel, m.Prev, m.Next, m.Weeks, m.Days
 	a.renderCal(w, http.StatusOK, "calendar", "/calendar", "Ride Calendar", v)
 }
 
@@ -402,7 +417,7 @@ func (a *App) addRide(w http.ResponseWriter, r *http.Request) {
 		Date: strings.TrimSpace(r.FormValue("date")), Time: strings.TrimSpace(r.FormValue("time")),
 		Name: cleanName(r.FormValue("name")), Place: cleanName(r.FormValue("place")),
 		Details: cleanName(r.FormValue("details")), StravaURL: strings.TrimSpace(r.FormValue("strava_url")), AddedBy: rd.Name,
-		Groups: parseGroups(r.FormValue("groups")),
+		Groups: groupsFor(r.FormValue("pace"), nil),
 	}
 	v := a.calBase(r)
 	v.Form, v.FormName = c, r.FormValue("leader_name")

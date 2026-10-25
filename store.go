@@ -90,6 +90,8 @@ type storeData struct {
 	NextMinutes  int          `json:"next_minutes_id,omitempty"`
 	Minutes      []*Minutes   `json:"minutes,omitempty"`
 	Instagram    []string     `json:"instagram,omitempty"` // posts shown on the home page
+	NextAdmin    int          `json:"next_admin_id,omitempty"`
+	Admins       []*AdminUser `json:"admins,omitempty"`
 
 	// Ride calendar
 	NextRide            int           `json:"next_ride_id,omitempty"`
@@ -108,9 +110,17 @@ type storeData struct {
 }
 
 type Store struct {
-	mu   sync.Mutex
-	path string
-	d    storeData
+	mu      sync.Mutex
+	path    string
+	d       storeData
+	version uint64 // goes up with every save, so pages built from the data know when to rebuild
+}
+
+// Version changes whenever anything in the club data is saved.
+func (s *Store) Version() uint64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.version
 }
 
 const defaultWelcomeBody = `Hi {first_name},
@@ -163,6 +173,8 @@ func openStore(dir string) (*Store, error) {
 	if !s.d.SeriesSeeded {
 		s.d.Series, s.d.NextSeries, s.d.SeriesSeeded = defaultSeries(), 3, true
 	}
+	s.tidyGroups()
+	s.upgradeIssues()
 	return s, s.save()
 }
 
@@ -170,6 +182,7 @@ func openStore(dir string) (*Store, error) {
 // then rename it over the old one. A crash mid-write can't corrupt the data.
 // Callers must hold s.mu.
 func (s *Store) save() error {
+	s.version++
 	b, err := json.MarshalIndent(&s.d, "", "  ")
 	if err != nil {
 		return err

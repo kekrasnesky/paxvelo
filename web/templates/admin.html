@@ -17,9 +17,11 @@
     <a href="/admin/newsletter"{{if eq .Tab "newsletter"}} aria-current="page"{{end}}>Newsletter</a>
     <a href="/admin/pages"{{if eq .Tab "pages"}} aria-current="page"{{end}}>Pages</a>
     <a href="/admin/board"{{if eq .Tab "board"}} aria-current="page"{{end}}>Board</a>
+    <a href="/admin/calendar"{{if eq .Tab "calendar"}} aria-current="page"{{end}}>Calendar</a>
     <a href="/admin/rides"{{if eq .Tab "rides"}} aria-current="page"{{end}}>Rides</a>
     <a href="/admin/minutes"{{if eq .Tab "minutes"}} aria-current="page"{{end}}>Minutes</a>
     <a href="/admin/instagram"{{if eq .Tab "instagram"}} aria-current="page"{{end}}>Instagram</a>
+    <a href="/admin/admins"{{if eq .Tab "admins"}} aria-current="page"{{end}}>Admins</a>
     <a href="/" target="_blank" rel="noopener">View site</a>
   </nav>
   <form method="post" action="/admin/logout">{{with .Me}}<span class="me">{{.}}</span> · {{end}}<button class="link light">Log out</button></form>
@@ -32,14 +34,83 @@
 {{define "foot"}}</main>
 <script>
 // Photo framing: click a photo to choose the spot every crop keeps in view.
-document.querySelectorAll('.framer').forEach(function(f){
+function initFramer(f){
   var input=f.querySelector('input[type=hidden]'),pick=f.querySelector('.framer-pick'),dot=f.querySelector('.framer-dot'),pv=f.querySelectorAll('.framer-previews img');
   function apply(v){var p=(v||'50% 50%').split(' ');dot.style.left=p[0];dot.style.top=p[1];pv.forEach(function(i){i.style.objectPosition=v||'50% 50%'})}
   apply(input.value);
   pick.addEventListener('click',function(e){var r=pick.querySelector('img').getBoundingClientRect();
     var x=Math.max(0,Math.min(100,Math.round((e.clientX-r.left)/r.width*100))),y=Math.max(0,Math.min(100,Math.round((e.clientY-r.top)/r.height*100)));
     input.value=x+'% '+y+'%';apply(input.value);input.dispatchEvent(new Event('change',{bubbles:true}))});
-});
+}
+document.querySelectorAll('.framer').forEach(initFramer);
+
+// The same markup as the "framer" and "strip-item" templates, for photos added on the page.
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return '&#'+c.charCodeAt(0)+';'})}
+function framerHTML(url,field,strip){url=esc(url);
+  var pv=strip?'<img src="'+url+'" alt="" class="pv-strip">':'<img src="'+url+'" alt="" class="pv-wide"><img src="'+url+'" alt="" class="pv-tall"><img src="'+url+'" alt="" class="pv-round">';
+  return '<div class="framer"><button type="button" class="framer-pick" aria-label="Click the spot to keep in view"><img src="'+url+'" alt=""><span class="framer-dot"></span></button>'+
+    '<div class="framer-previews" aria-hidden="true">'+pv+'</div><input type="hidden" name="'+esc(field)+'" value="">'+
+    (strip?'':'<p class="muted small">Click the spot to keep in view, like faces. The small previews show how it will be cropped.</p>')+'</div>'}
+
+// Photos upload the moment they're picked or dropped, so they show right away.
+function uploadPhotos(files,status,done){
+  files=Array.prototype.filter.call(files,function(f){return /^image\//.test(f.type)});
+  if(!files.length){status.textContent='Choose a JPG, PNG, or WebP photo.';return}
+  var fd=new FormData();files.forEach(function(f){fd.append('photos',f)});
+  status.textContent='Uploading '+(files.length>1?files.length+' photos':'the photo')+'…';
+  fetch('/admin/newsletter/photos',{method:'POST',body:fd}).then(function(r){return r.json()}).then(function(j){
+    status.textContent=j.error||'';done(j.urls||[])}).catch(function(){status.textContent='The upload didn’t work. Check your connection and try again.'})}
+function dropZone(el,onFiles){
+  el.addEventListener('dragover',function(e){e.preventDefault();el.classList.add('dragging')});
+  el.addEventListener('dragleave',function(e){if(!el.contains(e.relatedTarget))el.classList.remove('dragging')});
+  el.addEventListener('drop',function(e){e.preventDefault();el.classList.remove('dragging');onFiles(e.dataTransfer.files)})}
+function changed(el){el.dispatchEvent(new Event('change',{bubbles:true}))}
+
+function initPhotoBox(box){
+  var p=box.dataset.photo,cur=box.querySelector('input[name="'+p+'photo_current"]'),shown=box.querySelector('.photo-shown'),
+    rm=box.querySelector('.photo-remove'),st=box.querySelector('.photo-status'),file=box.querySelector('input[type=file]'),lab=box.querySelector('.drop strong');
+  function set(url){cur.value=url;shown.innerHTML=url?framerHTML(url,p+'photo_focus'):'';if(url)initFramer(shown.firstChild);
+    rm.hidden=!url;lab.textContent=url?'Replace photo':'Add a photo';changed(box)}
+  function send(files){uploadPhotos([].slice.call(files,0,1),st,function(urls){if(urls[0])set(urls[0])})}
+  file.addEventListener('change',function(){send(file.files);file.value=''});
+  rm.addEventListener('click',function(){set('');st.textContent=''});
+  dropZone(box,send);
+}
+
+// A photo strip: photos in order, each with its focus, added several at a time.
+function initStrip(strip){
+  var sec=strip.parentNode,p=strip.dataset.p,max=+strip.dataset.max,add=sec.querySelector('.strip-add'),file=add.querySelector('input'),st=sec.querySelector('.photo-status'),count=sec.querySelector('.strip-count');
+  function refresh(){var items=strip.children,n=items.length;
+    [].forEach.call(items,function(it,i){it.querySelector('[data-act=left]').disabled=i===0;it.querySelector('[data-act=right]').disabled=i===n-1});
+    count.textContent=n?n+' of '+max+' photos':'No photos yet.';add.hidden=n>=max}
+  function item(url){var d=document.createElement('div');d.className='strip-item';
+    d.innerHTML=framerHTML(url,p+'focus',true)+'<input type="hidden" name="'+esc(p)+'photos" value="'+esc(url)+'">'+
+      '<div class="strip-tools"><button type="button" class="mini ghost" data-act="left" aria-label="Move left">←</button><button type="button" class="mini ghost" data-act="right" aria-label="Move right">→</button><button type="button" class="link danger small" data-act="remove">Remove</button></div>';
+    initFramer(d.querySelector('.framer'));return d}
+  function send(files){var room=max-strip.children.length;
+    if(!room){st.textContent='The strip is full. Remove a photo to add another.';return}
+    uploadPhotos([].slice.call(files,0,room),st,function(urls){urls.forEach(function(u){strip.appendChild(item(u))});
+      if(files.length>room)st.textContent=(st.textContent+' The strip holds '+max+' photos, so only the first '+room+' were added.').trim();
+      refresh();changed(strip)})}
+  strip.addEventListener('click',function(e){var b=e.target.closest('button[data-act]');if(!b)return;var it=b.closest('.strip-item');
+    if(b.dataset.act==='left'&&it.previousElementSibling)strip.insertBefore(it,it.previousElementSibling);
+    if(b.dataset.act==='right'&&it.nextElementSibling)strip.insertBefore(it.nextElementSibling,it);
+    if(b.dataset.act==='remove')it.remove();
+    refresh();changed(strip)});
+  file.addEventListener('change',function(){send(file.files);file.value=''});
+  dropZone(sec,send);
+  refresh();
+}
+
+// Sets up the photo boxes and strips in part of the page (all of it, or a block just added).
+function initBlock(el){el.querySelectorAll('[data-photo]').forEach(initPhotoBox);el.querySelectorAll('.strip').forEach(initStrip)}
+initBlock(document);
+
+// On ride pages, show a leader box for each pace group the menu picks.
+(function(){var pace=document.querySelector('select[name=pace][data-leaders]');if(!pace)return;
+  function show(){var want={'':[''],'2':['A group','B group'],'3':['A group','B group','C group']}[pace.value];
+    document.querySelectorAll('[data-group]').forEach(function(b){b.hidden=want?want.indexOf(b.dataset.group)<0:b.dataset.keep!=='1'})}
+  pace.addEventListener('change',show);show()})();
 </script>
 </body>
 </html>{{end}}
@@ -47,11 +118,84 @@ document.querySelectorAll('.framer').forEach(function(f){
 {{define "login"}}{{template "head" .}}
 <form class="card login" method="post" action="/admin/login">
   <h1>PaxVelo Admin</h1>
+  {{if .SetupLogin}}
+  <p class="muted small">No admin accounts yet. Log in with the setup password from paxvelo.conf, then add the admins on the Admins tab.</p>
   <label>Your name <input name="name" required maxlength="60" autofocus autocomplete="name"></label>
+  <label>Setup password <input type="password" name="password" required autocomplete="current-password"></label>
+  {{else}}
+  <label>Email <input type="email" name="email" value="{{.Email}}" required maxlength="254" autofocus autocomplete="username"></label>
   <label>Password <input type="password" name="password" required autocomplete="current-password"></label>
-  <p class="muted small">Your name shows on the newsletter drafts you write and edit.</p>
+  {{end}}
   <button>Log in</button>
+  {{if not .SetupLogin}}<p class="small"><a href="/admin/forgot">Forgot your password?</a></p>{{end}}
 </form>
+{{template "foot" .}}{{end}}
+
+{{define "forgot"}}{{template "head" .}}
+<form class="card login" method="post" action="/admin/forgot">
+  <h1>Reset your password</h1>
+  <p class="muted small">Enter the email you log in with, and we’ll email you a link to choose a new password.</p>
+  <label>Email <input type="email" name="email" required maxlength="254" autofocus autocomplete="username"></label>
+  <button>Email me a link</button>
+  <p class="small"><a href="/admin/login">← Back to log in</a></p>
+</form>
+{{template "foot" .}}{{end}}
+
+{{define "password"}}{{template "head" .}}
+<form class="card login" method="post" action="/admin/password">
+  <h1>Choose a password</h1>
+  <p class="muted small">For {{.Account.Name}} ({{.Account.Email}}). Use at least 10 characters: a few words in a row is easy to remember and hard to guess.</p>
+  <input type="hidden" name="t" value="{{.Token}}">
+  <input type="email" name="email" value="{{.Account.Email}}" autocomplete="username" hidden>
+  <label>New password <input type="password" name="password" required minlength="10" autofocus autocomplete="new-password"></label>
+  <label>Type it again <input type="password" name="password2" required minlength="10" autocomplete="new-password"></label>
+  <button>Save and log in</button>
+</form>
+{{template "foot" .}}{{end}}
+
+{{define "admins"}}{{template "head" .}}
+<div class="title-row">
+  <h1>Admins</h1>
+  <p class="muted">Everyone here can log in to the admin portal with their email and their own password.</p>
+</div>
+{{with .TestLink}}<p class="flash warn">Test mode: emails go to the server log instead of being sent. Here’s the link that would have been emailed: <a href="{{.}}">{{.}}</a></p>{{end}}
+<div class="table-wrap"><table>
+  <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Added</th><th><span class="sr">Actions</span></th></tr></thead>
+  <tbody>
+  {{range .Admins}}<tr>
+    <td>{{.Name}}{{if eq .ID $.Account.ID}} <span class="tag">You</span>{{end}}</td>
+    <td><a href="mailto:{{.Email}}">{{.Email}}</a></td>
+    <td>{{if .HasPassword}}<span class="paid">Active</span>{{with .LastLogin}}<br><span class="muted small">Last in {{date .}}</span>{{end}}{{else}}Invited, no password yet{{end}}</td>
+    <td class="nowrap">{{date .Added}}{{with .AddedBy}}<br><span class="muted small">by {{.}}</span>{{end}}</td>
+    <td class="right nowrap">
+      <form method="post" action="/admin/admins/{{.ID}}/link" class="inline"><button class="link">{{if .HasPassword}}Send a reset link{{else}}Send a new link{{end}}</button></form>
+      {{if ne .ID $.Account.ID}} · <form method="post" action="/admin/admins/{{.ID}}/remove" class="inline" onsubmit="return confirm('Remove {{.Name}} as an admin? They won’t be able to log in.')"><button class="link danger">Remove</button></form>{{end}}
+    </td>
+  </tr>
+  {{else}}<tr><td colspan="5" class="empty">No admin accounts yet. Add yourself first, then everyone else.</td></tr>
+  {{end}}
+  </tbody>
+</table></div>
+<div class="grid2">
+  <form class="card" method="post" action="/admin/admins">
+    <h2>Add an admin</h2>
+    <label>Name <input name="name" required maxlength="60" autocomplete="off"></label>
+    <label>Email <input type="email" name="email" required maxlength="254" autocomplete="off"></label>
+    <p class="muted small">They get an email with a link to choose their password (it works for 7 days). If they forget it later, they press “Forgot your password?” on the login page.</p>
+    <button>Add and email them</button>
+  </form>
+  {{if .Account.ID}}<form class="card" method="post" action="/admin/admins/password">
+    <h2>Change your password</h2>
+    <input type="email" name="email" value="{{.Account.Email}}" autocomplete="username" hidden>
+    <label>Current password <input type="password" name="current" required autocomplete="current-password"></label>
+    <label>New password <input type="password" name="password" required minlength="10" autocomplete="new-password"></label>
+    <label>Type it again <input type="password" name="password2" required minlength="10" autocomplete="new-password"></label>
+    <button>Change password</button>
+  </form>{{else}}<div class="card">
+    <h2>You’re using the setup password</h2>
+    <p class="muted small">Add yourself above, then use the link in your email to choose your own password. The setup password in paxvelo.conf keeps working as an emergency key for whoever runs the server, with any admin’s email.</p>
+  </div>{{end}}
+</div>
 {{template "foot" .}}{{end}}
 
 {{define "members"}}{{template "head" .}}
@@ -175,7 +319,7 @@ document.querySelectorAll('.framer').forEach(function(f){
 
 {{define "newsletter"}}{{template "head" .}}
 <div class="title-row">
-  <h1>The Paceline</h1>
+  <h1>Newsletter</h1>
   <p class="muted">The club newsletter, one issue a month. A month can have several drafts, but only one can be published. The latest published issue is at <a href="/newsletter" target="_blank" rel="noopener">{{.SiteURL}}/newsletter</a>.</p>
 </div>
 <div class="table-wrap"><table>
@@ -219,7 +363,7 @@ document.querySelectorAll('.framer').forEach(function(f){
   {{end}}
   <form method="post" action="/admin/newsletter/{{$is.ID}}/copy"><button class="ghost">Make another draft from this</button></form>
 </div>
-<p class="muted small">The buttons at the bottom save your changes, then preview or publish. In the text boxes: leave a blank line between paragraphs, put **two stars** around words for bold, and write links as [words to click](https://example.com). In link boxes, {strava} and {kit} fill in the club’s Strava page and team store. Photos: JPG, PNG, or WebP under 8 MB (squoosh.app makes them smaller).</p>
+<p class="muted small">The issue is made of blocks: add the ones you want with <strong>Add a block</strong> at the bottom, and move or remove them with the buttons on each. Photos upload as soon as you pick or drop them: click a photo to choose the spot to keep in view. The buttons at the bottom save your changes, then preview or publish. In the text boxes: leave a blank line between paragraphs, put **two stars** around words for bold, and write links as [words to click](https://example.com). In link boxes, {strava} and {kit} fill in the club’s Strava page and team store.</p>
 
 <form class="issue" method="post" action="/admin/newsletter/{{$is.ID}}" enctype="multipart/form-data">
   <section class="card">
@@ -232,77 +376,24 @@ document.querySelectorAll('.framer').forEach(function(f){
     {{template "photo" (story "cover." (photoStory $is.Cover $is.CoverFocus) "")}}
   </section>
 
-  <section class="card">
-    <h2>Featured story</h2>
-    <p class="muted small">The big story at the top, with a photo or video in the middle and a quote on the right.</p>
-    {{template "story" (story "featured." $is.Featured "kicker subhead video quote")}}
-  </section>
+  <input type="hidden" name="blocks_form" value="1">
+  <div class="blocks" id="blocks">
+  {{range $is.Blocks}}{{template "block" (editBlock . $.IssueRides)}}{{end}}
+  </div>
 
-  <section class="card">
-    <h2>Last month</h2>
-    <p class="muted small">First of the three columns: a look back at the past month.</p>
-    {{template "story" (story "recap." $is.Recap "kicker video")}}
-  </section>
-
-  <section class="card">
-    <h2>Up next: rides</h2>
-    <p class="muted small">The middle column. Each ride links to its Strava event: open the event on Strava and copy the address. Leave the link empty to use the club’s Strava page. Rides without a name are left out.</p>
-    <div class="table-wrap"><table class="rides">
-      <thead><tr><th>Date</th><th>Ride</th><th>Time</th><th>Where</th><th>Details</th><th>Strava event link</th></tr></thead>
-      <tbody>
-      {{range $i, $r := $is.Rides}}<tr>
-        <td><input type="date" name="ride{{$i}}.date" value="{{$r.Date}}" aria-label="Date"></td>
-        <td><input name="ride{{$i}}.name" value="{{$r.Name}}" maxlength="80" aria-label="Ride name" placeholder="Tuesday Night Ride"></td>
-        <td><input name="ride{{$i}}.time" value="{{$r.Time}}" maxlength="20" aria-label="Time" placeholder="6:00 PM"></td>
-        <td><input name="ride{{$i}}.place" value="{{$r.Place}}" maxlength="80" aria-label="Where"></td>
-        <td><input name="ride{{$i}}.details" value="{{$r.Details}}" maxlength="80" aria-label="Details" placeholder="Fast · 40 mi"></td>
-        <td><input type="url" name="ride{{$i}}.url" value="{{$r.URL}}" aria-label="Strava event link" placeholder="https://www.strava.com/clubs/…"></td>
-      </tr>{{end}}
-      </tbody>
-    </table></div>
-    <p class="muted small">Need more rows? Save, and two more appear (up to 8).</p>
-  </section>
-
-  <section class="card">
-    <h2>Spotlight</h2>
-    <p class="muted small">Third column: a ride leader, volunteer, or sponsor.</p>
-    {{template "story" (story "spotlight." $is.Spotlight "kicker video")}}
-  </section>
-
-  <section class="card">
-    <h2>Row of three</h2>
-    <p class="muted small">Three smaller stories, like the swap meet, new rider corner, and community news. Leave one empty to hide it.</p>
-    <div class="trio">
-    {{range $i, $c := $is.Corner}}<div>
-      <h3>Story {{inc $i}}</h3>
-      {{template "story" (story (printf "corner%d." $i) $c "kicker")}}
-    </div>{{end}}
+  <section class="card add-block">
+    <h2>Add a block</h2>
+    <div class="send-row">
+      <select id="add-kind" aria-label="Kind of block">{{range blockKinds}}<option value="{{.Kind}}">{{.Name}}</option>{{end}}</select>
+      <button type="button" class="ghost" id="add-block">Add</button>
     </div>
-  </section>
-
-  <section class="card">
-    <h2>Kit and club call-out</h2>
-    <p class="muted small">The dark band near the end. Right now it asks for kit designers and links to the team store.</p>
-    {{template "story" (story "kit." $is.Kit "kicker")}}
-  </section>
-
-  <section class="card">
-    <h2>From our Instagram</h2>
-    <p class="muted small">Up to 3 Instagram posts, shown as a row near the end. On Instagram, open the post, tap ⋯ → Copy link, and paste it here, one per line. Leave empty to skip this section.</p>
-    <label>Post links <textarea name="instagram" rows="3" placeholder="https://www.instagram.com/p/…">{{lines $is.Instagram}}</textarea></label>
-  </section>
-
-  <section class="card">
-    <h2>Photo strip</h2>
-    <p class="muted small">A row of photos near the bottom, up to 8.</p>
-    <input type="hidden" name="gallery_form" value="1">
-    {{if $is.Gallery}}<div class="thumbs">{{range $i, $g := $is.Gallery}}<div class="thumb">{{template "framer" (framer $g (index $is.GalleryFocus $g) (printf "gallery%d_focus" $i))}}<input type="hidden" name="gallery_current" value="{{$g}}"><label class="check"><input type="checkbox" name="gallery{{$i}}_remove"> Remove</label></div>{{end}}</div>{{end}}
-    <label>Add photos <input type="file" name="gallery_files" accept="image/jpeg,image/png,image/webp" multiple></label>
+    <ul class="kinds small muted">{{range blockKinds}}<li><strong>{{.Name}}:</strong> {{.Help}}</li>{{end}}</ul>
   </section>
 
   <section class="card">
     <h2>Closing line</h2>
     <label>Big line at the very end <input name="closing" value="{{$is.Closing}}" maxlength="80" placeholder="Your next ride starts here."></label>
+    <p class="muted small">Shown with buttons to find a ride on Strava and to become a member.</p>
   </section>
 
   <div class="save-bar">
@@ -311,16 +402,60 @@ document.querySelectorAll('.framer').forEach(function(f){
     {{if and (not $is.IsPublished) (not .MonthLive)}}<button formaction="/admin/newsletter/{{$is.ID}}?then=publish" onclick="return confirm('Save and publish {{$is.Label}} on the website?')">Save and publish</button>{{end}}
   </div>
 </form>
+{{range blockKinds}}<template id="tpl-{{.Kind}}">{{template "block" (editBlock (newBlock .Kind) $.IssueRides)}}</template>
+{{end}}
 <script>
 // Warn before leaving the page with changes that haven't been saved.
 (function(){var f=document.querySelector('form.issue'),dirty=false;if(!f)return;
 f.addEventListener('input',function(){dirty=true});f.addEventListener('change',function(){dirty=true});
 f.addEventListener('submit',function(e){if(!e.submitter||e.submitter.formTarget!=='_blank')dirty=false});
 window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();e.returnValue=''}})})();
+
+// Adding, moving, and removing blocks.
+(function(){var list=document.getElementById('blocks');if(!list)return;
+  function refresh(){var n=list.children.length;[].forEach.call(list.children,function(b,i){
+    b.querySelector('[data-act=up]').disabled=i===0;b.querySelector('[data-act=down]').disabled=i===n-1})}
+  document.getElementById('add-block').addEventListener('click',function(){
+    var kind=document.getElementById('add-kind').value,id=Math.random().toString(16).slice(2,10);
+    var t=document.createElement('div');t.innerHTML=document.getElementById('tpl-'+kind).innerHTML.split('__ID__').join(id);
+    var b=t.firstElementChild;list.appendChild(b);initBlock(b);refresh();changed(list);
+    b.scrollIntoView({behavior:'smooth',block:'center'});var first=b.querySelector('input:not([type=hidden]),textarea');if(first)first.focus({preventScroll:true})});
+  list.addEventListener('click',function(e){var btn=e.target.closest('button[data-act]');if(!btn||!btn.closest('.block-head'))return;var b=btn.closest('.block');
+    if(btn.dataset.act==='up'&&b.previousElementSibling)list.insertBefore(b,b.previousElementSibling);
+    if(btn.dataset.act==='down'&&b.nextElementSibling)list.insertBefore(b.nextElementSibling,b);
+    if(btn.dataset.act==='remove'){var used=[].some.call(b.querySelectorAll('textarea,input[type=url],input[name$=heading],input[name$=photo_current],input[name$=photos]'),function(x){return x.value.trim()});
+      if(used&&!confirm('Remove this '+b.dataset.name+'? Its text and photos come out of the issue.'))return;b.remove()}
+    refresh();changed(list)});
+  refresh()})();
 </script>
 
 <form class="footnote" method="post" action="/admin/newsletter/{{$is.ID}}/delete" onsubmit="return confirm('Delete the {{$is.Label}} issue? This can’t be undone.')"><button class="link danger">Delete this issue</button></form>
 {{template "foot" .}}{{end}}
+
+{{define "block"}}{{$p := .P}}<section class="card block block-{{.Kind.Kind}}" data-name="{{.Kind.Name}}">
+  <input type="hidden" name="block" value="{{.ID}}:{{.Kind.Kind}}">
+  <div class="block-head"><h2>{{.Kind.Name}}</h2><div class="block-tools">
+    <button type="button" class="mini ghost" data-act="up" aria-label="Move up">↑</button><button type="button" class="mini ghost" data-act="down" aria-label="Move down">↓</button><button type="button" class="link danger small" data-act="remove">Remove</button></div></div>
+  {{if eq .Kind.Kind "big"}}{{template "story" (story $p .Story "kicker subhead video")}}
+  {{else if eq .Kind.Kind "story"}}{{template "story" (story $p .Story "kicker video")}}
+  {{else if eq .Kind.Kind "banner"}}<p class="muted small">A dark band across the page, with the link as a button.</p>{{template "story" (story $p .Story "kicker button")}}
+  {{else if eq .Kind.Kind "rides"}}{{$r := .Rides}}
+    <p class="muted small">Filled in from the ride calendar, and kept up to date: the rides for the {{rideWeeks}} weeks after the issue is published (cancelled rides are left out). Rides that need a leader get a link to sign up. To change a ride or its leaders, use the <a href="/admin/calendar" target="_blank" rel="noopener">Calendar tab</a>.</p>
+    <p class="rides-now">Right now that’s <strong>{{len $r.Rides}} {{if eq (len $r.Rides) 1}}ride{{else}}rides{{end}}</strong> from {{$r.From}} to {{$r.To}}{{if $r.Need}}, and <strong class="danger">{{$r.Need}} still {{if eq $r.Need 1}}needs{{else}}need{{end}} a leader</strong>{{end}}.</p>
+    <div class="pair">
+      <label>Small line above the heading <input name="{{$p}}kicker" value="{{.Kicker}}" maxlength="80" placeholder="Up next"></label>
+      <label>Heading <input name="{{$p}}heading" value="{{.Heading}}" maxlength="120" placeholder="Rides coming up"></label>
+    </div>
+  {{else if eq .Kind.Kind "gallery"}}
+    <p class="muted small">Up to {{maxGallery}} photos in a row. Each shows cropped like the small preview under it: click a photo to choose the spot to keep in view. Use the arrows to change the order.</p>
+    <div class="strip" data-p="{{$p}}" data-max="{{maxGallery}}">{{range $g := .Photos}}{{template "strip-item" (stripPhoto $p $g (index $.Focus $g))}}{{end}}</div>
+    <label class="drop strip-add"><input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple hidden><strong>Add photos</strong> <span class="muted small">Click to choose, or drop them here. You can pick several at once.</span></label>
+    <p class="muted small"><span class="strip-count"></span> <span class="photo-status" role="status"></span></p>
+  {{else if eq .Kind.Kind "instagram"}}
+    <p class="muted small">Up to 3 posts. On Instagram, open the post, tap ⋯ → Copy link, and paste it here, one per line.</p>
+    <label>Post links <textarea name="{{$p}}posts" rows="3" placeholder="https://www.instagram.com/p/…">{{lines .Posts}}</textarea></label>
+  {{end}}
+</section>{{end}}
 
 {{define "story"}}{{$p := .P}}{{$s := .S}}<div class="fields">
   {{if .Has "kicker"}}<label>Small line above the heading <input name="{{$p}}kicker" value="{{$s.Kicker}}" maxlength="80"></label>{{end}}
@@ -328,27 +463,38 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   {{if .Has "subhead"}}<label>Subheading <input name="{{$p}}subhead" value="{{$s.Subhead}}" maxlength="160"></label>{{end}}
   <label>Text <textarea name="{{$p}}body" rows="5">{{$s.Body}}</textarea></label>
   {{template "photo" .}}
-  {{if .Has "video"}}<div class="pair">
-    <label>Video link (optional) <input type="url" name="{{$p}}video_url" value="{{$s.VideoURL}}" placeholder="YouTube, Instagram, or Strava"></label>
-    <label>Video length <input name="{{$p}}video_length" value="{{$s.VideoLength}}" maxlength="10" placeholder="2:48"></label>
-  </div>
-  <p class="muted small">With a video link, the photo gets a play button that opens the video.</p>{{end}}
+  {{if .Has "video"}}<details class="more"{{if $s.VideoURL}} open{{end}}>
+    <summary>Video link</summary>
+    <div class="pair">
+      <label>Video link <input type="url" name="{{$p}}video_url" value="{{$s.VideoURL}}" placeholder="YouTube, Instagram, or Strava"></label>
+      <label>Video length <input name="{{$p}}video_length" value="{{$s.VideoLength}}" maxlength="10" placeholder="2:48"></label>
+    </div>
+    <p class="muted small">With a video link, the photo gets a play button that opens the video.</p>
+  </details>{{end}}
   <div class="pair">
-    <label>Link words <input name="{{$p}}link_label" value="{{$s.LinkLabel}}" maxlength="60" placeholder="Read more"></label>
-    <label>Link goes to <input name="{{$p}}link_url" value="{{$s.LinkURL}}" placeholder="https://… or /rides or {strava}"></label>
+    <label>{{if .Has "button"}}Button words{{else}}Link words{{end}} <input name="{{$p}}link_label" value="{{$s.LinkLabel}}" maxlength="60" placeholder="{{if .Has "button"}}Learn more{{else}}Read more{{end}}"></label>
+    <label>{{if .Has "button"}}Button goes to{{else}}Link goes to{{end}} <input name="{{$p}}link_url" value="{{$s.LinkURL}}" placeholder="https://… or /rides or {kit}"></label>
   </div>
-  {{if .Has "quote"}}<label>Quote <textarea name="{{$p}}quote" rows="3">{{$s.Quote}}</textarea></label>
-  <label>Quote from <input name="{{$p}}quote_by" value="{{$s.QuoteBy}}" maxlength="80"></label>{{end}}
 </div>{{end}}
 
-{{define "photo"}}{{$p := .P}}{{$s := .S}}<div class="photo-field">
-  {{if $s.Photo}}{{template "framer" (framer $s.Photo $s.PhotoFocus (printf "%sphoto_focus" $p))}}{{else}}<span></span>{{end}}
+{{define "photo"}}{{$p := .P}}{{$s := .S}}<div class="photo-field" data-photo="{{$p}}">
   <input type="hidden" name="{{$p}}photo_current" value="{{$s.Photo}}">
-  <div class="fields">
-    <label>{{if $s.Photo}}Replace photo{{else}}Photo{{end}} <input type="file" name="{{$p}}photo_file" accept="image/jpeg,image/png,image/webp"></label>
-    {{if ne $p "cover."}}<label>Describe the photo for screen readers <input name="{{$p}}photo_alt" value="{{$s.PhotoAlt}}" maxlength="160"></label>{{end}}
-    {{if $s.Photo}}<label class="check"><input type="checkbox" name="{{$p}}photo_remove"> Remove photo</label>{{end}}
+  <div class="photo-shown">{{if $s.Photo}}{{template "framer" (framer $s.Photo $s.PhotoFocus (printf "%sphoto_focus" $p))}}{{end}}</div>
+  <div class="photo-tools">
+    <label class="drop"><input type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden><strong>{{if $s.Photo}}Replace photo{{else}}Add a photo{{end}}</strong> <span class="muted small">Click, or drop one here</span></label>
+    <button type="button" class="link danger photo-remove"{{if not $s.Photo}} hidden{{end}}>Remove photo</button>
+    <p class="photo-status muted small" role="status"></p>
   </div>
+</div>{{end}}
+
+{{define "strip-item"}}<div class="strip-item">
+  <div class="framer">
+    <button type="button" class="framer-pick" aria-label="Click the spot to keep in view"><img src="{{.URL}}" alt=""><span class="framer-dot"></span></button>
+    <div class="framer-previews" aria-hidden="true"><img src="{{.URL}}" alt="" class="pv-strip"></div>
+    <input type="hidden" name="{{.P}}focus" value="{{.Focus}}">
+  </div>
+  <input type="hidden" name="{{.P}}photos" value="{{.URL}}">
+  <div class="strip-tools"><button type="button" class="mini ghost" data-act="left" aria-label="Move left">←</button><button type="button" class="mini ghost" data-act="right" aria-label="Move right">→</button><button type="button" class="link danger small" data-act="remove">Remove</button></div>
 </div>{{end}}
 
 {{define "minutes"}}{{template "head" .}}
@@ -409,23 +555,15 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
 {{if not .StravaReady}}<p class="flash warn">The Strava settings aren’t in paxvelo.conf yet, so the club’s Strava events aren’t imported and club admins can’t sign in with Strava on the calendar. Riders can still sign up to lead by typing their name. README.md, “Ride calendar”, explains the setup.</p>{{end}}
 
 <h2 class="section">Coming up</h2>
-<p class="muted small">The next 60 days. A ride with a leader can only be changed by its leader (stepping down), a club admin on Strava, or here. Changing a leader emails the club.</p>
+<p class="muted small">The next 60 days. Press <strong>Edit</strong> to change a ride’s leaders, details, or pace groups, or to cancel it. The <a href="/admin/calendar">Calendar tab</a> shows every month.</p>
 <div class="table-wrap"><table>
-  <thead><tr><th>Date</th><th>Ride</th><th>Leader</th><th><span class="sr">Actions</span></th></tr></thead>
+  <thead><tr><th>Date</th><th>Ride</th><th>Leaders</th><th><span class="sr">Actions</span></th></tr></thead>
   <tbody>
   {{range .Upcoming}}<tr{{if .Cancelled}} class="off"{{end}}>
     <td class="nowrap">{{.DateLabel}}<br><span class="muted small">{{.TimeLabel}}</span></td>
-    <td><a href="/calendar/ride/{{.Key}}" target="_blank" rel="noopener">{{.Name}}</a>{{if .Custom}} <span class="tag">One-off</span>{{end}}{{if .Cancelled}} <span class="tag">Cancelled</span>{{end}}</td>
-    <td>
-      {{$o := .}}<form method="post" action="/admin/rides/{{.Key}}/leader" class="leader-form">
-        {{range $i, $s := .Slots}}<label class="leader-row">{{with $s.Group}}<span class="small">{{.}}</span>{{end}}
-          <input name="leader{{$i}}" value="{{with $s.Leader}}{{.Name}}{{end}}" placeholder="Needs a leader" aria-label="Leader{{with $s.Group}} for {{.}}{{end}} on {{$o.DateLabel}}" maxlength="60">
-          {{with $s.Leader}}{{if and .StravaID (not .StravaAdmin)}}<span class="muted small">Not a Strava admin</span>{{end}}{{end}}
-        </label>{{end}}
-        <button class="mini">Save</button>
-      </form>
-    </td>
-    <td class="right nowrap"><form method="post" action="/admin/rides/{{.Key}}/cancel" class="inline">{{if .Cancelled}}<input type="hidden" name="cancel" value="0"><button class="link">Restore</button>{{else}}<input type="hidden" name="cancel" value="1"><button class="link danger">Cancel ride</button>{{end}}</form></td>
+    <td><a href="/admin/rides/{{.Key}}">{{.Name}}</a>{{if .Custom}} <span class="tag">One-off</span>{{end}}{{if .Cancelled}} <span class="tag">Cancelled</span>{{end}}</td>
+    <td>{{range .Slots}}<span class="leader-line">{{with .Group}}<span class="muted">{{.}}:</span> {{end}}{{with .Leader}}{{.Name}}{{else}}<span class="danger">needs a leader</span>{{end}}</span>{{end}}</td>
+    <td class="right nowrap"><a class="btn mini ghost" href="/admin/rides/{{.Key}}">Edit</a></td>
   </tr>
   {{else}}<tr><td colspan="4" class="empty">No rides in the next 60 days.</td></tr>
   {{end}}
@@ -437,36 +575,19 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   <thead><tr><th>Ride</th><th>When</th><th>Season</th><th>Start</th><th><span class="sr">Actions</span></th></tr></thead>
   <tbody>
   {{range .Series}}<tr>
-    <td><strong>{{.Name}}</strong>{{with .Details}}<br><span class="muted small">{{.}}</span>{{end}}{{with .Groups}}<br><span class="muted small">Groups: {{join . ", "}}</span>{{end}}</td>
+    <td><a href="/admin/weekly/{{.ID}}"><strong>{{.Name}}</strong></a>{{with .Details}}<br><span class="muted small">{{.}}</span>{{end}}{{with .Groups}}<br><span class="muted small">Groups: {{join . ", "}}</span>{{end}}</td>
     <td class="nowrap">{{.WeekdayName}}s, {{timeLabel .Time}}</td>
     <td class="nowrap">{{.SeasonLabel}}</td>
     <td>{{.Place}}</td>
-    <td class="right"><form method="post" action="/admin/rides/series/{{.ID}}/delete" onsubmit="return confirm('Remove {{.Name}} from the calendar? Dates that already have a leader stay.')"><button class="link danger">Remove</button></form></td>
+    <td class="right nowrap"><a class="btn mini ghost" href="/admin/weekly/{{.ID}}">Edit</a></td>
   </tr>
   {{else}}<tr><td colspan="5" class="empty">No weekly rides yet.</td></tr>
   {{end}}
   </tbody>
 </table></div>
-<p class="muted small">To change a weekly ride, add the new version and remove the old one.</p>
-<form class="card new-issue" method="post" action="/admin/rides/series">
+<form class="card new-issue" method="post" action="/admin/weekly">
   <h2>Add a weekly ride</h2>
-  <div class="pair">
-    <label>Name <input name="name" required maxlength="80" placeholder="Saturday Coffee Ride"></label>
-    <label>Start time <input type="time" name="time" required value="08:00"></label>
-  </div>
-  <div class="pair">
-    <label>Day <select name="weekday">{{range .Weekdays}}<option value="{{.N}}">{{.Name}}</option>{{end}}</select></label>
-    <label>Start (optional) <input name="place" maxlength="100" placeholder="Leonardtown Square"></label>
-  </div>
-  <label>Details (optional) <input name="details" maxlength="100" placeholder="Casual · all levels · 25 mi"></label>
-  <label>Pace groups (optional) <input name="groups" maxlength="200" placeholder="A group · 24–28 mph, B group · 20–22 mph"></label>
-  <p class="muted small">Separate groups with commas. Each group gets its own leader. Leave empty for one leader.</p>
-  <label>Strava link (optional) <input type="url" name="strava_url" placeholder="https://www.strava.com/clubs/10197/…"></label>
-  <div class="pair">
-    <label>Season starts (optional) <input type="date" name="season_start"></label>
-    <label>Season ends <input type="date" name="season_end"></label>
-  </div>
-  <p class="muted small">The season repeats every year (only the month and day are used). Leave both empty for a ride that runs all year.</p>
+  {{template "series-fields" (seriesBlank)}}
   <button>Add weekly ride</button>
 </form>
 
@@ -492,6 +613,94 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
 <h2 class="section">Club admins on Strava</h2>
 <p class="muted small">Club admins on Strava can post club events, and on the calendar they can take over or cancel any ride. This list updates whenever someone signs in with Strava.{{with .StravaAdminsChecked}} Last checked {{datetime .}}.{{end}}</p>
 {{if .StravaAdmins}}<ul class="small">{{range .StravaAdmins}}<li>{{.}}</li>{{end}}</ul>{{else}}<p class="muted small">Not checked yet.</p>{{end}}
+{{template "foot" .}}{{end}}
+
+{{define "series-fields"}}<div class="pair">
+    <label>Name <input name="name" value="{{.Name}}" required maxlength="80" placeholder="Saturday Coffee Ride"></label>
+    <label>Start time <input type="time" name="time" required value="{{or .Time "08:00"}}"></label>
+  </div>
+  <div class="pair">
+    <label>Day <select name="weekday">{{$wd := .Weekday}}{{range weekdays}}<option value="{{.N}}"{{if eq .N $wd}} selected{{end}}>{{.Name}}</option>{{end}}</select></label>
+    <label>Start (optional) <input name="place" value="{{.Place}}" maxlength="100" placeholder="Leonardtown Square"></label>
+  </div>
+  <label>Details (optional) <input name="details" value="{{.Details}}" maxlength="100" placeholder="Casual · all levels · 25 mi"></label>
+  {{template "pace-select" .Groups}}
+  <label>Strava link (optional) <input type="url" name="strava_url" value="{{.StravaURL}}" placeholder="https://www.strava.com/clubs/10197/…"></label>
+  <div class="pair">
+    <label>Season starts (optional) <input type="date" name="season_start" value="{{.From}}"></label>
+    <label>Season ends <input type="date" name="season_end" value="{{.Until}}"></label>
+  </div>
+  <p class="muted small">The season repeats every year (only the month and day count). Leave both empty for a ride that runs all year.</p>{{end}}
+
+{{define "pace-select"}}{{$pace := paceOf .}}<label>Pace groups <select name="pace">{{range paceChoices}}<option value="{{.Value}}"{{if eq .Value $pace}} selected{{end}}>{{.Label}}</option>{{end}}{{if eq $pace "keep"}}<option value="keep" selected>Keep: {{join . ", "}}</option>{{end}}</select></label>
+  <p class="muted small">Each group gets its own leader. Put the paces in the details, like “A 24–28 mph, B 20–22 mph”.</p>{{end}}
+
+{{define "series"}}{{template "head" .}}{{$f := .SeriesForm}}
+<p class="crumb"><a href="/admin/rides">← Rides</a></p>
+<h1>{{$f.Name}}</h1>
+<p class="muted small">A weekly ride. Changes apply to every date from today on, except anything changed on one date’s own page. Past dates stay as they were.</p>
+<form class="card new-issue" method="post" action="/admin/weekly/{{$f.ID}}">
+  {{template "series-fields" $f}}
+  <button>Save weekly ride</button>
+</form>
+<form class="footnote" method="post" action="/admin/weekly/{{$f.ID}}/delete" onsubmit="return confirm('Remove {{$f.Name}} from the calendar? Dates that already have a leader stay, as one-off rides.')"><button class="link danger">Remove this weekly ride</button></form>
+{{template "foot" .}}{{end}}
+
+{{define "calendar"}}{{template "head" .}}{{$m := .Month}}
+<div class="title-row">
+  <h1>Calendar</h1>
+  <p class="muted">Every ride. Click one to change its leaders or details, or to cancel it. Riders see the same calendar at <a href="/calendar" target="_blank" rel="noopener">{{.SiteURL}}/calendar</a>.</p>
+</div>
+<div class="cal-bar">
+  <nav class="cal-nav" aria-label="Month"><a class="btn mini ghost" href="/admin/calendar?m={{$m.Prev}}" aria-label="Previous month">‹</a><h2>{{$m.MonthLabel}}</h2><a class="btn mini ghost" href="/admin/calendar?m={{$m.Next}}" aria-label="Next month">›</a></nav>
+  <a class="btn" href="/admin/rides/new">Add a ride</a>
+</div>
+<p class="cal-key small"><span class="nowrap"><span class="dot led"></span> Has its leaders</span> <span class="nowrap"><span class="dot partial"></span> Needs another leader</span> <span class="nowrap"><span class="dot open"></span> Needs a leader</span> <span class="nowrap"><span class="dot cancelled"></span> Cancelled</span></p>
+<div class="table-wrap cal-wrap"><table class="cal">
+  <thead><tr><th>Sun</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th></tr></thead>
+  <tbody>{{range $m.Weeks}}<tr>{{range .}}<td class="{{if not .InMonth}}out {{end}}{{if .Today}}today {{end}}{{if .Past}}past{{end}}">
+    <div class="cal-day"><span>{{.Day}}</span>{{if not .Past}}<a href="/admin/rides/new?date={{.Date}}" aria-label="Add a ride on {{.Date}}">+</a>{{end}}</div>
+    {{range .Rides}}<a class="cal-ride {{.Status}}" href="/admin/rides/{{.Key}}"><span class="muted">{{.TimeLabel}}</span> {{.Name}}<span class="cal-lead">{{.LeaderSummary}}</span></a>{{end}}
+  </td>{{end}}</tr>{{end}}</tbody>
+</table></div>
+<ol class="cal-list">{{range $m.Days}}<li><h3>{{(index .Rides 0).DateLabel}}</h3>
+  {{range .Rides}}<a class="cal-ride {{.Status}}" href="/admin/rides/{{.Key}}"><span class="muted">{{.TimeLabel}}</span> {{.Name}}<span class="cal-lead">{{.LeaderSummary}}</span></a>{{end}}</li>
+  {{else}}<li class="empty">No rides this month yet.</li>{{end}}</ol>
+{{template "foot" .}}{{end}}
+
+{{define "ride"}}{{template "head" .}}{{$f := .RideForm}}
+<p class="crumb"><a href="/admin/calendar{{if $f.Date}}?m={{slice $f.Date 0 7}}{{end}}">← Calendar</a></p>
+<div class="title-row">
+  <h1>{{if $f.New}}Add a ride{{else}}{{$f.Name}}{{end}}</h1>
+  {{if not $f.New}}<p>{{if $f.Cancelled}}<span class="tag">Cancelled</span> {{end}}{{if $f.Custom}}One-off ride{{else}}Weekly ride · <a href="/admin/weekly/{{$f.SeriesID}}">change every week</a>{{end}} · <a href="/calendar/ride/{{$f.Key}}" target="_blank" rel="noopener">Public page</a></p>{{end}}
+</div>
+{{if $f.Past}}<p class="flash warn">This ride has already happened.</p>{{end}}
+<form class="card new-issue" method="post" action="{{if $f.New}}/admin/rides/new{{else}}/admin/rides/{{$f.Key}}{{end}}">
+  <div class="pair">
+    <label>Ride name <input name="name" value="{{$f.Name}}" required maxlength="80" placeholder="Saturday Coffee Ride"></label>
+    <label>Start time <input type="time" name="time" value="{{$f.Time}}"></label>
+  </div>
+  <div class="pair">
+    {{if or $f.New $f.Custom}}<label>Date <input type="date" name="date" value="{{$f.Date}}" required></label>
+    {{else}}<label>Date <input value="{{$f.DateLabel}}" disabled><span class="muted small">This is one date of a weekly ride. To move it, cancel it and add a one-off ride.</span></label>{{end}}
+    <label>Start (optional) <input name="place" value="{{$f.Place}}" maxlength="100" placeholder="Leonardtown Square"></label>
+  </div>
+  <label>Details (optional) <input name="details" value="{{$f.Details}}" maxlength="100" placeholder="Casual · all levels · 25 mi"></label>
+  {{$pace := $f.Pace}}<label>Pace groups <select name="pace" data-leaders>{{range paceChoices}}<option value="{{.Value}}"{{if eq .Value $pace}} selected{{end}}>{{.Label}}</option>{{end}}{{if eq $pace "keep"}}<option value="keep" selected>Keep: {{join $f.Groups ", "}}</option>{{end}}</select></label>
+  <fieldset class="leaders">
+    <legend>Ride leaders</legend>
+    {{range $f.Leaders}}<label class="leader-row" data-group="{{.Group}}"{{if and (ne .Group "") (ne .Group "A group") (ne .Group "B group") (ne .Group "C group")}} data-keep="1"{{end}}>{{or .Group "Leader"}}
+      <input name="{{.Field}}" value="{{.Name}}" placeholder="Needs a leader" maxlength="60">
+      {{with .Note}}<span class="muted small">{{.}}</span>{{end}}</label>{{end}}
+    <p class="muted small">Type a name to make someone the leader, or clear it to open the spot. The club is emailed about every change.</p>
+  </fieldset>
+  <label>Strava event link (optional) <input type="url" name="strava_url" value="{{$f.StravaURL}}" placeholder="https://www.strava.com/clubs/10197/group_events/…"></label>
+  <button>{{if $f.New}}Add to the calendar{{else}}Save changes{{end}}</button>
+</form>
+{{if not $f.New}}<div class="send-row footnote">
+  <form method="post" action="/admin/rides/{{$f.Key}}/cancel" class="inline">{{if $f.Cancelled}}<input type="hidden" name="cancel" value="0"><button class="ghost">Put it back on the calendar</button>{{else}}<input type="hidden" name="cancel" value="1"><button class="ghost" onclick="return confirm('Cancel {{$f.Name}} on {{$f.DateLabel}}? The club will be emailed.')">Cancel this ride</button>{{end}}</form>
+  {{if $f.Custom}}<form method="post" action="/admin/rides/{{$f.Key}}/delete" class="inline" onsubmit="return confirm('Delete {{$f.Name}} for good? To keep it on the calendar as cancelled, use Cancel instead.')"><button class="link danger">Delete this ride</button></form>{{end}}
+</div>{{end}}
 {{template "foot" .}}{{end}}
 
 {{define "framer"}}<div class="framer">

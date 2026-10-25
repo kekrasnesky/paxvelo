@@ -4,7 +4,7 @@
 {{if .Preview}}<p class="nl-preview">Preview{{if not .Published}}: not published yet{{end}}. <a href="/admin/newsletter/{{.ID}}">Back to editing</a></p>{{end}}
 {{if .Empty}}
 <article class="page">
-  <h1>The Paceline</h1>
+  <h1>Newsletter</h1>
   <p class="lead">PaxVelo’s monthly newsletter is on its way: stories from the road, upcoming rides, and club news.</p>
   <p><a class="btn" href="/join">Join to get it by email</a></p>
 </article>
@@ -14,92 +14,78 @@
   {{with .Cover}}<img class="nl-mast-bg" src="{{.}}" alt="" fetchpriority="high" decoding="async"{{with $.Data.CoverFocus}} style="object-position:{{.}}"{{end}}>{{end}}
   <div class="nl-mast-in">
     <p class="nl-issue">{{.Label}}</p>
-    <h1 class="nl-title">The Paceline</h1>
+    <h1 class="nl-title">Newsletter</h1>
     {{with .Tagline}}<p class="nl-tagline">{{.}}</p>{{end}}
   </div>
 </header>
 
-{{if .Featured.Show}}{{with .Featured}}
-<section class="nl-feature" aria-labelledby="nl-featured">
+{{range .Parts}}{{if eq .Kind "big"}}{{with .Story}}
+<section class="nl-feature">
   <div class="nl-feature-text">
     {{with .Kicker}}<p class="nl-kicker">{{.}}</p>{{end}}
-    <h2 class="nl-h nl-h-big" id="nl-featured">{{.Heading}}</h2>
+    {{with .Heading}}<h2 class="nl-h nl-h-big">{{.}}</h2>{{end}}
     {{with .Subhead}}<p class="nl-sub">{{.}}</p>{{end}}
     {{.Body}}
     {{template "nl-link" .}}
   </div>
   {{template "nl-media" .}}
-  {{with .Quote}}<blockquote class="nl-quote"><p>{{.}}</p>{{with $.Data.Featured.QuoteBy}}<footer>{{.}}</footer>{{end}}</blockquote>{{end}}
 </section>
-{{end}}{{end}}
-
+{{end}}{{else if eq .Kind "row"}}
 <div class="nl-row">
-  {{if .Recap.Show}}{{with .Recap}}<section class="nl-card">
+  {{range .Row}}<section class="nl-card">
     {{with .Kicker}}<p class="nl-kicker">{{.}}</p>{{end}}
-    <h2 class="nl-h">{{.Heading}}</h2>
-    {{.Body}}
+    {{with .Heading}}<h2 class="nl-h">{{.}}</h2>{{end}}
     {{template "nl-media" .}}
+    {{.Body}}
     {{template "nl-link" .}}
-  </section>{{end}}{{end}}
-
-  {{if .Rides}}<section class="nl-card" aria-labelledby="nl-upnext">
-    <p class="nl-kicker">Up next</p>
-    <h2 class="nl-h" id="nl-upnext">Mark your calendar</h2>
-    <ol class="nl-rides">
-      {{range .Rides}}<li><a href="{{.Link}}" target="_blank" rel="noopener">
-        <span class="nl-date">{{if .Month}}<span>{{.Month}}</span>{{.Day}}{{else}}<span>Date</span>TBA{{end}}</span>
-        <span class="nl-ride"><strong>{{.Name}}</strong>
-          {{if or .Time .Place}}<span>{{.Time}}{{if and .Time .Place}} · {{end}}{{.Place}}</span>{{end}}
-          {{with .Details}}<span>{{.}}</span>{{end}}</span>
-        <span class="nl-go" aria-hidden="true">›</span>
-      </a></li>
-      {{end}}
-    </ol>
-    <p class="nl-more"><a href="{{.StravaURL}}" target="_blank" rel="noopener">Full ride schedule on Strava</a></p>
   </section>{{end}}
-
-  {{if .Spotlight.Show}}{{with .Spotlight}}<section class="nl-card">
-    {{with .Kicker}}<p class="nl-kicker">{{.}}</p>{{end}}
-    <h2 class="nl-h">{{.Heading}}</h2>
-    {{template "nl-media" .}}
-    {{.Body}}
-    {{template "nl-link" .}}
-  </section>{{end}}{{end}}
 </div>
-
-{{if .Corner}}<div class="nl-row nl-corner">
-  {{range .Corner}}<section class="nl-card">
-    <div class="nl-corner-text">
-      {{with .Kicker}}<p class="nl-kicker">{{.}}</p>{{end}}
-      <h2 class="nl-h">{{.Heading}}</h2>
-      {{.Body}}
-      {{template "nl-link" .}}
+{{else if eq .Kind "rides"}}{{$r := .Rides}}
+<section class="nl-rides-block">
+  <div class="nl-rides-head">
+    <div>
+      <p class="nl-kicker">{{or .Story.Kicker "Up next"}}</p>
+      <h2 class="nl-h nl-h-big">{{or .Story.Heading "Rides coming up"}}</h2>
+      <p class="nl-sub">{{$r.From}} – {{$r.To}}</p>
     </div>
-    {{template "nl-media" .}}
-  </section>
-  {{end}}
-</div>{{end}}
-
-{{if .Kit.Show}}{{with .Kit}}<section class="nl-kit">
+    {{if $r.Need}}<p class="nl-help"><strong>{{$r.Need}} {{if eq $r.Need 1}}ride needs{{else}}rides need{{end}} a leader.</strong> Pick one below and type your name to lead it. No account needed.</p>{{end}}
+  </div>
+  {{if $r.Rides}}<ol class="nl-cal">
+    {{range $r.Rides}}<li class="{{if .Past}}past{{else if .Open}}open{{end}}">
+      <span class="nl-date"><span>{{.Month}}</span>{{.Day}}</span>
+      <div class="nl-ride">
+        <strong>{{.Name}}</strong>
+        <span>{{.Weekday}}{{with .Time}} · {{.}}{{end}}{{with .Place}} · {{.}}{{end}}</span>
+        {{with .Details}}<span>{{.}}</span>{{end}}
+        <ul class="nl-leaders">{{range .Slots}}<li>{{with .Group}}{{.}}: {{end}}{{if .Leader}}led by <strong>{{.Leader}}</strong>{{else}}<em>needs a leader</em>{{end}}</li>{{end}}</ul>
+      </div>
+      {{if and .Open (not .Past)}}<a class="btn nl-lead" href="/calendar/ride/{{.Key}}">Lead this ride</a>{{else}}<a class="nl-go" href="/calendar/ride/{{.Key}}" aria-label="Ride details">›</a>{{end}}
+    </li>{{end}}
+  </ol>{{else}}<p>No rides on the calendar for these weeks yet.</p>{{end}}
+  <p class="nl-more"><a href="{{$r.CalendarURL}}">See the full ride calendar</a></p>
+</section>
+{{else if eq .Kind "banner"}}{{with .Story}}
+<section class="nl-kit">
   <div class="nl-kit-in">
     {{with .Kicker}}<p class="nl-kicker">{{.}}</p>{{end}}
-    <h2 class="nl-h nl-h-big">{{.Heading}}</h2>
+    {{with .Heading}}<h2 class="nl-h nl-h-big">{{.}}</h2>{{end}}
     {{.Body}}
-    {{with .Link}}<p><a class="btn nl-btn-light" href="{{.}}"{{if external .}} target="_blank" rel="noopener"{{end}}>{{or $.Data.Kit.LinkLabel "Learn more"}}</a></p>{{end}}
+    {{$label := .LinkLabel}}{{with .Link}}<p><a class="btn nl-btn-light" href="{{.}}"{{if external .}} target="_blank" rel="noopener"{{end}}>{{or $label "Learn more"}}</a></p>{{end}}
   </div>
   {{template "nl-media" .}}
-</section>{{end}}{{end}}
-
-{{if .Instagram}}<section class="nl-insta" aria-labelledby="nl-insta">
+</section>
+{{end}}{{else if eq .Kind "instagram"}}
+<section class="nl-insta">
   <p class="nl-kicker"><a href="https://www.instagram.com/paxvelo/" target="_blank" rel="noopener">@paxvelo</a></p>
-  <h2 class="nl-h" id="nl-insta">From our Instagram</h2>
-  {{instagram .Instagram}}
-</section>{{end}}
-
-{{if .Gallery}}<div class="nl-gallery">
-  {{range .Gallery}}<img src="{{.URL}}" alt="" loading="lazy" decoding="async"{{with .Focus}} style="object-position:{{.}}"{{end}}>
+  <h2 class="nl-h">From our Instagram</h2>
+  {{instagram .Posts}}
+</section>
+{{else if eq .Kind "gallery"}}
+<div class="nl-gallery">
+  {{range .Photos}}<img src="{{.URL}}" alt="" loading="lazy" decoding="async"{{with .Focus}} style="object-position:{{.}}"{{end}}>
   {{end}}
-</div>{{end}}
+</div>
+{{end}}{{end}}
 
 <section class="nl-close">
   <h2 class="nl-h nl-h-big">{{or .Closing "Your next ride starts here."}}</h2>
@@ -115,8 +101,8 @@
 {{end}}{{end}}
 
 {{define "nl-media"}}{{if .Photo}}{{if .VideoURL}}<a class="nl-media nl-video" href="{{.VideoURL}}" target="_blank" rel="noopener" aria-label="Watch the video{{with .Heading}}: {{.}}{{end}}">
-  <img src="{{.Photo}}" alt="{{.PhotoAlt}}" loading="lazy" decoding="async"{{with .PhotoFocus}} style="object-position:{{.}}"{{end}}>
+  <img src="{{.Photo}}" alt="" loading="lazy" decoding="async"{{with .PhotoFocus}} style="object-position:{{.}}"{{end}}>
   <span class="nl-play" aria-hidden="true"></span>{{with .VideoLength}}<span class="nl-len">{{.}}</span>{{end}}
-</a>{{else}}<img class="nl-media" src="{{.Photo}}" alt="{{.PhotoAlt}}" loading="lazy" decoding="async"{{with .PhotoFocus}} style="object-position:{{.}}"{{end}}>{{end}}{{else if .VideoURL}}<p class="nl-more"><a href="{{.VideoURL}}" target="_blank" rel="noopener">Watch the video{{with .VideoLength}} ({{.}}){{end}}</a></p>{{end}}{{end}}
+</a>{{else}}<img class="nl-media" src="{{.Photo}}" alt="" loading="lazy" decoding="async"{{with .PhotoFocus}} style="object-position:{{.}}"{{end}}>{{end}}{{else if .VideoURL}}<p class="nl-more"><a href="{{.VideoURL}}" target="_blank" rel="noopener">Watch the video{{with .VideoLength}} ({{.}}){{end}}</a></p>{{end}}{{end}}
 
 {{define "nl-link"}}{{with .Link}}<p class="nl-more"><a href="{{.}}"{{if external .}} target="_blank" rel="noopener"{{end}}>{{or $.LinkLabel "Read more"}}</a></p>{{end}}{{end}}

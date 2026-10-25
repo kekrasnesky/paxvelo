@@ -3,14 +3,17 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 )
 
-// The admin portal's Rides tab: the weekly rides, upcoming rides and their
-// leaders (admins can assign or change any leader), and who the club's
-// admins on Strava are.
+// The admin portal's ride pages: the Calendar tab (every ride, by month), a
+// page for adding or editing any ride (its details, pace groups, leaders, or
+// cancelling it), and the Rides tab (the weekly rides, the Strava import, and
+// who the club's admins on Strava are).
 
 func (a *App) ridesAdmin(w http.ResponseWriter, r *http.Request) {
 	today := a.today()
@@ -25,6 +28,14 @@ func (a *App) ridesAdmin(w http.ResponseWriter, r *http.Request) {
 	a.renderAdmin(w, r, http.StatusOK, "rides", v)
 }
 
+// calendarAdmin is the Calendar tab: the month, like the public calendar, but
+// every ride opens its admin page.
+func (a *App) calendarAdmin(w http.ResponseWriter, r *http.Request) {
+	v := adminView{Title: "Calendar", Tab: "calendar", Month: a.month(r.URL.Query().Get("m"))}
+	v.Flash, v.Error = flashFrom(r)
+	a.renderAdmin(w, r, http.StatusOK, "calendar", v)
+}
+
 var weekdays = func() []monthOption {
 	var out []monthOption
 	for d := time.Sunday; d <= time.Saturday; d++ {
@@ -33,24 +44,291 @@ var weekdays = func() []monthOption {
 	return out
 }()
 
-func (a *App) addSeries(w http.ResponseWriter, r *http.Request) {
-	wd, err := strconv.Atoi(r.FormValue("weekday"))
-	se := RideSeries{
-		Name: cleanName(r.FormValue("name")), Weekday: wd, Time: strings.TrimSpace(r.FormValue("time")),
-		Place: cleanName(r.FormValue("place")), Details: cleanName(r.FormValue("details")),
-		StravaURL: strings.TrimSpace(r.FormValue("strava_url")), Groups: parseGroups(r.FormValue("groups")),
+// ---- One ride ----
+
+// leaderField is the form field for a group's leader on the ride page.
+func leaderField(group string) string { return "leader:" + group }
+
+// rideForm is a ride on its admin page, with a leader box for every group the
+// pace menu can choose (the page shows the ones that apply).
+type rideForm struct {
+	RideOcc
+	New, Past bool
+	Pace      string
+	Leaders   []leaderBox
+}
+
+type leaderBox struct {
+	Group, Field, Name string
+	Note               string // like "Signed up on the calendar"
+}
+
+func (a *App) rideFormFor(o RideOcc, isNew bool) rideForm {
+	f := rideForm{RideOcc: o, New: isNew, Past: o.Date < a.today().Format("2006-01-02"), Pace: paceOf(o.Groups)}
+	groups := append([]string{""}, paceGroups...)
+	for _, g := range o.Groups {
+		if !slices.Contains(groups, g) {
+			groups = append(groups, g)
+		}
 	}
-	if from, until := r.FormValue("season_start"), r.FormValue("season_end"); from != "" && until != "" {
+	for _, g := range groups {
+		b := leaderBox{Group: g, Field: leaderField(g)}
+		if l := o.leaderFor(g); l != nil {
+			b.Name = l.Name
+			switch {
+			case l.SetBy != "":
+				b.Note = "Set by " + l.SetBy
+			case l.StravaID != 0:
+				b.Note = "Signed up with Strava"
+			default:
+				b.Note = "Signed up on the calendar"
+			}
+		}
+		f.Leaders = append(f.Leaders, b)
+	}
+	return f
+}
+
+func (a *App) rideEditPage(w http.ResponseWriter, r *http.Request) {
+	o, ok := a.store.Ride(r.PathValue("key"))
+	if !ok {
+		back(w, r, "/admin/calendar?err=noride")
+		return
+	}
+	v := adminView{Title: o.Name, Tab: "calendar", RideForm: a.rideFormFor(o, false)}
+	v.Flash, v.Error = flashFrom(r)
+	a.renderAdmin(w, r, http.StatusOK, "ride", v)
+}
+
+func (a *App) newRideAdminPage(w http.ResponseWriter, r *http.Request) {
+	date := r.URL.Query().Get("date")
+	if _, err := time.Parse("2006-01-02", date); err != nil {
+		date = a.today().Format("2006-01-02")
+	}
+	v := adminView{Title: "Add a ride", Tab: "calendar", RideForm: a.rideFormFor(RideOcc{CalRide: CalRide{Date: date, Time: "08:00"}}, true)}
+	v.Flash, v.Error = flashFrom(r)
+	a.renderAdmin(w, r, http.StatusOK, "ride", v)
+}
+
+// readRide copies the ride page's fields onto a ride. It returns a problem to
+// show, or "".
+func readRide(r *http.Request, c *CalRide, dateEditable bool) string {
+	c.Name = cleanName(r.FormValue("name"))
+	c.Time = strings.TrimSpace(r.FormValue("time"))
+	c.Place, c.Details = cleanName(r.FormValue("place")), cleanName(r.FormValue("details"))
+	c.StravaURL = strings.TrimSpace(r.FormValue("strava_url"))
+	c.Groups = groupsFor(r.FormValue("pace"), c.Groups)
+	if dateEditable {
+		c.Date = strings.TrimSpace(r.FormValue("date"))
+	}
+	_, dateErr := time.Parse("2006-01-02", c.Date)
+	_, timeErr := time.Parse("15:04", c.Time)
+	switch {
+	case c.Name == "" || dateErr != nil:
+		return "A ride needs a name and a date."
+	case c.Time != "" && timeErr != nil:
+		return "Pick a start time, or leave it empty."
+	case c.StravaURL != "" && !stravaLink(c.StravaURL):
+		return "Paste the event’s Strava link, starting with https://www.strava.com/."
+	}
+	return ""
+}
+
+type leaderChange struct{ group, was, now string }
+
+// readLeaders sets each group's leader from the ride page, and lists what changed.
+func readLeaders(r *http.Request, c *CalRide, me string) []leaderChange {
+	var changes []leaderChange
+	old := c.Leaders
+	c.Leaders = nil
+	for _, g := range c.groupNames() {
+		var was *Leader
+		for i := range old {
+			if old[i].Group == g {
+				was = &old[i]
+			}
+		}
+		name := cleanName(r.FormValue(leaderField(g)))
+		if _, sent := r.Form[leaderField(g)]; !sent && was != nil {
+			name = was.Name
+		}
+		wasName := ""
+		if was != nil {
+			wasName = was.Name
+		}
+		switch {
+		case name == "":
+		case was != nil && name == was.Name:
+			c.Leaders = append(c.Leaders, *was)
+		default:
+			c.Leaders = append(c.Leaders, Leader{Group: g, Name: name, SetBy: me, Since: time.Now().UTC()})
+		}
+		if name != wasName {
+			changes = append(changes, leaderChange{g, wasName, name})
+		}
+	}
+	for _, l := range old {
+		if !c.hasGroup(l.Group) {
+			changes = append(changes, leaderChange{l.Group, l.Name, ""})
+		}
+	}
+	return changes
+}
+
+// saveRideAdmin saves a ride's page: its details, pace groups, and leaders.
+func (a *App) saveRideAdmin(w http.ResponseWriter, r *http.Request) {
+	key := r.PathValue("key")
+	me, _ := a.adminName(r)
+	r.ParseForm()
+	var before RideOcc
+	var problem string
+	var changes []leaderChange
+	o, err := a.store.UpdateRide(key, func(c *CalRide) error {
+		before = occOf(c)
+		if problem = readRide(r, c, c.SeriesID == 0); problem != "" {
+			return errNoRide
+		}
+		changes = readLeaders(r, c, me)
+		return nil
+	})
+	if problem != "" {
+		// Show the form again with what was typed.
+		f := before.CalRide
+		readRide(r, &f, f.SeriesID == 0)
+		readLeaders(r, &f, me)
+		shown := before
+		shown.CalRide = f
+		v := adminView{Title: before.Name, Tab: "calendar", RideForm: a.rideFormFor(shown, false), Error: problem}
+		a.renderAdmin(w, r, http.StatusBadRequest, "ride", v)
+		return
+	}
+	if err != nil {
+		back(w, r, "/admin/calendar?err=noride")
+		return
+	}
+	a.notifyLeaderChanges(o, changes, me)
+	if moved := rideMoved(before, o); moved != "" {
+		a.notifyRide(fmt.Sprintf("%s on %s has changed", o.Name, shortDate(o.Date)),
+			fmt.Sprintf("%s changed %s: %s. It’s now on %s.", me, before.Name, moved, rideWhen(o)), o, "")
+	}
+	back(w, r, "/admin/rides/"+url.PathEscape(o.Key)+"?ok=ride-saved")
+}
+
+// rideMoved describes a change to when or where a ride is, or "".
+func rideMoved(was, now RideOcc) string {
+	var what []string
+	if was.Date != now.Date {
+		what = append(what, "new date")
+	}
+	if was.Time != now.Time {
+		what = append(what, "new start time")
+	}
+	if was.Place != now.Place {
+		what = append(what, "new start")
+	}
+	return strings.Join(what, ", ")
+}
+
+func (a *App) notifyLeaderChanges(o RideOcc, changes []leaderChange, me string) {
+	for _, ch := range changes {
+		what := rideAndGroup(o.Name, ch.group)
+		switch {
+		case ch.now == "":
+			a.notifyRide(fmt.Sprintf("%s on %s needs a leader", what, shortDate(o.Date)),
+				fmt.Sprintf("%s removed %s as the leader of %s on %s.", me, ch.was, what, rideWhen(o)), o, "")
+		case ch.was == "":
+			a.notifyRide(fmt.Sprintf("%s will lead %s on %s", ch.now, what, shortDate(o.Date)),
+				fmt.Sprintf("%s made %s the leader of %s on %s.", me, ch.now, what, rideWhen(o)), o, "")
+		default:
+			a.notifyRide(fmt.Sprintf("%s will lead %s on %s", ch.now, what, shortDate(o.Date)),
+				fmt.Sprintf("%s made %s the leader of %s on %s, instead of %s.", me, ch.now, what, rideWhen(o), ch.was), o, "")
+		}
+	}
+}
+
+// addRideAdmin adds a one-off ride from the admin portal.
+func (a *App) addRideAdmin(w http.ResponseWriter, r *http.Request) {
+	me, _ := a.adminName(r)
+	r.ParseForm()
+	c := CalRide{AddedBy: me}
+	problem := readRide(r, &c, true)
+	readLeaders(r, &c, me)
+	if problem != "" {
+		v := adminView{Title: "Add a ride", Tab: "calendar", RideForm: a.rideFormFor(RideOcc{CalRide: c}, true), Error: problem}
+		a.renderAdmin(w, r, http.StatusBadRequest, "ride", v)
+		return
+	}
+	o, err := a.store.AddRide(c)
+	if err != nil {
+		back(w, r, "/admin/calendar?err=save")
+		return
+	}
+	body := fmt.Sprintf("%s added a ride to the calendar: %s on %s.", me, o.Name, rideWhen(o))
+	if o.Status() != "led" {
+		body += " It still needs leaders: sign up on the ride page."
+	}
+	a.notifyRide(fmt.Sprintf("New ride: %s on %s", o.Name, shortDate(o.Date)), body, o, "")
+	back(w, r, "/admin/rides/"+url.PathEscape(o.Key)+"?ok=ride-added")
+}
+
+func (a *App) cancelRideAdmin(w http.ResponseWriter, r *http.Request) {
+	me, _ := a.adminName(r)
+	cancel := r.FormValue("cancel") == "1"
+	o, err := a.store.UpdateRide(r.PathValue("key"), func(c *CalRide) error { c.Cancelled = cancel; return nil })
+	if err != nil {
+		back(w, r, "/admin/calendar?err=save")
+		return
+	}
+	code := "restored"
+	if cancel {
+		code = "cancelled"
+		a.notifyRide(fmt.Sprintf("%s on %s is cancelled", o.Name, shortDate(o.Date)),
+			fmt.Sprintf("%s cancelled %s on %s.", me, o.Name, rideWhen(o)), o, "")
+	}
+	to := "/admin/rides/" + url.PathEscape(o.Key) + "?ok=" + code
+	if r.FormValue("return") == "rides" {
+		to = "/admin/rides?ok=" + code
+	}
+	back(w, r, to)
+}
+
+func (a *App) deleteRideAdmin(w http.ResponseWriter, r *http.Request) {
+	if err := a.store.DeleteRide(r.PathValue("key")); err != nil {
+		back(w, r, "/admin/calendar?err=save")
+		return
+	}
+	back(w, r, "/admin/calendar?ok=ride-deleted")
+}
+
+// ---- Weekly rides ----
+
+// readSeries reads the weekly ride form (adding or editing). It returns an
+// error code for errorText, or "".
+func readSeries(r *http.Request, se *RideSeries) string {
+	wd, err := strconv.Atoi(r.FormValue("weekday"))
+	se.Name, se.Weekday, se.Time = cleanName(r.FormValue("name")), wd, strings.TrimSpace(r.FormValue("time"))
+	se.Place, se.Details = cleanName(r.FormValue("place")), cleanName(r.FormValue("details"))
+	se.StravaURL = strings.TrimSpace(r.FormValue("strava_url"))
+	se.Groups = groupsFor(r.FormValue("pace"), se.Groups)
+	se.SeasonStart, se.SeasonEnd = "", ""
+	if from, until := r.FormValue("season_start"), r.FormValue("season_end"); from != "" || until != "" {
 		f, err1 := time.Parse("2006-01-02", from)
 		u, err2 := time.Parse("2006-01-02", until)
 		if err1 != nil || err2 != nil {
-			back(w, r, "/admin/rides?err=season")
-			return
+			return "season"
 		}
 		se.SeasonStart, se.SeasonEnd = f.Format("01-02"), u.Format("01-02")
 	}
 	if _, terr := time.Parse("15:04", se.Time); se.Name == "" || err != nil || wd < 0 || wd > 6 || terr != nil {
-		back(w, r, "/admin/rides?err=series")
+		return "series"
+	}
+	return ""
+}
+
+func (a *App) addSeries(w http.ResponseWriter, r *http.Request) {
+	var se RideSeries
+	if code := readSeries(r, &se); code != "" {
+		back(w, r, "/admin/rides?err="+code)
 		return
 	}
 	if err := a.store.AddSeries(se); err != nil {
@@ -60,6 +338,48 @@ func (a *App) addSeries(w http.ResponseWriter, r *http.Request) {
 	back(w, r, "/admin/rides?ok=series-added")
 }
 
+// seriesForm is a weekly ride on its edit page. The season shows as dates in
+// this year, since the form uses date boxes (only the month and day count).
+type seriesForm struct {
+	RideSeries
+	Pace, From, Until string
+}
+
+func (a *App) seriesEditPage(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.Atoi(r.PathValue("id"))
+	se, ok := a.store.Series(id)
+	if !ok {
+		back(w, r, "/admin/rides?err=noride")
+		return
+	}
+	f := seriesForm{RideSeries: se, Pace: paceOf(se.Groups)}
+	if se.SeasonStart != "" {
+		y := strconv.Itoa(a.today().Year())
+		f.From, f.Until = y+"-"+se.SeasonStart, y+"-"+se.SeasonEnd
+	}
+	v := adminView{Title: se.Name, Tab: "rides", SeriesForm: f, Weekdays: weekdays}
+	v.Flash, v.Error = flashFrom(r)
+	a.renderAdmin(w, r, http.StatusOK, "series", v)
+}
+
+func (a *App) saveSeries(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.Atoi(r.PathValue("id"))
+	se, ok := a.store.Series(id)
+	if !ok {
+		back(w, r, "/admin/rides?err=noride")
+		return
+	}
+	if code := readSeries(r, &se); code != "" {
+		back(w, r, fmt.Sprintf("/admin/weekly/%d?err=%s", id, code))
+		return
+	}
+	if err := a.store.UpdateSeries(se, a.today().Format("2006-01-02")); err != nil {
+		back(w, r, "/admin/rides?err=save")
+		return
+	}
+	back(w, r, "/admin/rides?ok=series-saved")
+}
+
 func (a *App) deleteSeries(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.Atoi(r.PathValue("id"))
 	if err := a.store.DeleteSeries(id); err != nil {
@@ -67,60 +387,4 @@ func (a *App) deleteSeries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	back(w, r, "/admin/rides?ok=series-deleted")
-}
-
-// setLeaderAdmin assigns leaders by name, or clears them, from the admin
-// portal: one box per pace group (leader0, leader1, …).
-func (a *App) setLeaderAdmin(w http.ResponseWriter, r *http.Request) {
-	key := r.PathValue("key")
-	me, _ := a.adminName(r)
-	r.ParseForm()
-	type change struct{ group, was, now string }
-	var changes []change
-	o, err := a.store.UpdateRide(key, func(c *CalRide) error {
-		for i, g := range c.groupNames() {
-			field := "leader" + strconv.Itoa(i)
-			if _, sent := r.Form[field]; !sent {
-				continue
-			}
-			name, was := cleanName(r.FormValue(field)), ""
-			if l := c.leaderFor(g); l != nil {
-				was = l.Name
-			}
-			if name == was {
-				continue
-			}
-			changes = append(changes, change{g, was, name})
-			if name == "" {
-				c.setLeader(g, nil)
-			} else {
-				c.setLeader(g, &Leader{Name: name, SetBy: me, Since: time.Now().UTC()})
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		back(w, r, "/admin/rides?err=save")
-		return
-	}
-	for _, ch := range changes {
-		what := rideAndGroup(o.Name, ch.group)
-		if ch.now == "" {
-			a.notifyRide(fmt.Sprintf("%s on %s needs a leader", what, shortDate(o.Date)),
-				fmt.Sprintf("%s removed %s as the leader of %s on %s.", me, ch.was, what, rideWhen(o)), o, "")
-		} else {
-			a.notifyRide(fmt.Sprintf("%s will lead %s on %s", ch.now, what, shortDate(o.Date)),
-				fmt.Sprintf("%s made %s the leader of %s on %s.", me, ch.now, what, rideWhen(o)), o, "")
-		}
-	}
-	back(w, r, "/admin/rides?ok=leader")
-}
-
-func (a *App) cancelRideAdmin(w http.ResponseWriter, r *http.Request) {
-	cancel := r.FormValue("cancel") == "1"
-	if _, err := a.store.UpdateRide(r.PathValue("key"), func(c *CalRide) error { c.Cancelled = cancel; return nil }); err != nil {
-		back(w, r, "/admin/rides?err=save")
-		return
-	}
-	back(w, r, "/admin/rides?ok=leader")
 }

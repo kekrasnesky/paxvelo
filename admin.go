@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
-	"crypto/subtle"
 	"encoding/base64"
 	"encoding/csv"
 	"encoding/json"
@@ -41,12 +40,13 @@ type adminView struct {
 	TestTo        string
 	Live, Sending bool
 	// Newsletter tab
-	Issues    []Issue
-	Issue     Issue
-	MonthLive *Issue // another issue already published for Issue's month
-	Months    []monthOption
-	NewMonth  int
-	NewYear   int
+	Issues     []Issue
+	Issue      Issue
+	MonthLive  *Issue    // another issue already published for Issue's month
+	IssueRides ridesView // what the issue's rides block shows right now
+	Months     []monthOption
+	NewMonth   int
+	NewYear    int
 	// Minutes tab
 	Minutes []Minutes
 	// Instagram tab
@@ -66,13 +66,24 @@ type adminView struct {
 	StravaAdminsChecked *time.Time
 	StravaLink          *StravaLink
 	APIEnabled          bool
+	SeriesForm          seriesForm
+	// Calendar tab and ride pages
+	Month    calMonth
+	RideForm rideForm
+	// Admins tab, login, and password pages
+	Admins     []AdminUser
+	Account    AdminUser // the logged-in admin, or whose password is being set
+	SetupLogin bool      // no accounts yet, so the setup password logs in
+	Email      string    // typed on the login form
+	Token      string    // the password link's secret
+	TestLink   string    // in test mode, the password link that would have been emailed
 }
 
 // ---- Sessions ----
-// Admins share one password and give their name when they log in, so the
-// newsletter can show who wrote and edited each draft. A login cookie is a
-// signed expiry time and name. Changing ADMIN_PASSWORD logs everyone out,
-// since the signing key includes the password.
+// Admins log in with their own account (see admins.go), so the newsletter and
+// the calendar can show who did what. A login cookie is a signed expiry time
+// and the account (or, for the setup password, the name typed at login).
+// Changing ADMIN_PASSWORD logs everyone out, since the signing key includes it.
 
 func (a *App) sessionKey() []byte {
 	k := sha256.Sum256([]byte("admin\x00" + a.store.Secret() + "\x00" + a.cfg.AdminPassword))
@@ -81,6 +92,12 @@ func (a *App) sessionKey() []byte {
 
 // adminName returns the logged-in admin's name, or false if nobody is logged in.
 func (a *App) adminName(r *http.Request) (string, bool) {
+	u, ok := a.currentAdmin(r)
+	return u.Name, ok
+}
+
+// sessionValue returns what the login cookie holds, if it's valid.
+func (a *App) sessionValue(r *http.Request) (string, bool) {
 	c, err := r.Cookie(sessionCookie)
 	if err != nil {
 		return "", false
@@ -103,9 +120,11 @@ func (a *App) loggedIn(r *http.Request) bool {
 	return ok
 }
 
-func (a *App) setSession(w http.ResponseWriter, name string, maxAge int) {
+// setSession logs someone in: who is an account (accountSession) or, for
+// the setup password, a name.
+func (a *App) setSession(w http.ResponseWriter, who string, maxAge int) {
 	exp := strconv.FormatInt(time.Now().Add(time.Duration(maxAge)*time.Second).Unix(), 10)
-	enc := base64.RawURLEncoding.EncodeToString([]byte(name))
+	enc := base64.RawURLEncoding.EncodeToString([]byte(who))
 	value := exp + "." + enc + "." + sign(a.sessionKey(), exp+"."+enc)
 	if maxAge < 0 {
 		value = ""
@@ -163,38 +182,6 @@ func (a *App) renderAdmin(w http.ResponseWriter, r *http.Request, status int, na
 	w.Write(buf.Bytes())
 }
 
-func (a *App) loginPage(w http.ResponseWriter, r *http.Request) {
-	if a.loggedIn(r) {
-		http.Redirect(w, r, "/admin", http.StatusSeeOther)
-		return
-	}
-	a.renderAdmin(w, r, http.StatusOK, "login", adminView{Title: "Log in"})
-}
-
-func (a *App) login(w http.ResponseWriter, r *http.Request) {
-	if !sameOrigin(r) {
-		http.Error(w, "Blocked a request from another website.", http.StatusForbidden)
-		return
-	}
-	if !a.limit.Allow("login:"+clientIP(r), 10, 15*time.Minute) {
-		a.renderAdmin(w, r, http.StatusTooManyRequests, "login", adminView{Title: "Log in", Error: "Too many attempts. Try again in 15 minutes."})
-		return
-	}
-	given := sha256.Sum256([]byte(r.FormValue("password")))
-	want := sha256.Sum256([]byte(a.cfg.AdminPassword))
-	if subtle.ConstantTimeCompare(given[:], want[:]) != 1 {
-		a.renderAdmin(w, r, http.StatusUnauthorized, "login", adminView{Title: "Log in", Error: "That password isn’t right."})
-		return
-	}
-	name := cleanName(r.FormValue("name"))
-	if name == "" {
-		a.renderAdmin(w, r, http.StatusBadRequest, "login", adminView{Title: "Log in", Error: "Enter your name, so others can see who edited what."})
-		return
-	}
-	a.setSession(w, name, 30*24*3600)
-	http.Redirect(w, r, "/admin", http.StatusSeeOther)
-}
-
 func (a *App) logout(w http.ResponseWriter, r *http.Request) {
 	a.setSession(w, "", -1)
 	http.Redirect(w, r, "/admin/login", http.StatusSeeOther)
@@ -225,6 +212,18 @@ var flashText = map[string]string{
 	"disconnected":      "Strava disconnected. Events already imported stay on the calendar.",
 	"synced":            "The club’s Strava events are up to date.",
 	"series-added":      "Weekly ride added to the calendar.",
+	"series-saved":      "Weekly ride saved. Its dates from today on are updated.",
+	"ride-saved":        "Saved, and the club has been emailed about any change of leader, date, or time.",
+	"ride-added":        "Ride added to the calendar. The club has been emailed.",
+	"ride-deleted":      "Ride deleted.",
+	"cancelled":         "Ride cancelled. The club has been emailed.",
+	"restored":          "Ride is back on the calendar.",
+	"setup":             "You’re logged in with the setup password. Add yourself and the other admins below: each gets an email to choose their own password, and from then on everyone logs in with their email.",
+	"invited":           "Added. They’ve been emailed a link to choose their password.",
+	"link-sent":         "A new password link is on its way.",
+	"admin-removed":     "Admin removed. They can’t log in anymore.",
+	"password-set":      "Your password is set. Next time, log in with your email and this password.",
+	"password-changed":  "Password changed. Any other devices you were logged in on are logged out.",
 	"series-deleted":    "Weekly ride removed. Dates that already had a leader stay on the calendar.",
 	"leader":            "Saved, and the club has been emailed about any leader change.",
 	"minutes-added":     "Minutes uploaded. They aren’t public until you publish them.",
@@ -240,25 +239,32 @@ var flashText = map[string]string{
 }
 
 var errorText = map[string]string{
-	"name":     "Enter a name.",
-	"email":    "Enter a valid email address.",
-	"file":     "Choose a CSV file to import.",
-	"csv":      "That file couldn’t be read as a CSV. Export it from your spreadsheet as “CSV” and try again.",
-	"nocol":    "Couldn’t find an email column in that file.",
-	"empty":    "Add a subject and a message first.",
-	"welcome":  "The welcome email needs a subject and a message.",
-	"save":     "Couldn’t save. Check the server log.",
-	"month":    "Choose a month and year.",
-	"series":   "A weekly ride needs a name, a day, and a start time.",
-	"connect":  "Connecting to Strava didn’t work. Try again.",
-	"sync":     "Reading the club’s events from Strava didn’t work. See the error below.",
-	"nostrava": "Add the Strava API settings to paxvelo.conf first (README.md, “Ride calendar”).",
-	"season":   "Pick both season dates, or neither.",
-	"date":     "Enter the meeting date.",
-	"nofile":   "Choose the minutes file to upload.",
-	"bigfile":  "That file is too big. Minutes can be up to 20 MB.",
-	"gone":     "That issue was deleted.",
-	"draft":    "There’s already an unsent email here, so the newsletter announcement didn’t replace it. Send it, or press Discard draft, then try “Email members about it” again.",
+	"name":         "Enter a name.",
+	"email":        "Enter a valid email address.",
+	"file":         "Choose a CSV file to import.",
+	"csv":          "That file couldn’t be read as a CSV. Export it from your spreadsheet as “CSV” and try again.",
+	"nocol":        "Couldn’t find an email column in that file.",
+	"empty":        "Add a subject and a message first.",
+	"welcome":      "The welcome email needs a subject and a message.",
+	"save":         "Couldn’t save. Check the server log.",
+	"month":        "Choose a month and year.",
+	"series":       "A weekly ride needs a name, a day, and a start time.",
+	"connect":      "Connecting to Strava didn’t work. Try again.",
+	"sync":         "Reading the club’s events from Strava didn’t work. See the error below.",
+	"nostrava":     "Add the Strava API settings to paxvelo.conf first (README.md, “Ride calendar”).",
+	"season":       "Pick both season dates, or neither.",
+	"noride":       "That ride isn’t on the calendar anymore.",
+	"admin-exists": "There’s already an admin with that email.",
+	"invite":       "Added, but the email didn’t send. Check the email settings, then press “Send a new link” next to their name.",
+	"remove-self":  "You can’t remove yourself. Ask another admin to.",
+	"current":      "Your current password isn’t right, so it wasn’t changed.",
+	"short":        "Use at least 10 characters for your new password.",
+	"mismatch":     "The two new passwords don’t match.",
+	"date":         "Enter the meeting date.",
+	"nofile":       "Choose the minutes file to upload.",
+	"bigfile":      "That file is too big. Minutes can be up to 20 MB.",
+	"gone":         "That issue was deleted.",
+	"draft":        "There’s already an unsent email here, so the newsletter announcement didn’t replace it. Send it, or press Discard draft, then try “Email members about it” again.",
 }
 
 func flashFrom(r *http.Request) (flash, errMsg string) {

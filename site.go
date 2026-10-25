@@ -53,6 +53,8 @@ type Site struct {
 	minutes     atomic.Pointer[Page] // the public meeting minutes page
 	minutesMu   sync.Mutex
 	news        map[string]*Page // the newsletter, rendered when it changes
+	newsVersion uint64           // the club data's version when news was rendered
+	newsDay     time.Time        // and the day, since rides move into the past
 	css         template.CSS
 	js          template.JS
 	adminCSS    template.CSS
@@ -147,6 +149,16 @@ func newSite(cfg Config) (*Site, error) {
 		"instagram":   instagramEmbeds,
 		"timeLabel":   timeLabel,
 		"join":        strings.Join,
+		"paceChoices": func() []paceChoice { return paceChoices },
+		"paceOf":      paceOf,
+		"weekdays":    func() []monthOption { return weekdays },
+		"seriesBlank": func() seriesForm { return seriesForm{} },
+		"maxGallery":  func() int { return maxGallery },
+		"editBlock":   blockFields,
+		"blockKinds":  func() []blockKind { return blockKinds },
+		"newBlock":    func(kind string) Block { return Block{ID: "__ID__", Kind: kind} },
+		"stripPhoto":  stripPhoto,
+		"rideWeeks":   func() int { return rideWeeks },
 		"lines":       func(l []string) string { return strings.Join(l, "\n") },
 		"external":    func(u string) bool { return strings.HasPrefix(u, "http://") || strings.HasPrefix(u, "https://") },
 	}

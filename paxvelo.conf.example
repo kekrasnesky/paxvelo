@@ -3,7 +3,9 @@
 # The public address of the site (used for links in emails).
 SITE_URL=https://www.paxvelo.club
 
-# Password for the admin portal at /admin. Use 12+ characters.
+# The setup password for the admin portal at /admin (12+ characters). It logs
+# in before any admin accounts exist, and after that works as an emergency key
+# with any admin's email. Admins get their own passwords on the Admins tab.
 ADMIN_PASSWORD=
 
 # Where "Send test" goes by default.

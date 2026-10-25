@@ -142,7 +142,7 @@ func TestRideLeaders(t *testing.T) {
 
 	// The weekly Tuesday ride has no leader, so anyone can take it.
 	key := seriesKey(1, nextWeekday(a, time.Tuesday))
-	groupA, groupB := "A group · 24–28 mph", "B group · 20–22 mph"
+	groupA, groupB := "A group", "B group"
 	gA, gB := url.Values{"group": {groupA}}, url.Values{"group": {groupB}}
 	if w := do(t, h, nil, "GET", "/calendar/ride/"+key, "", nil); !strings.Contains(w.Body.String(), "Sign in with Strava") {
 		t.Errorf("signed-out ride page: %d", w.Code)
@@ -283,24 +283,86 @@ func TestRidesAdmin(t *testing.T) {
 	a.setSession(cookie, "Board Member", 3600)
 	admin := cookie.Result().Cookies()[0]
 	key := seriesKey(1, nextWeekday(a, time.Tuesday))
-	ct, body := form(url.Values{"leader0": {"Chris T."}, "leader1": {""}})
-	do(t, h, admin, "POST", "/admin/rides/"+key+"/leader", ct, body)
-	if o, _ := a.store.Ride(key); len(o.Leaders) != 1 || o.Leaders[0].Name != "Chris T." || o.Leaders[0].SetBy != "Board Member" || o.Leaders[0].Group != "A group · 24–28 mph" {
+	if w := do(t, h, admin, "GET", "/admin/rides/"+key, "", nil); w.Code != 200 || !strings.Contains(w.Body.String(), `name="leader:B group"`) {
+		t.Fatalf("ride page: %d", w.Code)
+	}
+	ride := func(vals url.Values) *httptest.ResponseRecorder {
+		v := url.Values{"name": {"Tuesday Night Ride"}, "time": {"18:00"}, "place": {"NAS Pax"}, "pace": {"2"}}
+		for k, x := range vals {
+			v[k] = x
+		}
+		ct, body := form(v)
+		return do(t, h, admin, "POST", "/admin/rides/"+key, ct, body)
+	}
+	ride(url.Values{"leader:A group": {"Chris T."}, "leader:B group": {""}})
+	if o, _ := a.store.Ride(key); len(o.Leaders) != 1 || o.Leaders[0].Name != "Chris T." || o.Leaders[0].SetBy != "Board Member" || o.Leaders[0].Group != "A group" {
 		t.Errorf("admin-assigned leader: %+v", o.Leaders)
 	}
 	if len(*sent) != 1 || !strings.Contains((*sent)[0].body, "Board Member made Chris T. the leader") {
 		t.Errorf("notice: %+v", *sent)
 	}
-	ct, body = form(url.Values{"name": {"Saturday Coffee Ride"}, "weekday": {"6"}, "time": {"08:00"}})
-	do(t, h, admin, "POST", "/admin/rides/series", ct, body)
-	if len(a.store.AllSeries()) != 3 {
-		t.Errorf("weekly rides: %+v", a.store.AllSeries())
+	// An admin can change a filled spot, add a C group, and move the start time.
+	*sent = nil
+	ride(url.Values{"pace": {"3"}, "time": {"18:30"}, "leader:A group": {"Dana K."}, "leader:C group": {"Eli P."}})
+	o, _ := a.store.Ride(key)
+	if o.Time != "18:30" || len(o.Groups) != 3 || o.leaderFor("A group").Name != "Dana K." || o.leaderFor("C group").Name != "Eli P." {
+		t.Errorf("edited ride: %+v", o.CalRide)
 	}
-	if w := do(t, h, admin, "GET", "/admin/rides", "", nil); w.Code != 200 || !strings.Contains(w.Body.String(), "Chris T.") {
+	if len(*sent) != 3 || !strings.Contains((*sent)[0].body, "instead of Chris T.") || !strings.Contains((*sent)[2].subject, "has changed") {
+		t.Errorf("notices after editing: %+v", *sent)
+	}
+	// A ride needs a name; nothing is saved without one.
+	if w := ride(url.Values{"name": {""}}); w.Code != http.StatusBadRequest {
+		t.Errorf("ride without a name: %d", w.Code)
+	}
+	// Cancelling emails the club.
+	*sent = nil
+	ct, body := form(url.Values{"cancel": {"1"}})
+	do(t, h, admin, "POST", "/admin/rides/"+key+"/cancel", ct, body)
+	if o, _ := a.store.Ride(key); !o.Cancelled || len(*sent) != 1 {
+		t.Errorf("cancel: %v %+v", o.Cancelled, *sent)
+	}
+	ct, body = form(url.Values{"cancel": {"0"}})
+	do(t, h, admin, "POST", "/admin/rides/"+key+"/cancel", ct, body)
+
+	// Admins add one-off rides, and can delete them.
+	sat := nextWeekday(a, time.Saturday)
+	ct, body = form(url.Values{"name": {"Fall Colors Ride"}, "date": {sat}, "time": {"09:00"}, "pace": {""}, "leader:": {"Fran G."}})
+	w := do(t, h, admin, "POST", "/admin/rides/new", ct, body)
+	newKey := strings.TrimPrefix(strings.Split(w.Header().Get("Location"), "?")[0], "/admin/rides/")
+	if o, ok := a.store.Ride(newKey); !ok || o.Name != "Fall Colors Ride" || o.LeaderSummary() != "Fran G." {
+		t.Fatalf("added ride %q: %+v", newKey, o)
+	}
+	if w := do(t, h, admin, "GET", "/admin/calendar?m="+sat[:7], "", nil); !strings.Contains(w.Body.String(), "/admin/rides/"+newKey) {
+		t.Error("the admin calendar doesn't link to the new ride")
+	}
+	do(t, h, admin, "POST", "/admin/rides/"+newKey+"/delete", "", nil)
+	if _, ok := a.store.Ride(newKey); ok {
+		t.Error("deleted ride is still there")
+	}
+
+	ct, body = form(url.Values{"name": {"Saturday Coffee Ride"}, "weekday": {"6"}, "time": {"08:00"}, "pace": {"3"}})
+	do(t, h, admin, "POST", "/admin/weekly", ct, body)
+	if s := a.store.AllSeries(); len(s) != 3 || len(s[2].Groups) != 3 {
+		t.Errorf("weekly rides: %+v", s)
+	}
+	if w := do(t, h, admin, "GET", "/admin/rides", "", nil); w.Code != 200 || !strings.Contains(w.Body.String(), "Dana K.") {
 		t.Errorf("rides tab: %d", w.Code)
 	}
+	// Editing a weekly ride updates its dates, but not what was changed on one date.
+	satKey := seriesKey(3, sat)
+	ct, body = form(url.Values{"name": {"Saturday Coffee Ride"}, "time": {"08:00"}, "place": {"Gate 2 lot"}, "pace": {"3"}, "leader:A group": {"Gus R."}})
+	do(t, h, admin, "POST", "/admin/rides/"+satKey, ct, body)
+	ct, body = form(url.Values{"name": {"Saturday Social"}, "weekday": {"6"}, "time": {"08:30"}, "pace": {"2"}})
+	if w := do(t, h, admin, "POST", "/admin/weekly/3", ct, body); !strings.Contains(w.Header().Get("Location"), "ok=series-saved") {
+		t.Fatalf("save weekly ride: %s", w.Header().Get("Location"))
+	}
+	// The date follows the new name, time, and groups (Gus keeps the A group), but keeps its own start.
+	if o, _ := a.store.Ride(satKey); o.Name != "Saturday Social" || o.Time != "08:30" || len(o.Groups) != 2 || o.Place != "Gate 2 lot" || o.leaderFor("A group") == nil {
+		t.Errorf("weekly ride date after the edit: %+v", o.CalRide)
+	}
 	// Removing a weekly ride keeps dates that have a leader.
-	do(t, h, admin, "POST", "/admin/rides/series/1/delete", "", nil)
+	do(t, h, admin, "POST", "/admin/weekly/1/delete", "", nil)
 	found := false
 	for _, o := range a.store.Rides(a.today(), a.today().AddDate(0, 0, 14)) {
 		if o.Name == "Tuesday Night Ride" {

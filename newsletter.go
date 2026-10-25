@@ -19,11 +19,18 @@ import (
 	"time"
 )
 
-// The Paceline is the club's monthly newsletter. Issues are written in the
+// The Newsletter is the club's monthly newsletter. Issues are written in the
 // admin portal (Newsletter tab) and stored with the rest of the club data.
-// Published issues are rendered once whenever something changes and served
-// from memory like every other page, at /newsletter (the latest issue) and
+// Published issues are rendered whenever something changes (including the
+// ride calendar, which the rides block shows live) and served from memory
+// like every other page, at /newsletter (the latest issue) and
 // /newsletter/2026-10 (each issue's permanent address).
+//
+// An issue is a cover, a list of blocks the admin adds, orders, and removes
+// (stories, banners, the rides from the calendar, photos, Instagram posts),
+// and a closing line.
+
+const newsName = "PaxVelo Newsletter"
 
 type Story struct {
 	Kicker      string `json:"kicker,omitempty"` // the small red line above the heading
@@ -31,46 +38,149 @@ type Story struct {
 	Subhead     string `json:"subhead,omitempty"`
 	Body        string `json:"body,omitempty"` // same simple formatting as content/*.md
 	Photo       string `json:"photo,omitempty"`
-	PhotoAlt    string `json:"photo_alt,omitempty"`
 	PhotoFocus  string `json:"photo_focus,omitempty"` // the spot to keep in view when cropped, like "50% 20%"
 	VideoURL    string `json:"video_url,omitempty"`   // the photo becomes a play button linking here
 	VideoLength string `json:"video_length,omitempty"`
 	LinkLabel   string `json:"link_label,omitempty"`
 	LinkURL     string `json:"link_url,omitempty"`
-	Quote       string `json:"quote,omitempty"`
-	QuoteBy     string `json:"quote_by,omitempty"`
 }
 
-type Ride struct {
-	Date    string `json:"date"` // 2006-01-02
-	Name    string `json:"name"`
-	Time    string `json:"time,omitempty"`
-	Place   string `json:"place,omitempty"`
-	Details string `json:"details,omitempty"`
-	URL     string `json:"url,omitempty"` // the Strava event; blank means the club page
+// Block is one part of an issue. Which fields it uses depends on its kind.
+type Block struct {
+	ID   string `json:"id"`
+	Kind string `json:"kind"` // see blockKinds
+	Story
+	Photos []string          `json:"photos,omitempty"` // a photo strip
+	Focus  map[string]string `json:"focus,omitempty"`  // photo address → focus, for a photo strip
+	Posts  []string          `json:"posts,omitempty"`  // Instagram post links
+}
+
+type blockKind struct{ Kind, Name, Help string }
+
+var blockKinds = []blockKind{
+	{"big", "Big story", "A story with a large photo or video beside it. Good for the lead story."},
+	{"story", "Story", "A column with a photo. Stories next to each other share a row, up to three across."},
+	{"rides", "Rides from the calendar", "The club’s rides for the 5 weeks after the issue is published, filled in from the calendar. Rides that need leaders get a sign-up link."},
+	{"banner", "Banner", "A dark band across the page with a button. For one-off asks, like a kit order, a fundraiser, or volunteers."},
+	{"gallery", "Photo strip", "A row of up to 8 photos."},
+	{"instagram", "Instagram posts", "Up to 3 posts from the club’s Instagram."},
+}
+
+func kindOf(kind string) (blockKind, bool) {
+	for _, k := range blockKinds {
+		if k.Kind == kind {
+			return k, true
+		}
+	}
+	return blockKind{}, false
+}
+
+// Name is how the editor and error messages refer to the block.
+func (b Block) Name() string {
+	k, _ := kindOf(b.Kind)
+	if b.Heading != "" {
+		return k.Name + " “" + b.Heading + "”"
+	}
+	return k.Name
 }
 
 type Issue struct {
-	ID           int               `json:"id"`
-	Month        int               `json:"month"` // 1-12; a month can have several drafts but only one published issue
-	Year         int               `json:"year"`
-	CreatedBy    string            `json:"created_by,omitempty"`
-	EditedBy     string            `json:"edited_by,omitempty"`
-	Tagline      string            `json:"tagline,omitempty"`
-	Cover        string            `json:"cover,omitempty"`
-	CoverFocus   string            `json:"cover_focus,omitempty"`
-	Featured     Story             `json:"featured"`
-	Recap        Story             `json:"recap"`
-	Rides        []Ride            `json:"rides,omitempty"`
-	Spotlight    Story             `json:"spotlight"`
-	Corner       []Story           `json:"corner,omitempty"` // the row of three smaller stories
-	Kit          Story             `json:"kit"`
+	ID         int        `json:"id"`
+	Month      int        `json:"month"` // 1-12; a month can have several drafts but only one published issue
+	Year       int        `json:"year"`
+	CreatedBy  string     `json:"created_by,omitempty"`
+	EditedBy   string     `json:"edited_by,omitempty"`
+	Tagline    string     `json:"tagline,omitempty"`
+	Cover      string     `json:"cover,omitempty"`
+	CoverFocus string     `json:"cover_focus,omitempty"`
+	Blocks     []Block    `json:"blocks,omitempty"`
+	Closing    string     `json:"closing,omitempty"`
+	Published  *time.Time `json:"published,omitempty"`
+	Updated    time.Time  `json:"updated"`
+	oldIssue
+}
+
+func (is Issue) block(id string) Block {
+	for _, b := range is.Blocks {
+		if b.ID == id {
+			return b
+		}
+	}
+	return Block{}
+}
+
+// oldIssue is how issues were stored before blocks: a fixed set of sections.
+// Issues saved that way are turned into blocks when the data is loaded.
+type oldIssue struct {
+	Featured     *Story            `json:"featured,omitempty"`
+	Recap        *Story            `json:"recap,omitempty"`
+	Spotlight    *Story            `json:"spotlight,omitempty"`
+	Corner       []oldCorner       `json:"corner,omitempty"`
+	Kit          *Story            `json:"kit,omitempty"`
 	Gallery      []string          `json:"gallery,omitempty"`
-	GalleryFocus map[string]string `json:"gallery_focus,omitempty"` // photo address → focus
-	Instagram    []string          `json:"instagram,omitempty"`     // Instagram post links
-	Closing      string            `json:"closing,omitempty"`
-	Published    *time.Time        `json:"published,omitempty"`
-	Updated      time.Time         `json:"updated"`
+	GalleryFocus map[string]string `json:"gallery_focus,omitempty"`
+	Instagram    []string          `json:"instagram,omitempty"`
+	Hidden       []string          `json:"hidden,omitempty"`
+	OldRides     json.RawMessage   `json:"rides,omitempty"`
+}
+
+type oldCorner struct {
+	Story
+	Off bool `json:"off,omitempty"`
+}
+
+// upgrade turns an issue saved with fixed sections into blocks.
+func (is *Issue) upgrade() {
+	o := is.oldIssue
+	if is.Blocks != nil || (o.Featured == nil && o.Recap == nil && o.Spotlight == nil && o.Corner == nil && o.Kit == nil && o.Gallery == nil && o.OldRides == nil) {
+		return
+	}
+	shows := func(key string) bool {
+		for _, h := range o.Hidden {
+			if h == key {
+				return false
+			}
+		}
+		return true
+	}
+	add := func(kind string, st *Story) {
+		if st != nil && (st.Heading != "" || st.Body != "" || st.Photo != "") {
+			is.Blocks = append(is.Blocks, Block{ID: randHex(4), Kind: kind, Story: *st})
+		}
+	}
+	if shows("featured") {
+		add("big", o.Featured)
+	}
+	if shows("recap") {
+		add("story", o.Recap)
+	}
+	if shows("rides") {
+		is.Blocks = append(is.Blocks, Block{ID: randHex(4), Kind: "rides", Story: Story{Kicker: "Up next", Heading: "Rides coming up"}})
+	}
+	if shows("spotlight") {
+		add("story", o.Spotlight)
+	}
+	if shows("corner") {
+		for _, c := range o.Corner {
+			if !c.Off {
+				st := c.Story
+				add("story", &st)
+			}
+		}
+	}
+	if shows("kit") {
+		add("banner", o.Kit)
+	}
+	if shows("instagram") && len(o.Instagram) > 0 {
+		is.Blocks = append(is.Blocks, Block{ID: randHex(4), Kind: "instagram", Posts: o.Instagram})
+	}
+	if shows("gallery") && len(o.Gallery) > 0 {
+		is.Blocks = append(is.Blocks, Block{ID: randHex(4), Kind: "gallery", Photos: o.Gallery, Focus: o.GalleryFocus})
+	}
+	if is.Blocks == nil {
+		is.Blocks = []Block{}
+	}
+	is.oldIssue = oldIssue{}
 }
 
 // monthOption is one choice in the admin's month menus.
@@ -120,6 +230,14 @@ func cloneIssue(is *Issue) Issue {
 	b, _ := json.Marshal(is)
 	json.Unmarshal(b, &out)
 	return out
+}
+
+// upgradeIssues turns issues saved with fixed sections into blocks.
+// Callers must hold s.mu.
+func (s *Store) upgradeIssues() {
+	for _, is := range s.d.Issues {
+		is.upgrade()
+	}
 }
 
 // Issues returns every issue, newest month first. Within a month the
@@ -217,6 +335,70 @@ func (s *Store) DeleteIssue(id int) error {
 	return nil
 }
 
+// ---- The rides block ----
+
+// rideWeeks is how far ahead the rides block looks, from the day the issue
+// is published (or today, for a draft).
+const rideWeeks = 5
+
+// rideWindow is the first and last day the issue's rides block covers.
+func (a *App) rideWindow(is Issue) (time.Time, time.Time) {
+	from := a.today()
+	if is.Published != nil {
+		p := is.Published.In(a.cfg.Location)
+		from = time.Date(p.Year(), p.Month(), p.Day(), 0, 0, 0, 0, time.UTC)
+	}
+	return from, from.AddDate(0, 0, rideWeeks*7-1)
+}
+
+// issueRides is what the rides block shows: every ride in the window that
+// isn't cancelled.
+func (a *App) issueRides(is Issue) ridesView {
+	from, to := a.rideWindow(is)
+	today := a.today().Format("2006-01-02")
+	v := ridesView{From: from.Format("Jan 2"), To: to.Format("Jan 2"), CalendarURL: "/calendar?m=" + from.Format("2006-01")}
+	for _, o := range a.store.Rides(from, to) {
+		if o.Cancelled {
+			continue
+		}
+		t, _ := time.Parse("2006-01-02", o.Date)
+		sr := shownRide{Key: o.Key, Month: strings.ToUpper(t.Format("Jan")), Day: t.Format("2"), Weekday: t.Format("Monday"),
+			Name: o.Name, Time: o.TimeLabel(), Place: o.Place, Details: o.Details, Past: o.Date < today}
+		for _, sl := range o.Slots() {
+			ss := shownSlot{Group: sl.Group}
+			if sl.Leader != nil {
+				ss.Leader = sl.Leader.Name
+			} else {
+				sr.Open++
+			}
+			sr.Slots = append(sr.Slots, ss)
+		}
+		if sr.Open > 0 && !sr.Past {
+			v.Need++
+		}
+		v.Rides = append(v.Rides, sr)
+	}
+	return v
+}
+
+type ridesView struct {
+	From, To    string // like "Oct 24"
+	CalendarURL string
+	Rides       []shownRide
+	Need        int // rides still to come that need a leader
+}
+
+type shownRide struct {
+	Key, Month, Day, Weekday string
+	Name, Time, Place        string
+	Details                  string
+	Slots                    []shownSlot
+	Open                     int // spots without a leader
+	Past                     bool
+}
+
+type shownSlot struct{ Group, Leader string }
+
 // ---- Public pages ----
 
 type shownStory struct {
@@ -225,14 +407,18 @@ type shownStory struct {
 	Link string // resolved, with {kit} and friends filled in
 }
 
-func (st shownStory) Show() bool { return st.Heading != "" || st.Body != "" }
+func (st shownStory) Show() bool { return st.Heading != "" || st.Body != "" || st.Photo != "" }
 
 type shownPhoto struct{ URL, Focus string }
 
-type shownRide struct {
-	Ride
-	Month, Day string
-	Link       string
+// newsPart is one piece of the page: a block, or a row of stories side by side.
+type newsPart struct {
+	Kind   string // big, row, rides, banner, gallery, instagram
+	Story  shownStory
+	Row    []shownStory
+	Rides  ridesView
+	Photos []shownPhoto
+	Posts  []string
 }
 
 type newsView struct {
@@ -242,83 +428,84 @@ type newsView struct {
 	Label, Tagline string
 	Cover          string
 	CoverFocus     string
-	Featured       shownStory
-	Recap          shownStory
-	Rides          []shownRide
-	Spotlight      shownStory
-	Corner         []shownStory
-	Kit            shownStory
-	Gallery        []shownPhoto
-	Instagram      []string
+	Parts          []newsPart
 	Closing        string
 	StravaURL      string
 	Archive        []Issue
 	Current        string // path of the issue being shown, to mark it in the archive
 }
 
-func (s *Site) newsView(is Issue, archive []Issue) (newsView, error) {
+// newsView lays out an issue for its page. rides is what its rides block shows.
+func (s *Site) newsView(is Issue, archive []Issue, rides ridesView) (newsView, error) {
 	v := newsView{
 		ID: is.ID, Published: is.IsPublished(), Label: is.Label(), Tagline: is.Tagline, Cover: is.Cover, CoverFocus: is.CoverFocus,
-		Instagram: is.Instagram, Closing: is.Closing, StravaURL: s.cfg.StravaURL, Archive: archive, Current: is.Path(),
+		Closing: is.Closing, StravaURL: s.cfg.StravaURL, Archive: archive, Current: is.Path(),
 	}
-	story := func(name string, st Story) (shownStory, error) {
-		out := shownStory{Story: st}
-		if strings.TrimSpace(st.Body) != "" {
-			_, intro, body, err := s.md.render(st.Body, 1, pageStyle{})
+	story := func(b Block) (shownStory, error) {
+		out := shownStory{Story: b.Story}
+		if strings.TrimSpace(b.Body) != "" {
+			_, intro, body, err := s.md.render(b.Body, 1, pageStyle{})
 			if err != nil {
-				return out, fmt.Errorf("%s: %w", name, err)
+				return out, fmt.Errorf("%s: %w", b.Name(), err)
 			}
 			out.Body = intro + body
 		}
-		link, err := s.md.url(strings.TrimSpace(st.LinkURL))
+		link, err := s.md.url(strings.TrimSpace(b.LinkURL))
 		if err != nil {
-			return out, fmt.Errorf("%s, link: %w", name, err)
+			return out, fmt.Errorf("%s, link: %w", b.Name(), err)
 		}
 		out.Link = link
 		return out, nil
 	}
-	var err error
-	if v.Featured, err = story("Featured story", is.Featured); err != nil {
-		return v, err
-	}
-	if v.Recap, err = story("Last month", is.Recap); err != nil {
-		return v, err
-	}
-	if v.Spotlight, err = story("Spotlight", is.Spotlight); err != nil {
-		return v, err
-	}
-	if v.Kit, err = story("Kit", is.Kit); err != nil {
-		return v, err
-	}
-	for i, c := range is.Corner {
-		sc, err := story(fmt.Sprintf("Story %d in the row of three", i+1), c)
-		if err != nil {
-			return v, err
+	for _, b := range is.Blocks {
+		switch b.Kind {
+		case "big", "story", "banner":
+			st, err := story(b)
+			if err != nil {
+				return v, err
+			}
+			if !st.Show() {
+				continue
+			}
+			if b.Kind != "story" {
+				v.Parts = append(v.Parts, newsPart{Kind: b.Kind, Story: st})
+				continue
+			}
+			// Stories next to each other share a row, up to three across.
+			if n := len(v.Parts); n > 0 && v.Parts[n-1].Kind == "row" && len(v.Parts[n-1].Row) < 3 {
+				v.Parts[n-1].Row = append(v.Parts[n-1].Row, st)
+			} else {
+				v.Parts = append(v.Parts, newsPart{Kind: "row", Row: []shownStory{st}})
+			}
+		case "rides":
+			p := newsPart{Kind: "rides", Story: shownStory{Story: b.Story}, Rides: rides}
+			v.Parts = append(v.Parts, p)
+		case "gallery":
+			p := newsPart{Kind: "gallery"}
+			for _, g := range b.Photos {
+				p.Photos = append(p.Photos, shownPhoto{g, b.Focus[g]})
+			}
+			if len(p.Photos) > 0 {
+				v.Parts = append(v.Parts, p)
+			}
+		case "instagram":
+			if len(b.Posts) > 0 {
+				v.Parts = append(v.Parts, newsPart{Kind: "instagram", Posts: b.Posts})
+			}
 		}
-		if sc.Show() {
-			v.Corner = append(v.Corner, sc)
-		}
-	}
-	for _, g := range is.Gallery {
-		v.Gallery = append(v.Gallery, shownPhoto{g, is.GalleryFocus[g]})
-	}
-	for _, r := range is.Rides {
-		sr := shownRide{Ride: r, Link: r.URL}
-		if sr.Link == "" {
-			sr.Link = s.cfg.StravaURL
-		}
-		if t, err := time.Parse("2006-01-02", r.Date); err == nil {
-			sr.Month, sr.Day = strings.ToUpper(t.Format("Jan")), t.Format("2")
-		}
-		v.Rides = append(v.Rides, sr)
 	}
 	return v, nil
+}
+
+// issueView lays out an issue with its rides from the calendar.
+func (a *App) issueView(is Issue, archive []Issue) (newsView, error) {
+	return a.site.newsView(is, archive, a.issueRides(is))
 }
 
 func (s *Site) renderNews(v newsView, path, title string) ([]byte, error) {
 	var buf bytes.Buffer
 	view := s.view(path, title, v)
-	view.Desc = "The Paceline, PaxVelo’s monthly newsletter: stories from the road, upcoming rides, and club news."
+	view.Desc = "The PaxVelo Newsletter, every month: stories from the road, upcoming rides, and club news."
 	if err := s.dynamic["newsletter"].ExecuteTemplate(&buf, "layout", view); err != nil {
 		return nil, err
 	}
@@ -331,6 +518,7 @@ func (a *App) refreshNewsletter() {
 	// One refresh at a time, so an older snapshot can never replace a newer one.
 	a.site.newsRefresh.Lock()
 	defer a.site.newsRefresh.Unlock()
+	version, day := a.store.Version(), a.today()
 	var published []Issue
 	for _, is := range a.store.Issues() {
 		if is.IsPublished() {
@@ -345,10 +533,10 @@ func (a *App) refreshNewsletter() {
 		return &Page{Path: path, html: b, gz: gzipBytes(b), etag: etag(b)}
 	}
 	for i, is := range published {
-		v, err := a.site.newsView(is, published)
+		v, err := a.issueView(is, published)
 		var b []byte
 		if err == nil {
-			b, err = a.site.renderNews(v, is.Path(), "The Paceline, "+is.Label()+" — "+siteName)
+			b, err = a.site.renderNews(v, is.Path(), "Newsletter, "+is.Label()+" — "+siteName)
 		}
 		if err != nil {
 			log.Printf("newsletter %s: %v", is.Slug(), err)
@@ -361,7 +549,7 @@ func (a *App) refreshNewsletter() {
 		if i == 0 {
 			// The latest issue, at the address flyers and emails can always use.
 			v.Current = is.Path()
-			if b, err = a.site.renderNews(v, "/newsletter", "The Paceline — "+siteName); err == nil {
+			if b, err = a.site.renderNews(v, "/newsletter", "Newsletter — "+siteName); err == nil {
 				pages["/newsletter"] = page("/newsletter", b)
 			}
 		}
@@ -369,12 +557,12 @@ func (a *App) refreshNewsletter() {
 	if pages["/newsletter"] == nil {
 		if p := old["/newsletter"]; p != nil && len(published) > 0 {
 			pages["/newsletter"] = p
-		} else if b, err := a.site.renderNews(newsView{Empty: true}, "/newsletter", "The Paceline — "+siteName); err == nil {
+		} else if b, err := a.site.renderNews(newsView{Empty: true}, "/newsletter", "Newsletter — "+siteName); err == nil {
 			pages["/newsletter"] = page("/newsletter", b)
 		}
 	}
 	a.site.newsMu.Lock()
-	a.site.news = pages
+	a.site.news, a.site.newsVersion, a.site.newsDay = pages, version, day
 	a.site.newsMu.Unlock()
 }
 
@@ -382,6 +570,14 @@ func (a *App) newsletterPage(w http.ResponseWriter, r *http.Request) {
 	path := "/newsletter"
 	if slug := r.PathValue("slug"); slug != "" {
 		path += "/" + slug
+	}
+	// The rides block shows the calendar as it is now, so re-render when the
+	// club's data (or the date) has changed since the last render.
+	a.site.newsMu.RLock()
+	stale := a.site.newsVersion != a.store.Version() || !a.site.newsDay.Equal(a.today())
+	a.site.newsMu.RUnlock()
+	if stale {
+		a.refreshNewsletter()
 	}
 	a.site.newsMu.RLock()
 	p := a.site.news[path]
@@ -441,9 +637,41 @@ func (a *App) savePhotoFile(hdr *multipart.FileHeader) (string, error) {
 	return "/media/" + name, nil
 }
 
+// uploadNewsPhotos saves photos the moment they're chosen on the edit page,
+// so they show (and can be framed or removed) right away. They join the
+// issue when it's saved.
+func (a *App) uploadNewsPhotos(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxGallery*(maxPhoto+(1<<20)))
+	w.Header().Set("Content-Type", "application/json")
+	reply := func(status int, v any) {
+		w.WriteHeader(status)
+		json.NewEncoder(w).Encode(v)
+	}
+	if err := r.ParseMultipartForm(16 << 20); err != nil {
+		reply(http.StatusBadRequest, map[string]string{"error": "Those photos are too big together. Add a few at a time."})
+		return
+	}
+	var urls, problems []string
+	for _, fh := range r.MultipartForm.File["photos"] {
+		if len(urls) >= maxGallery {
+			break
+		}
+		u, err := a.savePhotoFile(fh)
+		if err != nil {
+			problems = append(problems, err.Error()+".")
+		} else if u != "" {
+			urls = append(urls, u)
+		}
+	}
+	if len(urls) == 0 && len(problems) == 0 {
+		problems = append(problems, "Choose a photo first.")
+	}
+	reply(http.StatusOK, map[string]any{"urls": urls, "error": strings.Join(problems, " ")})
+}
+
 // ---- Admin ----
 
-const maxRides, maxGallery, cornerCount, maxNewsInstagram = 8, 8, 3, 3
+const maxBlocks, maxGallery, maxNewsInstagram = 24, 8, 3
 
 func (a *App) newsletterAdmin(w http.ResponseWriter, r *http.Request) {
 	v := adminView{Title: "Newsletter", Tab: "newsletter", Issues: a.store.Issues(), Months: months}
@@ -462,10 +690,25 @@ func (a *App) newsletterAdmin(w http.ResponseWriter, r *http.Request) {
 	a.renderAdmin(w, r, http.StatusOK, "newsletter", v)
 }
 
-// createIssue starts a new draft. It copies the latest published issue (or
-// the latest draft) so the regular sections (new rider corner, kit, closing
-// line) carry over and only the news needs writing; the very first issue
-// starts from a sample.
+// carryOver is how a new draft starts from the last issue: the same blocks
+// (except one-off banners), keeping the regular features' headings and links
+// but not last month's text and photos.
+func carryOver(blocks []Block) []Block {
+	out := []Block{}
+	for _, b := range blocks {
+		if b.Kind == "banner" {
+			continue
+		}
+		n := Block{ID: randHex(4), Kind: b.Kind}
+		n.Kicker, n.Heading, n.LinkLabel, n.LinkURL = b.Kicker, b.Heading, b.LinkLabel, b.LinkURL
+		out = append(out, n)
+	}
+	return out
+}
+
+// createIssue starts a new draft. It follows the latest published issue (or
+// the latest draft), so the regular features carry over and only the news
+// needs writing; the very first issue starts from a sample.
 func (a *App) createIssue(w http.ResponseWriter, r *http.Request) {
 	month, _ := strconv.Atoi(r.FormValue("month"))
 	year, _ := strconv.Atoi(r.FormValue("year"))
@@ -474,30 +717,18 @@ func (a *App) createIssue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	is := sampleIssue()
-	// Sample rides on the first Tuesday, Thursday, and Saturday of the month
-	// (or from today, for this month).
-	start := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, a.cfg.Location)
-	if now := time.Now().In(a.cfg.Location); now.After(start) && now.Before(start.AddDate(0, 1, 0)) {
-		start = now
-	}
-	for i, wd := range []time.Weekday{time.Tuesday, time.Thursday, time.Saturday} {
-		d := start.AddDate(0, 0, (int(wd)-int(start.Weekday())+7)%7)
-		is.Rides[i].Date = d.Format("2006-01-02")
-	}
-	sortRides(is.Rides)
 	if list := a.store.Issues(); len(list) > 0 {
-		is = list[0]
+		last := list[0]
 		for _, x := range list {
 			if x.IsPublished() {
-				is = x
+				last = x
 				break
 			}
 		}
-		is.Rides = nil
-		is.Featured, is.Recap, is.Spotlight = Story{Kicker: is.Featured.Kicker}, Story{Kicker: is.Recap.Kicker}, Story{Kicker: is.Spotlight.Kicker}
+		is = Issue{Tagline: last.Tagline, Cover: last.Cover, CoverFocus: last.CoverFocus, Closing: last.Closing, Blocks: carryOver(last.Blocks)}
 	}
 	me, _ := a.adminName(r)
-	is.ID, is.Month, is.Year, is.Published, is.CreatedBy, is.EditedBy = 0, month, year, nil, me, me
+	is.Month, is.Year, is.CreatedBy, is.EditedBy = month, year, me, me
 	is, err := a.store.SaveIssue(is)
 	if err != nil {
 		back(w, r, "/admin/newsletter?err=save")
@@ -541,26 +772,20 @@ func (a *App) editIssuePage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) renderIssueForm(w http.ResponseWriter, r *http.Request, is Issue, problem string) {
-	v := adminView{Title: is.Label() + " newsletter", Tab: "newsletter", Issue: is, Months: months}
+	v := adminView{Title: is.Label() + " newsletter", Tab: "newsletter", Issue: is, Months: months, IssueRides: a.issueRides(is)}
 	if live, ok := a.store.LiveFor(is.Month, is.Year, is.ID); ok {
 		v.MonthLive = &live
 	}
 	v.Flash, v.Error = flashFrom(r)
 	if problem != "" {
 		v.Flash, v.Error = "", problem
-	} else if _, err := a.site.newsView(is, nil); err != nil {
+	} else if _, err := a.issueView(is, nil); err != nil {
 		v.Error = "Fix this before publishing: " + err.Error()
 	}
-	// Room for a couple more rides than there are now.
-	for want := min(max(len(is.Rides)+2, 4), maxRides); len(is.Rides) < want; {
-		is.Rides = append(is.Rides, Ride{})
-	}
-	for len(is.Corner) < cornerCount {
-		is.Corner = append(is.Corner, Story{})
-	}
-	v.Issue = is
 	a.renderAdmin(w, r, http.StatusOK, "issue", v)
 }
+
+var blockIDRE = regexp.MustCompile(`^[0-9a-f]{4,16}$`)
 
 // saveIssue handles the edit form. Text is saved even when something needs
 // fixing, so nobody loses their writing.
@@ -582,17 +807,14 @@ func (a *App) saveIssue(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	val := func(name string) string { return strings.TrimSpace(r.FormValue(name)) }
-	// The form carries each photo's current address, so photos uploaded with an
-	// edit that couldn't be saved aren't lost when it's fixed and saved again.
+	// The form carries each photo's current address (photos upload as soon as
+	// they're picked), so photos aren't lost when an edit is fixed and saved again.
 	photo := func(prefix, current string) string {
 		if v, ok := r.Form[prefix+"photo_current"]; ok {
 			current = ""
 			if len(v) > 0 && sitePhoto(v[0]) {
 				current = v[0]
 			}
-		}
-		if r.FormValue(prefix+"photo_remove") != "" {
-			current = ""
 		}
 		u, err := a.savePhoto(r, prefix+"photo_file")
 		note(err)
@@ -611,11 +833,10 @@ func (a *App) saveIssue(w http.ResponseWriter, r *http.Request) {
 	story := func(prefix string, cur Story) Story {
 		return Story{
 			Kicker: val(prefix + "kicker"), Heading: val(prefix + "heading"), Subhead: val(prefix + "subhead"),
-			Body: strings.ReplaceAll(val(prefix+"body"), "\r\n", "\n"), Photo: photo(prefix, cur.Photo), PhotoAlt: val(prefix + "photo_alt"),
+			Body: strings.ReplaceAll(val(prefix+"body"), "\r\n", "\n"), Photo: photo(prefix, cur.Photo),
 			PhotoFocus: focusFor(prefix),
 			VideoURL:   val(prefix + "video_url"), VideoLength: val(prefix + "video_length"),
 			LinkLabel: val(prefix + "link_label"), LinkURL: val(prefix + "link_url"),
-			Quote: val(prefix + "quote"), QuoteBy: val(prefix + "quote_by"),
 		}
 	}
 	month, _ := strconv.Atoi(r.FormValue("month"))
@@ -625,76 +846,58 @@ func (a *App) saveIssue(w http.ResponseWriter, r *http.Request) {
 	}
 	is.EditedBy, _ = a.adminName(r)
 	is.Tagline, is.Closing = val("tagline"), val("closing")
-	if v, ok := r.Form["instagram"]; ok {
-		posts, err := parseInstagramPosts(strings.Join(v, "\n"), maxNewsInstagram)
-		note(err)
-		if err == nil {
-			is.Instagram = posts
-		}
-	}
 	is.Cover = photo("cover.", old.Cover)
 	is.CoverFocus = focusFor("cover.")
-	is.Featured = story("featured.", old.Featured)
-	is.Recap = story("recap.", old.Recap)
-	is.Spotlight = story("spotlight.", old.Spotlight)
-	is.Kit = story("kit.", old.Kit)
-	is.Corner = nil
-	for i := 0; i < cornerCount; i++ {
-		var cur Story
-		if i < len(old.Corner) {
-			cur = old.Corner[i]
-		}
-		is.Corner = append(is.Corner, story(fmt.Sprintf("corner%d.", i), cur))
+
+	// The blocks, in the order the form lists them ("id:kind"). Each block's
+	// fields start with "b.<id>.". Only the edit form sends them (with
+	// blocks_form), so other posts leave the blocks as they were.
+	var entries []string
+	if r.FormValue("blocks_form") != "" {
+		is.Blocks, entries = []Block{}, r.Form["block"]
 	}
-	is.Rides = nil
-	for i := 0; i < maxRides; i++ {
-		p := fmt.Sprintf("ride%d.", i)
-		rd := Ride{Date: val(p + "date"), Name: val(p + "name"), Time: val(p + "time"), Place: val(p + "place"), Details: val(p + "details"), URL: val(p + "url")}
-		if rd.Name != "" {
-			is.Rides = append(is.Rides, rd)
+	for _, entry := range entries {
+		id, kind, _ := strings.Cut(entry, ":")
+		if _, known := kindOf(kind); !known || !blockIDRE.MatchString(id) || is.block(id).ID != "" || len(is.Blocks) >= maxBlocks {
+			continue
 		}
-	}
-	sortRides(is.Rides)
-	gallery := old.Gallery
-	if r.FormValue("gallery_form") != "" {
-		gallery = nil
-		for _, g := range r.Form["gallery_current"] {
-			if sitePhoto(g) {
-				gallery = append(gallery, g)
+		p, cur := "b."+id+".", old.block(id)
+		b := Block{ID: id, Kind: kind}
+		switch kind {
+		case "big", "story", "banner":
+			b.Story = story(p, cur.Story)
+		case "rides":
+			b.Kicker, b.Heading = val(p+"kicker"), val(p+"heading")
+		case "gallery":
+			focus := r.Form[p+"focus"]
+			b.Focus = map[string]string{}
+			for i, g := range r.Form[p+"photos"] {
+				if !sitePhoto(g) || len(b.Photos) >= maxGallery || containsStr(b.Photos, g) {
+					continue
+				}
+				b.Photos = append(b.Photos, g)
+				if i < len(focus) {
+					if f := cleanFocus(focus[i]); f != "" {
+						b.Focus[g] = f
+					}
+				}
+			}
+		case "instagram":
+			posts, err := parseInstagramPosts(val(p+"posts"), maxNewsInstagram)
+			note(err)
+			if err == nil {
+				b.Posts = posts
+			} else {
+				b.Posts = cur.Posts
 			}
 		}
-	}
-	is.Gallery, is.GalleryFocus = nil, map[string]string{}
-	for i, g := range gallery {
-		if r.FormValue(fmt.Sprintf("gallery%d_remove", i)) == "" {
-			is.Gallery = append(is.Gallery, g)
-			if f := cleanFocus(val(fmt.Sprintf("gallery%d_focus", i))); f != "" {
-				is.GalleryFocus[g] = f
-			} else if f := old.GalleryFocus[g]; f != "" && r.FormValue("gallery_form") == "" {
-				is.GalleryFocus[g] = f
-			}
-		}
-	}
-	var uploads []*multipart.FileHeader
-	if r.MultipartForm != nil {
-		uploads = r.MultipartForm.File["gallery_files"]
-	}
-	for _, fh := range uploads {
-		if len(is.Gallery) >= maxGallery {
-			problems = append(problems, fmt.Sprintf("The photo strip holds %d photos, so some weren’t added.", maxGallery))
-			break
-		}
-		u, err := a.savePhotoFile(fh)
-		note(err)
-		if u != "" {
-			is.Gallery = append(is.Gallery, u)
-		}
+		is.Blocks = append(is.Blocks, b)
 	}
 
 	// The save buttons can also publish or preview, so neither ever skips
 	// changes that haven't been saved yet.
 	then := r.URL.Query().Get("then")
-	_, renderErr := a.site.newsView(is, nil)
+	_, renderErr := a.issueView(is, nil)
 	if renderErr != nil && (is.IsPublished() || then == "publish") {
 		// A live issue only ever holds a version that can be shown: otherwise the
 		// page would disappear the next time the site restarts. Keep the edit in
@@ -749,21 +952,19 @@ func (a *App) saveIssue(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func containsStr(list []string, s string) bool {
+	for _, x := range list {
+		if x == s {
+			return true
+		}
+	}
+	return false
+}
+
 // sitePhoto reports whether u is a photo this site serves: one uploaded in
 // the admin or one from content/photos.
 func sitePhoto(u string) bool {
 	return (strings.HasPrefix(u, "/media/") || strings.HasPrefix(u, "/photos/")) && !strings.Contains(u, "..")
-}
-
-// sortRides puts rides in date order, with undated ones ("TBA") last.
-func sortRides(rides []Ride) {
-	sort.SliceStable(rides, func(i, j int) bool {
-		a, b := rides[i].Date, rides[j].Date
-		if a == "" || b == "" {
-			return a != "" && b == ""
-		}
-		return a < b
-	})
 }
 
 // unpublishIssue takes an issue off the website. (Publishing goes through the
@@ -797,13 +998,13 @@ func (a *App) previewIssue(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	v, err := a.site.newsView(is, nil)
+	v, err := a.issueView(is, nil)
 	if err != nil {
 		a.renderIssueForm(w, r, is, "Fix this to see the preview: "+err.Error())
 		return
 	}
 	v.Preview = true
-	b, err := a.site.renderNews(v, is.Path(), "Preview: The Paceline, "+is.Label())
+	b, err := a.site.renderNews(v, is.Path(), "Preview: Newsletter, "+is.Label())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -813,18 +1014,42 @@ func (a *App) previewIssue(w http.ResponseWriter, r *http.Request) {
 }
 
 // emailIssue drafts an email announcing the issue and opens the Email tab.
+// If the issue has a rides block, it lists the rides that still need leaders.
 func (a *App) emailIssue(w http.ResponseWriter, r *http.Request) {
 	is, ok := a.issueFromPath(w, r)
 	if !ok {
 		return
 	}
-	body := fmt.Sprintf("Hi {first_name},\n\nThe %s issue of The Paceline, PaxVelo’s newsletter, is out:\n%s%s", is.Label(), a.cfg.SiteURL, is.Path())
-	if is.Featured.Heading != "" {
-		body += "\n\nIn this issue: " + is.Featured.Heading
-		if is.Spotlight.Heading != "" {
-			body += ", " + is.Spotlight.Heading
+	body := fmt.Sprintf("Hi {first_name},\n\nThe %s issue of the PaxVelo Newsletter is out:\n%s%s", is.Label(), a.cfg.SiteURL, is.Path())
+	var headings []string
+	hasRides := false
+	for _, b := range is.Blocks {
+		if (b.Kind == "big" || b.Kind == "story") && b.Heading != "" && len(headings) < 3 {
+			headings = append(headings, b.Heading)
 		}
-		body += ", and the rides coming up this month."
+		hasRides = hasRides || b.Kind == "rides"
+	}
+	if len(headings) > 0 {
+		body += "\n\nIn this issue: " + strings.Join(headings, ", ")
+		if hasRides {
+			body += ", and the rides coming up"
+		}
+		body += "."
+	}
+	if hasRides {
+		var need []string
+		for _, rd := range a.issueRides(is).Rides {
+			if rd.Open > 0 && !rd.Past {
+				line := fmt.Sprintf("- %s %s %s: %s", rd.Weekday, rd.Month, rd.Day, rd.Name)
+				if rd.Open > 1 {
+					line += fmt.Sprintf(" (%d leaders needed)", rd.Open)
+				}
+				need = append(need, line+"\n  "+a.cfg.SiteURL+"/calendar/ride/"+rd.Key)
+			}
+		}
+		if len(need) > 0 {
+			body += "\n\nThese rides still need a leader. Open one and type your name to lead it:\n" + strings.Join(need, "\n")
+		}
 	}
 	body += "\n\nSee you on the road!\nPaxVelo"
 	if d := a.store.Draft(); d.Subject != "" || d.Body != "" {
@@ -832,53 +1057,43 @@ func (a *App) emailIssue(w http.ResponseWriter, r *http.Request) {
 		back(w, r, "/admin/email?err=draft")
 		return
 	}
-	if err := a.store.SetDraft(EmailDraft{Subject: "The Paceline: " + is.Label(), Body: body}); err != nil {
+	if err := a.store.SetDraft(EmailDraft{Subject: newsName + ": " + is.Label(), Body: body}); err != nil {
 		back(w, r, "/admin/email?err=save")
 		return
 	}
 	back(w, r, "/admin/email?ok=drafted")
 }
 
-// sampleIssue is the starting point for the very first issue: every section
+// sampleIssue is the starting point for the very first issue: a few blocks
 // filled in with example text to replace, so it's clear what goes where.
 func sampleIssue() Issue {
 	return Issue{
 		Tagline: "Stories from the road.",
 		Cover:   "/photos/hero.webp",
-		Featured: Story{
-			Kicker: "Rider of the month", Heading: "Meet Sarah M.", Subhead: "The people behind the pedals.",
-			Body:  "This month we’re shining the spotlight on **Sarah M.**, a longtime PaxVelo member, weekend warrior, and the kind of rider who always brings good vibes (and great coffee).\n\nSarah started with the Saturday social ride and now pulls on the Thursday paceline. Her advice for new riders: show up, sit in, and ask questions.",
-			Photo: "/photos/ride.webp", PhotoAlt: "Sarah on a club ride",
-			LinkLabel: "Watch her interview", Quote: "PaxVelo has pushed me to be a stronger rider and a better version of myself, on and off the bike.", QuoteBy: "Sarah M.",
+		Blocks: []Block{
+			{ID: randHex(4), Kind: "big", Story: Story{
+				Kicker: "Rider of the month", Heading: "Meet Sarah M.", Subhead: "The people behind the pedals.",
+				Body:  "This month we’re shining the spotlight on **Sarah M.**, a longtime PaxVelo member and the kind of rider who always brings good vibes (and great coffee).\n\nHer advice for new riders: show up, sit in, and ask questions.",
+				Photo: "/photos/ride.webp",
+			}},
+			{ID: randHex(4), Kind: "story", Story: Story{
+				Kicker: "Last month", Heading: "September highlights",
+				Body:  "From fast Tuesday pushes to scenic weekend rides, here are the moments that made the month.",
+				Photo: "/photos/hero.webp", LinkLabel: "More rides on Strava", LinkURL: "{strava}",
+			}},
+			{ID: randHex(4), Kind: "story", Story: Story{
+				Kicker: "Ride leader spotlight", Heading: "Chris T.",
+				Body:  "Get to know the faces that keep our rides rolling: his favorite route, his go-to ride snack, and why he gives back to the club.",
+				Photo: "/photos/giving.webp",
+			}},
+			{ID: randHex(4), Kind: "story", Story: Story{
+				Kicker: "New to PaxVelo?", Heading: "New Rider Corner",
+				Body:      "Start with Bike Safety 101 and a weekend social ride. Everyone was new once.",
+				LinkLabel: "Read Bike Safety 101", LinkURL: "/bike-safety",
+			}},
+			{ID: randHex(4), Kind: "rides", Story: Story{Kicker: "Up next", Heading: "Rides coming up"}},
+			{ID: randHex(4), Kind: "gallery", Photos: []string{"/photos/hero.webp", "/photos/ride.webp", "/photos/giving.webp"}},
 		},
-		Recap: Story{
-			Kicker: "Last month in motion", Heading: "September highlights",
-			Body:  "From fast Tuesday pushes to scenic weekend rides, here are the moments that made the month.",
-			Photo: "/photos/hero.webp", PhotoAlt: "Riders on a country road",
-			LinkLabel: "More rides on Strava", LinkURL: "{strava}",
-		},
-		Rides: []Ride{
-			{Name: "Tuesday Night Ride", Time: "6:00 PM", Place: "NAS Pax", Details: "Fast · A and B groups"},
-			{Name: "Thursday Night Ride", Time: "6:00 PM", Place: "Park & Ride, Gate 2", Details: "Paceline · about 40 mi"},
-			{Name: "Weekend Social", Time: "8:00 AM", Place: "Leonardtown", Details: "Casual · all levels"},
-		},
-		Spotlight: Story{
-			Kicker: "Ride leader spotlight", Heading: "Chris T.",
-			Body:  "Get to know the faces that keep our rides rolling. This month it’s **Chris T.**, our Thursday ride leader: his favorite route, his go-to ride snack, and why he gives back to the club.",
-			Photo: "/photos/giving.webp", PhotoAlt: "Chris at the start of a ride",
-			LinkLabel: "Read more",
-		},
-		Corner: []Story{
-			{Kicker: "Buy · Sell · Trade", Heading: "The Swap Meet", Body: "Looking for a new wheelset? Got a bike that needs a new home? Post it in the #swap-meet channel on our Discord.", LinkLabel: "Visit the swap meet", LinkURL: "https://discord.gg/8TtR4pu4C2"},
-			{Kicker: "New to PaxVelo?", Heading: "New Rider Corner", Body: "Whether you’re just getting started or getting back in the saddle, start with Bike Safety 101 and the Weekend Social ride. Everyone was new once.", LinkLabel: "Read Bike Safety 101", LinkURL: "/bike-safety"},
-			{Kicker: "Riding for a bigger purpose", Heading: "Community Miles", Body: "Proceeds from the St. Mary’s Century support local causes chosen by our members. Thanks to your miles, we’re making a difference, one ride at a time.", Photo: "/photos/giving.webp", PhotoAlt: "Club members with a donation check", LinkLabel: "Our impact", LinkURL: "/"},
-		},
-		Kit: Story{
-			Kicker: "Calling all designers", Heading: "Design our next kit",
-			Body:      "We’re looking for club members to help design the next PaxVelo kit. Sketches, color ideas, and full designs are all welcome. Email [PaxVeloClub@gmail.com](mailto:PaxVeloClub@gmail.com) to get involved.",
-			LinkLabel: "See our current kit", LinkURL: "{kit}",
-		},
-		Gallery: []string{"/photos/hero.webp", "/photos/ride.webp", "/photos/giving.webp"},
 		Closing: "Your next ride starts here.",
 	}
 }
@@ -886,9 +1101,9 @@ func sampleIssue() Issue {
 // storyForm feeds the "story" admin template: which form fields to show for
 // one story, and the story's current values.
 type storyForm struct {
-	P    string // form field prefix, like "featured."
+	P    string // form field prefix, like "b.1a2b."
 	S    Story
-	Opts string // extra fields: kicker, subhead, video, quote
+	Opts string // extra fields: kicker, subhead, video, button
 }
 
 func (f storyForm) Has(opt string) bool { return strings.Contains(" "+f.Opts+" ", " "+opt+" ") }
@@ -896,6 +1111,24 @@ func (f storyForm) Has(opt string) bool { return strings.Contains(" "+f.Opts+" "
 func storyFields(prefix string, s Story, opts string) storyForm { return storyForm{prefix, s, opts} }
 
 func photoStory(photo, focus string) Story { return Story{Photo: photo, PhotoFocus: focus} }
+
+// blockForm feeds the "block" admin template: one block on the edit page.
+type blockForm struct {
+	Block
+	P     string // its form fields' prefix
+	Kind  blockKind
+	Rides ridesView
+}
+
+func blockFields(b Block, rides ridesView) blockForm {
+	k, _ := kindOf(b.Kind)
+	return blockForm{Block: b, P: "b." + b.ID + ".", Kind: k, Rides: rides}
+}
+
+// stripItem feeds the "strip-item" admin template: one photo in a photo strip.
+type stripItem struct{ P, URL, Focus string }
+
+func stripPhoto(prefix, url, focus string) stripItem { return stripItem{prefix, url, focus} }
 
 // framerView feeds the "framer" admin template: a photo, its focus, and the
 // form field the focus is saved in.

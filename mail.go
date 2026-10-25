@@ -137,6 +137,12 @@ func (m *Mailer) Notify(subject, body string) {
 	}()
 }
 
+// SendDirect sends one email that isn't to the member list, like an admin's
+// password link, so it has no unsubscribe link.
+func (m *Mailer) SendDirect(toName, toEmail, subject, body string) error {
+	return m.send(toName, toEmail, subject, body, m.cfg.SiteURL)
+}
+
 func (m *Mailer) SendWelcome(mem Member) {
 	w := m.store.Welcome()
 	if !w.Enabled {
