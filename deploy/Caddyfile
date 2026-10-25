@@ -1,11 +1,21 @@
 # Caddy serves the site over HTTPS and renews the certificate automatically.
-www.paxvelo.club {
+#
+# For now the site runs at paxvelo.cc, while the Squarespace site keeps
+# paxvelo.club. To move it to paxvelo.club, see README.md ("Moving to
+# paxvelo.club"): change paxvelo.cc to paxvelo.club in the two blocks below,
+# and remove the # in front of the last block so old .cc links keep working.
+www.paxvelo.cc {
 	encode zstd gzip
 	reverse_proxy 127.0.0.1:8080
 	header Strict-Transport-Security "max-age=31536000"
 }
 
-# Send the bare domain to www, same as the current site.
-paxvelo.club {
-	redir https://www.paxvelo.club{uri} permanent
+# Send the bare domain to www.
+paxvelo.cc {
+	redir https://www.paxvelo.cc{uri} permanent
 }
+
+# After the move: send the old paxvelo.cc addresses to paxvelo.club.
+# paxvelo.cc, www.paxvelo.cc {
+# 	redir https://www.paxvelo.club{uri} permanent
+# }

@@ -108,7 +108,7 @@ Strava's public API documents clubs but not club events, so this reads them the 
 
 **Setting up the Strava API application** (once, by a club admin):
 
-1. Signed in to Strava, go to https://www.strava.com/settings/api and create an application: name *PaxVelo Cycling Club*, category *Social*, website `https://www.paxvelo.club`, and **Authorization Callback Domain** `www.paxvelo.club`.
+1. Signed in to Strava, go to https://www.strava.com/settings/api and create an application: name *PaxVelo Cycling Club*, category *Social*, website `https://www.paxvelo.cc`, and **Authorization Callback Domain** `www.paxvelo.cc` (change both to paxvelo.club when the site moves there).
 2. Copy its **Client ID** and **Client Secret** into `paxvelo.conf` as `STRAVA_CLIENT_ID` and `STRAVA_CLIENT_SECRET`, then restart the site.
 
 New Strava applications allow one connected athlete, which is all the import needs. Club admins can also **Sign in with Strava** on the calendar to change leaders there; for more than one of them, use **Request higher capacity** on the same Strava page.
@@ -173,14 +173,26 @@ Every email has an unsubscribe link, and Gmail and Yahoo show their own one-clic
 
 ## Putting it online
 
-You need a small Ubuntu 24.04 server (about $5/month at Hetzner, DigitalOcean, or similar) and access to the paxvelo.club DNS settings.
+You need a small Ubuntu 24.04 server (about $5/month at RackNerd, Vultr, or similar) and access to the domain's DNS settings.
 
-1. **DNS:** point both `paxvelo.club` and `www.paxvelo.club` (A records) at the server's IP address.
+For now the site runs at **paxvelo.cc**, while the old Squarespace site keeps **paxvelo.club**. The two don't affect each other. The address is set in just two places: `deploy/Caddyfile` (HTTPS) and `SITE_URL` in `paxvelo.conf` (links in emails). When it's time, see "Moving to paxvelo.club" below.
+
+1. **DNS:** point both `paxvelo.cc` and `www.paxvelo.cc` (A records) at the server's IP address. Leave the paxvelo.club DNS alone.
 2. **One-time server setup:** `scp -r deploy root@SERVER:/root/ && ssh root@SERVER 'cd deploy && sh setup.sh'`
 3. **Settings:** `scp paxvelo.conf root@SERVER:/opt/paxvelo/` then `ssh root@SERVER 'chown paxvelo /opt/paxvelo/paxvelo.conf && chmod 600 /opt/paxvelo/paxvelo.conf'`
 4. **Publishing:** connect GitHub (below) so every saved change goes live by itself. To publish by hand instead, run `./deploy/deploy.sh root@SERVER`.
 
 HTTPS certificates are set up and renewed automatically by Caddy, and security updates install themselves. A send that was in progress during a deploy picks up where it left off.
+
+### Moving to paxvelo.club
+
+When the new site is ready to replace Squarespace:
+
+1. **Caddyfile:** in `deploy/Caddyfile`, change `paxvelo.cc` to `paxvelo.club` in the first two blocks, and remove the `#` in front of each line of the last block, so old paxvelo.cc links (in emails already sent, say) go to the same page on paxvelo.club. Save it to GitHub, then put it on the server: `scp deploy/Caddyfile root@SERVER:/etc/caddy/Caddyfile && ssh root@SERVER 'systemctl reload caddy'`. (Publishing doesn't copy the Caddyfile, only the site.)
+2. **Settings:** on the server, set `SITE_URL=https://www.paxvelo.club` in `/opt/paxvelo/paxvelo.conf`, then `ssh root@SERVER 'systemctl restart paxvelo'`.
+3. **DNS:** in the paxvelo.club DNS settings, replace Squarespace's records for `paxvelo.club` and `www` with A records pointing at the server's IP address. Keep the paxvelo.cc records too, so the redirect works. Caddy gets the new HTTPS certificate on its own within a few minutes of the DNS change.
+4. **Strava:** if the Strava app is set up, change its "Authorization Callback Domain" to `www.paxvelo.club`.
+5. **Squarespace:** once paxvelo.club shows the new site, cancel the Squarespace website plan, but keep the paxvelo.club domain registration (it can stay at Squarespace or move to another registrar). Keep paxvelo.cc renewing too while old links are still around.
 
 ## Automatic publishing
 

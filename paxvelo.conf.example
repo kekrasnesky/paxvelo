@@ -1,7 +1,8 @@
 # PaxVelo settings. Copy this file to paxvelo.conf and fill in the blanks.
 
-# The public address of the site (used for links in emails).
-SITE_URL=https://www.paxvelo.club
+# The public address of the site (used for links in emails). It's paxvelo.cc
+# while Squarespace still has paxvelo.club; change it when the site moves.
+SITE_URL=https://www.paxvelo.cc
 
 # The setup password for the admin portal at /admin (12+ characters). It logs
 # in before any admin accounts exist, and after that works as an emergency key
