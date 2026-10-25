@@ -630,7 +630,8 @@ func (a *App) savePhoto(r *http.Request, field string) (string, error) {
 	return a.savePhotoFile(r.MultipartForm.File[field][0])
 }
 
-// savePhotoFile stores one uploaded photo under a random name.
+// savePhotoFile stores one uploaded photo under a random name, shrunk to a
+// size that loads quickly (see shrinkPhoto).
 func (a *App) savePhotoFile(hdr *multipart.FileHeader) (string, error) {
 	if hdr.Size == 0 {
 		return "", nil
@@ -651,6 +652,7 @@ func (a *App) savePhotoFile(hdr *multipart.FileHeader) (string, error) {
 	if !ok {
 		return "", fmt.Errorf("%s isn’t a photo this site can show. Use JPG, PNG, or WebP", hdr.Filename)
 	}
+	b, ext = shrinkPhoto(b, ext)
 	if err := os.MkdirAll(a.mediaDir(), 0o755); err != nil {
 		return "", err
 	}

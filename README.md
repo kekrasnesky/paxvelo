@@ -58,6 +58,8 @@ Text boxes use the same simple formatting as the pages in `content/` (bold, link
 
 Photos upload the moment you pick them or drop them on a photo box, so you see them right away; **Remove photo** takes one out straight away too. Every photo has framing: click the spot to keep in view (like faces), and the small previews show how it's cropped. The photo strip takes several photos at once (up to 8): each shows the crop the strip uses, the arrows change the order, and **Remove** takes one out.
 
+Uploaded photos are shrunk automatically so pages load fast, even on a phone: JPG and PNG photos are made at most 2000 pixels on their long side and saved as JPG, usually under 400 KB (a PNG with see-through parts stays a PNG). Sideways phone photos are turned upright, and the camera's hidden details, like where the photo was taken, are dropped. WebP and GIF photos are kept as they are. This applies everywhere photos are uploaded: newsletters, pages, and the board. Photos can be up to 8 MB.
+
 Uploaded photos are stored on the server in `data/media`. The server backs them up weekly (with the minutes files) to `/opt/paxvelo/backups`; the **Download a full backup** link covers the text only.
 
 ## Admin accounts
