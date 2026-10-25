@@ -406,7 +406,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   <h1>Rides</h1>
   <p class="muted">Everything here shows on the public <a href="/calendar" target="_blank" rel="noopener">ride calendar</a>.</p>
 </div>
-{{if not .StravaReady}}<p class="flash warn">“Sign in with Strava” isn’t set up yet, so riders can see the calendar but can’t sign up to lead. Until it is, assign leaders below. README.md, “Ride calendar”, explains the setup.</p>{{end}}
+{{if not .StravaReady}}<p class="flash warn">The Strava settings aren’t in paxvelo.conf yet, so the club’s Strava events aren’t imported and club admins can’t sign in with Strava on the calendar. Riders can still sign up to lead by typing their name. README.md, “Ride calendar”, explains the setup.</p>{{end}}
 
 <h2 class="section">Coming up</h2>
 <p class="muted small">The next 60 days. A ride with a leader can only be changed by its leader (stepping down), a club admin on Strava, or here. Changing a leader emails the club.</p>

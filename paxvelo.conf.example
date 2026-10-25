@@ -25,9 +25,11 @@ STRAVA_URL=https://www.strava.com/clubs/10197
 DONATE_URL=
 
 # ---- Ride calendar ----
-# Ride leaders sign in with Strava. To turn that on, create a Strava API
-# application (see README.md, "Ride calendar") and paste its two values here.
-# Until then the calendar is view-only, and admins assign leaders in the admin.
+# Riders sign up to lead by typing their name; no Strava needed for that.
+# These two values turn on the hourly import of the club's Strava events and
+# let club admins sign in with Strava on the calendar to change leaders.
+# Create a Strava API application (see README.md, "Ride calendar") and paste
+# its two values here.
 STRAVA_CLIENT_ID=
 STRAVA_CLIENT_SECRET=
 # Where "new ride leader" notices go. Defaults to ADMIN_EMAIL.

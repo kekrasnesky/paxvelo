@@ -16,8 +16,8 @@ import (
 	"time"
 )
 
-// Ride leaders sign in with Strava ("Sign in with Strava" on the calendar).
-// Strava tells us who they are, whether they belong to the PaxVelo club, and
+// Club admins sign in with Strava ("Sign in with Strava" on the calendar) to
+// change leaders; riders sign up to lead by name. Strava tells us who they are, whether they belong to the PaxVelo club, and
 // whether they're one of its admins, which is what lets someone post club
 // events on Strava. Nothing else is read, no password is ever seen, and the
 // Strava access key is used once at sign-in and then thrown away.
