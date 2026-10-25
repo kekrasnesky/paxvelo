@@ -5,7 +5,8 @@
 :root{
   --ink:#2d2d2d;      /* header and footer */
   --paper:#f5f2ec;    /* page background, light text */
-  --red:#9a2b29;      /* headings and body text */
+  --red:#9a2b29;      /* headings, links, and buttons */
+  --text:#2f2a28;     /* body text: dark, so long paragraphs are easy to read */
   --rule:rgba(154,43,41,.22);
   --pad:6.4vw;        /* page side margin */
   --font:Poppins,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
@@ -13,10 +14,11 @@
 *,*::before,*::after{box-sizing:border-box}
 [hidden]{display:none!important}
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
-body{margin:0;background:var(--paper);color:var(--red);font:300 1rem/1.8 var(--font);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+body{margin:0;background:var(--paper);color:var(--text);font:300 1rem/1.8 var(--font);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
 img,svg{display:block;max-width:100%}
 a{color:inherit;text-underline-offset:3px}
-h1,h2,h3{margin:0;font-weight:500;line-height:1.2}
+h1,h2,h3{margin:0;font-weight:500;line-height:1.2;color:var(--red)}
+main p a,main li a,main td a{color:var(--red)}
 strong{font-weight:500}
 :focus-visible{outline:2px solid currentColor;outline-offset:3px}
 .skip{position:absolute;left:-9999px;top:.5rem;z-index:50;background:var(--paper);color:var(--ink);padding:.5rem 1rem}
@@ -64,7 +66,7 @@ strong{font-weight:500}
 .hero-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .hero::after{content:"";position:absolute;inset:0;background:linear-gradient(rgba(0,0,0,.42),rgba(0,0,0,.24))}
 .hero-in{position:relative;z-index:1;width:100%;padding:6.5vw max(20px,2vw) 6vw}
-.hero h1{font-size:clamp(2.4rem,9.2vw,9rem)}
+.hero h1{font-size:clamp(2.4rem,9.2vw,9rem);color:inherit}
 .hero p{margin:0}
 .hero .lead{margin:8.4vw 0 0;font-weight:500;font-size:clamp(1.35rem,4.42vw,4.4rem);line-height:1.2}
 @media (min-width:768px){.hero h1,.hero .lead{white-space:nowrap}}

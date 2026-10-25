@@ -105,7 +105,7 @@ func (s *Store) SetBoard(b []BoardMember) error {
 }
 
 func defaultBoard() []BoardMember {
-	return []BoardMember{{Name: "Name", Role: "President"}, {Name: "Name", Role: "Vice President"}, {Name: "Name", Role: "Treasurer"}, {Name: "Name", Role: "Secretary"}}
+	return []BoardMember{{Name: "Karl Krasnesky", Role: "President"}, {Name: "Allie Kampmeyer", Role: "Vice President"}, {Name: "Barry Murphy", Role: "Treasurer"}, {Name: "Gabe Murray", Role: "Secretary"}}
 }
 
 // ---- Admin: Pages ----
