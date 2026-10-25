@@ -69,6 +69,8 @@ Each admin logs in at `paxvelo.club/admin` with their own email address and pass
 - **The first login:** before any accounts exist, log in with your name and the setup password (`ADMIN_PASSWORD` in `paxvelo.conf`, at least 12 characters). Then open the **Admins** tab and add yourself and the other admins.
 - **Adding an admin:** enter their name and email. They get an email with a link to choose their password (it works for 7 days). **Send a new link** next to their name sends another.
 - **Forgotten passwords:** **Forgot your password?** on the login page emails a link that works for an hour. It says the same thing whether or not the email belongs to an admin.
+- **The president:** one admin is marked **President** on the Admins tab, and only they can remove admins or delete members. Every other admin can do everything else, including adding admins and members and marking dues paid. The president hands the role on with **Make president** next to someone else. Until anyone is president, any admin can name the first one. Someone logged in with the setup password can do all of this too.
+- **Last login** on the Admins tab shows when each admin last logged in. Admins stay logged in for 30 days on the same device, so it's the last time they typed their password, not necessarily the last time they used the admin.
 - **Removing an admin** logs them out everywhere. So does choosing a new password (**Change your password** on the Admins tab).
 - **Emergency key:** `ADMIN_PASSWORD` still logs in with any admin's email, for whoever runs the server, in case email stops working. Changing it logs everyone out.
 
@@ -155,6 +157,8 @@ Dues are $35 (Individual) or $45 (Family) per calendar year, paid through PayPal
 1. Create a free PayPal Business account for the club, if you don't have one.
 2. In PayPal, go to **Pay Links and Buttons** and create two payment links: Individual for $35 and Family for $45.
 3. Paste them into `paxvelo.conf` as `PAYPAL_INDIVIDUAL_URL` and `PAYPAL_FAMILY_URL`.
+
+The Join page asks for a name, email, and phone number, an emergency contact (their name and phone), and the plan. The admin Members page lists all of them, and **Export CSV** includes them. Someone already on the list who joins again with the same email gets their phone and emergency contact updated, so members from before these fields existed can fill them in.
 
 When someone joins, they pick a plan and land on the right PayPal link. PayPal emails the club for each payment. Find that person on the admin Members page and press **Mark paid**. The **Not paid** filter shows who still owes. On January 1 everyone shows as not paid for the new year, so you can email just that group a reminder. Put `{pay_link}` in the message and each member gets their own plan's link.
 

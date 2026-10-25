@@ -178,3 +178,5 @@ details.more[open]{display:grid;gap:.6rem;padding-bottom:.8rem}
 .seg button+button{border-left:0}
 .seg button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
 .mail-preview iframe{display:block;width:100%;max-width:600px;height:420px;margin:0 auto;border:1px solid var(--line);background:#f5f2ec}
+.tag-pres{border-color:var(--red);color:var(--red)}
+.opt{font-weight:300;color:var(--muted)}

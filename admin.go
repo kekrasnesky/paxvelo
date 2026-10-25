@@ -33,6 +33,11 @@ type adminView struct {
 	Members       []Member
 	Active, Unsub int
 	Paid, Unpaid  int // active members paid / not paid for Year
+	// CanManage: the logged-in admin may delete members and remove admins
+	// (the president, or whoever has the server's setup password).
+	CanManage bool
+	// CanNamePresident: the logged-in admin may choose who is president.
+	CanNamePresident bool
 	// Email tab
 	Campaigns     []Campaign
 	Draft         EmailDraft
@@ -224,6 +229,7 @@ var flashText = map[string]string{
 	"invited":           "Added. They’ve been emailed a link to choose their password.",
 	"link-sent":         "A new password link is on its way.",
 	"admin-removed":     "Admin removed. They can’t log in anymore.",
+	"president":         "Saved. The president is marked below, and is the one admin who can remove admins and delete members.",
 	"password-set":      "Your password is set. Next time, log in with your email and this password.",
 	"password-changed":  "Password changed. Any other devices you were logged in on are logged out.",
 	"series-deleted":    "Weekly ride removed. Dates that already had a leader stay on the calendar.",
@@ -241,35 +247,39 @@ var flashText = map[string]string{
 }
 
 var errorText = map[string]string{
-	"name":         "Enter a name.",
-	"email":        "Enter a valid email address.",
-	"file":         "Choose a CSV file to import.",
-	"csv":          "That file couldn’t be read as a CSV. Export it from your spreadsheet as “CSV” and try again.",
-	"nocol":        "Couldn’t find an email column in that file.",
-	"empty":        "Add a subject and a message first.",
-	"welcome":      "The welcome email needs a subject and a message.",
-	"save":         "Couldn’t save. Check the server log.",
-	"month":        "Choose a month and year.",
-	"series":       "A weekly ride needs a name, a day, and a start time.",
-	"connect":      "Connecting to Strava didn’t work. Try again.",
-	"sync":         "Reading the club’s events from Strava didn’t work. See the error below.",
-	"nostrava":     "Add the Strava API settings to paxvelo.conf first (README.md, “Ride calendar”).",
-	"season":       "Pick both season dates, or neither.",
-	"noride":       "That ride isn’t on the calendar anymore.",
-	"page-title":   "Give the new page a title.",
-	"page-address": "The address can only use lowercase letters, numbers, and dashes, like group-ride-etiquette.",
-	"page-taken":   "That address is already used. Pick a different title or address.",
-	"admin-exists": "There’s already an admin with that email.",
-	"invite":       "Added, but the email didn’t send. Check the email settings, then press “Send a new link” next to their name.",
-	"remove-self":  "You can’t remove yourself. Ask another admin to.",
-	"current":      "Your current password isn’t right, so it wasn’t changed.",
-	"short":        "Use at least 10 characters for your new password.",
-	"mismatch":     "The two new passwords don’t match.",
-	"date":         "Enter the meeting date.",
-	"nofile":       "Choose the minutes file to upload.",
-	"bigfile":      "That file is too big. Minutes can be up to 20 MB.",
-	"gone":         "That issue was deleted.",
-	"draft":        "There’s already an unsent email here, so the newsletter announcement didn’t replace it. Send it, or press Discard draft, then try “Email members about it” again.",
+	"name":            "Enter a name.",
+	"email":           "Enter a valid email address.",
+	"phone":           "Enter a phone number with its area code, like 301-555-0123.",
+	"emergency":       "Enter the emergency contact’s name.",
+	"emergency-phone": "Enter the emergency contact’s phone number, with its area code.",
+	"president-only":  "Only the president can do that.",
+	"file":            "Choose a CSV file to import.",
+	"csv":             "That file couldn’t be read as a CSV. Export it from your spreadsheet as “CSV” and try again.",
+	"nocol":           "Couldn’t find an email column in that file.",
+	"empty":           "Add a subject and a message first.",
+	"welcome":         "The welcome email needs a subject and a message.",
+	"save":            "Couldn’t save. Check the server log.",
+	"month":           "Choose a month and year.",
+	"series":          "A weekly ride needs a name, a day, and a start time.",
+	"connect":         "Connecting to Strava didn’t work. Try again.",
+	"sync":            "Reading the club’s events from Strava didn’t work. See the error below.",
+	"nostrava":        "Add the Strava API settings to paxvelo.conf first (README.md, “Ride calendar”).",
+	"season":          "Pick both season dates, or neither.",
+	"noride":          "That ride isn’t on the calendar anymore.",
+	"page-title":      "Give the new page a title.",
+	"page-address":    "The address can only use lowercase letters, numbers, and dashes, like group-ride-etiquette.",
+	"page-taken":      "That address is already used. Pick a different title or address.",
+	"admin-exists":    "There’s already an admin with that email.",
+	"invite":          "Added, but the email didn’t send. Check the email settings, then press “Send a new link” next to their name.",
+	"remove-self":     "You can’t remove yourself. Ask another admin to.",
+	"current":         "Your current password isn’t right, so it wasn’t changed.",
+	"short":           "Use at least 10 characters for your new password.",
+	"mismatch":        "The two new passwords don’t match.",
+	"date":            "Enter the meeting date.",
+	"nofile":          "Choose the minutes file to upload.",
+	"bigfile":         "That file is too big. Minutes can be up to 20 MB.",
+	"gone":            "That issue was deleted.",
+	"draft":           "There’s already an unsent email here, so the newsletter announcement didn’t replace it. Send it, or press Discard draft, then try “Email members about it” again.",
 }
 
 func flashFrom(r *http.Request) (flash, errMsg string) {
@@ -307,7 +317,7 @@ func back(w http.ResponseWriter, r *http.Request, to string) {
 func (a *App) membersPage(w http.ResponseWriter, r *http.Request) {
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
 	dues := r.URL.Query().Get("dues")
-	v := adminView{Title: "Members", Tab: "members", Q: q, Dues: dues, Year: a.cfg.ThisYear()}
+	v := adminView{Title: "Members", Tab: "members", Q: q, Dues: dues, Year: a.cfg.ThisYear(), CanManage: a.canManage(r)}
 	v.Flash, v.Error = flashFrom(r)
 	lq := strings.ToLower(q)
 	for _, m := range a.store.Members() {
@@ -322,7 +332,7 @@ func (a *App) membersPage(w http.ResponseWriter, r *http.Request) {
 		} else {
 			v.Unsub++
 		}
-		if lq != "" && !strings.Contains(strings.ToLower(m.Name), lq) && !strings.Contains(m.Email, lq) {
+		if lq != "" && !m.matches(lq) {
 			continue
 		}
 		if (dues == "paid" && !paid) || (dues == "unpaid" && paid) {
@@ -331,6 +341,14 @@ func (a *App) membersPage(w http.ResponseWriter, r *http.Request) {
 		v.Members = append(v.Members, m)
 	}
 	a.renderAdmin(w, r, http.StatusOK, "members", v)
+}
+
+// matches reports whether a member's name, email, or phone number contains
+// the (lowercase) search text.
+func (m Member) matches(lq string) bool {
+	digits := phoneDigits(lq)
+	return strings.Contains(strings.ToLower(m.Name), lq) || strings.Contains(m.Email, lq) ||
+		(len(digits) >= 3 && strings.Contains(phoneDigits(m.Phone), digits))
 }
 
 // markPaid records (or undoes) this year's dues for a member, usually right
@@ -358,18 +376,13 @@ func (a *App) markPaid(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) addMember(w http.ResponseWriter, r *http.Request) {
-	name := cleanName(r.FormValue("name"))
-	email, ok := cleanEmail(r.FormValue("email"))
-	switch {
-	case name == "":
-		back(w, r, "/admin?err=name")
-		return
-	case !ok:
-		back(w, r, "/admin?err=email")
+	d, problem := joinDetails(r, false)
+	if problem != "" {
+		back(w, r, "/admin?err="+problem)
 		return
 	}
 	year := a.cfg.ThisYear()
-	m, res, err := a.store.Join(name, email, cleanPlan(r.FormValue("plan")), year)
+	m, res, err := a.store.Join(d, year)
 	if err == nil && r.FormValue("paid") != "" {
 		err = a.store.SetPaid(m.ID, year, true)
 	}
@@ -383,7 +396,12 @@ func (a *App) addMember(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// deleteMember takes someone off the list for good. Only the president can.
 func (a *App) deleteMember(w http.ResponseWriter, r *http.Request) {
+	if !a.canManage(r) {
+		back(w, r, "/admin?err=president-only")
+		return
+	}
 	id, _ := strconv.Atoi(r.PathValue("id"))
 	if err := a.store.DeleteMember(id); err != nil {
 		back(w, r, "/admin?err=save")
@@ -397,7 +415,7 @@ func (a *App) exportCSV(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition", `attachment; filename="paxvelo-members-`+time.Now().In(a.cfg.Location).Format("2006-01-02")+`.csv"`)
 	cw := csv.NewWriter(w)
 	year := a.cfg.ThisYear()
-	cw.Write([]string{"Name", "Email", "Plan", fmt.Sprintf("Paid %d", year), "Years paid", "Joined", "Status"})
+	cw.Write([]string{"Name", "Email", "Phone", "Emergency contact", "Emergency phone", "Plan", fmt.Sprintf("Paid %d", year), "Years paid", "Joined", "Status"})
 	for _, m := range a.store.Members() {
 		status := "Active"
 		if !m.Active() {
@@ -411,7 +429,7 @@ func (a *App) exportCSV(w http.ResponseWriter, r *http.Request) {
 		for i, y := range m.PaidYears {
 			years[i] = strconv.Itoa(y)
 		}
-		cw.Write([]string{m.Name, m.Email, m.PlanName(), paid, strings.Join(years, " "),
+		cw.Write([]string{m.Name, m.Email, m.Phone, m.EmergencyName, m.EmergencyPhone, m.PlanName(), paid, strings.Join(years, " "),
 			m.Joined.In(a.cfg.Location).Format("2006-01-02"), status})
 	}
 	cw.Flush()
@@ -479,7 +497,8 @@ func importDate(s string) time.Time {
 
 // parseImport reads a member list exported from Squarespace, a spreadsheet,
 // or this site's own export. It needs an email column and picks up whatever
-// else it recognizes: names, plan, years paid, join date, and opt-outs.
+// else it recognizes: names, phone numbers, emergency contacts, plan, years
+// paid, join date, and opt-outs.
 func parseImport(r io.Reader) (rows []importRow, bad int, err error) {
 	cr := csv.NewReader(r)
 	cr.FieldsPerRecord = -1
@@ -498,6 +517,10 @@ func parseImport(r io.Reader) (rows []importRow, bad int, err error) {
 		"first name": "first", "first_name": "first", "firstname": "first", "first": "first",
 		"last name": "last", "last_name": "last", "lastname": "last", "last": "last", "surname": "last",
 		"plan": "plan", "membership": "plan", "membership type": "plan", "member areas": "plan",
+		"phone": "phone", "phone number": "phone", "mobile": "phone", "cell": "phone", "cell phone": "phone",
+		"billing phone number": "phone2", "shipping phone number": "phone2",
+		"emergency contact": "ename", "emergency contact name": "ename",
+		"emergency phone": "ephone", "emergency contact phone": "ephone",
 		"years paid": "years", "last order date": "lastorder",
 		"joined": "joined", "member since": "joined", "created on": "created",
 		"status": "status", "accepts email marketing": "consent",
@@ -558,7 +581,11 @@ func parseImport(r io.Reader) (rows []importRow, bad int, err error) {
 		if name == "" {
 			name = get("first") + " " + get("last")
 		}
-		row := importRow{Member: Member{Name: cleanName(name), Email: email}}
+		row := importRow{Member: Member{
+			Name: cleanName(name), Email: email,
+			Phone:         cleanPhone(or(get("phone"), get("phone2"))),
+			EmergencyName: cleanName(get("ename")), EmergencyPhone: cleanPhone(get("ephone")),
+		}}
 		plan := strings.ToLower(get("plan"))
 		row.Plan = "individual"
 		if strings.Contains(plan, "family") {

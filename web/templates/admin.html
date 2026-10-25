@@ -160,22 +160,25 @@ initBlock(document);
 </div>
 {{with .TestLink}}<p class="flash warn">Test mode: emails go to the server log instead of being sent. Here’s the link that would have been emailed: <a href="{{.}}">{{.}}</a></p>{{end}}
 <div class="table-wrap"><table>
-  <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Added</th><th><span class="sr">Actions</span></th></tr></thead>
+  <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Last login</th><th>Added</th><th><span class="sr">Actions</span></th></tr></thead>
   <tbody>
   {{range .Admins}}<tr>
-    <td>{{.Name}}{{if eq .ID $.Account.ID}} <span class="tag">You</span>{{end}}</td>
+    <td>{{.Name}}{{if .President}} <span class="tag tag-pres">President</span>{{end}}{{if eq .ID $.Account.ID}} <span class="tag">You</span>{{end}}</td>
     <td><a href="mailto:{{.Email}}">{{.Email}}</a></td>
-    <td>{{if .HasPassword}}<span class="paid">Active</span>{{with .LastLogin}}<br><span class="muted small">Last in {{date .}}</span>{{end}}{{else}}Invited, no password yet{{end}}</td>
+    <td>{{if .HasPassword}}<span class="paid">Active</span>{{else}}Invited, no password yet{{end}}</td>
+    <td class="nowrap">{{with .LastLogin}}{{datetime .}}{{else}}<span class="muted">Never</span>{{end}}</td>
     <td class="nowrap">{{date .Added}}{{with .AddedBy}}<br><span class="muted small">by {{.}}</span>{{end}}</td>
     <td class="right nowrap">
       <form method="post" action="/admin/admins/{{.ID}}/link" class="inline"><button class="link">{{if .HasPassword}}Send a reset link{{else}}Send a new link{{end}}</button></form>
-      {{if ne .ID $.Account.ID}} · <form method="post" action="/admin/admins/{{.ID}}/remove" class="inline" onsubmit="return confirm('Remove {{.Name}} as an admin? They won’t be able to log in.')"><button class="link danger">Remove</button></form>{{end}}
+      {{if and $.CanNamePresident (not .President)}} · <form method="post" action="/admin/admins/{{.ID}}/president" class="inline" onsubmit="return confirm('Make {{.Name}} the president? Only the president can remove admins and delete members{{if $.Account.President}}, so you won’t be able to anymore{{end}}.')"><button class="link">Make president</button></form>{{end}}
+      {{if and $.CanManage (ne .ID $.Account.ID)}} · <form method="post" action="/admin/admins/{{.ID}}/remove" class="inline" onsubmit="return confirm('Remove {{.Name}} as an admin? They won’t be able to log in.')"><button class="link danger">Remove</button></form>{{end}}
     </td>
   </tr>
-  {{else}}<tr><td colspan="5" class="empty">No admin accounts yet. Add yourself first, then everyone else.</td></tr>
+  {{else}}<tr><td colspan="6" class="empty">No admin accounts yet. Add yourself first, then everyone else.</td></tr>
   {{end}}
   </tbody>
 </table></div>
+<p class="muted small">Any admin can add admins and send links. Only the president can remove admins or delete members{{if .CanNamePresident}}{{if not .CanManage}}. There’s no president yet, so any admin can name one with <strong>Make president</strong>{{end}}{{end}}. Last login is the last time each admin logged in (they stay logged in for 30 days on the same device).</p>
 <div class="grid2">
   <form class="card" method="post" action="/admin/admins">
     <h2>Add an admin</h2>
@@ -206,7 +209,7 @@ initBlock(document);
 <div class="tools">
   <form class="search" method="get" action="/admin">
     {{with .Dues}}<input type="hidden" name="dues" value="{{.}}">{{end}}
-    <input type="search" name="q" value="{{.Q}}" placeholder="Search name or email" aria-label="Search members">
+    <input type="search" name="q" value="{{.Q}}" placeholder="Search name, email, or phone" aria-label="Search members">
     <button class="ghost">Search</button>
     {{if .Q}}<a href="/admin{{with .Dues}}?dues={{.}}{{end}}">Clear</a>{{end}}
   </form>
@@ -218,11 +221,14 @@ initBlock(document);
   <a href="/admin?dues=paid{{with .Q}}&q={{.}}{{end}}"{{if eq .Dues "paid"}} aria-current="page"{{end}}>Paid for {{.Year}} ({{.Paid}})</a>
 </nav>
 <div class="table-wrap"><table>
-  <thead><tr><th>Name</th><th>Email</th><th>Plan</th><th>{{.Year}} dues</th><th>Joined</th><th><span class="sr">Actions</span></th></tr></thead>
+  <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Emergency contact</th><th>Emergency phone</th><th>Plan</th><th>{{.Year}} dues</th><th>Joined</th>{{if .CanManage}}<th><span class="sr">Actions</span></th>{{end}}</tr></thead>
   <tbody>
   {{range .Members}}{{$paid := .PaidFor $.Year}}<tr{{if not .Active}} class="off"{{end}}>
     <td>{{.Name}}</td>
     <td><a href="mailto:{{.Email}}">{{.Email}}</a>{{if not .Active}} <span class="tag">Unsubscribed</span>{{end}}</td>
+    <td class="nowrap">{{with .Phone}}<a href="tel:{{.}}">{{.}}</a>{{else}}<span class="muted">—</span>{{end}}</td>
+    <td>{{or .EmergencyName "—"}}</td>
+    <td class="nowrap">{{with .EmergencyPhone}}<a href="tel:{{.}}">{{.}}</a>{{else}}<span class="muted">—</span>{{end}}</td>
     <td>{{.PlanName}}</td>
     <td class="nowrap"><form method="post" action="/admin/members/{{.ID}}/paid" class="inline">
       <input type="hidden" name="return" value="/admin?q={{$.Q}}&dues={{$.Dues}}">
@@ -230,25 +236,28 @@ initBlock(document);
       {{else}}<input type="hidden" name="paid" value="1"><button class="mini">Mark paid</button>{{end}}
     </form></td>
     <td class="nowrap">{{date .Joined}}</td>
-    <td class="right"><form method="post" action="/admin/members/{{.ID}}/delete" onsubmit="return confirm('Delete {{.Email}}? This can’t be undone.')"><button class="link danger">Delete</button></form></td>
+    {{if $.CanManage}}<td class="right"><form method="post" action="/admin/members/{{.ID}}/delete" onsubmit="return confirm('Delete {{.Email}}? This can’t be undone.')"><button class="link danger">Delete</button></form></td>{{end}}
   </tr>
-  {{else}}<tr><td colspan="6" class="empty">{{if or $.Q $.Dues}}Nobody matches that.{{else}}No members yet. Share the join page: <a href="{{$.SiteURL}}/join">{{$.SiteURL}}/join</a>{{end}}</td></tr>
+  {{else}}<tr><td colspan="9" class="empty">{{if or $.Q $.Dues}}Nobody matches that.{{else}}No members yet. Share the join page: <a href="{{$.SiteURL}}/join">{{$.SiteURL}}/join</a>{{end}}</td></tr>
   {{end}}
   </tbody>
 </table></div>
-<p class="muted small">When PayPal emails the club about a payment, find the member here and press <strong>Mark paid</strong>. Everyone shows as not paid again on January 1.</p>
+<p class="muted small">When PayPal emails the club about a payment, find the member here and press <strong>Mark paid</strong>. Everyone shows as not paid again on January 1. {{if not .CanManage}}Only the president can delete members. {{end}}Members who joined before the phone and emergency contact fields existed show a dash: if they fill in the join form again with the same email, their details are added.</p>
 <div class="grid2">
   <form class="card" method="post" action="/admin/members">
     <h2>Add a member</h2>
     <label>Full name <input name="name" required maxlength="100"></label>
     <label>Email <input type="email" name="email" required maxlength="254"></label>
+    <label><span>Phone <span class="opt">(optional)</span></span><input type="tel" name="phone" maxlength="30"></label>
+    <label><span>Emergency contact <span class="opt">(optional)</span></span><input name="emergency_name" maxlength="100"></label>
+    <label><span>Emergency contact’s phone <span class="opt">(optional)</span></span><input type="tel" name="emergency_phone" maxlength="30"></label>
     <label>Plan <select name="plan"><option value="individual">Individual</option><option value="family">Family</option></select></label>
     <label class="check"><input type="checkbox" name="paid"> Paid for {{.Year}}</label>
     <button>Add member</button>
   </form>
   <form class="card" method="post" action="/admin/import" enctype="multipart/form-data">
     <h2>Import from a spreadsheet</h2>
-    <p class="muted small">Upload a CSV with an email column, such as the Squarespace contacts export. Names, plan, years paid, and join dates come across automatically. People who opted out of emails are imported as unsubscribed. Emails already on the list are skipped.</p>
+    <p class="muted small">Upload a CSV with an email column, such as the Squarespace contacts export or this page’s Export CSV. Names, phone numbers, emergency contacts, plan, years paid, and join dates come across automatically. People who opted out of emails are imported as unsubscribed. Emails already on the list are skipped.</p>
     <input type="file" name="file" accept=".csv,text/csv" required aria-label="CSV file">
     <label>Who to import
       <select name="who">

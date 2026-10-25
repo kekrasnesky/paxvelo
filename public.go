@@ -18,11 +18,79 @@ import (
 )
 
 type joinData struct {
-	Token, Name, Email, Plan string
-	Message                  string // error text, or the headline after joining
-	Detail                   string // the sentence under the headline
-	PayURL, PayLabel         string // PayPal button, when dues are owed
-	OK, Failed               bool
+	Token, Plan      string
+	Form             memberDetails // what was typed, to show again after a mistake
+	Message          string        // error text, or the headline after joining
+	Detail           string        // the sentence under the headline
+	PayURL, PayLabel string        // PayPal button, when dues are owed
+	OK, Failed       bool
+}
+
+// joinDetails reads the join form: name, email, plan, phone, and an
+// emergency contact. On a problem it returns the problem's code (see
+// joinProblems). The public form needs every field; an admin adding someone
+// by hand needs only the name and email.
+func joinDetails(r *http.Request, all bool) (memberDetails, string) {
+	d := memberDetails{
+		Name: cleanName(r.FormValue("name")), Plan: cleanPlan(r.FormValue("plan")),
+		Phone: cleanPhone(r.FormValue("phone")), EmergencyName: cleanName(r.FormValue("emergency_name")),
+		EmergencyPhone: cleanPhone(r.FormValue("emergency_phone")),
+	}
+	email, ok := cleanEmail(r.FormValue("email"))
+	d.Email = email
+	switch {
+	case d.Name == "":
+		return d, "name"
+	case !ok:
+		return d, "email"
+	case (all || r.FormValue("phone") != "") && d.Phone == "":
+		return d, "phone"
+	case all && d.EmergencyName == "":
+		return d, "emergency"
+	case (all || r.FormValue("emergency_phone") != "") && d.EmergencyPhone == "":
+		return d, "emergency-phone"
+	}
+	return d, ""
+}
+
+// joinProblems are the join form's messages, written to the rider.
+var joinProblems = map[string]string{
+	"name":            "Enter your full name.",
+	"email":           "Enter a valid email address, like name@example.com.",
+	"phone":           "Enter your phone number with its area code, like 301-555-0123.",
+	"emergency":       "Enter the name of someone we can call in an emergency.",
+	"emergency-phone": "Enter your emergency contact’s phone number, with its area code.",
+}
+
+// phoneDigits keeps just the digits of a phone number.
+func phoneDigits(s string) string {
+	return strings.Map(func(r rune) rune {
+		if r >= '0' && r <= '9' {
+			return r
+		}
+		return -1
+	}, s)
+}
+
+// cleanPhone tidies a phone number, writing US numbers as 301-555-0123. It
+// returns "" for something that isn't a phone number (too few or too many
+// digits, or letters).
+func cleanPhone(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" || strings.ContainsFunc(s, unicode.IsLetter) {
+		return ""
+	}
+	digits := phoneDigits(s)
+	if len(digits) == 11 && digits[0] == '1' {
+		digits = digits[1:]
+	}
+	switch {
+	case len(digits) == 10:
+		return digits[:3] + "-" + digits[3:6] + "-" + digits[6:]
+	case len(digits) >= 8 && len(digits) <= 15:
+		return strings.Join(strings.Fields(s), " ") // an international number, as typed
+	}
+	return ""
 }
 
 func (a *App) joinPage(w http.ResponseWriter, r *http.Request) {
@@ -36,7 +104,11 @@ func (a *App) joinPage(w http.ResponseWriter, r *http.Request) {
 func (a *App) join(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 16<<10)
 	r.ParseForm()
-	rawName, rawEmail, plan := r.FormValue("name"), r.FormValue("email"), cleanPlan(r.FormValue("plan"))
+	plan := cleanPlan(r.FormValue("plan"))
+	typed := memberDetails{
+		Name: r.FormValue("name"), Email: r.FormValue("email"), Phone: r.FormValue("phone"),
+		EmergencyName: r.FormValue("emergency_name"), EmergencyPhone: r.FormValue("emergency_phone"),
+	}
 	reply := func(status int, d joinData) {
 		if strings.Contains(r.Header.Get("Accept"), "application/json") {
 			w.Header().Set("Content-Type", "application/json")
@@ -49,7 +121,7 @@ func (a *App) join(w http.ResponseWriter, r *http.Request) {
 		}
 		d.Token, d.Plan = a.formToken(), plan
 		if !d.OK {
-			d.Failed, d.Name, d.Email = true, rawName, rawEmail
+			d.Failed, d.Form = true, typed
 		}
 		a.site.render(w, status, "join", "/join", "Become a Member — "+siteName, d)
 	}
@@ -66,14 +138,9 @@ func (a *App) join(w http.ResponseWriter, r *http.Request) {
 		fail(http.StatusBadRequest, "This form expired. Reload the page and try again.")
 		return
 	}
-	name := cleanName(rawName)
-	if name == "" {
-		fail(http.StatusBadRequest, "Enter your full name.")
-		return
-	}
-	email, ok := cleanEmail(rawEmail)
-	if !ok {
-		fail(http.StatusBadRequest, "Enter a valid email address, like name@example.com.")
+	details, problem := joinDetails(r, true)
+	if problem != "" {
+		fail(http.StatusBadRequest, joinProblems[problem])
 		return
 	}
 	// Only count well-formed signups, so typos never lock anyone out.
@@ -83,9 +150,9 @@ func (a *App) join(w http.ResponseWriter, r *http.Request) {
 	}
 
 	year := a.cfg.ThisYear()
-	m, result, err := a.store.Join(name, email, plan, year)
+	m, result, err := a.store.Join(details, year)
 	if err != nil {
-		log.Printf("join %s: %v", email, err)
+		log.Printf("join %s: %v", details.Email, err)
 		fail(http.StatusInternalServerError, "Something went wrong on our end. Try again in a minute.")
 		return
 	}

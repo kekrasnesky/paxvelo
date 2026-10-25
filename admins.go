@@ -36,6 +36,8 @@ type AdminUser struct {
 	AddedBy      string     `json:"added_by,omitempty"`
 	Added        time.Time  `json:"added"`
 	LastLogin    *time.Time `json:"last_login,omitempty"`
+	// The president is the one admin who can remove admins and delete members.
+	President bool `json:"president,omitempty"`
 }
 
 // HasPassword reports whether they've set their password yet.
@@ -140,6 +142,26 @@ func (s *Store) AddAdmin(name, email, addedBy string) (AdminUser, error) {
 	return *u, s.save()
 }
 
+// HasPresident reports whether one of the admins is marked as president.
+func (s *Store) HasPresident() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.adminWhere(func(u *AdminUser) bool { return u.President }) != nil
+}
+
+// SetPresident makes one admin the president, and the others not.
+func (s *Store) SetPresident(id int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.adminWhere(func(u *AdminUser) bool { return u.ID == id }) == nil {
+		return errors.New("that admin was removed")
+	}
+	for _, u := range s.d.Admins {
+		u.President = u.ID == id
+	}
+	return s.save()
+}
+
 func (s *Store) DeleteAdmin(id int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -233,6 +255,21 @@ func (a *App) currentAdmin(r *http.Request) (AdminUser, bool) {
 		return AdminUser{}, false
 	}
 	return a.sessionAdmin(who)
+}
+
+// canManage reports whether the logged-in admin may remove admins and delete
+// members: only the president can, or someone logged in with the server's
+// setup password (before any accounts existed).
+func (a *App) canManage(r *http.Request) bool {
+	u, ok := a.currentAdmin(r)
+	return ok && (u.President || u.ID == 0)
+}
+
+// canNamePresident reports whether the logged-in admin may choose the
+// president: the president can hand it on, and until there is one, any admin
+// can name the first.
+func (a *App) canNamePresident(r *http.Request) bool {
+	return a.canManage(r) || (a.loggedIn(r) && !a.store.HasPresident())
 }
 
 // ---- Login, forgotten passwords, and password links ----
@@ -416,7 +453,8 @@ func (a *App) setPassword(w http.ResponseWriter, r *http.Request) {
 // ---- The Admins tab ----
 
 func (a *App) adminsView(r *http.Request) adminView {
-	v := adminView{Title: "Admins", Tab: "admins", Admins: a.store.Admins(), Live: a.mailer.live()}
+	v := adminView{Title: "Admins", Tab: "admins", Admins: a.store.Admins(), Live: a.mailer.live(),
+		CanManage: a.canManage(r), CanNamePresident: a.canNamePresident(r)}
 	v.Account, _ = a.currentAdmin(r)
 	v.Flash, v.Error = flashFrom(r)
 	return v
@@ -491,7 +529,12 @@ func (a *App) sendAdminLink(w http.ResponseWriter, r *http.Request) {
 	a.afterLink(w, r, "link-sent", link)
 }
 
+// removeAdmin takes away someone's admin access. Only the president can.
 func (a *App) removeAdmin(w http.ResponseWriter, r *http.Request) {
+	if !a.canManage(r) {
+		back(w, r, "/admin/admins?err=president-only")
+		return
+	}
 	u, ok := a.adminFromPath(w, r)
 	if !ok {
 		return
@@ -505,6 +548,24 @@ func (a *App) removeAdmin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	back(w, r, "/admin/admins?ok=admin-removed")
+}
+
+// makePresident hands the president's role to another admin (or names the
+// first president).
+func (a *App) makePresident(w http.ResponseWriter, r *http.Request) {
+	if !a.canNamePresident(r) {
+		back(w, r, "/admin/admins?err=president-only")
+		return
+	}
+	u, ok := a.adminFromPath(w, r)
+	if !ok {
+		return
+	}
+	if err := a.store.SetPresident(u.ID); err != nil {
+		back(w, r, "/admin/admins?err=save")
+		return
+	}
+	back(w, r, "/admin/admins?ok=president")
 }
 
 // changePassword lets a logged-in admin pick a new password.

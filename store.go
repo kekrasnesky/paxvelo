@@ -28,6 +28,30 @@ type Member struct {
 	Token        string     `json:"token"`                // secret used in unsubscribe links
 	Plan         string     `json:"plan,omitempty"`       // "individual" or "family"
 	PaidYears    []int      `json:"paid_years,omitempty"` // calendar years their dues were paid
+	Phone        string     `json:"phone,omitempty"`
+	// Who to call if something happens on a ride.
+	EmergencyName  string `json:"emergency_name,omitempty"`
+	EmergencyPhone string `json:"emergency_phone,omitempty"`
+}
+
+// memberDetails is what someone fills in to join.
+type memberDetails struct {
+	Name, Email, Plan, Phone, EmergencyName, EmergencyPhone string
+}
+
+// update fills in the contact details someone gave, keeping what's already
+// on file for anything they left blank.
+func (m *Member) update(d memberDetails) {
+	for _, f := range []struct {
+		to   *string
+		from string
+	}{
+		{&m.Name, d.Name}, {&m.Phone, d.Phone}, {&m.EmergencyName, d.EmergencyName}, {&m.EmergencyPhone, d.EmergencyPhone},
+	} {
+		if f.from != "" {
+			*f.to = f.from
+		}
+	}
 }
 
 func (m Member) Active() bool { return m.Unsubscribed == nil }
@@ -260,29 +284,25 @@ func (s *Store) newMember(name, email, plan string) *Member {
 }
 
 // Join adds a member. Someone who unsubscribed earlier and joins again is
-// re-activated rather than duplicated. If someone already on the list hasn't
-// paid for this year yet, their chosen plan is updated.
-func (s *Store) Join(name, email, plan string, year int) (Member, JoinResult, error) {
+// re-activated rather than duplicated. Someone already on the list gets their
+// phone and emergency contact updated, and if they haven't paid for this year
+// yet, their chosen plan too.
+func (s *Store) Join(d memberDetails, year int) (Member, JoinResult, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if m := s.byEmail(email); m != nil {
-		if m.Active() {
-			if !m.PaidFor(year) && m.Plan != plan {
-				m.Plan = plan
-				return *m, AlreadyMember, s.save()
-			}
-			return *m, AlreadyMember, nil
+	if m := s.byEmail(d.Email); m != nil {
+		res := AlreadyMember
+		if !m.Active() {
+			m.Unsubscribed, res = nil, Rejoined
 		}
-		m.Unsubscribed = nil
-		if name != "" {
-			m.Name = name
-		}
+		m.update(d)
 		if !m.PaidFor(year) {
-			m.Plan = plan
+			m.Plan = d.Plan
 		}
-		return *m, Rejoined, s.save()
+		return *m, res, s.save()
 	}
-	m := s.newMember(name, email, plan)
+	m := s.newMember(d.Name, d.Email, d.Plan)
+	m.update(d)
 	return *m, Joined, s.save()
 }
 
@@ -318,6 +338,7 @@ func (s *Store) Import(list []Member) (added, existing int, err error) {
 		}
 		m := s.newMember(in.Name, in.Email, cleanPlan(in.Plan))
 		m.PaidYears = in.PaidYears
+		m.Phone, m.EmergencyName, m.EmergencyPhone = in.Phone, in.EmergencyName, in.EmergencyPhone
 		m.Unsubscribed = in.Unsubscribed
 		if !in.Joined.IsZero() {
 			m.Joined = in.Joined

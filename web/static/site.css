@@ -336,6 +336,9 @@ td:hover .cal-add,.cal-add:focus-visible{opacity:1}
 .pick input{flex:none;width:auto;margin:.35rem 0 0;padding:0;accent-color:var(--red)}
 .pick strong{color:var(--red)}
 .hint{margin:-.4rem 0 0!important;font-size:.88rem}
+.emergency{display:grid;gap:1rem;margin:0;padding:1rem 1.1rem 1.2rem;border:1px solid #cdbfb5}
+.emergency legend{padding:0 .4rem;font-size:.95rem;font-weight:500}
+.emergency .hint{margin:0!important}
 .hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
 .msg{min-height:1.8em;margin:0}
 .msg.err{font-weight:500}

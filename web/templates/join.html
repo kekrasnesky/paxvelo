@@ -1,7 +1,7 @@
 {{define "content"}}
 <article class="page">
   <h1>Become a Member</h1>
-  <p class="lead">Membership runs January through December. Pick a plan, add your details, and finish up with PayPal.</p>
+  <p class="lead">Membership runs January through December. Pick a plan, add your details and an emergency contact, and finish up with PayPal.</p>
   <form class="join" method="post" action="/join"{{if .Data.OK}} hidden{{end}}>
     <input type="hidden" name="ft" value="{{.Data.Token}}">
     <div class="hp" aria-hidden="true"><label>Leave this empty <input name="website" tabindex="-1" autocomplete="off"></label></div>
@@ -10,9 +10,17 @@
       <label><input type="radio" name="plan" value="individual"{{if ne .Data.Plan "family"}} checked{{end}}><span><strong>Individual</strong> ${{.Club.DuesIndividual}} a year</span></label>
       <label><input type="radio" name="plan" value="family"{{if eq .Data.Plan "family"}} checked{{end}}><span><strong>Family</strong> ${{.Club.DuesFamily}} a year, one membership for your household</span></label>
     </fieldset>
-    <label>Full name <input name="name" required maxlength="100" autocomplete="name" value="{{.Data.Name}}"></label>
-    <label>Email <input type="email" name="email" required maxlength="254" autocomplete="email" value="{{.Data.Email}}"></label>
+    <label>Full name <input name="name" required maxlength="100" autocomplete="name" value="{{.Data.Form.Name}}"></label>
+    <label>Email <input type="email" name="email" required maxlength="254" autocomplete="email" value="{{.Data.Form.Email}}"></label>
+    <label>Phone <input type="tel" name="phone" required maxlength="30" autocomplete="tel" value="{{.Data.Form.Phone}}"></label>
     <p class="hint">For a family membership, enter the main contact for your household.</p>
+    <fieldset class="emergency">
+      <legend>Emergency contact</legend>
+      <p class="hint">Who should we call if something happens on a ride?</p>
+      <label>Their name <input name="emergency_name" required maxlength="100" autocomplete="off" value="{{.Data.Form.EmergencyName}}"></label>
+      <label>Their phone <input type="tel" name="emergency_phone" required maxlength="30" autocomplete="off" value="{{.Data.Form.EmergencyPhone}}"></label>
+    </fieldset>
+    <p class="hint">Only the club’s board sees these details, and only to keep you safe and in touch.</p>
     <button class="btn" type="submit">Continue to payment</button>
     <p class="msg{{if .Data.Failed}} err{{end}}" role="status" aria-live="polite">{{if .Data.Failed}}{{.Data.Message}}{{end}}</p>
   </form>
