@@ -74,7 +74,6 @@ func (m *Mailer) run(ctx context.Context) {
 		err := m.SendTo(mem, c.Subject, c.Body)
 		m.store.RecordSend(c.ID, mem.ID, err)
 		if err != nil {
-			log.Printf("email %d to %s failed: %v", c.ID, mem.Email, err)
 			streak = append(streak, mem.ID)
 			if len(streak) >= 3 {
 				m.store.PauseCampaign(c.ID, "Paused after 3 failures in a row: "+err.Error(), streak)
@@ -130,11 +129,7 @@ func (m *Mailer) Notify(subject, body string) {
 	if to == "" {
 		return
 	}
-	go func() {
-		if err := m.send(m.cfg.FromName, to, subject, body, m.cfg.SiteURL); err != nil {
-			log.Printf("notice to %s failed: %v", to, err)
-		}
-	}()
+	go m.send(m.cfg.FromName, to, subject, body, m.cfg.SiteURL) // a failure is logged by send
 }
 
 // SendDirect sends one email that isn't to the member list, like an admin's
@@ -148,9 +143,7 @@ func (m *Mailer) SendWelcome(mem Member) {
 	if !w.Enabled {
 		return
 	}
-	if err := m.SendTo(mem, w.Subject, w.Body); err != nil {
-		log.Printf("welcome email to %s failed: %v", mem.Email, err)
-	}
+	m.SendTo(mem, w.Subject, w.Body) // a failure is logged by send
 }
 
 func (m *Mailer) send(toName, toEmail, subject, text, unsubURL string) error {
@@ -164,7 +157,13 @@ func (m *Mailer) send(toName, toEmail, subject, text, unsubURL string) error {
 		return nil
 	}
 	msg := m.build(toName, toEmail, subject, plain, htmlBody, unsubURL)
-	return m.deliver(toEmail, msg)
+	// Every email comes through here, so a failure of any kind (a campaign,
+	// a password link, a ride notice) shows in the server log with the reason.
+	if err := m.deliver(toEmail, msg); err != nil {
+		log.Printf("email to %s failed (%q): %v", toEmail, subject, err)
+		return err
+	}
+	return nil
 }
 
 func (m *Mailer) build(toName, toEmail, subject, text, htmlBody, unsubURL string) []byte {
