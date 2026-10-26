@@ -77,13 +77,56 @@ func TestJoinWithEmergencyContact(t *testing.T) {
 		t.Errorf("saved %+v", m)
 	}
 
+	// Anyone can type anyone's email into the form, so joining again with
+	// someone else's details changes nothing already on file.
 	full.Set("emergency_name", "Alex Rider")
+	full.Set("phone", "202-555-0100")
+	full.Set("plan", "individual")
 	ct, body = joinForm(a, full)
 	if w := do(t, h, nil, "POST", "/join", ct, body); !strings.Contains(w.Body.String(), "already on the list") {
 		t.Errorf("joining again should say they're already on the list")
 	}
-	if m := a.store.Members()[0]; m.EmergencyName != "Alex Rider" || len(a.store.Members()) != 1 {
-		t.Errorf("joining again should update the details, got %+v", m)
+	if m := a.store.Members()[0]; m.EmergencyName != "Sam Rider" || m.Phone != "301-555-0123" || m.Plan != "family" || len(a.store.Members()) != 1 {
+		t.Errorf("joining again must not overwrite what's on file, got %+v", m)
+	}
+}
+
+// A member from before the phone fields existed can fill them in by joining
+// again, but only the blanks. The admin's Add a member can still change them.
+func TestJoinFillsBlanksOnly(t *testing.T) {
+	a, h, _ := testApp(t)
+	a.store.Join(memberDetails{Name: "Old Timer", Email: "old@example.com", Plan: "individual"}, 2026)
+	form := url.Values{"plan": {"family"}, "name": {"Someone Else"}, "email": {"old@example.com"}, "phone": {"301-555-0123"},
+		"emergency_name": {"Sam Rider"}, "emergency_phone": {"240-555-0199"}}
+	ct, body := joinForm(a, form)
+	do(t, h, nil, "POST", "/join", ct, body)
+	m := a.store.Members()[0]
+	if m.Name != "Old Timer" || m.Phone != "301-555-0123" || m.EmergencyName != "Sam Rider" || m.Plan != "individual" {
+		t.Errorf("only the blank details should be filled in: %+v", m)
+	}
+	if got, _, _ := a.store.Join(memberDetails{Name: "Old Timer", Email: "old@example.com", Plan: "family", Phone: "202-555-0100"}, 2026); got.Phone != "202-555-0100" || got.Plan != "family" {
+		t.Errorf("an admin should be able to change details: %+v", got)
+	}
+}
+
+// Someone who unsubscribed isn't signed up again by anyone typing their email
+// into the public form, and gets no welcome email. An admin adding them back can.
+func TestJoinDoesNotResubscribe(t *testing.T) {
+	a, h, _ := testApp(t)
+	m, _, _ := a.store.Join(memberDetails{Name: "Kim Rider", Email: "kim@example.com", Plan: "individual"}, 2026)
+	a.store.Unsubscribe(m.Token)
+	form := url.Values{"plan": {"individual"}, "name": {"Kim Rider"}, "email": {"kim@example.com"}, "phone": {"301-555-0123"},
+		"emergency_name": {"Sam Rider"}, "emergency_phone": {"240-555-0199"}}
+	ct, body := joinForm(a, form)
+	w := do(t, h, nil, "POST", "/join", ct, body)
+	if !strings.Contains(w.Body.String(), "unsubscribed from club emails earlier") {
+		t.Errorf("the form should explain: %s", w.Body)
+	}
+	if got := a.store.Members()[0]; got.Active() || got.Phone != "" {
+		t.Errorf("the public form must not re-subscribe or change an unsubscribed member: %+v", got)
+	}
+	if _, res, _ := a.store.Join(memberDetails{Name: "Kim Rider", Email: "kim@example.com", Plan: "individual"}, 2026); res != Rejoined || !a.store.Members()[0].Active() {
+		t.Errorf("an admin should be able to add them back: %v", res)
 	}
 }
 
@@ -160,5 +203,37 @@ func TestPresidentOnly(t *testing.T) {
 	do(t, h, as(pat), "POST", "/admin/admins/"+itoa(sam.ID)+"/remove", "", nil)
 	if len(a.store.Admins()) != 1 {
 		t.Error("the president couldn't remove an admin")
+	}
+}
+
+// The full backup holds every member's contact details and the admins'
+// password hashes, so only the president can download it, and it leaves out the
+// signing key and any unused password links.
+func TestBackupPresidentOnly(t *testing.T) {
+	a, h, _ := testApp(t)
+	pat, _ := a.store.AddAdmin("Pat", "pat@example.com", "")
+	sam, _ := a.store.AddAdmin("Sam", "sam@example.com", "")
+	a.store.SetPresident(pat.ID)
+	a.store.NewResetLink(sam.ID, time.Hour)
+	as := func(u AdminUser) *http.Cookie {
+		rec := httptest.NewRecorder()
+		a.setSession(rec, accountSession(u), 3600)
+		return rec.Result().Cookies()[0]
+	}
+
+	w := do(t, h, as(sam), "GET", "/admin/backup", "", nil)
+	if w.Code != http.StatusSeeOther || strings.Contains(w.Body.String(), "pat@example.com") {
+		t.Errorf("a non-president got the backup: %d", w.Code)
+	}
+	if page := do(t, h, as(sam), "GET", "/admin", "", nil).Body.String(); strings.Contains(page, "Download a full backup") {
+		t.Error("a non-president shouldn't see the backup link")
+	}
+	w = do(t, h, as(pat), "GET", "/admin/backup", "", nil)
+	got := w.Body.String()
+	if w.Code != http.StatusOK || !strings.Contains(got, "sam@example.com") {
+		t.Fatalf("the president couldn't download the backup: %d", w.Code)
+	}
+	if strings.Contains(got, a.store.Secret()) || strings.Contains(got, "reset_hash") {
+		t.Error("the backup should leave out the signing key and password links")
 	}
 }

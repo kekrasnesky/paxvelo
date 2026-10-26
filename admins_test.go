@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strconv"
 	"strings"
@@ -102,10 +103,22 @@ func TestAdminAccounts(t *testing.T) {
 		t.Errorf("old session still works after a new password: %d", w.Code)
 	}
 
+	// Once an admin has a password, the setup password's login sessions end:
+	// they have the president's powers, so they can't outlive the setup.
+	if w := do(t, h, setup, "GET", "/admin", "", nil); w.Code != http.StatusSeeOther {
+		t.Errorf("a setup-password session still works once admins have passwords: %d", w.Code)
+	}
+
 	// Removing an admin ends their sessions too.
 	res := login("pat@example.com", "a whole new password")
 	pat = res.Cookies()[0]
-	do(t, h, setup, "POST", "/admin/admins/"+itoa(u.ID)+"/remove", "", nil)
+	sam, _ := a.store.AddAdmin("Sam", "sam@example.com", "")
+	hash, _ = hashPassword("sam has a password")
+	sam, _ = a.store.SetAdminPassword(sam.ID, hash)
+	a.store.SetPresident(sam.ID)
+	rec := httptest.NewRecorder()
+	a.setSession(rec, accountSession(sam), 3600)
+	do(t, h, rec.Result().Cookies()[0], "POST", "/admin/admins/"+itoa(u.ID)+"/remove", "", nil)
 	if w := do(t, h, pat, "GET", "/admin", "", nil); w.Code != http.StatusSeeOther {
 		t.Errorf("removed admin is still logged in: %d", w.Code)
 	}

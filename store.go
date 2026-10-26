@@ -54,6 +54,21 @@ func (m *Member) update(d memberDetails) {
 	}
 }
 
+// fill adds the contact details someone gave where the member has none yet,
+// and never changes what's already on file.
+func (m *Member) fill(d memberDetails) {
+	for _, f := range []struct {
+		to   *string
+		from string
+	}{
+		{&m.Name, d.Name}, {&m.Phone, d.Phone}, {&m.EmergencyName, d.EmergencyName}, {&m.EmergencyPhone, d.EmergencyPhone},
+	} {
+		if *f.to == "" {
+			*f.to = f.from
+		}
+	}
+}
+
 func (m Member) Active() bool { return m.Unsubscribed == nil }
 
 func (m Member) PaidFor(year int) bool {
@@ -242,10 +257,20 @@ func (s *Store) Secret() string {
 	return s.d.Secret
 }
 
+// Snapshot is the downloadable backup: all the club data, but not the signing
+// key (a restored site makes a new one) or any unused password links.
 func (s *Store) Snapshot() ([]byte, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return json.MarshalIndent(&s.d, "", "  ")
+	d := s.d
+	d.Secret = ""
+	d.Admins = make([]*AdminUser, len(s.d.Admins))
+	for i, u := range s.d.Admins {
+		c := *u
+		c.ResetHash, c.ResetExpires = "", nil
+		d.Admins[i] = &c
+	}
+	return json.MarshalIndent(&d, "", "  ")
 }
 
 // ---- Members ----
@@ -256,6 +281,7 @@ const (
 	Joined JoinResult = iota
 	Rejoined
 	AlreadyMember
+	OptedOut // on the list but unsubscribed; the public form leaves them that way
 )
 
 func (s *Store) byEmail(email string) *Member {
@@ -283,21 +309,40 @@ func (s *Store) newMember(name, email, plan string) *Member {
 	return m
 }
 
-// Join adds a member. Someone who unsubscribed earlier and joins again is
-// re-activated rather than duplicated. Someone already on the list gets their
-// phone and emergency contact updated, and if they haven't paid for this year
-// yet, their chosen plan too.
+// Join adds a member for an admin. Someone who unsubscribed earlier is
+// re-activated rather than duplicated, and someone already on the list gets
+// the details given, and (if they haven't paid for this year yet) the chosen plan.
 func (s *Store) Join(d memberDetails, year int) (Member, JoinResult, error) {
+	return s.join(d, year, true)
+}
+
+// JoinPublic adds a member from the public Join form, where anyone can type
+// anyone's email. For someone already on the list it only fills in details
+// still missing, so nobody can overwrite another member's phone or emergency
+// contact, change their plan, or sign them up again after they unsubscribed
+// (that returns OptedOut and changes nothing).
+func (s *Store) JoinPublic(d memberDetails, year int) (Member, JoinResult, error) {
+	return s.join(d, year, false)
+}
+
+func (s *Store) join(d memberDetails, year int, admin bool) (Member, JoinResult, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if m := s.byEmail(d.Email); m != nil {
 		res := AlreadyMember
-		if !m.Active() {
-			m.Unsubscribed, res = nil, Rejoined
-		}
-		m.update(d)
-		if !m.PaidFor(year) {
-			m.Plan = d.Plan
+		switch {
+		case admin:
+			if !m.Active() {
+				m.Unsubscribed, res = nil, Rejoined
+			}
+			m.update(d)
+			if !m.PaidFor(year) {
+				m.Plan = d.Plan
+			}
+		case !m.Active():
+			return *m, OptedOut, nil
+		default:
+			m.fill(d)
 		}
 		return *m, res, s.save()
 	}

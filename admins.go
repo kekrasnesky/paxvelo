@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"slices"
@@ -100,6 +101,14 @@ func (s *Store) HasAdmins() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return len(s.d.Admins) > 0
+}
+
+// HasAdminPassword reports whether any admin has chosen a password, which
+// ends the setup password's login sessions (see sessionAdmin).
+func (s *Store) HasAdminPassword() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.adminWhere(func(u *AdminUser) bool { return u.HasPassword() }) != nil
 }
 
 func (s *Store) adminWhere(match func(*AdminUser) bool) *AdminUser {
@@ -232,10 +241,15 @@ func (s *Store) RecordAdminLogin(id int) {
 func accountSession(u AdminUser) string { return fmt.Sprintf("#%d:%d", u.ID, u.Gen) }
 
 // sessionAdmin turns a login cookie's contents into the admin's name. A
-// session from the setup password holds just the name typed at login.
+// session from the setup password holds just the name typed at login. It has
+// the president's powers, so it only lasts until an admin has chosen a
+// password; after that, everyone logs in with their own account.
 func (a *App) sessionAdmin(who string) (AdminUser, bool) {
 	rest, ok := strings.CutPrefix(who, "#")
 	if !ok {
+		if a.store.HasAdminPassword() {
+			return AdminUser{}, false
+		}
 		return AdminUser{Name: who}, true
 	}
 	ids, gens, _ := strings.Cut(rest, ":")
@@ -327,7 +341,8 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case found && u.HasPassword() && checkPassword(u.PassHash, pw):
 	case found && samePassword(pw, a.cfg.AdminPassword):
-		// The server's emergency key (ADMIN_PASSWORD).
+		// The server's emergency key (ADMIN_PASSWORD). It works for any admin, so it's logged.
+		log.Printf("admin login with the setup password as %s", u.Email)
 	case found && !u.HasPassword():
 		refuse(http.StatusUnauthorized, "You haven’t set a password yet. Use the link in your invite email, or press “Forgot your password?” for a new one.")
 		return

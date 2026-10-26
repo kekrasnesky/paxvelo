@@ -614,7 +614,13 @@ func parseImport(r io.Reader) (rows []importRow, bad int, err error) {
 	return rows, bad, nil
 }
 
+// backup downloads all the club data, including every member's contact
+// details and the admins' password hashes, so only the president can.
 func (a *App) backup(w http.ResponseWriter, r *http.Request) {
+	if !a.canManage(r) {
+		back(w, r, "/admin?err=president-only")
+		return
+	}
 	b, err := a.store.Snapshot()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

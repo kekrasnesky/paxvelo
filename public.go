@@ -150,13 +150,19 @@ func (a *App) join(w http.ResponseWriter, r *http.Request) {
 	}
 
 	year := a.cfg.ThisYear()
-	m, result, err := a.store.Join(details, year)
+	m, result, err := a.store.JoinPublic(details, year)
 	if err != nil {
 		log.Printf("join %s: %v", details.Email, err)
 		fail(http.StatusInternalServerError, "Something went wrong on our end. Try again in a minute.")
 		return
 	}
-	if result != AlreadyMember {
+	if result == OptedOut {
+		// Nobody can sign up an address that opted out: it has to come from the club.
+		reply(http.StatusOK, joinData{OK: true, Message: "You’re already on our list.",
+			Detail: "You unsubscribed from club emails earlier, so we haven’t turned them back on. To get them again, email " + or(a.cfg.AdminEmail, "the club") + "."})
+		return
+	}
+	if result == Joined {
 		go a.mailer.SendWelcome(m)
 	}
 

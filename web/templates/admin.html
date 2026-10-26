@@ -269,7 +269,7 @@ initBlock(document);
     <button>Import</button>
   </form>
 </div>
-<p class="muted small footnote"><a href="/admin/backup">Download a full backup</a> of all club data.</p>
+{{if .CanManage}}<p class="muted small footnote"><a href="/admin/backup">Download a full backup</a> of all club data.</p>{{end}}
 {{template "foot" .}}{{end}}
 
 {{define "email"}}{{template "head" .}}
