@@ -224,4 +224,44 @@ Export your contacts from Squarespace as a CSV, then use **Import from a spreads
 
 ## Backups
 
-The server copies the data file every night and keeps 30 days (`/opt/paxvelo/backups`). For a copy off the server, use **Download a full backup** at the bottom of the admin Members page. To restore, put a backup file back as `/opt/paxvelo/data/paxvelo.json` and run `systemctl restart paxvelo`.
+The server copies the data file every night and keeps 30 days, and every Sunday it makes an archive of the uploaded photos and minutes files that it keeps for 8 weeks (all in `/opt/paxvelo/backups`). Copies on the server don't help if the server itself is lost, so a second job copies that folder to Google Drive every night at 3:30 am.
+
+**Setting up the Google Drive copy** (once; `setup.sh` already installs the pieces):
+
+1. On a computer with a web browser, install [rclone](https://rclone.org/downloads/) and run `rclone authorize drive --drive-scope drive.file`. Sign in with the club Google account (so the backups don't depend on one person) and approve. rclone prints a token starting with `{"access_token":`. Treat it like a password: don't paste it in chat or email.
+2. On the server, create `/opt/paxvelo/rclone.conf` containing these three lines, with the token on the last one:
+
+   ```
+   [gdrive]
+   type = drive
+   scope = drive.file
+   token = {"access_token":"…"}
+   ```
+
+   Then run `chown paxvelo:paxvelo /opt/paxvelo/rclone.conf && chmod 600 /opt/paxvelo/rclone.conf`.
+3. Test it: `sudo -u paxvelo /usr/local/bin/paxvelo-offsite`. A **PaxVelo backups** folder should appear in the Drive with the backup files.
+
+The nightly job is `/etc/cron.d/paxvelo-offsite`, which runs `deploy/paxvelo-offsite`. Because of the `drive.file` setting, the server can only see files it put there itself. If a copy fails, the server log says `BACKUP TO GOOGLE DRIVE FAILED`: look with `journalctl -t paxvelo-offsite`. Nothing emails you about it, so now and then check that the newest file in the Drive folder is recent. If Google stops accepting the token (say, the account password changed), repeat steps 1 and 2.
+
+**Restoring:** download the newest `paxvelo-DATE.json` from the Drive folder (or take one from `/opt/paxvelo/backups`), then run:
+
+```
+systemctl stop paxvelo
+cp paxvelo-DATE.json /opt/paxvelo/data/paxvelo.json
+chown paxvelo:paxvelo /opt/paxvelo/data/paxvelo.json
+systemctl start paxvelo
+```
+
+Stop the site first. A running site writes its own copy of the data on every change and would overwrite the file you put back. For the photos and minutes, unpack the newest `media-DATE.tgz` into `/opt/paxvelo/data`. As a second option, **Download a full backup** at the bottom of the admin Members page saves the data file to your computer.
+
+## Locking down SSH
+
+Bots try passwords on every public server all day, so the server should accept only SSH keys. After the first login with your key (`ssh-copy-id root@SERVER`, or paste the public key into `/root/.ssh/authorized_keys`):
+
+```
+scp deploy/lock-ssh.sh root@SERVER:/root/ && ssh root@SERVER 'sh lock-ssh.sh'
+```
+
+The script refuses to run if root has no key yet, so it can't lock you out by mistake. Keep your current session open and check that a second login works before you close it. After this, only computers with an authorized key can log in. To add another computer, add its public key to `/root/.ssh/authorized_keys` from one that already works, or from the browser console in the RackNerd control panel. Publishing from GitHub uses its own key and is not affected. The old settings are saved in `/root/sshd-backup`.
+
+The server also restarts itself at 4 am on the nights a security update needs it. The site comes back on its own in about a minute.

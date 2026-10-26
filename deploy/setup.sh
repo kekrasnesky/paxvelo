@@ -3,7 +3,7 @@
 #   scp -r deploy root@SERVER:/root/ && ssh root@SERVER 'cd deploy && sh setup.sh'
 set -eu
 apt-get update
-apt-get install -y caddy curl unattended-upgrades   # security updates install themselves
+apt-get install -y caddy curl unattended-upgrades rclone   # security updates install themselves
 id paxvelo >/dev/null 2>&1 || useradd --system --home /opt/paxvelo --shell /usr/sbin/nologin paxvelo
 mkdir -p /opt/paxvelo/data /opt/paxvelo/backups
 chown -R paxvelo:paxvelo /opt/paxvelo
@@ -20,6 +20,12 @@ touch /home/deploy/.ssh/authorized_keys
 chown deploy:deploy /home/deploy/.ssh/authorized_keys
 chmod 600 /home/deploy/.ssh/authorized_keys
 install -m 755 paxvelo-install /usr/local/bin/paxvelo-install
+install -m 755 paxvelo-offsite /usr/local/bin/paxvelo-offsite
+# Restart by itself at 4am when a security update needs it (a new kernel only runs after a reboot).
+cat > /etc/apt/apt.conf.d/52paxvelo-reboot <<'APT'
+Unattended-Upgrade::Automatic-Reboot "true";
+Unattended-Upgrade::Automatic-Reboot-Time "04:00";
+APT
 echo 'deploy ALL=(root) NOPASSWD: /usr/local/bin/paxvelo-install' > /etc/sudoers.d/paxvelo-deploy
 chmod 440 /etc/sudoers.d/paxvelo-deploy
 # Nightly backup of the data file at 3am, keeping 30 days, and a weekly copy
@@ -30,8 +36,13 @@ cat > /etc/cron.d/paxvelo-backup <<'CRON'
 0 3 * * * paxvelo cp /opt/paxvelo/data/paxvelo.json /opt/paxvelo/backups/paxvelo-$(date +\%F).json && find /opt/paxvelo/backups -name '*.json' -mtime +30 -delete
 30 3 * * 0 paxvelo tar -czf /opt/paxvelo/backups/media-$(date +\%F).tgz -C /opt/paxvelo/data media files && find /opt/paxvelo/backups -name 'media-*.tgz' -mtime +56 -delete
 CRON
+# At 3:30am, copy those backups to Google Drive (does nothing until Drive is connected).
+echo '30 3 * * * paxvelo /usr/local/bin/paxvelo-offsite' > /etc/cron.d/paxvelo-offsite
+chmod 644 /etc/cron.d/paxvelo-offsite
 echo
 echo "Server ready. Next:"
 echo "  1. Copy your paxvelo.conf to /opt/paxvelo/paxvelo.conf (then: chmod 600, chown paxvelo)"
 echo "  2. Connect GitHub for automatic publishing (README.md, Automatic publishing),"
 echo "     or publish by hand from your computer: ./deploy/deploy.sh root@THIS_SERVER"
+echo "  3. Connect Google Drive for off-server backups (README.md, Backups)"
+echo "  4. Once your SSH key works, turn off password logins: sh lock-ssh.sh (README.md, Locking down SSH)"
