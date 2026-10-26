@@ -181,3 +181,23 @@ func TestPageSettings(t *testing.T) {
 		}
 	}
 }
+
+// A page edited in the admin that stops building later (a change on GitHub
+// removed a photo it uses) must not stop the site from starting: the page falls
+// back to its GitHub version, and one added in the admin is left out.
+func TestBrokenAdminEditDoesNotStopTheSite(t *testing.T) {
+	a, h, _ := testApp(t)
+	broken := "# Edited Rides\n\n![gone](photos/not-there.jpg)\n"
+	now := time.Now()
+	a.store.SetPageEdit("rides.md", &PageEdit{Text: broken, EditedBy: "Pat", Edited: now})
+	a.store.SetPageEdit("extra.md", &PageEdit{Text: broken, EditedBy: "Pat", Edited: now})
+	if err := a.rebuildContent(); err != nil {
+		t.Fatalf("a broken admin edit stopped the rebuild: %v", err)
+	}
+	if body := do(t, h, nil, "GET", "/rides", "", nil).Body.String(); strings.Contains(body, "Edited Rides") || !strings.Contains(body, "<h1>") {
+		t.Error("/rides should show the GitHub version")
+	}
+	if w := do(t, h, nil, "GET", "/extra", "", nil); w.Code != 404 {
+		t.Errorf("a broken page added in the admin should be left out: %d", w.Code)
+	}
+}

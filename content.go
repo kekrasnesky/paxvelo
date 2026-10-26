@@ -6,6 +6,7 @@ import (
 	"html"
 	"html/template"
 	"io/fs"
+	"log"
 	"regexp"
 	"slices"
 	"sort"
@@ -71,6 +72,16 @@ func loadContent(content fs.FS, edits map[string]string, r *mdRenderer) ([]*cont
 			src = string(b)
 		}
 		p, err := parsePage(file, src, r)
+		if err != nil && edited {
+			// A page edited in the admin that no longer builds (a change on GitHub
+			// since removed a photo it uses, say) must not stop the whole site from
+			// starting or publishing: show the GitHub version until it's fixed.
+			log.Printf("page %s as edited in the admin no longer builds, showing the GitHub version: %v", file, err)
+			var b []byte
+			if b, err = fs.ReadFile(content, file); err == nil {
+				p, err = parsePage(file, string(b), r)
+			}
+		}
 		if err != nil {
 			return nil, fmt.Errorf("content/%s: %w", file, err)
 		}
@@ -87,7 +98,9 @@ func loadContent(content fs.FS, edits map[string]string, r *mdRenderer) ([]*cont
 	for _, file := range added {
 		p, err := parsePage(file, edits[file], r)
 		if err != nil {
-			return nil, fmt.Errorf("content/%s: %w", file, err)
+			// Same for a page added in the admin: it has no GitHub version, so it's left out.
+			log.Printf("page %s added in the admin no longer builds, leaving it out: %v", file, err)
+			continue
 		}
 		pages = append(pages, p)
 	}
