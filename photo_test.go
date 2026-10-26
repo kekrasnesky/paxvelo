@@ -128,3 +128,26 @@ func mustShrink(t *testing.T, b []byte, ext string) []byte {
 	}
 	return out
 }
+
+// A photo small enough to keep as it is still loses the details the camera
+// added, like where it was taken, but the picture itself is untouched.
+func TestSmallPhotoLosesCameraDetails(t *testing.T) {
+	plain := encodeJPEG(t, halves(800, 600, 255))
+	tagged := withOrientation(plain, 1)
+	if !bytes.Contains(tagged, []byte("Exif")) {
+		t.Fatal("test photo has no EXIF block")
+	}
+	out, ext := shrinkPhoto(tagged, ".jpg")
+	if ext != ".jpg" || bytes.Contains(out, []byte("Exif")) {
+		t.Error("the EXIF block should be removed")
+	}
+	if !bytes.Equal(out, plain) {
+		t.Error("only the EXIF block should change")
+	}
+	// A sideways photo is turned upright rather than losing its orientation.
+	sideways := withOrientation(encodeJPEG(t, halves(800, 600, 255)), 6)
+	out, _ = shrinkPhoto(sideways, ".jpg")
+	if b := decoded(t, out).Bounds(); b.Dx() != 600 || b.Dy() != 800 || bytes.Contains(out, []byte("Exif")) {
+		t.Errorf("a sideways photo should be turned upright and clean: %v", b)
+	}
+}

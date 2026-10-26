@@ -50,6 +50,7 @@ var calFlash = map[string]string{
 	"led":       "You’re signed up to lead. Thanks! The club has been emailed.",
 	"stepped":   "Done. That spot needs a new leader now, and the club has been emailed.",
 	"added":     "Ride added to the calendar. The club has been emailed.",
+	"held":      "Thanks! A club admin will look at your ride and approve it, and then it shows on the calendar. The club has been emailed.",
 	"cancelled": "Ride cancelled.",
 	"restored":  "Ride back on the calendar.",
 	"strava":    "Strava event link saved.",
@@ -152,7 +153,7 @@ func (a *App) calendarPage(w http.ResponseWriter, r *http.Request) {
 // ridePage shows one ride and what the visitor can do with it.
 func (a *App) ridePage(w http.ResponseWriter, r *http.Request) {
 	o, ok := a.store.Ride(r.PathValue("key"))
-	if !ok {
+	if !ok || (o.Held && !a.loggedIn(r)) { // a ride waiting for approval isn't public yet
 		a.site.notFound(w, r)
 		return
 	}
@@ -272,7 +273,7 @@ func (a *App) leadRide(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case c.Date < a.today().Format("2006-01-02"):
 			return errPastRide
-		case c.Cancelled || !c.hasGroup(group):
+		case c.Cancelled || c.Held || !c.hasGroup(group):
 			return errNoRide
 		case current != nil && sameLeader(*current, rd):
 			return nil
@@ -418,6 +419,9 @@ func (a *App) addRide(w http.ResponseWriter, r *http.Request) {
 		Name: cleanName(r.FormValue("name")), Place: cleanName(r.FormValue("place")),
 		Details: cleanName(r.FormValue("details")), StravaURL: strings.TrimSpace(r.FormValue("strava_url")), AddedBy: rd.Name,
 		Groups: groupsFor(r.FormValue("pace"), nil),
+		// Anyone can type a name here, so unless they signed in with Strava
+		// (which proves they're in the club) an admin approves the ride first.
+		Held: rd.ID == 0,
 	}
 	v := a.calBase(r)
 	v.Form, v.FormName = c, r.FormValue("leader_name")
@@ -447,6 +451,13 @@ func (a *App) addRide(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		v.Error = "Couldn’t save the ride. Try again."
 		a.renderCal(w, http.StatusInternalServerError, "ride-new", "/calendar", "Add a Ride", v)
+		return
+	}
+	if o.Held {
+		a.mailer.Notify(fmt.Sprintf("Ride waiting for approval: %s on %s", o.Name, shortDate(o.Date)),
+			fmt.Sprintf("%s (not signed in with Strava) added %s on %s. It isn't on the calendar until an admin approves it: %s/admin/calendar\n\nTo delete it instead, open it there.",
+				rd.Name, o.Name, rideWhen(o), a.cfg.SiteURL))
+		http.Redirect(w, r, "/calendar?ok=held", http.StatusSeeOther)
 		return
 	}
 	body := fmt.Sprintf("%s added a ride to the calendar: %s on %s.", rd.Name, o.Name, rideWhen(o))

@@ -66,6 +66,7 @@ type adminView struct {
 	Series              []RideSeries
 	Upcoming            []RideOcc
 	Weekdays            []monthOption
+	Held                []RideOcc // rides added on the website, waiting for approval
 	StravaReady         bool
 	StravaAdmins        []string
 	StravaAdminsChecked *time.Time
@@ -223,6 +224,7 @@ var flashText = map[string]string{
 	"ride-saved":        "Saved, and the club has been emailed about any change of leader, date, or time.",
 	"ride-added":        "Ride added to the calendar. The club has been emailed.",
 	"ride-deleted":      "Ride deleted.",
+	"ride-approved":     "Approved. The ride is on the calendar now.",
 	"cancelled":         "Ride cancelled. The club has been emailed.",
 	"restored":          "Ride is back on the calendar.",
 	"setup":             "You’re logged in with the setup password. Add yourself and the other admins below: each gets an email to choose their own password, and from then on everyone logs in with their email.",

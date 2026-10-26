@@ -62,7 +62,9 @@ func instagramEmbeds(posts []string) template.HTML {
 		e := html.EscapeString(u)
 		fmt.Fprintf(&b, `<blockquote class="instagram-media" data-instgrm-permalink="%s" data-instgrm-version="14"><a href="%s" target="_blank" rel="noopener">View this post on Instagram</a></blockquote>`, e, e)
 	}
-	b.WriteString(`</div><script async src="https://www.instagram.com/embed.js"></script>`)
+	// Instagram's script (and a frame per post) is far heavier than the rest of
+	// the page, so site.js loads it only when the posts are about to scroll into view.
+	b.WriteString(`</div>`)
 	return template.HTML(b.String())
 }
 

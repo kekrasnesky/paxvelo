@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -422,10 +423,77 @@ func TestLeadWithJustAName(t *testing.T) {
 	if loc := post(url.Values{"group": {group}, "leader_name": {"Someone Else"}, "ft": {oldToken(a)}}); !strings.Contains(loc, "err=taken") {
 		t.Errorf("name-only takeover: %q", loc)
 	}
-	// Adding a ride works without Strava too.
-	ct, body := form(url.Values{"date": {nextWeekday(a, time.Sunday)}, "name": {"Sunday Spin"}, "leader_name": {"Pat Rider"}, "lead": {"on"}, "ft": {oldToken(a)}})
-	if w := do(t, h, nil, "POST", "/calendar/new", ct, body); !strings.Contains(w.Header().Get("Location"), "ok=added") {
+	// Adding a ride works without Strava too, but waits for an admin to approve it.
+	sunday := nextWeekday(a, time.Sunday)
+	ct, body := form(url.Values{"date": {sunday}, "name": {"Sunday Spin"}, "leader_name": {"Pat Rider"}, "lead": {"on"}, "ft": {oldToken(a)}})
+	if w := do(t, h, nil, "POST", "/calendar/new", ct, body); !strings.Contains(w.Header().Get("Location"), "ok=held") {
 		t.Errorf("add ride by name: %d %s", w.Code, w.Header().Get("Location"))
+	}
+}
+
+// A ride added by someone who isn't signed in with Strava stays off the
+// calendar, the newsletter's data and the API until an admin approves it. A
+// ride from a rider signed in with Strava (so in the club) goes straight on.
+func TestRidesAddedByNameAreHeld(t *testing.T) {
+	a, h, sent := rideApp(t)
+	sunday := nextWeekday(a, time.Sunday)
+	onCalendar := func(name string) bool {
+		for _, o := range a.store.Rides(a.today(), a.today().AddDate(0, 0, 14)) {
+			if o.Name == name {
+				return true
+			}
+		}
+		return false
+	}
+	ct, body := form(url.Values{"date": {sunday}, "name": {"Sunday Spin"}, "leader_name": {"Pat Rider"}, "ft": {oldToken(a)}})
+	if w := do(t, h, nil, "POST", "/calendar/new", ct, body); !strings.Contains(w.Header().Get("Location"), "ok=held") {
+		t.Fatalf("add ride by name: %s", w.Header().Get("Location"))
+	}
+	if onCalendar("Sunday Spin") {
+		t.Fatal("a held ride is on the calendar")
+	}
+	held := a.store.HeldRides()
+	if len(held) != 1 || !held[0].Held {
+		t.Fatalf("held rides: %+v", held)
+	}
+	key := held[0].Key
+	if w := do(t, h, nil, "GET", "/calendar/ride/"+key, "", nil); w.Code != http.StatusNotFound {
+		t.Errorf("the public can open a held ride: %d", w.Code)
+	}
+	if len(*sent) != 1 || !strings.Contains((*sent)[0].subject, "waiting for approval") || !strings.Contains((*sent)[0].body, "/admin/calendar") {
+		t.Errorf("notice: %+v", *sent)
+	}
+	ct, body = form(url.Values{"group": {""}, "leader_name": {"Sam"}, "ft": {oldToken(a)}})
+	do(t, h, nil, "POST", "/calendar/ride/"+key+"/lead", ct, body)
+	if o, _ := a.store.Ride(key); len(o.Leaders) != 0 {
+		t.Errorf("someone signed up to lead a held ride: %+v", o.Leaders)
+	}
+
+	// The admin sees it, approves it, and then it's public.
+	rec := httptest.NewRecorder()
+	a.setSession(rec, "Board Member", 3600)
+	admin := rec.Result().Cookies()[0]
+	if page := do(t, h, admin, "GET", "/admin/calendar", "", nil).Body.String(); !strings.Contains(page, "Waiting for approval") || !strings.Contains(page, "Sunday Spin") {
+		t.Error("the Calendar tab doesn't list the held ride")
+	}
+	if w := do(t, h, admin, "GET", "/calendar/ride/"+key, "", nil); w.Code != http.StatusOK {
+		t.Errorf("an admin can't open the held ride: %d", w.Code)
+	}
+	do(t, h, admin, "POST", "/admin/rides/"+key+"/approve", "", nil)
+	if !onCalendar("Sunday Spin") || len(a.store.HeldRides()) != 0 {
+		t.Error("approving didn't put the ride on the calendar")
+	}
+	if w := do(t, h, nil, "GET", "/calendar/ride/"+key, "", nil); w.Code != http.StatusOK {
+		t.Errorf("the approved ride isn't public: %d", w.Code)
+	}
+
+	// Signed in with Strava: straight onto the calendar.
+	rec = httptest.NewRecorder()
+	a.setRider(rec, &Rider{ID: 7, Name: "Ann A."})
+	rider := rec.Result().Cookies()[0]
+	ct, body = form(url.Values{"date": {sunday}, "name": {"Coffee Ride"}, "ft": {oldToken(a)}})
+	if w := do(t, h, rider, "POST", "/calendar/new", ct, body); !strings.Contains(w.Header().Get("Location"), "ok=added") || !onCalendar("Coffee Ride") {
+		t.Errorf("a ride from a Strava rider should go straight on: %s", w.Header().Get("Location"))
 	}
 }
 
@@ -521,5 +589,28 @@ func TestStravaImportAndAPI(t *testing.T) {
 	h.ServeHTTP(dw, r)
 	if dw.Code != http.StatusOK || len(a.store.Rides(a.today(), a.today().AddDate(0, 0, 14))) == 0 {
 		t.Errorf("delete: %d", dw.Code)
+	}
+}
+
+// A Strava sign-in lasts a month, but its club-admin powers only a day, so
+// someone removed as a club admin on Strava loses them the next day.
+func TestStravaAdminPowersExpire(t *testing.T) {
+	a, _, _ := rideApp(t)
+	cookie := func(checked int64) *http.Request {
+		b, _ := json.Marshal(Rider{ID: 7, Name: "Ann A.", Admin: true, Checked: checked})
+		exp := strconv.FormatInt(time.Now().Add(time.Hour).Unix(), 10)
+		enc := base64.RawURLEncoding.EncodeToString(b)
+		r := httptest.NewRequest("GET", "/calendar", nil)
+		r.AddCookie(&http.Cookie{Name: riderCookie, Value: exp + "." + enc + "." + sign(a.riderKey(), exp+"."+enc)})
+		return r
+	}
+	if rd, ok := a.rider(cookie(time.Now().Unix())); !ok || !rd.Admin {
+		t.Errorf("a fresh sign-in should be an admin: %+v", rd)
+	}
+	if rd, ok := a.rider(cookie(time.Now().Add(-25 * time.Hour).Unix())); !ok || rd.Admin {
+		t.Errorf("a day-old sign-in should stay signed in but lose admin powers: %+v", rd)
+	}
+	if rd, ok := a.rider(cookie(0)); !ok || rd.Admin {
+		t.Errorf("a sign-in from before this check should lose admin powers: %+v", rd)
 	}
 }

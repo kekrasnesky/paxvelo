@@ -31,7 +31,7 @@ func (a *App) ridesAdmin(w http.ResponseWriter, r *http.Request) {
 // calendarAdmin is the Calendar tab: the month, like the public calendar, but
 // every ride opens its admin page.
 func (a *App) calendarAdmin(w http.ResponseWriter, r *http.Request) {
-	v := adminView{Title: "Calendar", Tab: "calendar", Month: a.month(r.URL.Query().Get("m"))}
+	v := adminView{Title: "Calendar", Tab: "calendar", Month: a.month(r.URL.Query().Get("m")), Held: a.store.HeldRides()}
 	v.Flash, v.Error = flashFrom(r)
 	a.renderAdmin(w, r, http.StatusOK, "calendar", v)
 }
@@ -290,6 +290,15 @@ func (a *App) cancelRideAdmin(w http.ResponseWriter, r *http.Request) {
 		to = "/admin/rides?ok=" + code
 	}
 	back(w, r, to)
+}
+
+// approveRide puts a ride someone added on the website onto the calendar.
+func (a *App) approveRide(w http.ResponseWriter, r *http.Request) {
+	if _, err := a.store.UpdateRide(r.PathValue("key"), func(c *CalRide) error { c.Held = false; return nil }); err != nil {
+		back(w, r, "/admin/calendar?err=noride")
+		return
+	}
+	back(w, r, "/admin/calendar?ok=ride-approved")
 }
 
 func (a *App) deleteRideAdmin(w http.ResponseWriter, r *http.Request) {

@@ -728,6 +728,14 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   <h1>Calendar</h1>
   <p class="muted">Every ride. Click one to change its leaders or details, or to cancel it. Riders see the same calendar at <a href="/calendar" target="_blank" rel="noopener">{{.SiteURL}}/calendar</a>.</p>
 </div>
+{{if .Held}}<div class="card">
+  <h2>Waiting for approval</h2>
+  <p class="muted small">Added on the website by someone who didn’t sign in with Strava. They aren’t on the public calendar until you approve them.</p>
+  <ul class="plain">{{range .Held}}<li><strong>{{.Name}}</strong>, {{.DateLabel}}{{if .Time}} at {{.TimeLabel}}{{end}}{{if .Place}}, {{.Place}}{{end}}{{if .AddedBy}} <span class="muted">(added by {{.AddedBy}})</span>{{end}}
+    <form method="post" action="/admin/rides/{{.Key}}/approve" class="inline"><button class="mini">Approve</button></form>
+    <a class="btn mini ghost" href="/admin/rides/{{.Key}}">Open</a>
+    <form method="post" action="/admin/rides/{{.Key}}/delete" class="inline" onsubmit="return confirm('Delete {{.Name}} on {{.DateLabel}}?')"><button class="link danger">Delete</button></form></li>{{end}}</ul>
+</div>{{end}}
 <div class="cal-bar">
   <nav class="cal-nav" aria-label="Month"><a class="btn mini ghost" href="/admin/calendar?m={{$m.Prev}}" aria-label="Previous month">‹</a><h2>{{$m.MonthLabel}}</h2><a class="btn mini ghost" href="/admin/calendar?m={{$m.Next}}" aria-label="Next month">›</a></nav>
   <a class="btn" href="/admin/rides/new">Add a ride</a>

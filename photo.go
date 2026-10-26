@@ -37,7 +37,10 @@ func shrinkPhoto(b []byte, ext string) ([]byte, string) {
 	if ext == ".jpg" {
 		turn = jpegOrientation(b)
 	}
-	if max(cfg.Width, cfg.Height) <= photoMaxSide && len(b) <= photoKeepBytes {
+	if max(cfg.Width, cfg.Height) <= photoMaxSide && len(b) <= photoKeepBytes && turn == 1 {
+		if ext == ".jpg" {
+			return stripJPEGMetadata(b), ext // small enough to keep, but not with the camera's details
+		}
 		return b, ext
 	}
 	src, _, err := image.Decode(bytes.NewReader(b))
@@ -54,7 +57,13 @@ func shrinkPhoto(b []byte, ext string) ([]byte, string) {
 		outExt = ".png"
 		err = (&png.Encoder{CompressionLevel: png.BestCompression}).Encode(&out, img)
 	}
-	if err != nil || out.Len() >= len(b) {
+	if err != nil {
+		return b, ext
+	}
+	if out.Len() >= len(b) && turn == 1 {
+		if ext == ".jpg" {
+			return stripJPEGMetadata(b), ext
+		}
 		return b, ext
 	}
 	return out.Bytes(), outExt
@@ -123,6 +132,38 @@ func spans(size, n int) [][]weight {
 		}
 	}
 	return out
+}
+
+// stripJPEGMetadata returns the JPEG without the details a camera adds: the
+// EXIF block (which holds where the photo was taken), XMP, IPTC and comments.
+// The picture itself isn't touched. A photo with none of these, or one that
+// can't be read, is returned as is.
+func stripJPEGMetadata(b []byte) []byte {
+	if len(b) < 4 || b[0] != 0xFF || b[1] != 0xD8 {
+		return b
+	}
+	out := append(make([]byte, 0, len(b)), b[:2]...)
+	p, dropped := 2, false
+	for p+4 <= len(b) && b[p] == 0xFF {
+		marker := b[p+1]
+		n := int(binary.BigEndian.Uint16(b[p+2:]))
+		if marker == 0xDA {
+			break // the image data starts here
+		}
+		if n < 2 || p+2+n > len(b) {
+			return b
+		}
+		if marker == 0xE1 || marker == 0xED || marker == 0xFE { // EXIF/XMP, IPTC, comment
+			dropped = true
+		} else {
+			out = append(out, b[p:p+2+n]...)
+		}
+		p += 2 + n
+	}
+	if !dropped {
+		return b
+	}
+	return append(out, b[p:]...)
 }
 
 // jpegOrientation reads which way up the camera says the photo goes (the

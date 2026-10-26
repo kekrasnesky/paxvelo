@@ -32,6 +32,10 @@ type Rider struct {
 	ID    int64  `json:"id"`
 	Name  string `json:"name"`  // as Strava shows it to other members, like "Jane D."
 	Admin bool   `json:"admin"` // a PaxVelo club admin on Strava
+	// Checked is when Strava last said so (Unix seconds). The sign-in lasts a month,
+	// but the admin part is trusted for a day, so removing someone as a club admin
+	// on Strava takes effect the next day, not the next month.
+	Checked int64 `json:"checked,omitempty"`
 }
 
 func (a *App) stravaReady() bool {
@@ -63,12 +67,21 @@ func (a *App) rider(r *http.Request) (Rider, bool) {
 	if err != nil || json.Unmarshal(b, &rd) != nil || rd.ID == 0 {
 		return Rider{}, false
 	}
+	if rd.Admin && time.Since(time.Unix(rd.Checked, 0)) > riderAdminLife {
+		rd.Admin = false // still signed in, but signing in again is needed for admin powers
+	}
 	return rd, true
 }
+
+// riderAdminLife is how long a Strava sign-in keeps its club-admin powers.
+const riderAdminLife = 24 * time.Hour
 
 func (a *App) setRider(w http.ResponseWriter, rd *Rider) {
 	maxAge, value := -1, ""
 	if rd != nil {
+		c := *rd
+		c.Checked = time.Now().Unix() // called when someone has just signed in
+		rd = &c
 		maxAge = 30 * 24 * 3600
 		b, _ := json.Marshal(rd)
 		exp := strconv.FormatInt(time.Now().Add(time.Duration(maxAge)*time.Second).Unix(), 10)

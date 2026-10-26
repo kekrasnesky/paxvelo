@@ -11,7 +11,7 @@
       </tr></table>
     </td></tr>
     <tr><td style="padding:28px 24px 12px;font-family:Poppins,Arial,Helvetica,sans-serif;font-size:16px;line-height:1.6;color:#2d2d2d">{{.Body}}</td></tr>
-    <tr><td style="padding:12px 24px 28px;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.5;color:#77706b;border-top:1px solid #eee8e1">You’re getting this because you joined PaxVelo. <a href="{{.UnsubURL}}" style="color:#77706b">Unsubscribe</a></td></tr>
+    <tr><td style="padding:12px 24px 28px;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.5;color:#77706b;border-top:1px solid #eee8e1">{{if .UnsubURL}}You’re getting this because you joined PaxVelo. <a href="{{.UnsubURL}}" style="color:#77706b">Unsubscribe</a>{{else}}Sent by the PaxVelo Cycling Club website.{{end}}</td></tr>
   </table>
 </td></tr></table>
 </body>

@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-// Mailer sends email through any SMTP server (the club Gmail by default).
+// Mailer sends email through any SMTP server (Brevo, in the standard setup).
 // Switching providers later is a config change, not a code change.
 type Mailer struct {
 	cfg   Config
@@ -50,7 +50,7 @@ func (m *Mailer) Wake() {
 }
 
 // run sends queued campaign emails one at a time with a pause between each,
-// which keeps you under Gmail's limits and out of spam filters.
+// which keeps you under the provider's limits and out of spam filters.
 func (m *Mailer) run(ctx context.Context) {
 	var streak []int // members that failed in a row
 	streakCampaign := 0
@@ -126,13 +126,13 @@ func (m *Mailer) Notify(subject, body string) {
 	if to == "" {
 		return
 	}
-	go m.send(m.cfg.FromName, to, subject, body, m.cfg.SiteURL) // a failure is logged by send
+	go m.send(m.cfg.FromName, to, subject, body, "") // a failure is logged by send
 }
 
 // SendDirect sends one email that isn't to the member list, like an admin's
 // password link, so it has no unsubscribe link.
 func (m *Mailer) SendDirect(toName, toEmail, subject, body string) error {
-	return m.send(toName, toEmail, subject, body, m.cfg.SiteURL)
+	return m.send(toName, toEmail, subject, body, "")
 }
 
 func (m *Mailer) SendWelcome(mem Member) {
@@ -143,12 +143,18 @@ func (m *Mailer) SendWelcome(mem Member) {
 	m.SendTo(mem, w.Subject, w.Body) // a failure is logged by send
 }
 
+// send sends one email. unsubURL is the member's unsubscribe link, or "" for an
+// email that isn't to a member (a password link, a ride notice), which then has
+// no unsubscribe link or one-click Unsubscribe button.
 func (m *Mailer) send(toName, toEmail, subject, text, unsubURL string) error {
 	htmlBody, err := m.site.renderEmail(subject, text, unsubURL, m.cfg.SiteURL)
 	if err != nil {
 		return err
 	}
-	plain := emailText(text, m.cfg.SiteURL) + "\n\n--\nPaxVelo, " + m.cfg.SiteURL + "\nUnsubscribe: " + unsubURL + "\n"
+	plain := emailText(text, m.cfg.SiteURL) + "\n\n--\nPaxVelo, " + m.cfg.SiteURL + "\n"
+	if unsubURL != "" {
+		plain += "Unsubscribe: " + unsubURL + "\n"
+	}
 	if !m.live() {
 		log.Printf("[test mode, not sent] To: %s | Subject: %s\n%s\n", toEmail, subject, text)
 		return nil
@@ -173,9 +179,11 @@ func (m *Mailer) build(toName, toEmail, subject, text, htmlBody, unsubURL string
 	hdr("Date", time.Now().Format(time.RFC1123Z))
 	hdr("Message-ID", "<"+randHex(16)+"@"+domainOf(m.cfg.FromEmail)+">")
 	hdr("MIME-Version", "1.0")
-	// One-click unsubscribe: Gmail and Yahoo show an "Unsubscribe" button from these.
-	hdr("List-Unsubscribe", "<"+unsubURL+">")
-	hdr("List-Unsubscribe-Post", "List-Unsubscribe=One-Click")
+	if unsubURL != "" {
+		// One-click unsubscribe: Gmail and Yahoo show an "Unsubscribe" button from these.
+		hdr("List-Unsubscribe", "<"+unsubURL+">")
+		hdr("List-Unsubscribe-Post", "List-Unsubscribe=One-Click")
+	}
 	hdr("Content-Type", `multipart/alternative; boundary="`+boundary+`"`)
 	b.WriteString("\r\n")
 	for _, part := range []struct{ ctype, body string }{{"text/plain", text}, {"text/html", htmlBody}} {

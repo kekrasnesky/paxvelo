@@ -24,10 +24,25 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+      - name: Check the formatting
+        run: test -z "$(gofmt -l .)" || { gofmt -l .; echo "Run gofmt -w . to fix the files above."; exit 1; }
       - name: Check the code
         run: go vet ./...
       - name: Check every page
         run: go test ./...
+
+  # Looks for two things changing the same data at once. It runs alongside the
+  # check above but doesn't hold up publishing: if it finds something, GitHub
+  # emails the author, and the site still goes live.
+  race:
+    name: Check for data races
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go test -race ./...
 
   publish:
     name: Put it live

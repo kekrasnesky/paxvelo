@@ -35,3 +35,25 @@ func TestFailedEmailIsLogged(t *testing.T) {
 		}
 	}
 }
+
+// Only emails to members carry an unsubscribe link and Gmail's one-click
+// Unsubscribe button. A password reset or a ride notice doesn't.
+func TestUnsubscribeOnlyOnMemberEmails(t *testing.T) {
+	a, _, _ := testApp(t)
+	m := a.mailer
+	member := string(m.build("Pat", "pat@example.com", "News", "Hi", "<p>Hi</p>", "https://example.com/unsubscribe?t=abc"))
+	if !strings.Contains(member, "List-Unsubscribe: <https://example.com/unsubscribe?t=abc>") || !strings.Contains(member, "List-Unsubscribe-Post") {
+		t.Error("a member email should have the unsubscribe headers")
+	}
+	direct := string(m.build("Pat", "pat@example.com", "Reset", "Hi", "<p>Hi</p>", ""))
+	if strings.Contains(direct, "List-Unsubscribe") {
+		t.Error("a password email shouldn't have unsubscribe headers")
+	}
+	page, err := a.site.renderEmail("Reset", "Hi", "", a.cfg.SiteURL)
+	if err != nil || strings.Contains(page, "Unsubscribe") {
+		t.Errorf("a password email shouldn't mention unsubscribing (err %v)", err)
+	}
+	if page, _ := a.site.renderEmail("News", "Hi", "https://example.com/u", a.cfg.SiteURL); !strings.Contains(page, "Unsubscribe") {
+		t.Error("a member email should have the unsubscribe link")
+	}
+}

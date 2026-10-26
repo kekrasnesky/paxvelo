@@ -197,10 +197,17 @@ func TestInstagramOnHomePage(t *testing.T) {
 		t.Fatalf("save: %d %s", w.Code, w.Body.String())
 	}
 	home := do(t, h, nil, "GET", "/", "", nil).Body.String()
-	for _, want := range []string{`data-instgrm-permalink="https://www.instagram.com/p/ABC123/"`, "instagram.com/embed.js", "Follow @paxvelo"} {
+	for _, want := range []string{`data-instgrm-permalink="https://www.instagram.com/p/ABC123/"`, "Follow @paxvelo"} {
 		if !strings.Contains(home, want) {
 			t.Errorf("home page is missing %s", want)
 		}
+	}
+	// Instagram's script loads from site.js when the posts scroll into view, not with the page.
+	if strings.Contains(home, `<script async src="https://www.instagram.com/embed.js">`) {
+		t.Error("the page should not load Instagram's script up front")
+	}
+	if !strings.Contains(home, "instagram.com/embed.js") || !strings.Contains(home, "IntersectionObserver") {
+		t.Error("site.js should load Instagram's script when the posts scroll into view")
 	}
 	ct, body = form(url.Values{"posts": {"not a link"}})
 	if w := do(t, h, admin, "POST", "/admin/instagram", ct, body); !strings.Contains(w.Body.String(), "Not saved") {

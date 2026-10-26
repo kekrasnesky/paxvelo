@@ -15,6 +15,22 @@
   }
   d.addEventListener('keydown',function(e){if(e.key==='Escape'){setMenu(false);setDD(false)}});
 
+  // Instagram posts: load Instagram's script only when they're about to scroll into view
+  var insta=d.querySelectorAll('.insta');
+  function loadInsta(){
+    if(window.instgrm){window.instgrm.Embeds.process();return}
+    if(d.getElementById('insta-js'))return;
+    var s=d.createElement('script');s.id='insta-js';s.async=true;s.src='https://www.instagram.com/embed.js';d.body.appendChild(s);
+  }
+  if(insta.length){
+    if('IntersectionObserver' in window){
+      var seen=new IntersectionObserver(function(es){
+        if(es.some(function(e){return e.isIntersecting})){seen.disconnect();loadInsta()}
+      },{rootMargin:'400px'});
+      insta.forEach(function(el){seen.observe(el)});
+    }else loadInsta();
+  }
+
   // Join form: submit in the background and swap in the result
   var form=d.querySelector('form.join[action="/join"]');
   if(form&&window.fetch)form.addEventListener('submit',function(e){

@@ -91,10 +91,11 @@ Passwords are stored as PBKDF2 hashes, never as the password itself. In test mod
 - **Weekly rides** (the Tuesday and Thursday rides to start with) are set up in the admin portal under **Rides**, with a day, a start time, an optional season, and **pace groups**. Press **Edit** on a weekly ride to change it: its dates from today on follow, except anything changed on one date's own page. The Thursday ride runs March 1 to October 10. Both are set to 6:00 PM for now: check the times and fix them on the Rides tab if they're wrong.
 - **Pace groups:** pick from a menu: one leader, A and B groups, or A, B and C groups. Each group has its own leader. Put the paces in the ride's details (like "A 24–28 mph, B 20–22 mph"). The calendar shows green when every group has a leader, blue when some do, and amber when none do.
 - **Leading a ride:** no account or sign-in needed. On the ride's page, type your name and press **I'll lead**. A spot with no leader can be taken by anyone. Once it has a leader, only an admin can change it (in the admin portal, or a Strava club admin signed in on the calendar).
-- **Adding a ride:** **Add a ride** (or the + on any day) needs just your name, a date, a start time, and a ride name. Everything else is optional.
+- **Adding a ride:** **Add a ride** (or the + on any day) needs just your name, a date, a start time, and a ride name. Everything else is optional. A ride added by someone who isn't signed in with Strava waits for an admin to approve it: it isn't on the calendar, the newsletter, or the API until then. The club is emailed, and the admin Calendar tab lists these under **Waiting for approval**, with **Approve**, **Open**, and **Delete**. A rider signed in with Strava (so in the club) skips the wait.
 - **In the admin portal:** the **Calendar** tab shows every month; click any ride to change its leaders (including filled spots), name, time, start, details, pace groups, or Strava link, or to cancel it. One-off rides can also be moved to another date or deleted. **Add a ride** (or the + on a day) adds one with its leaders.
 - **Emails:** every new leader, change of leader, step-down, new ride, and cancellation is emailed to PaxVeloClub@gmail.com (or `RIDES_EMAIL`), with the current leaders of each group.
-- **Spam:** the sign-up forms use the same checks as the Join form, so bots can't fill the calendar.
+- **Spam:** the sign-up forms use the same checks as the Join form, so bots can't fill the calendar, and the approval step above stops anyone from posting made-up rides.
+- **Strava club admins:** signing in with Strava as a club admin gives admin powers on the calendar for a day. After that the rider stays signed in but has to sign in again to be an admin, so someone removed as a club admin on Strava loses the powers the next day.
 
 **About Strava RSVPs:** Strava only lets a person RSVP to an event themselves, from their own Strava account, so the website can't RSVP someone for an event by name. Leaders who sign up with just a name show on the calendar and in the email; the club's Strava event is linked from every ride's page.
 
@@ -141,7 +142,7 @@ Ride fields: `date` (required, `2026-11-07`), `name` (required), `time` (24-hour
 
 ## Instagram
 
-The home page has an "On Instagram" section. Pick which posts it shows in the admin portal under **Instagram**: paste up to 6 post links (on Instagram: ⋯ → Copy link). Each newsletter issue can also show up to 3 posts. Posts are shown with Instagram's own embed, so photos, carousels, and reels look as they do on Instagram, and they link back to the club's page. That embed loads a script from Instagram, which Instagram may use to track visitors who are logged in.
+The home page has an "On Instagram" section. Pick which posts it shows in the admin portal under **Instagram**: paste up to 6 post links (on Instagram: ⋯ → Copy link). Each newsletter issue can also show up to 3 posts. Posts are shown with Instagram's own embed, so photos, carousels, and reels look as they do on Instagram, and they link back to the club's page. That embed loads a script from Instagram, which Instagram may use to track visitors who are logged in. To keep pages fast, the script loads only when the posts are about to scroll into view, so visitors who never scroll that far never load it.
 
 Showing the newest posts automatically would mean switching the account to a Business account linked to a Facebook Page and setting up a Meta developer app, with a key to renew every 60 days. Picking posts by hand needs none of that.
 
@@ -165,16 +166,30 @@ When someone joins, they pick a plan and land on the right PayPal link. PayPal e
 
 The site never handles card details or connects to PayPal directly, so there's nothing to maintain. To change the prices, update `DUES_INDIVIDUAL` and `DUES_FAMILY` and the PayPal links. For a separate donation option, add a PayPal donation link as `DONATE_URL` and a "Support the club" link appears on the homepage.
 
-## Email setup (club Gmail)
+## Email setup (Brevo)
 
-1. Turn on 2-Step Verification for PaxVeloClub@gmail.com.
-2. Create an app password at https://myaccount.google.com/apppasswords.
-3. In `paxvelo.conf`, set `SMTP_PASS` to that password (no spaces) and keep `SMTP_HOST=smtp.gmail.com`.
-4. In the admin, Email → **Send test** to yourself before sending to everyone.
+The site sends email through [Brevo](https://www.brevo.com)'s SMTP service, from an address on the club's own domain (`news@paxvelo.cc`). That keeps club emails out of spam folders far better than sending from a Gmail address. Brevo's free plan allows 300 emails a day (check [their pricing page](https://www.brevo.com/pricing/) for the current limit), which is plenty for a club this size.
 
-Gmail allows about 500 emails a day. If the club outgrows that, any email service that offers SMTP (Amazon SES, Postmark, Fastmail…) works by changing the `SMTP_` lines. No code changes are needed.
+1. **Domain:** in Brevo, add your domain under **Senders, domains & dedicated IPs** and add the DKIM and DMARC records it shows to your DNS (Cloudflare). Wait until Brevo shows the domain as verified.
+2. **SMTP login:** under **SMTP & API**, copy the login (it looks like `abc123@smtp-brevo.com`: this is *not* your own email address) and create an SMTP key.
+3. **Settings:** in `paxvelo.conf` on the server:
 
-Every email has an unsubscribe link, and Gmail and Yahoo show their own one-click "Unsubscribe" button for it. If sending fails three times in a row (wrong password, Gmail down), it pauses with the reason shown. Nobody is skipped: fix the problem and press **Resume**.
+   ```
+   SMTP_HOST=smtp-relay.brevo.com
+   SMTP_PORT=587
+   SMTP_USER=the login from step 2
+   SMTP_PASS=the SMTP key from step 2
+   FROM_EMAIL=news@paxvelo.cc
+   ```
+
+   Then `systemctl restart paxvelo`.
+4. **Try it:** in the admin, Email → **Send test** to yourself before sending to everyone.
+
+A wrong `SMTP_USER` shows up as "535 Authentication failed". Every failed email is written to the server log with who it was for and why: `journalctl -u paxvelo | grep failed`.
+
+Emails to members have an unsubscribe link, and Gmail and Yahoo show their own one-click "Unsubscribe" button for it. Emails that aren't to members (an admin's password link, the club's ride notices) don't. If sending fails three times in a row (wrong password, daily limit reached, Brevo down), a send to everyone pauses with the reason shown. Nobody is skipped: fix the problem, or wait until the next day if it was the limit, and press **Resume**.
+
+Replies to club emails go to `news@paxvelo.cc`, which needs to forward somewhere. A free way is Cloudflare's **Email Routing** (Cloudflare dashboard, paxvelo.cc, Email), forwarding `news@` to PaxVeloClub@gmail.com.
 
 ## Putting it online
 
@@ -185,7 +200,7 @@ For now the site runs at **paxvelo.cc**, while the old Squarespace site keeps **
 1. **DNS:** point both `paxvelo.cc` and `www.paxvelo.cc` (A records) at the server's IP address. Leave the paxvelo.club DNS alone.
 2. **One-time server setup:** `scp -r deploy root@SERVER:/root/ && ssh root@SERVER 'cd deploy && sh setup.sh'`
 3. **Settings:** `scp paxvelo.conf root@SERVER:/opt/paxvelo/` then `ssh root@SERVER 'chown paxvelo /opt/paxvelo/paxvelo.conf && chmod 600 /opt/paxvelo/paxvelo.conf'`
-4. **Publishing:** connect GitHub (below) so every saved change goes live by itself. To publish by hand instead, run `./deploy/deploy.sh root@SERVER`.
+4. **Publishing:** connect GitHub (below) so every saved change goes live by itself. To publish by hand instead, run `./deploy/deploy.sh root@SERVER`: it uses the same installer, so it also puts the old version back if the new one doesn't start.
 
 HTTPS certificates are set up and renewed automatically by Caddy, and security updates install themselves. A send that was in progress during a deploy picks up where it left off.
 

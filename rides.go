@@ -96,6 +96,9 @@ type CalRide struct {
 	Cancelled bool      `json:"cancelled,omitempty"`
 	AddedBy   string    `json:"added_by,omitempty"`
 	Added     time.Time `json:"added"`
+	// Held is a ride someone added on the website without signing in with Strava.
+	// It stays off the calendar, the newsletter and the API until an admin approves it.
+	Held bool `json:"held,omitempty"`
 }
 
 // RideOcc is one ride on the calendar.
@@ -331,7 +334,7 @@ func (s *Store) Rides(from, to time.Time) []RideOcc {
 	var out []RideOcc
 	stored := map[string]bool{}
 	for _, r := range s.d.CalRides {
-		if r.Date >= fromS && r.Date <= toS {
+		if r.Date >= fromS && r.Date <= toS && !r.Held {
 			o := occOf(r)
 			stored[o.Key] = true
 			out = append(out, o)
@@ -355,6 +358,20 @@ func (s *Store) Rides(from, to time.Time) []RideOcc {
 		}
 		return out[i].Time < out[j].Time
 	})
+	return out
+}
+
+// HeldRides returns the rides waiting for an admin's approval, soonest first.
+func (s *Store) HeldRides() []RideOcc {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var out []RideOcc
+	for _, r := range s.d.CalRides {
+		if r.Held {
+			out = append(out, occOf(r))
+		}
+	}
+	sort.SliceStable(out, func(i, j int) bool { return out[i].Date < out[j].Date })
 	return out
 }
 
