@@ -33,7 +33,9 @@ strong{font-weight:500}
 /* ---------- Header: a slim bar that stays at the top ---------- */
 .hdr{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:1.5rem;min-height:60px;padding:0 var(--side);background:var(--ink);color:var(--paper)}
 .logo{display:flex;align-items:center;gap:12px;padding:6px 0;color:var(--paper);text-decoration:none}
-.logo img{width:84px;height:auto}
+.logo img{width:84px;height:auto;transition:filter .25s}
+/* The PV mark lights up a little on hover */
+@media (hover:hover){.logo:hover img,.logo:focus-visible img{filter:brightness(1.07) drop-shadow(0 0 5px rgba(255,214,140,.35))}}
 .wordmark{font-size:1.05rem;font-weight:500;line-height:1;letter-spacing:.01em;white-space:nowrap}
 .nav{align-self:stretch;display:flex;align-items:center;gap:2px;font-size:14.5px;line-height:1.4}
 .nav a,.dd-btn{color:var(--paper);text-decoration:none}
