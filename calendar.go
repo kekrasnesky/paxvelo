@@ -25,7 +25,9 @@ type calDay struct {
 type calView struct {
 	MonthLabel, Prev, Next string
 	Weeks                  [][]calDay
-	Days                   []calDay // days of the month that have rides, for phones
+	Days                   []calDay  // days of the month that have rides, for phones
+	Upcoming               []RideOcc // the next few rides, whatever month is shown
+	UpcomingNote           string    // what to say when there are none
 	Rider                  *Rider
 	StravaReady            bool
 	Flash, Error           string
@@ -147,7 +149,31 @@ func (a *App) calendarPage(w http.ResponseWriter, r *http.Request) {
 	v := a.calBase(r)
 	m := a.month(r.URL.Query().Get("m"))
 	v.MonthLabel, v.Prev, v.Next, v.Weeks, v.Days = m.MonthLabel, m.Prev, m.Next, m.Weeks, m.Days
+	v.Upcoming, v.UpcomingNote = a.upcomingRides()
 	a.renderCal(w, http.StatusOK, "calendar", "/calendar", "Ride Calendar", v)
+}
+
+// upcomingRides returns the next few rides that aren't cancelled. When there
+// are none soon, it says when the next one is (a weekly ride can be out of
+// season for months).
+func (a *App) upcomingRides() ([]RideOcc, string) {
+	const soon = 4
+	today := a.today()
+	var out []RideOcc
+	for _, o := range a.store.Rides(today, today.AddDate(0, 0, 120)) {
+		if !o.Cancelled && len(out) < soon {
+			out = append(out, o)
+		}
+	}
+	if len(out) > 0 {
+		return out, ""
+	}
+	for _, o := range a.store.Rides(today.AddDate(0, 0, 121), today.AddDate(0, 0, 400)) {
+		if !o.Cancelled {
+			return nil, "No rides until " + o.DateLabel() + "."
+		}
+	}
+	return nil, "No rides are scheduled yet."
 }
 
 // ridePage shows one ride and what the visitor can do with it.

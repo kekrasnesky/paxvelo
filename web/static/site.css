@@ -260,39 +260,48 @@ strong{font-weight:500}
 
 /* ---------- Ride calendar ---------- */
 .page-cal{max-width:calc(1240px + 2 * var(--pad))}
-.cal-top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:1rem 2rem}
-.cal-top .lead{max-width:44rem}
-.cal-actions{margin:0 0 1.6rem!important}
+.cal-top{display:flex;align-items:center;justify-content:space-between;gap:1rem}
+.cal-top h1{margin:0}
+.cal-actions{margin:0!important}
+.page-cal .lead{max-width:44rem;margin:.4rem 0 .9rem}
+.cal-up{margin:0 0 .9rem}
+.cal-up h2{margin:0 0 .5rem;font-size:1.05rem}
+.cal-up-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(15rem,1fr));gap:10px;margin:0;padding:0;list-style:none}
+.cal-up .cal-ride{height:100%;margin:0;padding:.55rem .8rem;border-radius:8px;border-left-width:5px;background:var(--card);box-shadow:0 1px 3px rgba(45,45,45,.08);font-size:.92rem}
+.cal-up-date{display:block;font-size:.78rem;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--ink)}
+.cal-none{margin:0!important;color:var(--ink)}
 .rider-bar{margin:0 0 1rem;padding:.5rem .9rem;border-radius:0 8px 8px 0;border-left:4px solid #fc4c02;background:#fff;color:var(--ink);font-size:.95rem}
 .cal-msg{margin:0 0 .8rem!important;padding:.6rem .9rem;border-radius:0 8px 8px 0;border-left:4px solid #2f6b3a;background:#fff;color:var(--ink);font-weight:500}
 .cal-err{border-color:var(--red)}
 .link-button{padding:0;border:0;background:none;color:inherit;font:inherit;text-decoration:underline;cursor:pointer}
-.cal-nav{display:flex;align-items:center;justify-content:center;gap:1.2rem;margin:.6rem 0 .4rem}
-.cal-nav h2{min-width:11ch;font-size:clamp(1.3rem,2.4vw,1.7rem);text-align:center}
+.cal-bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.4rem 1.5rem;margin:0 0 .6rem}
+.cal-nav{display:flex;align-items:center;gap:.8rem;margin:0}
+.cal-nav h2{min-width:10ch;font-size:clamp(1.2rem,2vw,1.5rem);text-align:center}
 .cal-nav a{display:grid;place-items:center;width:40px;height:40px;border:1px solid var(--line);border-radius:8px;background:var(--card);font:500 1.4rem/1 var(--font);text-decoration:none}
 @media (hover:hover){.cal-nav a:hover{background:var(--red);color:var(--paper)}}
-.cal-key{display:flex;align-items:center;justify-content:center;gap:.4rem 1.2rem;flex-wrap:wrap;margin-bottom:1rem;font-size:.85rem}
+.cal-key{display:flex;align-items:center;justify-content:flex-end;gap:.4rem 1rem;flex-wrap:wrap;margin:0;font-size:.85rem;color:var(--ink)}
 .dot{display:inline-block;width:.7rem;height:.7rem;border-radius:50%;vertical-align:middle}
-.dot-led,.cal-ride.led{--c:#2f6b3a}
-.dot-open,.cal-ride.open{--c:#c98a1b}
-.dot-partial,.cal-ride.partial{--c:#4f7f99}
+.dot-led,.cal-ride.led{--c:#2f6b3a;--t:#245a30}
+.dot-open,.cal-ride.open{--c:#c98a1b;--t:#8a5a00}
+.dot-partial,.cal-ride.partial{--c:#4f7f99;--t:#33627d}
 .dot{background:var(--c)}
 .cal-grid{width:100%;border-collapse:collapse;table-layout:fixed;background:#fff;box-shadow:0 1px 3px rgba(45,45,45,.08)}
 .cal-grid th{padding:.45rem;border:1px solid var(--ink);background:var(--ink);color:var(--paper);font:500 .85rem/1 var(--font);letter-spacing:.06em;text-transform:uppercase}
 .cal-grid td{height:6.6rem;padding:.3rem;border:1px solid var(--line);vertical-align:top}
 .cal-grid td.out{background:#f1ece5;color:#b9a9a3}
-.cal-grid td.past .cal-ride{opacity:.55}
+.cal-grid td.past .cal-ride{opacity:.7}
 .cal-grid td.today{box-shadow:inset 0 0 0 2px var(--red)}
 .cal-day{display:flex;justify-content:space-between;align-items:center;margin-bottom:.25rem;font:500 .95rem/1 var(--font)}
 .cal-add{display:grid;place-items:center;width:1.6rem;height:1.6rem;border-radius:50%;color:var(--red);text-decoration:none;opacity:.35;transition:opacity .15s,background .15s}
 td:hover .cal-add,.cal-add:focus-visible{opacity:1}
 @media (hover:hover){.cal-add:hover{background:var(--red);color:var(--paper)}}
 @media (hover:none){.cal-add{opacity:.8}}
-.cal-ride{display:block;margin-bottom:.25rem;padding:.25rem .4rem;border-left:4px solid var(--c,#999);border-radius:0 6px 6px 0;background:#faf7f2;color:var(--ink);font-size:.82rem;line-height:1.3;text-decoration:none}
+.cal-ride{display:block;margin-bottom:.25rem;padding:.25rem .4rem;border-left:4px solid var(--c,#999);border-radius:0 6px 6px 0;background:#faf7f2;color:var(--ink);font-size:.86rem;font-weight:500;line-height:1.3;text-decoration:none}
 .cal-ride.cancelled{--c:#999;text-decoration:line-through}
 @media (hover:hover){.cal-ride:hover{background:#f1e9df}}
 .cal-time{font-weight:500}
-.cal-lead{display:block;color:var(--c);font-size:.78rem;font-weight:500}
+.cal-ride.cancelled .cal-lead{text-decoration:none}
+.cal-lead{display:block;color:var(--t,var(--c));font-size:.8rem;font-weight:500}
 .cal-list{display:none;margin:0;padding:0;list-style:none}
 .cal-list li{margin-bottom:.9rem}
 .cal-list h3{margin-bottom:.4rem;font-size:1.15rem;letter-spacing:.02em}
@@ -300,16 +309,17 @@ td:hover .cal-add,.cal-add:focus-visible{opacity:1}
 .cal-strava{margin-top:1.6rem!important;font-size:.95rem}
 .cal-back{margin-bottom:.6rem!important;font-size:.95rem}
 .cal-back a{text-decoration:none}
+.cal-act .cal-note{background:#faf7f2}
 .cal-note{padding:.6rem .9rem;border-radius:0 8px 8px 0;border-left:4px solid #c98a1b;background:#fff;color:var(--ink)}
 .cal-act{margin-top:1.4rem;padding:1.1rem 1.3rem;border:1px solid var(--line);border-radius:var(--radius);background:#fff;color:var(--ink)}
 .cal-act h2{margin-bottom:.4rem;font-size:1.3rem;color:var(--red)}
 .cal-buttons{display:flex;flex-wrap:wrap;gap:.8rem}
-.spots{margin:1rem 0;padding:0;list-style:none;border-top:1px solid var(--rule)}
-.spot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.6rem 1.2rem;padding:.7rem 0 .7rem .9rem;border-bottom:1px solid var(--rule);border-left:4px solid var(--c)}
+.page .spots{margin:.8rem 0;padding:0;list-style:none}
+.spot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.6rem 1.2rem;margin-bottom:.5rem;padding:.6rem .9rem;border-left:4px solid var(--c);border-radius:0 8px 8px 0;background:#faf7f2}
 .spot.led{--c:#2f6b3a}
 .spot.open{--c:#c98a1b}
 .spot-group{display:block;font-size:.85rem;color:var(--red)}
-.spot.open strong{color:var(--c)}
+.spot.open strong{color:#8a5a00}
 .spot-act{display:flex;flex-wrap:wrap;gap:.6rem}
 .spot-act .btn{padding:.6rem 1rem}
 .lead-form{display:flex;flex-wrap:wrap;gap:.5rem}

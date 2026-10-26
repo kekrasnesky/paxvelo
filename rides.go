@@ -282,6 +282,16 @@ func (o RideOcc) LeaderSummary() string {
 	}
 	return fmt.Sprintf("Needs %d leaders", missing)
 }
+
+// ShortDate is the date as "Thu, Mar 4", for compact lists.
+func (o RideOcc) ShortDate() string {
+	t, err := time.Parse("2006-01-02", o.Date)
+	if err != nil {
+		return o.Date
+	}
+	return t.Format("Mon, Jan 2")
+}
+
 func (o RideOcc) DateLabel() string {
 	t, err := time.Parse("2006-01-02", o.Date)
 	if err != nil {

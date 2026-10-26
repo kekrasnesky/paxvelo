@@ -1,21 +1,31 @@
 {{define "content"}}{{with .Data}}
 <article class="page page-cal">
   <div class="cal-top">
-    <div>
-      <h1>Ride Calendar</h1>
-      <p class="lead">Every club ride, and who’s leading it. See a ride with no leader? Sign up to lead it. Planning your own? Add it in a few seconds.</p>
-    </div>
+    <h1>Ride Calendar</h1>
     <p class="cal-actions"><a class="btn" href="/calendar/new">Add a ride</a></p>
   </div>
+  <p class="lead">Every club ride and who’s leading it. See a ride with no leader? Sign up to lead it, or add a ride of your own.</p>
   {{template "rider-bar" .}}
 
-  <nav class="cal-nav" aria-label="Month">
-    <a href="/calendar?m={{.Prev}}" aria-label="Previous month">‹</a>
-    <h2>{{.MonthLabel}}</h2>
-    <a href="/calendar?m={{.Next}}" aria-label="Next month">›</a>
-  </nav>
+  <section class="cal-up" aria-label="Upcoming rides">
+    <h2>Upcoming rides</h2>
+    {{if .Upcoming}}<ul class="cal-up-list">
+      {{range .Upcoming}}<li><a class="cal-ride {{.Status}}" href="/calendar/ride/{{.Key}}">
+        <span class="cal-up-date">{{.ShortDate}}</span>
+        <span class="cal-time">{{.TimeLabel}}</span> {{.Name}}
+        <span class="cal-lead">{{.LeaderSummary}}</span>
+      </a></li>{{end}}
+    </ul>{{else}}<p class="cal-none">{{.UpcomingNote}}</p>{{end}}
+  </section>
 
-  <div class="cal-key"><span class="dot dot-led"></span> Has its leaders <span class="dot dot-partial"></span> Needs another leader <span class="dot dot-open"></span> Needs a leader</div>
+  <div class="cal-bar">
+    <nav class="cal-nav" aria-label="Month">
+      <a href="/calendar?m={{.Prev}}" aria-label="Previous month">‹</a>
+      <h2>{{.MonthLabel}}</h2>
+      <a href="/calendar?m={{.Next}}" aria-label="Next month">›</a>
+    </nav>
+    <div class="cal-key"><span class="dot dot-led"></span> Has its leaders <span class="dot dot-partial"></span> Needs another leader <span class="dot dot-open"></span> Needs a leader</div>
+  </div>
 
   <table class="cal-grid">
     <thead><tr><th>Sun</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th></tr></thead>

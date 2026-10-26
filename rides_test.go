@@ -614,3 +614,32 @@ func TestStravaAdminPowersExpire(t *testing.T) {
 		t.Errorf("a sign-in from before this check should lose admin powers: %+v", rd)
 	}
 }
+
+// The calendar page lists the next few rides above the month, whatever month
+// is shown, and says plainly when there are none (a weekly ride can be out of
+// season for months).
+func TestCalendarUpcomingRides(t *testing.T) {
+	a, h, _ := rideApp(t)
+	page := do(t, h, nil, "GET", "/calendar?m=2031-01", "", nil).Body.String()
+	if !strings.Contains(page, "Upcoming rides") || !strings.Contains(page, `class="cal-up-list"`) || !strings.Contains(page, "Night Ride") {
+		t.Error("the calendar should list upcoming rides, even when another month is shown")
+	}
+	up, note := a.upcomingRides()
+	if len(up) != 4 || note != "" {
+		t.Errorf("upcoming: %d rides, note %q", len(up), note)
+	}
+
+	for _, s := range a.store.AllSeries() {
+		a.store.DeleteSeries(s.ID)
+	}
+	page = do(t, h, nil, "GET", "/calendar", "", nil).Body.String()
+	if !strings.Contains(page, "No rides are scheduled yet.") || strings.Contains(page, `class="cal-up-list"`) {
+		t.Error("with no rides, the page should say so")
+	}
+	// One far-off ride: the note says when it is.
+	far := a.today().AddDate(0, 0, 200)
+	a.store.AddRide(CalRide{Date: far.Format("2006-01-02"), Name: "Winter Ride"})
+	if _, note := a.upcomingRides(); !strings.Contains(note, "No rides until "+far.Format("Monday, January 2, 2006")) {
+		t.Errorf("note: %q", note)
+	}
+}
