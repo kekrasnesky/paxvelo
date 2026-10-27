@@ -42,8 +42,20 @@ func TestJoinWithEmergencyContact(t *testing.T) {
 	a, h, _ := testApp(t)
 	a.cfg.PayPalFamily = "https://paypal.example/family"
 	full := url.Values{
-		"plan": {"family"}, "name": {"Pat Rider"}, "email": {"Pat@Example.com"}, "phone": {"(301) 555-0123"},
+		"plan": {"family"}, "first": {"Pat"}, "last": {" Rider "}, "email": {"Pat@Example.com"}, "phone": {"(301) 555-0123"},
 		"emergency_name": {"Sam Rider"}, "emergency_phone": {"240 555 0199"},
+	}
+
+	for field, bad := range map[string]string{"last": "", "phone": "555-0123", "emergency_phone": "+44 20 7946 0958"} {
+		form := url.Values{}
+		for k, v := range full {
+			form[k] = v
+		}
+		form.Set(field, bad)
+		ct, body := joinForm(a, form)
+		if w := do(t, h, nil, "POST", "/join", ct, body); w.Code != http.StatusBadRequest {
+			t.Errorf("%s %q should be refused: %d", field, bad, w.Code)
+		}
 	}
 
 	missing := url.Values{}
@@ -53,7 +65,7 @@ func TestJoinWithEmergencyContact(t *testing.T) {
 	missing.Del("emergency_phone")
 	ct, body := joinForm(a, missing)
 	w := do(t, h, nil, "POST", "/join", ct, body)
-	if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "emergency contact’s phone") {
+	if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "emergency contact’s 10-digit phone") {
 		t.Fatalf("a join without an emergency phone should be refused: %d", w.Code)
 	}
 
@@ -73,7 +85,7 @@ func TestJoinWithEmergencyContact(t *testing.T) {
 		t.Fatalf("%d members", len(ms))
 	}
 	m := ms[0]
-	if m.Email != "pat@example.com" || m.Plan != "family" || m.Phone != "301-555-0123" || m.EmergencyName != "Sam Rider" || m.EmergencyPhone != "240-555-0199" {
+	if m.Name != "Pat Rider" || m.Email != "pat@example.com" || m.Plan != "family" || m.Phone != "301-555-0123" || m.EmergencyName != "Sam Rider" || m.EmergencyPhone != "240-555-0199" {
 		t.Errorf("saved %+v", m)
 	}
 

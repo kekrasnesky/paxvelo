@@ -31,6 +31,18 @@
     }else loadInsta();
   }
 
+  // Join form: write phone numbers as 301-555-0123 while they're typed
+  d.querySelectorAll('form.join input[type=tel][pattern]').forEach(function(el){
+    function fmt(){
+      var n=el.value.replace(/\D/g,'');
+      if(n[0]==='1')n=n.slice(1); // no US area code starts with 1, so it's the country code
+      n=n.slice(0,10);
+      el.value=n.length>6?n.slice(0,3)+'-'+n.slice(3,6)+'-'+n.slice(6):n.length>3?n.slice(0,3)+'-'+n.slice(3):n;
+    }
+    el.addEventListener('input',fmt);
+    if(el.value)fmt();
+  });
+
   // Join form: submit in the background and swap in the result
   var form=d.querySelector('form.join[action="/join"]');
   if(form&&window.fetch)form.addEventListener('submit',function(e){

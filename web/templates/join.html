@@ -1,26 +1,35 @@
 {{define "content"}}
 <article class="page">
   <h1>Become a Member</h1>
-  <p class="lead">Membership runs January through December. Pick a plan, add your details and an emergency contact, and finish up with PayPal.</p>
+  <ul class="perks">
+    <li>Rider insurance on club rides</li>
+    <li>10% off at Old Line Cycles</li>
+    <li>Discounted club kit every year</li>
+  </ul>
   <form class="join" method="post" action="/join"{{if .Data.OK}} hidden{{end}}>
     <input type="hidden" name="ft" value="{{.Data.Token}}">
     <div class="hp" aria-hidden="true"><label>Leave this empty <input name="website" tabindex="-1" autocomplete="off"></label></div>
     <fieldset class="pick">
-      <legend>Membership</legend>
+      <legend>Membership, January to December</legend>
       <label><input type="radio" name="plan" value="individual"{{if ne .Data.Plan "family"}} checked{{end}}><span><strong>Individual</strong> ${{.Club.DuesIndividual}} a year</span></label>
-      <label><input type="radio" name="plan" value="family"{{if eq .Data.Plan "family"}} checked{{end}}><span><strong>Family</strong> ${{.Club.DuesFamily}} a year, one membership for your household</span></label>
+      <label><input type="radio" name="plan" value="family"{{if eq .Data.Plan "family"}} checked{{end}}><span><strong>Family</strong> ${{.Club.DuesFamily}} a year, your whole household. Enter the main contact below.</span></label>
     </fieldset>
-    <label>Full name <input name="name" required maxlength="100" autocomplete="name" value="{{.Data.Form.Name}}"></label>
-    <label>Email <input type="email" name="email" required maxlength="254" autocomplete="email" value="{{.Data.Form.Email}}"></label>
-    <label>Phone <input type="tel" name="phone" required maxlength="30" autocomplete="tel" value="{{.Data.Form.Phone}}"></label>
-    <p class="hint">For a family membership, enter the main contact for your household.</p>
+    <div class="pair">
+      <label>First name <input name="first" required maxlength="50" autocomplete="given-name" value="{{.Data.First}}"></label>
+      <label>Last name <input name="last" required maxlength="50" autocomplete="family-name" value="{{.Data.Last}}"></label>
+    </div>
+    <div class="pair">
+      <label>Email <input type="email" name="email" required maxlength="254" autocomplete="email" value="{{.Data.Form.Email}}"></label>
+      <label>Phone <input type="tel" name="phone" required maxlength="20" autocomplete="tel-national" placeholder="301-555-0123" pattern="\d{3}-\d{3}-\d{4}" title="10 digits, like 301-555-0123" value="{{.Data.Form.Phone}}"></label>
+    </div>
     <fieldset class="emergency">
       <legend>Emergency contact</legend>
-      <p class="hint">Who should we call if something happens on a ride?</p>
-      <label>Their name <input name="emergency_name" required maxlength="100" autocomplete="off" value="{{.Data.Form.EmergencyName}}"></label>
-      <label>Their phone <input type="tel" name="emergency_phone" required maxlength="30" autocomplete="off" value="{{.Data.Form.EmergencyPhone}}"></label>
+      <div class="pair">
+        <label>Name <input name="emergency_name" required maxlength="100" autocomplete="off" value="{{.Data.Form.EmergencyName}}"></label>
+        <label>Phone <input type="tel" name="emergency_phone" required maxlength="20" autocomplete="off" placeholder="301-555-0123" pattern="\d{3}-\d{3}-\d{4}" title="10 digits, like 301-555-0123" value="{{.Data.Form.EmergencyPhone}}"></label>
+      </div>
     </fieldset>
-    <p class="hint">Only the club’s board sees these details, and only to keep you safe and in touch.</p>
+    <p class="hint">Only the club’s board sees these details.</p>
     <button class="btn" type="submit">Continue to payment</button>
     <p class="msg{{if .Data.Failed}} err{{end}}" role="status" aria-live="polite">{{if .Data.Failed}}{{.Data.Message}}{{end}}</p>
   </form>

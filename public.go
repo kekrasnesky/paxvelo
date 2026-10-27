@@ -20,34 +20,51 @@ import (
 type joinData struct {
 	Token, Plan      string
 	Form             memberDetails // what was typed, to show again after a mistake
+	First, Last      string        // the typed name, in its two boxes
 	Message          string        // error text, or the headline after joining
 	Detail           string        // the sentence under the headline
 	PayURL, PayLabel string        // PayPal button, when dues are owed
 	OK, Failed       bool
 }
 
-// joinDetails reads the join form: name, email, plan, phone, and an
-// emergency contact. On a problem it returns the problem's code (see
-// joinProblems). The public form needs every field; an admin adding someone
-// by hand needs only the name and email.
+// joinDetails reads the join form: name (one box, or first and last), email,
+// plan, phone, and an emergency contact. On a problem it returns the
+// problem's code (see joinProblems). The public form needs every field and
+// US phone numbers; an admin adding someone by hand needs only the name and
+// email.
 func joinDetails(r *http.Request, all bool) (memberDetails, string) {
+	name := r.FormValue("name")
+	first, last := cleanName(r.FormValue("first")), cleanName(r.FormValue("last"))
+	if first != "" || last != "" {
+		name = first + " " + last
+	}
 	d := memberDetails{
-		Name: cleanName(r.FormValue("name")), Plan: cleanPlan(r.FormValue("plan")),
+		Name: cleanName(name), Plan: cleanPlan(r.FormValue("plan")),
 		Phone: cleanPhone(r.FormValue("phone")), EmergencyName: cleanName(r.FormValue("emergency_name")),
 		EmergencyPhone: cleanPhone(r.FormValue("emergency_phone")),
 	}
 	email, ok := cleanEmail(r.FormValue("email"))
 	d.Email = email
+	badPhone := func(field, clean string) bool {
+		if all {
+			return len(phoneDigits(clean)) != 10
+		}
+		return r.FormValue(field) != "" && clean == ""
+	}
 	switch {
+	case r.Form.Has("first") && first == "":
+		return d, "first"
+	case r.Form.Has("last") && last == "":
+		return d, "last"
 	case d.Name == "":
 		return d, "name"
 	case !ok:
 		return d, "email"
-	case (all || r.FormValue("phone") != "") && d.Phone == "":
+	case badPhone("phone", d.Phone):
 		return d, "phone"
 	case all && d.EmergencyName == "":
 		return d, "emergency"
-	case (all || r.FormValue("emergency_phone") != "") && d.EmergencyPhone == "":
+	case badPhone("emergency_phone", d.EmergencyPhone):
 		return d, "emergency-phone"
 	}
 	return d, ""
@@ -55,11 +72,13 @@ func joinDetails(r *http.Request, all bool) (memberDetails, string) {
 
 // joinProblems are the join form's messages, written to the rider.
 var joinProblems = map[string]string{
+	"first":           "Enter your first name.",
+	"last":            "Enter your last name.",
 	"name":            "Enter your full name.",
 	"email":           "Enter a valid email address, like name@example.com.",
-	"phone":           "Enter your phone number with its area code, like 301-555-0123.",
+	"phone":           "Enter a 10-digit phone number, like 301-555-0123.",
 	"emergency":       "Enter the name of someone we can call in an emergency.",
-	"emergency-phone": "Enter your emergency contact’s phone number, with its area code.",
+	"emergency-phone": "Enter your emergency contact’s 10-digit phone number, like 301-555-0123.",
 }
 
 // phoneDigits keeps just the digits of a phone number.
@@ -122,6 +141,7 @@ func (a *App) join(w http.ResponseWriter, r *http.Request) {
 		d.Token, d.Plan = a.formToken(), plan
 		if !d.OK {
 			d.Failed, d.Form = true, typed
+			d.First, d.Last = r.FormValue("first"), r.FormValue("last")
 		}
 		a.site.render(w, status, "join", "/join", "Become a Member — "+siteName, d)
 	}
