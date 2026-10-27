@@ -25,4 +25,4 @@ Every club ride is posted on [Strava]({strava}), with the start time, route, and
 ## Elsewhere
 
 - **Instagram:** [@paxvelo](https://www.instagram.com/paxvelo/)
-- **Facebook:** [PaxVelo Cycling Club](https://www.facebook.com/paxveloadmin/)
+- **Facebook:** [PaxVelo Cycling Club](https://www.facebook.com/groups/112307228841445/)
