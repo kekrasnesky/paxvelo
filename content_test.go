@@ -150,6 +150,17 @@ func TestRenderPhotoWithLink(t *testing.T) {
 	}
 }
 
+func TestRenderPhotoRow(t *testing.T) {
+	_, intro, _, err := testRenderer().render("# A\n\n![One](photos/ride.webp) ![Two](photos/ride.webp)", 1, pageStyle{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `<div class="photos"><img src="/photos/ride.webp?v=v1" alt="One"`
+	if !strings.Contains(string(intro), want) || !strings.Contains(string(intro), `alt="Two"`) {
+		t.Errorf("want a row of two photos, got %s", intro)
+	}
+}
+
 func TestPeopleCardsNeedTheSetting(t *testing.T) {
 	src := "# A\n\n- **Water** two full bottles\n- **Spare tube** and a pump"
 	_, intro, _, err := testRenderer().render(src, 1, pageStyle{})

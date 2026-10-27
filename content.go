@@ -371,9 +371,10 @@ func (r *mdRenderer) render(src string, firstLine int, style pageStyle) (string,
 	return heading, template.HTML(intro.String()), template.HTML(body.String()), nil
 }
 
-// paragraph renders one paragraph. Three kinds of line get special treatment:
-// a {widget} on its own, a photo on its own, and a line of nothing but links,
-// which becomes a button (one link) or a row of links (several).
+// paragraph renders one paragraph. Four kinds of line get special treatment:
+// a {widget} on its own, a photo on its own, several photos (a row of photos),
+// and a line of nothing but links, which becomes a button (one link) or a row
+// of links (several).
 func (r *mdRenderer) paragraph(text, class string) (string, error) {
 	attr := ""
 	if class != "" {
@@ -394,6 +395,9 @@ func (r *mdRenderer) paragraph(text, class string) (string, error) {
 		switch {
 		case len(m) == 1 && photos == 1:
 			return r.inline(text) // a photo on its own line
+		case photos == len(m):
+			h, err := r.inline(text) // several photos on one line: a row of photos
+			return `<div class="photos">` + h + "</div>\n", err
 		case photos > 0:
 			h, err := r.inline(text) // photos and links together: an ordinary paragraph
 			return "<p" + attr + ">" + h + "</p>\n", err

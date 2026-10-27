@@ -10,6 +10,8 @@ Southern Maryland’s Premier Cycling Club
 
 PaxVelo is a 501(c)(3) nonprofit cycling club. We’re here for great roads, good company, and the community we ride through.
 
+![PaxVelo riders lined up outside Old Line Cycles at dusk](photos/shop-ride.jpg) ![Riders with ice cream after a club ride](photos/ice-cream.jpg) ![Four riders in the blue PaxVelo kit](photos/club-kit.jpg)
+
 ### Ride With Us
 
 ![PaxVelo riders in club kit gathering for a group ride](photos/ride.webp)
