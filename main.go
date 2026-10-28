@@ -100,6 +100,11 @@ func (a *App) routes() http.Handler {
 		w.Write([]byte("User-agent: *\nDisallow: /admin\nDisallow: /unsubscribe\nDisallow: /membership\nDisallow: /strava/\nDisallow: /calendar/new\nSitemap: " + a.cfg.SiteURL + "/sitemap.xml\n"))
 	})
 	mux.HandleFunc("GET /sitemap.xml", a.sitemap)
+	// Proves to Bing Webmaster Tools that the club owns the site.
+	mux.HandleFunc("GET /BingSiteAuth.xml", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/xml; charset=utf-8")
+		w.Write([]byte(bingSiteAuth))
+	})
 	// Old Squarespace addresses, so existing links and bookmarks still land somewhere.
 	for _, old := range []string{"/info", "/home", "/cart", "/account", "/insurancewaiver"} {
 		mux.Handle("GET "+old, http.RedirectHandler("/", http.StatusMovedPermanently))

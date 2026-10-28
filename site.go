@@ -67,6 +67,7 @@ type view struct {
 	Title, Desc, Path, SiteURL, V string
 	CSS                           template.CSS
 	JS                            template.JS
+	LD                            template.JS // structured data for search engines (seo.go)
 	Club                          clubInfo
 	Data                          any
 }
@@ -286,6 +287,9 @@ func (s *Site) renderContent(d contentData) error {
 		}
 		v := s.view(p.Path, p.Title, p)
 		v.Desc = p.Desc
+		if p.Path == "/" {
+			v.LD = s.clubLD()
+		}
 		var buf bytes.Buffer
 		if err := t.ExecuteTemplate(&buf, "layout", v); err != nil {
 			return fmt.Errorf("content/%s: %w", p.File, err)
@@ -309,7 +313,7 @@ func (s *Site) serveContent(path string) http.Handler {
 
 func (s *Site) view(path, title string, data any) view {
 	return view{
-		Title: title, Desc: siteDescription, Path: path, SiteURL: s.cfg.SiteURL, V: s.version,
+		Title: title, Desc: or(pageDescs[path], siteDescription), Path: path, SiteURL: s.cfg.SiteURL, V: s.version,
 		CSS: s.css, JS: s.js, Data: data,
 		Club: clubInfo{
 			DuesIndividual: s.cfg.DuesIndividual, DuesFamily: s.cfg.DuesFamily,

@@ -87,7 +87,11 @@ func (a *App) calBase(r *http.Request) calView {
 
 func (a *App) renderCal(w http.ResponseWriter, status int, name, path, title string, v calView) {
 	var buf bytes.Buffer
-	if err := a.site.dynamic[name].ExecuteTemplate(&buf, "layout", a.site.view(path, title+" — "+siteName, v)); err != nil {
+	page := a.site.view(path, title+" — "+siteName, v)
+	if name == "calendar" {
+		page.LD = a.site.ridesLD(v.Upcoming)
+	}
+	if err := a.site.dynamic[name].ExecuteTemplate(&buf, "layout", page); err != nil {
 		log.Printf("calendar %s: %v", name, err)
 		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return

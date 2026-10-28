@@ -18,7 +18,8 @@
 <link rel="icon" href="/static/img/logo.svg?v={{.V}}" type="image/svg+xml">
 <link rel="preload" href="/static/fonts/poppins-300.woff2?v={{.V}}" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/static/fonts/poppins-500.woff2?v={{.V}}" as="font" type="font/woff2" crossorigin>
-{{block "head" .}}{{end}}
+{{with .LD}}<script type="application/ld+json">{{.}}</script>
+{{end}}{{block "head" .}}{{end}}
 <style>{{.CSS}}</style>
 <script type="speculationrules">{"prerender":[{"where":{"and":[{"href_matches":"/*"},{"not":{"href_matches":"/admin*"}},{"not":{"href_matches":"/unsubscribe*"}},{"not":{"href_matches":"/strava*"}},{"not":{"href_matches":"/kit"}},{"not":{"href_matches":"/calendar/new*"}},{"not":{"href_matches":"/files/*"}}]},"eagerness":"moderate"}]}</script>
 </head>

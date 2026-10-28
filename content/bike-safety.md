@@ -1,6 +1,7 @@
 ---
 menu: Bike Safety 101
 order: 3
+description: How PaxVelo rides together safely. The pre-ride brief, calling out cars and hazards, and group riding basics for new riders.
 ---
 
 # Bike Safety 101

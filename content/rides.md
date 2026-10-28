@@ -1,6 +1,8 @@
 ---
 menu: Our Rides
 order: 2
+title: Group Rides in St. Mary’s County, MD
+description: Tuesday and Thursday night group rides in St. Mary’s County, Maryland. Paces, start spots, and how to join your first PaxVelo ride.
 ---
 
 # Our Rides

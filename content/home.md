@@ -1,3 +1,8 @@
+---
+title: PaxVelo Cycling Club · Group Rides in Southern Maryland
+description: PaxVelo is a nonprofit cycling club in St. Mary’s County, Maryland. Weekly group rides, the St. Mary’s Century, and all riders welcome.
+---
+
 # Welcome to PaxVelo
 
 Southern Maryland’s Premier Cycling Club
