@@ -164,6 +164,8 @@ func newSite(cfg Config) (*Site, error) {
 		"lines":        func(l []string) string { return strings.Join(l, "\n") },
 		"external":     func(u string) bool { return strings.HasPrefix(u, "http://") || strings.HasPrefix(u, "https://") },
 		"icon":         icon,
+		"riderLevels":  func() []choice { return riderLevels },
+		"clubRides":    func() []choice { return clubRides },
 	}
 	base, err := template.New("").Funcs(funcs).ParseFS(webFS, "web/templates/layout.html")
 	if err != nil {

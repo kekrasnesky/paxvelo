@@ -417,7 +417,7 @@ func (a *App) exportCSV(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition", `attachment; filename="paxvelo-members-`+time.Now().In(a.cfg.Location).Format("2006-01-02")+`.csv"`)
 	cw := csv.NewWriter(w)
 	year := a.cfg.ThisYear()
-	cw.Write([]string{"Name", "Email", "Phone", "Emergency contact", "Emergency phone", "Plan", fmt.Sprintf("Paid %d", year), "Years paid", "Joined", "Status"})
+	cw.Write([]string{"Name", "Email", "Phone", "Emergency contact", "Emergency phone", "Plan", "Riding", "Rides", fmt.Sprintf("Paid %d", year), "Years paid", "Joined", "Status"})
 	for _, m := range a.store.Members() {
 		status := "Active"
 		if !m.Active() {
@@ -431,7 +431,7 @@ func (a *App) exportCSV(w http.ResponseWriter, r *http.Request) {
 		for i, y := range m.PaidYears {
 			years[i] = strconv.Itoa(y)
 		}
-		cw.Write([]string{m.Name, m.Email, m.Phone, m.EmergencyName, m.EmergencyPhone, m.PlanName(), paid, strings.Join(years, " "),
+		cw.Write([]string{m.Name, m.Email, m.Phone, m.EmergencyName, m.EmergencyPhone, m.PlanName(), m.LevelName(), m.RideNames(), paid, strings.Join(years, " "),
 			m.Joined.In(a.cfg.Location).Format("2006-01-02"), status})
 	}
 	cw.Flush()
@@ -689,7 +689,7 @@ func draftFrom(r *http.Request) EmailDraft {
 func (a *App) emailPreview(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 256<<10)
 	d := draftFrom(r)
-	pat := Member{Name: "Pat Rider", Plan: "individual"}
+	pat := Member{Name: "Pat Rider", Plan: "individual", Level: "some", Rides: []string{"tnr-b", "thursday"}}
 	page, err := a.site.renderEmail(a.mailer.personalize(d.Subject, pat), a.mailer.personalize(d.Body, pat), "#", "")
 	if err != nil {
 		http.Error(w, "The preview couldn’t be made.", http.StatusInternalServerError)

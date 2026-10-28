@@ -32,11 +32,16 @@ type Member struct {
 	// Who to call if something happens on a ride.
 	EmergencyName  string `json:"emergency_name,omitempty"`
 	EmergencyPhone string `json:"emergency_phone,omitempty"`
+	// From the join form: their experience (riderLevels) and the rides they
+	// want to try (clubRides), which shape the welcome email.
+	Level string   `json:"level,omitempty"`
+	Rides []string `json:"rides,omitempty"`
 }
 
 // memberDetails is what someone fills in to join.
 type memberDetails struct {
-	Name, Email, Plan, Phone, EmergencyName, EmergencyPhone string
+	Name, Email, Plan, Phone, EmergencyName, EmergencyPhone, Level string
+	Rides                                                          []string
 }
 
 // update fills in the contact details someone gave, keeping what's already
@@ -52,6 +57,12 @@ func (m *Member) update(d memberDetails) {
 			*f.to = f.from
 		}
 	}
+	if d.Level != "" {
+		m.Level = d.Level
+	}
+	if len(d.Rides) > 0 {
+		m.Rides = d.Rides
+	}
 }
 
 // fill adds the contact details someone gave where the member has none yet,
@@ -66,6 +77,12 @@ func (m *Member) fill(d memberDetails) {
 		if *f.to == "" {
 			*f.to = f.from
 		}
+	}
+	if m.Level == "" {
+		m.Level = d.Level
+	}
+	if len(m.Rides) == 0 {
+		m.Rides = d.Rides
 	}
 }
 
@@ -165,6 +182,8 @@ func (s *Store) Version() uint64 {
 const defaultWelcomeBody = `Hi {first_name},
 
 Welcome to PaxVelo! We're glad you're here.
+
+{ride_tips}
 
 If you haven't paid your {year} dues yet, you can finish up here:
 {pay_link}

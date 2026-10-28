@@ -12,6 +12,7 @@ import (
 	"net/mail"
 	"net/smtp"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -97,15 +98,19 @@ func (m *Mailer) personalize(s string, mem Member) string {
 	if pay == "" {
 		pay = m.cfg.SiteURL + "/join"
 	}
-	return strings.NewReplacer(
+	s = strings.NewReplacer(
 		"{first_name}", first,
 		"{name}", name,
 		"{site}", m.cfg.SiteURL,
 		"{pay_link}", pay,
 		"{dues}", "$"+strconv.Itoa(m.cfg.Dues(mem.Plan)),
 		"{year}", strconv.Itoa(m.cfg.ThisYear()),
+		"{ride_tips}", rideTips(mem, m.cfg.SiteURL),
 	).Replace(s)
+	return extraBlankLines.ReplaceAllString(s, "\n\n") // where {ride_tips} came out empty
 }
+
+var extraBlankLines = regexp.MustCompile(`\n{3,}`)
 
 // SendTo sends one personalized email to a member.
 func (m *Mailer) SendTo(mem Member, subject, body string) error {
@@ -140,7 +145,15 @@ func (m *Mailer) SendWelcome(mem Member) {
 	if !w.Enabled {
 		return
 	}
-	m.SendTo(mem, w.Subject, w.Body) // a failure is logged by send
+	body := w.Body
+	if !strings.Contains(body, "{ride_tips}") {
+		// A welcome email written before {ride_tips} existed: put the advice
+		// before its last paragraph, the sign-off.
+		if i := strings.LastIndex(body, "\n\n"); i >= 0 {
+			body = body[:i] + "\n\n{ride_tips}" + body[i:]
+		}
+	}
+	m.SendTo(mem, w.Subject, body) // a failure is logged by send
 }
 
 // send sends one email. unsubURL is the member's unsubscribe link, or "" for an

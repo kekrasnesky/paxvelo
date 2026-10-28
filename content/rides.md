@@ -9,20 +9,25 @@ Every club ride is posted on Strava, with the start time, route, and any last-mi
 
 [See upcoming rides on Strava]({strava})
 
+## New to Group Riding?
+
+Our club rides are fast: even the easy ones average about 20 mph. If that sounds like a lot, start with the Old Line Cycles shop ride. It's built for people getting into the sport, with several regroup stops along the way. Ask the shop for the next one, and join us when you're ready.
+
 ## Tuesday Night Ride
 
-Our fastest ride of the week, at race pace. Some weeks it's laps on base, other weeks it heads off base for something different, but it's always a hard effort.
+Our fastest ride of the week. Some weeks it's laps on base, other weeks it heads off base for something different, but it's always a hard effort.
 
-- **Pace:** about 23–25 mph average
-- **Feel:** race-pace training, for riders who want a hard, fast group ride
+- **When:** Tuesdays, mid-March to the end of October. 5:30 PM, then 5:00 PM from mid-September as the days get shorter
+- **A group:** race pace, about 23–25 mph. If you come off the back, you're on your own
+- **B group:** about 19–21 mph, still hard but not a race
 - **Route:** base laps, or off base. Check the Strava event for the week's plan
 
 ## Thursday Night Ride
 
-A tempo ride down to Point Lookout and back. The route changes a little from week to week to mix things up, but we end up at the Point every Thursday. It's not as intense as Tuesday, but it's still fast.
+A tempo ride down to Point Lookout and back. The route changes a little from week to week, but we end up at the Point every Thursday.
 
-- **Who:** PaxVelo members. [Become a member](/join)
-- **Pace:** about 22 mph average, depending on who turns out
+- **Pace:** about 22 mph, depending on who turns out
+- **Drops:** it's fast, but it's not a drop ride. Nobody gets left behind
 - **Season:** March to early October
 - **Start:** Park & Ride by NAS Pax Gate 2, southbound Rt. 235 near Great Mills
 - **Route:** to Point Lookout and back, about 40 miles
@@ -30,6 +35,20 @@ A tempo ride down to Point Lookout and back. The route changes a little from wee
 ## Weekend Rides
 
 Weekend rides depend on who's around to host one. Sundays are usually a café ride, and any member can host a ride of their own, at whatever pace suits them. Watch Strava to see what's on this weekend.
+
+## Questions
+
+### Will I get dropped?
+
+On the Tuesday A group, quite possibly. Thursday waits for everyone, and the Tuesday B group is a step down. If you're newer, the Old Line Cycles shop ride is the place to start.
+
+### Is my bike good enough?
+
+If it's a road bike that shifts and brakes well, yes. Bring a helmet (required), water, and a spare tube. Lights help on evening rides late in the season.
+
+### Do I have to join first?
+
+No. Ride with us twice for free, then [join the club](/join) for ${dues-individual} a year, which includes rider insurance on club rides.
 
 ## Leading a Ride
 

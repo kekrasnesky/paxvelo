@@ -221,7 +221,7 @@ initBlock(document);
   <a href="/admin?dues=paid{{with .Q}}&q={{.}}{{end}}"{{if eq .Dues "paid"}} aria-current="page"{{end}}>Paid for {{.Year}} ({{.Paid}})</a>
 </nav>
 <div class="table-wrap"><table class="tight cards">
-  <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Emergency contact</th><th>Emergency phone</th><th>Plan</th><th>{{.Year}} dues</th><th>Joined</th>{{if .CanManage}}<th><span class="sr">Actions</span></th>{{end}}</tr></thead>
+  <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Emergency contact</th><th>Emergency phone</th><th>Plan</th><th>Riding</th><th>{{.Year}} dues</th><th>Joined</th>{{if .CanManage}}<th><span class="sr">Actions</span></th>{{end}}</tr></thead>
   <tbody>
   {{range .Members}}{{$paid := .PaidFor $.Year}}<tr{{if not .Active}} class="off"{{end}}>
     <td data-label="Name">{{.Name}}</td>
@@ -230,6 +230,7 @@ initBlock(document);
     <td data-label="Emergency contact">{{or .EmergencyName "—"}}</td>
     <td class="nowrap" data-label="Emergency phone">{{with .EmergencyPhone}}<a href="tel:{{.}}">{{.}}</a>{{else}}<span class="muted">—</span>{{end}}</td>
     <td data-label="Plan">{{.PlanName}}</td>
+    <td data-label="Riding">{{with .LevelName}}{{.}}{{else}}<span class="muted">—</span>{{end}}{{with .RideNames}}<br><span class="muted small">{{.}}</span>{{end}}</td>
     <td class="nowrap" data-label="{{$.Year}} dues"><form method="post" action="/admin/members/{{.ID}}/paid" class="inline">
       <input type="hidden" name="return" value="/admin?q={{$.Q}}&dues={{$.Dues}}">
       {{if $paid}}<span class="paid">Paid</span> <input type="hidden" name="paid" value="0"><button class="link small">{{icon "undo"}}Undo</button>
@@ -327,7 +328,7 @@ initBlock(document);
     <div class="mail-write">
       {{template "mail-bar"}}
       <label>Message <textarea name="body" rows="14" required>{{.Welcome.Body}}</textarea></label>
-      <p class="muted small">The same buttons and marks work here. {first_name} becomes the new member’s first name, {pay_link} their PayPal link, {year} the current year, and {site} the website address.</p>
+      <p class="muted small">The same buttons and marks work here. {first_name} becomes the new member’s first name, {pay_link} their PayPal link, {year} the current year, {site} the website address, and {ride_tips} where to start riding, from their answers on the join form.</p>
     </div>
     {{template "mail-preview"}}
   </div>

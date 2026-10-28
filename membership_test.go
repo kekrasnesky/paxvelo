@@ -43,7 +43,7 @@ func TestJoinWithEmergencyContact(t *testing.T) {
 	a.cfg.PayPalFamily = "https://paypal.example/family"
 	full := url.Values{
 		"plan": {"family"}, "first": {"Pat"}, "last": {" Rider "}, "email": {"Pat@Example.com"}, "phone": {"(301) 555-0123"},
-		"emergency_name": {"Sam Rider"}, "emergency_phone": {"240 555 0199"},
+		"level": {"some"}, "emergency_name": {"Sam Rider"}, "emergency_phone": {"240 555 0199"},
 	}
 
 	for field, bad := range map[string]string{"last": "", "phone": "555-0123", "emergency_phone": "+44 20 7946 0958"} {
@@ -109,7 +109,7 @@ func TestJoinFillsBlanksOnly(t *testing.T) {
 	a, h, _ := testApp(t)
 	a.store.Join(memberDetails{Name: "Old Timer", Email: "old@example.com", Plan: "individual"}, 2026)
 	form := url.Values{"plan": {"family"}, "name": {"Someone Else"}, "email": {"old@example.com"}, "phone": {"301-555-0123"},
-		"emergency_name": {"Sam Rider"}, "emergency_phone": {"240-555-0199"}}
+		"level": {"some"}, "emergency_name": {"Sam Rider"}, "emergency_phone": {"240-555-0199"}}
 	ct, body := joinForm(a, form)
 	do(t, h, nil, "POST", "/join", ct, body)
 	m := a.store.Members()[0]
@@ -128,7 +128,7 @@ func TestJoinDoesNotResubscribe(t *testing.T) {
 	m, _, _ := a.store.Join(memberDetails{Name: "Kim Rider", Email: "kim@example.com", Plan: "individual"}, 2026)
 	a.store.Unsubscribe(m.Token)
 	form := url.Values{"plan": {"individual"}, "name": {"Kim Rider"}, "email": {"kim@example.com"}, "phone": {"301-555-0123"},
-		"emergency_name": {"Sam Rider"}, "emergency_phone": {"240-555-0199"}}
+		"level": {"some"}, "emergency_name": {"Sam Rider"}, "emergency_phone": {"240-555-0199"}}
 	ct, body := joinForm(a, form)
 	w := do(t, h, nil, "POST", "/join", ct, body)
 	if !strings.Contains(w.Body.String(), "unsubscribed from club emails earlier") {
@@ -247,5 +247,38 @@ func TestBackupPresidentOnly(t *testing.T) {
 	}
 	if strings.Contains(got, a.store.Secret()) || strings.Contains(got, "reset_hash") {
 		t.Error("the backup should leave out the signing key and password links")
+	}
+}
+
+// The join form asks how experienced someone is (required) and which rides
+// interest them (optional), saves both, and the welcome email's {ride_tips}
+// turns them into advice. Without answers, {ride_tips} leaves no gap.
+func TestJoinRidingAnswers(t *testing.T) {
+	a, h, _ := testApp(t)
+	form := url.Values{"plan": {"individual"}, "first": {"Kim"}, "last": {"Rider"}, "email": {"kim@example.com"},
+		"phone": {"301-555-0123"}, "emergency_name": {"Sam Rider"}, "emergency_phone": {"240-555-0199"},
+		"rides": {"thursday", "made-up", "tnr-b"}}
+	ct, body := joinForm(a, form)
+	if w := do(t, h, nil, "POST", "/join", ct, body); w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "sounds most like you") {
+		t.Fatalf("the experience question is required: %d", w.Code)
+	}
+	form.Set("level", "new")
+	ct, body = joinForm(a, form)
+	do(t, h, nil, "POST", "/join", ct, body)
+	m := a.store.Members()[0]
+	if m.Level != "new" || strings.Join(m.Rides, ",") != "tnr-b,thursday" {
+		t.Fatalf("saved level %q rides %v", m.Level, m.Rides)
+	}
+	if m.LevelName() != "New" || m.RideNames() != "Tue B, Thu" {
+		t.Errorf("admin labels: %q %q", m.LevelName(), m.RideNames())
+	}
+	tips := a.mailer.personalize("Hi\n\n{ride_tips}\n\nBye", m)
+	for _, want := range []string{"Old Line Cycles shop ride", "**Tuesday Night Ride, B group:**", "**Thursday Night Ride:**", "/rides"} {
+		if !strings.Contains(tips, want) {
+			t.Errorf("tips missing %q:\n%s", want, tips)
+		}
+	}
+	if got := a.mailer.personalize("Hi\n\n{ride_tips}\n\nBye", Member{Name: "Lee"}); got != "Hi\n\nBye" {
+		t.Errorf("no answers should leave no gap: %q", got)
 	}
 }

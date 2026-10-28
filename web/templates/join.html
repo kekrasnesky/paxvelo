@@ -22,6 +22,16 @@
       <label>Email <input type="email" name="email" required maxlength="254" autocomplete="email" value="{{.Data.Form.Email}}"></label>
       <label>Phone <input type="tel" name="phone" required maxlength="20" autocomplete="tel-national" placeholder="301-555-0123" pattern="\d{3}-\d{3}-\d{4}" title="10 digits, like 301-555-0123" value="{{.Data.Form.Phone}}"></label>
     </div>
+    <fieldset class="pick two">
+      <legend>Which sounds like you?</legend>
+      {{range riderLevels}}<label><input type="radio" name="level" value="{{.Value}}" required{{if eq $.Data.Form.Level .Value}} checked{{end}}><span>{{.Label}}</span></label>
+      {{end}}
+    </fieldset>
+    <fieldset class="pick two">
+      <legend>Which rides interest you? <span class="opt">Optional</span></legend>
+      {{range clubRides}}<label><input type="checkbox" name="rides" value="{{.Value}}"{{if $.Data.Form.Picked .Value}} checked{{end}}><span>{{.Label}}</span></label>
+      {{end}}
+    </fieldset>
     <fieldset class="emergency">
       <legend>Emergency contact</legend>
       <div class="pair">

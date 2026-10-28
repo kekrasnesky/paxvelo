@@ -42,7 +42,9 @@ func joinDetails(r *http.Request, all bool) (memberDetails, string) {
 		Name: cleanName(name), Plan: cleanPlan(r.FormValue("plan")),
 		Phone: cleanPhone(r.FormValue("phone")), EmergencyName: cleanName(r.FormValue("emergency_name")),
 		EmergencyPhone: cleanPhone(r.FormValue("emergency_phone")),
+		Level:          cleanLevel(r.FormValue("level")),
 	}
+	d.Rides = cleanRides(r.Form["rides"])
 	email, ok := cleanEmail(r.FormValue("email"))
 	d.Email = email
 	badPhone := func(field, clean string) bool {
@@ -62,6 +64,8 @@ func joinDetails(r *http.Request, all bool) (memberDetails, string) {
 		return d, "email"
 	case badPhone("phone", d.Phone):
 		return d, "phone"
+	case all && d.Level == "":
+		return d, "level"
 	case all && d.EmergencyName == "":
 		return d, "emergency"
 	case badPhone("emergency_phone", d.EmergencyPhone):
@@ -77,6 +81,7 @@ var joinProblems = map[string]string{
 	"name":            "Enter your full name.",
 	"email":           "Enter a valid email address, like name@example.com.",
 	"phone":           "Enter a 10-digit phone number, like 301-555-0123.",
+	"level":           "Pick the one that sounds most like you.",
 	"emergency":       "Enter the name of someone we can call in an emergency.",
 	"emergency-phone": "Enter your emergency contact’s 10-digit phone number, like 301-555-0123.",
 }
@@ -127,6 +132,7 @@ func (a *App) join(w http.ResponseWriter, r *http.Request) {
 	typed := memberDetails{
 		Name: r.FormValue("name"), Email: r.FormValue("email"), Phone: r.FormValue("phone"),
 		EmergencyName: r.FormValue("emergency_name"), EmergencyPhone: r.FormValue("emergency_phone"),
+		Level: r.FormValue("level"), Rides: r.Form["rides"],
 	}
 	reply := func(status int, d joinData) {
 		if strings.Contains(r.Header.Get("Accept"), "application/json") {
