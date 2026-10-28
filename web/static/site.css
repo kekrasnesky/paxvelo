@@ -20,6 +20,8 @@
 [hidden]{display:none!important}
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 body{margin:0;background:var(--paper);color:var(--text);font:300 1rem/1.65 var(--font);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+body{display:flex;flex-direction:column;min-height:100vh} /* the footer stays at the bottom on short pages */
+main{flex:1 0 auto}
 img,svg{display:block;max-width:100%}
 a{color:inherit;text-underline-offset:3px}
 h1,h2,h3{margin:0;font-weight:500;line-height:1.2;letter-spacing:-.01em;color:var(--ink)}
@@ -58,7 +60,8 @@ strong{font-weight:500}
 
 /* ---------- Footer ---------- */
 .ftr{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:1rem;padding:18px var(--side);background:var(--ink);color:var(--paper)}
-.ftr-copy{margin:0;font-size:.8rem}
+.ftr-copy{display:flex;align-items:center;gap:.7rem;margin:0;font-size:.8rem}
+.ftr-copy img{display:block;width:44px;height:auto}
 .ftr-mail{justify-self:end;font-size:.9rem;font-weight:500;text-decoration:none}
 .ftr-mail:hover{text-decoration:underline}
 .ftr .social a{width:34px;height:34px;border-width:1.5px}
@@ -413,6 +416,7 @@ td:hover .cal-add,.cal-add:focus-visible{opacity:1}
   .facts div{grid-template-columns:1fr;gap:.1rem}
   .ftr{grid-template-columns:1fr;justify-items:center;gap:.8rem;padding:20px var(--pad);text-align:center}
   .ftr-mail{justify-self:center}
+  .ftr-copy{flex-direction:column;gap:.4rem}
 }
 /* Narrow tablets don't have room for the club name beside the menu; the logo stays. */
 @media (min-width:768px) and (max-width:1000px){.wordmark{display:none}.nav{font-size:14px}.nav>a,.dd-btn{padding:.4rem .5rem}}
