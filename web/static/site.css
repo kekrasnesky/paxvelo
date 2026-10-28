@@ -22,6 +22,19 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 body{margin:0;background:var(--paper);color:var(--text);font:300 1rem/1.65 var(--font);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
 body{display:flex;flex-direction:column;min-height:100vh} /* the footer stays at the bottom on short pages */
 main{flex:1 0 auto}
+
+/* Page changes: the header stays put while the old page fades out and the new
+   one rises in. Browsers without view transitions just change pages as before. */
+@view-transition{navigation:auto}
+.hdr{view-transition-name:hdr}
+main{view-transition-name:page}
+::view-transition-group(root),::view-transition-group(page){animation-duration:.18s}
+::view-transition-old(page){animation:pv-out .09s ease-in both}
+::view-transition-new(page){animation:pv-in .18s cubic-bezier(.2,.8,.2,1) both}
+::view-transition-old(root),::view-transition-new(root){animation-duration:.12s}
+@keyframes pv-out{to{opacity:0}}
+@keyframes pv-in{from{opacity:0;transform:translateY(8px)}}
+@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}
 img,svg{display:block;max-width:100%}
 a{color:inherit;text-underline-offset:3px}
 h1,h2,h3{margin:0;font-weight:500;line-height:1.2;letter-spacing:-.01em;color:var(--ink)}
