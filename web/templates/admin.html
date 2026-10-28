@@ -11,22 +11,11 @@
 <body>
 {{if .Tab}}<header class="bar">
   <a class="brand" href="/admin">PaxVelo Admin</a>
-  <nav>
-    <a href="/admin"{{if eq .Tab "members"}} aria-current="page"{{end}}>Members</a>
-    <a href="/admin/email"{{if eq .Tab "email"}} aria-current="page"{{end}}>Email</a>
-    <a href="/admin/newsletter"{{if eq .Tab "newsletter"}} aria-current="page"{{end}}>Newsletter</a>
-    <a href="/admin/pages"{{if eq .Tab "pages"}} aria-current="page"{{end}}>Pages</a>
-    <a href="/admin/board"{{if eq .Tab "board"}} aria-current="page"{{end}}>Board</a>
-    <a href="/admin/home-photos"{{if eq .Tab "home-photos"}} aria-current="page"{{end}}>Home photos</a>
-    <a href="/admin/calendar"{{if eq .Tab "calendar"}} aria-current="page"{{end}}>Calendar</a>
-    <a href="/admin/rides"{{if eq .Tab "rides"}} aria-current="page"{{end}}>Rides</a>
-    <a href="/admin/minutes"{{if eq .Tab "minutes"}} aria-current="page"{{end}}>Minutes</a>
-    <a href="/admin/instagram"{{if eq .Tab "instagram"}} aria-current="page"{{end}}>Instagram</a>
-    <a href="/admin/admins"{{if eq .Tab "admins"}} aria-current="page"{{end}}>Admins</a>
-    <a href="/" target="_blank" rel="noopener">View site</a>
-  </nav>
-  <form method="post" action="/admin/logout">{{with .Me}}<span class="me">{{.}}</span> · {{end}}<button class="link light">{{icon "logout"}}Log out</button></form>
-</header>{{end}}
+  <nav class="groups" aria-label="Admin">{{range .Nav.Groups}}<a href="{{.Href}}"{{if .Current}} aria-current="page"{{end}}>{{.Label}}{{with .Badge}} <span class="badge">{{.}}<span class="sr"> need attention</span></span>{{end}}</a>{{end}}</nav>
+  <div class="bar-end">{{with .Nav.Admins}}<a class="corner" href="{{.Href}}"{{if .Current}} aria-current="page"{{end}} aria-label="{{.Label}}">{{icon "settings"}}<span>{{.Label}}</span></a>{{end}}<a href="/" target="_blank" rel="noopener">View site</a>
+  <form method="post" action="/admin/logout">{{with .Me}}<span class="me">{{.}} · </span>{{end}}<button class="link light">{{icon "logout"}}Log out</button></form></div>
+</header>
+{{with .Nav.Sections}}<nav class="sub" aria-label="Section">{{range .}}<a href="{{.Href}}"{{if .Current}} aria-current="page"{{end}}>{{.Label}}</a>{{end}}</nav>{{end}}{{end}}
 <main class="wrap">
 {{with .Flash}}<p class="flash">{{.}}</p>{{end}}
 {{with .Error}}<p class="flash err">{{.}}</p>{{end}}
@@ -202,24 +191,36 @@ initBlock(document);
 </div>
 {{template "foot" .}}{{end}}
 
+{{define "attention"}}{{template "head" .}}
+<div class="title-row"><h1>Needs attention</h1></div>
+{{with .Attention}}
+{{if .Items}}<ul class="todo">{{range .Items}}<li><span>{{.Text}}</span><a class="btn ghost" href="{{.Href}}">{{.Link}}</a></li>{{end}}</ul>
+{{else}}<p class="all-clear">{{icon "check"}}Nothing needs you right now.</p>{{end}}
+<h2 class="glance-h">At a glance</h2>
+<ul class="glance">
+  <li><a href="/admin/members?dues=unpaid">{{.Unpaid}} of {{.Active}} members haven’t paid {{$.Year}} dues</a></li>
+</ul>
+{{end}}
+{{template "foot" .}}{{end}}
+
 {{define "members"}}{{template "head" .}}
 <div class="title-row">
   <h1>Members</h1>
   <p class="muted">{{.Active}} active, {{.Paid}} paid for {{.Year}}{{if .Unsub}}, {{.Unsub}} unsubscribed{{end}}</p>
 </div>
 <div class="tools">
-  <form class="search" method="get" action="/admin">
+  <form class="search" method="get" action="/admin/members">
     {{with .Dues}}<input type="hidden" name="dues" value="{{.}}">{{end}}
     <input type="search" name="q" value="{{.Q}}" placeholder="Search name, email, or phone" aria-label="Search members">
     <button class="ghost">{{icon "search"}}Search</button>
-    {{if .Q}}<a href="/admin{{with .Dues}}?dues={{.}}{{end}}">Clear</a>{{end}}
+    {{if .Q}}<a href="/admin/members{{with .Dues}}?dues={{.}}{{end}}">Clear</a>{{end}}
   </form>
   <a class="btn ghost" href="/admin/members.csv">Export CSV</a>
 </div>
 <nav class="filter" aria-label="Filter by dues">
-  <a href="/admin{{with .Q}}?q={{.}}{{end}}"{{if eq .Dues ""}} aria-current="page"{{end}}>Everyone</a>
-  <a href="/admin?dues=unpaid{{with .Q}}&q={{.}}{{end}}"{{if eq .Dues "unpaid"}} aria-current="page"{{end}}>Not paid for {{.Year}} ({{.Unpaid}})</a>
-  <a href="/admin?dues=paid{{with .Q}}&q={{.}}{{end}}"{{if eq .Dues "paid"}} aria-current="page"{{end}}>Paid for {{.Year}} ({{.Paid}})</a>
+  <a href="/admin/members{{with .Q}}?q={{.}}{{end}}"{{if eq .Dues ""}} aria-current="page"{{end}}>Everyone</a>
+  <a href="/admin/members?dues=unpaid{{with .Q}}&q={{.}}{{end}}"{{if eq .Dues "unpaid"}} aria-current="page"{{end}}>Not paid for {{.Year}} ({{.Unpaid}})</a>
+  <a href="/admin/members?dues=paid{{with .Q}}&q={{.}}{{end}}"{{if eq .Dues "paid"}} aria-current="page"{{end}}>Paid for {{.Year}} ({{.Paid}})</a>
 </nav>
 <div class="table-wrap"><table class="tight cards">
   <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Emergency contact</th><th>Emergency phone</th><th>Plan</th><th>Riding</th><th>{{.Year}} dues</th><th>Joined</th>{{if .CanManage}}<th><span class="sr">Actions</span></th>{{end}}</tr></thead>
@@ -233,7 +234,7 @@ initBlock(document);
     <td data-label="Plan">{{.PlanName}}</td>
     <td data-label="Riding">{{with .LevelName}}{{.}}{{else}}<span class="muted">—</span>{{end}}{{with .RideNames}}<br><span class="muted small">{{.}}</span>{{end}}</td>
     <td class="nowrap" data-label="{{$.Year}} dues"><form method="post" action="/admin/members/{{.ID}}/paid" class="inline">
-      <input type="hidden" name="return" value="/admin?q={{$.Q}}&dues={{$.Dues}}">
+      <input type="hidden" name="return" value="/admin/members?q={{$.Q}}&dues={{$.Dues}}">
       {{if $paid}}<span class="paid">Paid</span> <input type="hidden" name="paid" value="0"><button class="link small">{{icon "undo"}}Undo</button>
       {{else}}<input type="hidden" name="paid" value="1"><button class="mini">{{icon "check"}}Mark paid</button>{{end}}
     </form></td>

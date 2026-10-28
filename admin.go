@@ -26,6 +26,8 @@ const sessionCookie = "pv_admin"
 type adminView struct {
 	Title, Tab, Flash, Error, SiteURL string
 	Me                                string // the logged-in admin's name
+	Nav                               adminNav
+	Attention                         *attentionView // the Needs attention page
 	CSS                               template.CSS
 	Year                              int
 	// Members tab
@@ -179,6 +181,9 @@ func (a *App) auth(h http.HandlerFunc) http.Handler {
 func (a *App) renderAdmin(w http.ResponseWriter, r *http.Request, status int, name string, v adminView) {
 	v.CSS, v.SiteURL = a.site.adminCSS, a.cfg.SiteURL
 	v.Me, _ = a.adminName(r)
+	if v.Tab != "" {
+		v.Nav = adminNavFor(v.Tab, len(a.attention()))
+	}
 	var buf bytes.Buffer
 	if err := a.site.admin.ExecuteTemplate(&buf, name, v); err != nil {
 		log.Printf("admin template %s: %v", name, err)
@@ -364,19 +369,19 @@ func (a *App) markPaid(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.Atoi(r.PathValue("id"))
 	paid := r.FormValue("paid") == "1"
 	if err := a.store.SetPaid(id, a.cfg.ThisYear(), paid); err != nil {
-		back(w, r, "/admin?err=save")
+		back(w, r, "/admin/members?err=save")
 		return
 	}
-	to := "/admin?ok=unpaid"
+	to := "/admin/members?ok=unpaid"
 	if paid {
-		to = "/admin?ok=paid"
+		to = "/admin/members?ok=paid"
 	}
 	// Keep the admin's search and filter in place.
 	if ret := r.FormValue("return"); ret != "" {
 		if u, err := url.Parse(ret); err == nil {
 			q := u.Query()
-			q.Set("ok", strings.TrimPrefix(to, "/admin?ok="))
-			to = "/admin?" + q.Encode()
+			q.Set("ok", strings.TrimPrefix(to, "/admin/members?ok="))
+			to = "/admin/members?" + q.Encode()
 		}
 	}
 	back(w, r, to)
@@ -385,7 +390,7 @@ func (a *App) markPaid(w http.ResponseWriter, r *http.Request) {
 func (a *App) addMember(w http.ResponseWriter, r *http.Request) {
 	d, problem := joinDetails(r, false)
 	if problem != "" {
-		back(w, r, "/admin?err="+problem)
+		back(w, r, "/admin/members?err="+problem)
 		return
 	}
 	year := a.cfg.ThisYear()
@@ -395,26 +400,26 @@ func (a *App) addMember(w http.ResponseWriter, r *http.Request) {
 	}
 	switch {
 	case err != nil:
-		back(w, r, "/admin?err=save")
+		back(w, r, "/admin/members?err=save")
 	case res == AlreadyMember:
-		back(w, r, "/admin?ok=exists")
+		back(w, r, "/admin/members?ok=exists")
 	default:
-		back(w, r, "/admin?ok=added")
+		back(w, r, "/admin/members?ok=added")
 	}
 }
 
 // deleteMember takes someone off the list for good. Only the president can.
 func (a *App) deleteMember(w http.ResponseWriter, r *http.Request) {
 	if !a.canManage(r) {
-		back(w, r, "/admin?err=president-only")
+		back(w, r, "/admin/members?err=president-only")
 		return
 	}
 	id, _ := strconv.Atoi(r.PathValue("id"))
 	if err := a.store.DeleteMember(id); err != nil {
-		back(w, r, "/admin?err=save")
+		back(w, r, "/admin/members?err=save")
 		return
 	}
-	back(w, r, "/admin?ok=deleted")
+	back(w, r, "/admin/members?ok=deleted")
 }
 
 func (a *App) exportCSV(w http.ResponseWriter, r *http.Request) {
@@ -446,7 +451,7 @@ func (a *App) importCSV(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 10<<20)
 	f, _, err := r.FormFile("file")
 	if err != nil {
-		back(w, r, "/admin?err=file")
+		back(w, r, "/admin/members?err=file")
 		return
 	}
 	defer f.Close()
@@ -456,7 +461,7 @@ func (a *App) importCSV(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, errNoEmailColumn) {
 			code = "nocol"
 		}
-		back(w, r, "/admin?err="+code)
+		back(w, r, "/admin/members?err="+code)
 		return
 	}
 	// Optionally bring over only people with a membership, now or in the past.
@@ -470,10 +475,10 @@ func (a *App) importCSV(w http.ResponseWriter, r *http.Request) {
 	}
 	added, dup, err := a.store.Import(list)
 	if err != nil {
-		back(w, r, "/admin?err=save")
+		back(w, r, "/admin/members?err=save")
 		return
 	}
-	back(w, r, fmt.Sprintf("/admin?ok=imported&n=%d&d=%d&b=%d", added, dup, bad))
+	back(w, r, fmt.Sprintf("/admin/members?ok=imported&n=%d&d=%d&b=%d", added, dup, bad))
 }
 
 var errNoEmailColumn = errors.New("no email column")
@@ -625,7 +630,7 @@ func parseImport(r io.Reader) (rows []importRow, bad int, err error) {
 // details and the admins' password hashes, so only the president can.
 func (a *App) backup(w http.ResponseWriter, r *http.Request) {
 	if !a.canManage(r) {
-		back(w, r, "/admin?err=president-only")
+		back(w, r, "/admin/members?err=president-only")
 		return
 	}
 	b, err := a.store.Snapshot()

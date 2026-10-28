@@ -147,13 +147,13 @@ func TestJoinDoesNotResubscribe(t *testing.T) {
 func TestMembersPage(t *testing.T) {
 	a, h, c := testApp(t)
 	a.store.Join(memberDetails{Name: "Pat Rider", Email: "pat@example.com", Plan: "individual", Phone: "301-555-0123", EmergencyName: "Sam Rider", EmergencyPhone: "240-555-0199"}, 2026)
-	page := do(t, h, c, "GET", "/admin", "", nil).Body.String()
+	page := do(t, h, c, "GET", "/admin/members", "", nil).Body.String()
 	for _, want := range []string{"<th>Phone</th>", "<th>Emergency contact</th>", "<th>Emergency phone</th>", "<th>Plan</th>", "Mark paid", "301-555-0123", "Sam Rider", "240-555-0199"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("members page missing %q", want)
 		}
 	}
-	if page := do(t, h, c, "GET", "/admin?q=555-0123", "", nil).Body.String(); !strings.Contains(page, "Pat Rider") {
+	if page := do(t, h, c, "GET", "/admin/members?q=555-0123", "", nil).Body.String(); !strings.Contains(page, "Pat Rider") {
 		t.Error("searching by phone number should find Pat")
 	}
 	csv := do(t, h, c, "GET", "/admin/members.csv", "", nil).Body.String()
@@ -178,7 +178,7 @@ func TestPresidentOnly(t *testing.T) {
 	}
 
 	// Sam isn't president: no Delete or Remove buttons, and the posts are refused.
-	if page := do(t, h, as(sam), "GET", "/admin", "", nil).Body.String(); strings.Contains(page, ">Delete</button>") {
+	if page := do(t, h, as(sam), "GET", "/admin/members", "", nil).Body.String(); strings.Contains(page, ">Delete</button>") {
 		t.Error("a non-president shouldn't see Delete")
 	}
 	do(t, h, as(sam), "POST", "/admin/members/"+itoa(m.ID)+"/delete", "", nil)
@@ -198,7 +198,7 @@ func TestPresidentOnly(t *testing.T) {
 	}
 
 	// Pat, the president, can delete members and remove admins.
-	if page := do(t, h, as(pat), "GET", "/admin", "", nil).Body.String(); !strings.Contains(page, ">Delete</button>") {
+	if page := do(t, h, as(pat), "GET", "/admin/members", "", nil).Body.String(); !strings.Contains(page, ">Delete</button>") {
 		t.Error("the president should see Delete")
 	}
 	do(t, h, as(pat), "POST", "/admin/members/"+itoa(m.ID)+"/delete", "", nil)
@@ -237,7 +237,7 @@ func TestBackupPresidentOnly(t *testing.T) {
 	if w.Code != http.StatusSeeOther || strings.Contains(w.Body.String(), "pat@example.com") {
 		t.Errorf("a non-president got the backup: %d", w.Code)
 	}
-	if page := do(t, h, as(sam), "GET", "/admin", "", nil).Body.String(); strings.Contains(page, "Download a full backup") {
+	if page := do(t, h, as(sam), "GET", "/admin/members", "", nil).Body.String(); strings.Contains(page, "Download a full backup") {
 		t.Error("a non-president shouldn't see the backup link")
 	}
 	w = do(t, h, as(pat), "GET", "/admin/backup", "", nil)
