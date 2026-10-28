@@ -28,7 +28,7 @@ func TestAllPagesBuild(t *testing.T) {
 	for path := range *s.pages.Load() {
 		paths[path] = true
 	}
-	for _, want := range []string{"/", "/rides", "/bike-safety", "/committee"} {
+	for _, want := range []string{"/", "/rides", "/bike-safety", "/committee", "/kit"} {
 		if !paths[want] {
 			t.Errorf("page %s is missing", want)
 		}

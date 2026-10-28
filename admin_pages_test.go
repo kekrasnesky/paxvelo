@@ -64,3 +64,19 @@ func TestPagesAndBoardAdmin(t *testing.T) {
 		t.Error("board edit didn't show")
 	}
 }
+
+// paxvelo.club/kit, on flyers and in the welcome email, shows the kit page,
+// whose button goes on to the team store. The menu's Shop Kit link goes there too.
+func TestKitPage(t *testing.T) {
+	_, h, _ := testApp(t)
+	w := do(t, h, nil, "GET", "/kit", "", nil)
+	if w.Code != 200 {
+		t.Fatalf("/kit: %d", w.Code)
+	}
+	got := w.Body.String()
+	for _, want := range []string{"<h1>Club Kit</h1>", `href="https://example.com/kit"`, "Open the team store", `<a href="/kit" aria-current="page">Shop Kit</a>`} {
+		if !strings.Contains(got, want) {
+			t.Errorf("the kit page is missing %q", want)
+		}
+	}
+}

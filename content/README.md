@@ -10,6 +10,7 @@ Every page of the PaxVelo website is a text file in this folder. Change the text
 | Our Rides | `rides.md` |
 | Bike Safety 101 | `bike-safety.md` |
 | Executive Board Members | `committee.md` |
+| Club Kit (the **Shop Kit** link) | `kit.md` |
 
 ## Changing a page
 

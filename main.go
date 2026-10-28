@@ -86,6 +86,9 @@ func (a *App) routes() http.Handler {
 
 	// Public pages, rendered once at startup and served from memory.
 	for _, path := range a.site.pagePaths {
+		if path == "/kit" {
+			continue // has its own route below
+		}
 		pattern := "GET " + path
 		if path == "/" {
 			pattern = "GET /{$}"
@@ -113,7 +116,15 @@ func (a *App) routes() http.Handler {
 	mux.Handle("GET /thnr-info", http.RedirectHandler("/rides#thursday-night-ride", http.StatusMovedPermanently))
 
 	// Short, memorable links for emails and flyers: paxvelo.club/kit and /strava.
-	mux.Handle("GET /kit", http.RedirectHandler(a.cfg.KitURL, http.StatusFound))
+	// /kit is the kit page (content/kit.md), or straight to the team store if
+	// that page is ever removed, so the links already out there keep working.
+	mux.HandleFunc("GET /kit", func(w http.ResponseWriter, r *http.Request) {
+		if (*a.site.pages.Load())["/kit"] != nil {
+			a.site.serveContent("/kit").ServeHTTP(w, r)
+			return
+		}
+		http.Redirect(w, r, a.cfg.KitURL, http.StatusFound)
+	})
 	mux.Handle("GET /strava", http.RedirectHandler(a.cfg.StravaURL, http.StatusFound))
 
 	// The newsletter, and photos uploaded for it in the admin.

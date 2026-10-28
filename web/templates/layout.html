@@ -21,7 +21,7 @@
 {{with .LD}}<script type="application/ld+json">{{.}}</script>
 {{end}}{{block "head" .}}{{end}}
 <style>{{.CSS}}</style>
-<script type="speculationrules">{"prerender":[{"where":{"and":[{"href_matches":"/*"},{"not":{"href_matches":"/admin*"}},{"not":{"href_matches":"/unsubscribe*"}},{"not":{"href_matches":"/strava*"}},{"not":{"href_matches":"/kit"}},{"not":{"href_matches":"/calendar/new*"}},{"not":{"href_matches":"/files/*"}}]},"eagerness":"moderate"}]}</script>
+<script type="speculationrules">{"prerender":[{"where":{"and":[{"href_matches":"/*"},{"not":{"href_matches":"/admin*"}},{"not":{"href_matches":"/unsubscribe*"}},{"not":{"href_matches":"/strava*"}},{"not":{"href_matches":"/calendar/new*"}},{"not":{"href_matches":"/files/*"}}]},"eagerness":"moderate"}]}</script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
@@ -45,7 +45,7 @@
     </div>
     <a href="/calendar"{{if hasPrefix .Path "/calendar"}} aria-current="page"{{end}}>Calendar</a>
     <a href="/newsletter"{{if hasPrefix .Path "/newsletter"}} aria-current="page"{{end}}>Newsletter</a>
-    <a href="{{.Club.KitURL}}" target="_blank" rel="noopener">Shop Kit</a>
+    <a href="/kit"{{if eq .Path "/kit"}} aria-current="page"{{end}}>Shop Kit</a>
     <a class="nav-join" href="/join"{{if eq .Path "/join"}} aria-current="page"{{end}}>Join</a>
     <a class="nav-admin" href="/admin" rel="nofollow">Admin</a>
   </nav>
