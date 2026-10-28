@@ -11,17 +11,22 @@ import (
 
 // Photos straight from a phone are often 3–6 MB, which makes a newsletter
 // slow to load on a phone signal. Uploaded JPG and PNG photos are shrunk to
-// at most photoMaxSide pixels on their long side and saved as JPG (a PNG with
-// see-through parts stays a PNG). That's still sharp on a big screen, and is
-// usually under 400 KB. Re-saving also drops the camera's hidden details,
+// at most 1600 pixels on their long side and saved as JPG (a PNG with
+// see-through parts stays a PNG). A busy photo (grass, gravel, crowds) can
+// still be large at that size, so it steps down to 1400, then 1200 pixels,
+// until it's within photoBudget. That's sharp across a laptop screen. Re-saving also drops the camera's hidden details,
 // like where the photo was taken. WebP and GIF photos are kept as they are:
 // Go can't write WebP, and a GIF may be animated.
 const (
-	photoMaxSide   = 2000
-	photoKeepBytes = 500 << 10  // a photo this small that fits is kept as is
+	photoMaxSide   = 1600
+	photoBudget    = 350 << 10  // a photo over this steps down to a smaller size
+	photoKeepBytes = 250 << 10  // a photo this small that fits is kept as is
 	photoMaxPixels = 60_000_000 // larger than any camera photo; kept as is
-	photoQuality   = 82
+	photoQuality   = 80
 )
+
+// photoSides are the sizes a photo tries, largest first, to fit photoBudget.
+var photoSides = []int{photoMaxSide, 1400, 1200}
 
 // shrinkPhoto returns a smaller copy of the photo b and its file extension,
 // or b and ext unchanged when it's already small or can't be shrunk.
@@ -47,15 +52,19 @@ func shrinkPhoto(b []byte, ext string) ([]byte, string) {
 	if err != nil {
 		return b, ext
 	}
-	img := orient(downscale(src, photoMaxSide), turn)
-
 	var out bytes.Buffer
 	outExt := ".jpg"
-	if img.Opaque() {
-		err = jpeg.Encode(&out, img, &jpeg.Options{Quality: photoQuality})
-	} else {
-		outExt = ".png"
-		err = (&png.Encoder{CompressionLevel: png.BestCompression}).Encode(&out, img)
+	for _, side := range photoSides {
+		img := orient(downscale(src, side), turn)
+		out.Reset()
+		if !img.Opaque() {
+			outExt = ".png"
+			err = (&png.Encoder{CompressionLevel: png.BestCompression}).Encode(&out, img)
+			break // see-through graphics are small already
+		}
+		if err = jpeg.Encode(&out, img, &jpeg.Options{Quality: photoQuality}); err != nil || out.Len() <= photoBudget {
+			break
+		}
 	}
 	if err != nil {
 		return b, ext

@@ -62,8 +62,8 @@ func TestShrinkPhotoLarge(t *testing.T) {
 	if ext != ".jpg" || len(out) >= len(in) {
 		t.Fatalf("got %s, %d bytes from %d", ext, len(out), len(in))
 	}
-	if b := decoded(t, out).Bounds(); b.Dx() != 2000 || b.Dy() != 1000 {
-		t.Fatalf("size %v, want 2000×1000", b.Size())
+	if b := decoded(t, out).Bounds(); b.Dx() != 1600 || b.Dy() != 800 {
+		t.Fatalf("size %v, want 1600×800", b.Size())
 	}
 }
 
@@ -74,14 +74,14 @@ func TestShrinkPhotoTurnsSideways(t *testing.T) {
 	}
 	img := decoded(t, mustShrink(t, in, ".jpg"))
 	b := img.Bounds()
-	if b.Dx() != 666 || b.Dy() != 2000 {
-		t.Fatalf("size %v, want 666×2000 (turned upright)", b.Size())
+	if b.Dx() != 533 || b.Dy() != 1600 {
+		t.Fatalf("size %v, want 533×1600 (turned upright)", b.Size())
 	}
 	// Turned a quarter clockwise, the red left half is now on top.
-	if r, _, bl, _ := img.At(333, 100).RGBA(); r < bl {
+	if r, _, bl, _ := img.At(266, 100).RGBA(); r < bl {
 		t.Errorf("top should be red")
 	}
-	if r, _, bl, _ := img.At(333, 1900).RGBA(); bl < r {
+	if r, _, bl, _ := img.At(266, 1500).RGBA(); bl < r {
 		t.Errorf("bottom should be blue")
 	}
 }
@@ -101,8 +101,8 @@ func TestShrinkPhotoKeepsSeeThroughPNG(t *testing.T) {
 	if ext != ".png" {
 		t.Fatalf("got %s, want a PNG", ext)
 	}
-	if b := decoded(t, out).Bounds(); b.Dx() != 2000 {
-		t.Fatalf("width %d, want 2000", b.Dx())
+	if b := decoded(t, out).Bounds(); b.Dx() != 1600 {
+		t.Fatalf("width %d, want 1600", b.Dx())
 	}
 }
 
@@ -149,5 +149,22 @@ func TestSmallPhotoLosesCameraDetails(t *testing.T) {
 	out, _ = shrinkPhoto(sideways, ".jpg")
 	if b := decoded(t, out).Bounds(); b.Dx() != 600 || b.Dy() != 800 || bytes.Contains(out, []byte("Exif")) {
 		t.Errorf("a sideways photo should be turned upright and clean: %v", b)
+	}
+}
+
+// A busy photo that's still large at 1600 pixels steps down in size until
+// it fits photoBudget, but never below 1200 pixels.
+func TestShrinkPhotoStepsDownWhenBusy(t *testing.T) {
+	img := image.NewNRGBA(image.Rect(0, 0, 3000, 2000))
+	r := rand.New(rand.NewSource(2))
+	for i := range img.Pix {
+		img.Pix[i] = uint8(r.Intn(256))
+	}
+	for i := 3; i < len(img.Pix); i += 4 {
+		img.Pix[i] = 255
+	}
+	out, ext := shrinkPhoto(encodeJPEG(t, img), ".jpg")
+	if b := decoded(t, out).Bounds(); ext != ".jpg" || b.Dx() != 1200 || b.Dy() != 800 {
+		t.Fatalf("got %s %v, want a 1200×800 JPG (pure noise never fits the budget)", ext, b.Size())
 	}
 }
