@@ -43,8 +43,10 @@ func (s *Site) clubOrg() ld {
 	}
 }
 
-// clubLD describes the club, for the home page.
-func (s *Site) clubLD() template.JS {
+// clubLD describes the club and who's on its board, for the home and board
+// pages. Search engines and AI search tools read this to answer "who runs
+// PaxVelo" or "who is <name>".
+func (s *Site) clubLD(board []BoardMember) template.JS {
 	org := s.clubOrg()
 	org["@context"] = "https://schema.org"
 	org["description"] = siteDescription + ". A nonprofit club with weekly group rides in St. Mary’s County, Maryland."
@@ -56,6 +58,17 @@ func (s *Site) clubLD() template.JS {
 	org["address"] = ld{"@type": "PostalAddress", "addressRegion": "MD", "addressCountry": "US"}
 	org["areaServed"] = ld{"@type": "AdministrativeArea", "name": "St. Mary’s County, Maryland"}
 	org["sameAs"] = []string{s.cfg.StravaURL, instagramProfile, facebookGroup}
+	var roles []ld
+	for _, b := range board {
+		if b.Name == "" || b.Role == "" {
+			continue
+		}
+		roles = append(roles, ld{"@type": "OrganizationRole", "roleName": b.Role,
+			"member": ld{"@type": "Person", "name": b.Name, "jobTitle": b.Role + ", " + siteName}})
+	}
+	if len(roles) > 0 {
+		org["member"] = roles
+	}
 	return ldJSON(org)
 }
 

@@ -287,8 +287,8 @@ func (s *Site) renderContent(d contentData) error {
 		}
 		v := s.view(p.Path, p.Title, p)
 		v.Desc = p.Desc
-		if p.Path == "/" {
-			v.LD = s.clubLD()
+		if p.Path == "/" || p.People {
+			v.LD = s.clubLD(d.Board)
 		}
 		var buf bytes.Buffer
 		if err := t.ExecuteTemplate(&buf, "layout", v); err != nil {

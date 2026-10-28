@@ -71,3 +71,22 @@ func TestBingSiteAuth(t *testing.T) {
 		t.Errorf("Bing verification file: %d %q\n%s", w.Code, w.Header().Get("Content-Type"), w.Body.String())
 	}
 }
+
+// The board page names each board member and their role in the structured
+// data, so search tools can say who the president is.
+func TestBoardInSearchData(t *testing.T) {
+	a, h, _ := testApp(t)
+	a.store.SetBoard([]BoardMember{{Name: "Pat Rider", Role: "President"}, {Name: "", Role: "Treasurer"}})
+	if err := a.rebuildContent(); err != nil {
+		t.Fatal(err)
+	}
+	v := ldOf(t, do(t, h, nil, "GET", "/committee", "", nil).Body.String())
+	members, _ := v["member"].([]any)
+	if len(members) != 1 {
+		t.Fatalf("want the one named board member, got %v", v["member"])
+	}
+	p := members[0].(map[string]any)["member"].(map[string]any)
+	if p["name"] != "Pat Rider" || p["jobTitle"] != "President, PaxVelo Cycling Club" {
+		t.Errorf("board member: %v", p)
+	}
+}
