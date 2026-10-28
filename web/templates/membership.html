@@ -1,0 +1,62 @@
+{{define "head"}}<meta name="robots" content="noindex">{{end}}
+{{define "content"}}{{with .Data}}
+<article class="page">
+{{if eq .State "page"}}{{$m := .Member}}
+  <h1>My Membership</h1>
+  <p class="lead">Hi {{or $m.FirstName "there"}}. This page is just for you, at {{$m.Email}}.</p>
+
+  <h2 class="my-h">Dues</h2>
+  {{if .Paid}}<p class="dues-paid">{{.Year}} dues: paid ✓</p>
+  {{else}}<p>Your {{.Year}} {{.PlanName}} dues aren’t paid yet.</p>
+  {{with .PayURL}}<p><a class="btn" href="{{.}}">{{$.Data.PayLabel}}</a></p>{{else}}<p>Email <a href="mailto:PaxVeloClub@gmail.com">PaxVeloClub@gmail.com</a> and we’ll tell you how to pay.</p>{{end}}
+  <p class="muted-note">Just paid? It shows here once the treasurer marks it, usually within a few days.</p>{{end}}
+
+  <h2 class="my-h">Your details</h2>
+  <form class="join" method="post" action="/membership">
+    <input type="hidden" name="t" value="{{.Token}}">
+    <label>Phone <input type="tel" name="phone" required maxlength="20" autocomplete="tel-national" placeholder="301-555-0123" pattern="\d{3}-\d{3}-\d{4}" title="10 digits, like 301-555-0123" value="{{.Form.Phone}}"></label>
+    <fieldset class="emergency">
+      <legend>Emergency contact</legend>
+      <div class="pair">
+        <label>Name <input name="emergency_name" required maxlength="100" autocomplete="off" value="{{.Form.EmergencyName}}"></label>
+        <label>Phone <input type="tel" name="emergency_phone" required maxlength="20" autocomplete="off" placeholder="301-555-0123" pattern="\d{3}-\d{3}-\d{4}" title="10 digits, like 301-555-0123" value="{{.Form.EmergencyPhone}}"></label>
+      </div>
+    </fieldset>
+    <fieldset class="pick two">
+      <legend>Which sounds like you?</legend>
+      {{range riderLevels}}<label><input type="radio" name="level" value="{{.Value}}" required{{if eq $.Data.Form.Level .Value}} checked{{end}}><span>{{.Label}}</span></label>
+      {{end}}
+    </fieldset>
+    <fieldset class="pick two">
+      <legend>Which rides interest you? <span class="opt">Optional</span></legend>
+      {{range clubRides}}<label><input type="checkbox" name="rides" value="{{.Value}}"{{if $.Data.Form.Picked .Value}} checked{{end}}><span>{{.Label}}</span></label>
+      {{end}}
+    </fieldset>
+    <p class="hint">Only the club’s board sees these details.</p>
+    <button class="btn" type="submit">{{icon "save"}}Save</button>
+    <p class="msg{{if .Message}} err{{end}}" role="status">{{if .Message}}{{.Message}}{{else if .Saved}}Saved. Thanks for keeping it current.{{end}}</p>
+  </form>
+
+  <h2 class="my-h">Club emails</h2>
+  {{if $m.Active}}<p>You get club emails at {{$m.Email}}.</p>
+  <form method="post" action="/unsubscribe"><input type="hidden" name="t" value="{{.Token}}"><button class="btn btn-quiet" type="submit">Unsubscribe</button></form>
+  {{else}}<p>{{if .EmailsBack}}Club emails are back on. Welcome back!{{else}}You’re unsubscribed from club emails.{{end}}</p>
+  <form method="post" action="/membership/emails"><input type="hidden" name="t" value="{{.Token}}"><button class="btn btn-quiet" type="submit">Turn club emails back on</button></form>{{end}}
+  <p class="muted-note">Keep the email this link came in. It’s your way back here.</p>
+{{else if eq .State "sent"}}
+  <h1>Check your email</h1>
+  <p class="lead">If {{.Email}} is on our member list, your link is on its way.</p>
+  <p>Not there in a few minutes? Check spam, or email <a href="mailto:PaxVeloClub@gmail.com">PaxVeloClub@gmail.com</a>.</p>
+{{else}}
+  <h1>My Membership</h1>
+  {{if eq .State "invalid"}}<p class="lead">That link isn’t valid. It may have been copied incompletely. We’ll email you a fresh one.</p>
+  {{else}}<p class="lead">Check your dues and update your details. Every club email has a “My membership” link, or we’ll email you one.</p>{{end}}
+  <form class="join" method="post" action="/membership/link">
+    <label>Email <input type="email" name="email" required maxlength="254" autocomplete="email" value="{{.Email}}"></label>
+    <button class="btn" type="submit">{{icon "send"}}Send me my link</button>
+    <p class="msg{{if .Message}} err{{end}}" role="status">{{.Message}}</p>
+  </form>
+  <p>Not a member yet? <a href="/join">Join the club</a>.</p>
+{{end}}
+</article>
+{{end}}{{end}}

@@ -106,6 +106,7 @@ func (m *Mailer) personalize(s string, mem Member) string {
 		"{dues}", "$"+strconv.Itoa(m.cfg.Dues(mem.Plan)),
 		"{year}", strconv.Itoa(m.cfg.ThisYear()),
 		"{ride_tips}", rideTips(mem, m.cfg.SiteURL),
+		"{my_link}", m.cfg.membershipURL(mem.Token),
 	).Replace(s)
 	return extraBlankLines.ReplaceAllString(s, "\n\n") // where {ride_tips} came out empty
 }
@@ -114,8 +115,8 @@ var extraBlankLines = regexp.MustCompile(`\n{3,}`)
 
 // SendTo sends one personalized email to a member.
 func (m *Mailer) SendTo(mem Member, subject, body string) error {
-	unsub := m.cfg.SiteURL + "/unsubscribe?t=" + url.QueryEscape(mem.Token)
-	return m.send(mem.Name, mem.Email, m.personalize(subject, mem), m.personalize(body, mem), unsub)
+	links := memberLinks{Mine: m.cfg.membershipURL(mem.Token), Unsub: m.cfg.SiteURL + "/unsubscribe?t=" + url.QueryEscape(mem.Token)}
+	return m.send(mem.Name, mem.Email, m.personalize(subject, mem), m.personalize(body, mem), links)
 }
 
 func (m *Mailer) SendTest(to, subject, body string) error {
@@ -131,13 +132,13 @@ func (m *Mailer) Notify(subject, body string) {
 	if to == "" {
 		return
 	}
-	go m.send(m.cfg.FromName, to, subject, body, "") // a failure is logged by send
+	go m.send(m.cfg.FromName, to, subject, body, memberLinks{}) // a failure is logged by send
 }
 
 // SendDirect sends one email that isn't to the member list, like an admin's
 // password link, so it has no unsubscribe link.
 func (m *Mailer) SendDirect(toName, toEmail, subject, body string) error {
-	return m.send(toName, toEmail, subject, body, "")
+	return m.send(toName, toEmail, subject, body, memberLinks{})
 }
 
 func (m *Mailer) SendWelcome(mem Member) {
@@ -156,23 +157,27 @@ func (m *Mailer) SendWelcome(mem Member) {
 	m.SendTo(mem, w.Subject, body) // a failure is logged by send
 }
 
-// send sends one email. unsubURL is the member's unsubscribe link, or "" for an
-// email that isn't to a member (a password link, a ride notice), which then has
-// no unsubscribe link or one-click Unsubscribe button.
-func (m *Mailer) send(toName, toEmail, subject, text, unsubURL string) error {
-	htmlBody, err := m.site.renderEmail(subject, text, unsubURL, m.cfg.SiteURL)
+// memberLinks are the member's own links at the foot of a club email: their
+// membership page and unsubscribing.
+type memberLinks struct{ Mine, Unsub string }
+
+// send sends one email. links are empty for an email that isn't to the member
+// list (a password link, a ride notice), which then has no unsubscribe link or
+// one-click Unsubscribe button.
+func (m *Mailer) send(toName, toEmail, subject, text string, links memberLinks) error {
+	htmlBody, err := m.site.renderEmail(subject, text, links, m.cfg.SiteURL)
 	if err != nil {
 		return err
 	}
 	plain := emailText(text, m.cfg.SiteURL) + "\n\n--\nPaxVelo, " + m.cfg.SiteURL + "\n"
-	if unsubURL != "" {
-		plain += "Unsubscribe: " + unsubURL + "\n"
+	if links.Unsub != "" {
+		plain += "My membership: " + links.Mine + "\nUnsubscribe: " + links.Unsub + "\n"
 	}
 	if !m.live() {
 		log.Printf("[test mode, not sent] To: %s | Subject: %s\n%s\n", toEmail, subject, text)
 		return nil
 	}
-	msg := m.build(toName, toEmail, subject, plain, htmlBody, unsubURL)
+	msg := m.build(toName, toEmail, subject, plain, htmlBody, links.Unsub)
 	// Every email comes through here, so a failure of any kind (a campaign,
 	// a password link, a ride notice) shows in the server log with the reason.
 	if err := m.deliver(toEmail, msg); err != nil {

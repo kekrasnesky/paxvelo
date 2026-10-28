@@ -219,7 +219,7 @@ func newSite(cfg Config) (*Site, error) {
 	if err := s.renderContent(contentData{}); err != nil {
 		return nil, err
 	}
-	for _, name := range []string{"join", "unsubscribe", "notfound", "newsletter", "minutes", "calendar", "ride", "ride-new"} {
+	for _, name := range []string{"join", "unsubscribe", "membership", "notfound", "newsletter", "minutes", "calendar", "ride", "ride-new"} {
 		if s.dynamic[name], err = parse(name + ".html"); err != nil {
 			return nil, err
 		}
@@ -397,10 +397,10 @@ func (s *Site) staticFiles(prefix string, dir fs.FS) http.Handler {
 // renderEmail lays out an email. base starts every on-site address: the site
 // address for a real email, or "" for the admin's preview, so the preview's
 // logo and photos load from whichever server shows it.
-func (s *Site) renderEmail(subject, text, unsubURL, base string) (string, error) {
+func (s *Site) renderEmail(subject, text string, links memberLinks, base string) (string, error) {
 	var b bytes.Buffer
 	err := s.email.ExecuteTemplate(&b, "email", map[string]any{
-		"Subject": subject, "Body": emailHTML(text, base), "SiteURL": base, "UnsubURL": unsubURL,
+		"Subject": subject, "Body": emailHTML(text, base), "SiteURL": base, "Links": links,
 	})
 	return b.String(), err
 }

@@ -49,11 +49,11 @@ func TestUnsubscribeOnlyOnMemberEmails(t *testing.T) {
 	if strings.Contains(direct, "List-Unsubscribe") {
 		t.Error("a password email shouldn't have unsubscribe headers")
 	}
-	page, err := a.site.renderEmail("Reset", "Hi", "", a.cfg.SiteURL)
+	page, err := a.site.renderEmail("Reset", "Hi", memberLinks{}, a.cfg.SiteURL)
 	if err != nil || strings.Contains(page, "Unsubscribe") {
 		t.Errorf("a password email shouldn't mention unsubscribing (err %v)", err)
 	}
-	if page, _ := a.site.renderEmail("News", "Hi", "https://example.com/u", a.cfg.SiteURL); !strings.Contains(page, "Unsubscribe") {
+	if page, _ := a.site.renderEmail("News", "Hi", memberLinks{Mine: "https://example.com/m", Unsub: "https://example.com/u"}, a.cfg.SiteURL); !strings.Contains(page, "Unsubscribe") {
 		t.Error("a member email should have the unsubscribe link")
 	}
 }

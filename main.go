@@ -97,7 +97,7 @@ func (a *App) routes() http.Handler {
 	mux.Handle("GET /favicon.ico", http.RedirectHandler("/static/img/logo.svg", http.StatusMovedPermanently))
 	mux.HandleFunc("GET /robots.txt", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.Write([]byte("User-agent: *\nDisallow: /admin\nDisallow: /unsubscribe\nDisallow: /strava/\nDisallow: /calendar/new\nSitemap: " + a.cfg.SiteURL + "/sitemap.xml\n"))
+		w.Write([]byte("User-agent: *\nDisallow: /admin\nDisallow: /unsubscribe\nDisallow: /membership\nDisallow: /strava/\nDisallow: /calendar/new\nSitemap: " + a.cfg.SiteURL + "/sitemap.xml\n"))
 	})
 	mux.HandleFunc("GET /sitemap.xml", a.sitemap)
 	// Old Squarespace addresses, so existing links and bookmarks still land somewhere.
@@ -138,6 +138,10 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("POST /join", a.join)
 	mux.HandleFunc("GET /unsubscribe", a.unsubscribePage)
 	mux.HandleFunc("POST /unsubscribe", a.unsubscribe)
+	mux.HandleFunc("GET /membership", a.membershipPage)
+	mux.HandleFunc("POST /membership", a.saveMembership)
+	mux.HandleFunc("POST /membership/emails", a.resubscribe)
+	mux.HandleFunc("POST /membership/link", a.sendMembershipLink)
 
 	// Admin portal.
 	mux.HandleFunc("GET /admin/login", a.loginPage)

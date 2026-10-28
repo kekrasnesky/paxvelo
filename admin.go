@@ -690,7 +690,7 @@ func (a *App) emailPreview(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 256<<10)
 	d := draftFrom(r)
 	pat := Member{Name: "Pat Rider", Plan: "individual", Level: "some", Rides: []string{"tnr-b", "thursday"}}
-	page, err := a.site.renderEmail(a.mailer.personalize(d.Subject, pat), a.mailer.personalize(d.Body, pat), "#", "")
+	page, err := a.site.renderEmail(a.mailer.personalize(d.Subject, pat), a.mailer.personalize(d.Body, pat), memberLinks{Mine: "#", Unsub: "#"}, "")
 	if err != nil {
 		http.Error(w, "The preview couldn’t be made.", http.StatusInternalServerError)
 		return

@@ -141,7 +141,7 @@ func (a *App) pagesAdmin(w http.ResponseWriter, r *http.Request) {
 // takenPaths are addresses the site already uses for something other than a
 // content page, so a new page can't have them.
 var takenPaths = []string{"admin", "api", "calendar", "files", "home", "join", "kit", "media", "minutes", "newsletter",
-	"photos", "static", "strava", "unsubscribe", "info", "cart", "account", "insurancewaiver", "tnrinfo", "thnr-info", "robots", "favicon"}
+	"photos", "static", "strava", "unsubscribe", "membership", "info", "cart", "account", "insurancewaiver", "tnrinfo", "thnr-info", "robots", "favicon"}
 
 var nonSlug = regexp.MustCompile(`[^a-z0-9]+`)
 
