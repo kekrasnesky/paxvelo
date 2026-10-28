@@ -31,6 +31,23 @@
     }else loadInsta();
   }
 
+  // Home page photo row: arrows step through it three at a time (a row plus
+  // its 10px gap), and hide
+  // at either end (wider screens only; phones swipe).
+  d.querySelectorAll('.photo-strip.many').forEach(function(strip){
+    var row=strip.querySelector('.photos'),prev=strip.querySelector('.prev'),next=strip.querySelector('.next');
+    function update(){
+      var end=row.scrollWidth-row.clientWidth;
+      prev.hidden=row.scrollLeft<=2;
+      next.hidden=end<=2||row.scrollLeft>=end-2;
+    }
+    prev.addEventListener('click',function(){row.scrollBy({left:-(row.clientWidth+10)})});
+    next.addEventListener('click',function(){row.scrollBy({left:row.clientWidth+10})});
+    row.addEventListener('scroll',update,{passive:true});
+    window.addEventListener('resize',update);
+    update();
+  });
+
   // Join form: write phone numbers as 301-555-0123 while they're typed
   d.querySelectorAll('form.join input[type=tel][pattern]').forEach(function(el){
     function fmt(){

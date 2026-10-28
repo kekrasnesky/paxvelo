@@ -62,6 +62,9 @@ type adminView struct {
 	Page     pageRow
 	PageText string
 	Board    []BoardMember
+	// Home photos tab
+	HomePhotos    []HomePhoto
+	MaxHomePhotos int
 	// Rides tab
 	Series              []RideSeries
 	Upcoming            []RideOcc
@@ -215,6 +218,7 @@ var flashText = map[string]string{
 	"page-created":      "Page added, and it’s live at the address above. Replace the sample text with your own and save.",
 	"page-deleted":      "Page deleted.",
 	"board":             "Saved. The board page is updated.",
+	"home-photos":       "Saved. The home page is updated.",
 	"connected":         "Strava is connected, and the club’s events are on the calendar.",
 	"connected-error":   "Strava is connected, but reading the club’s events didn’t work. See the error below.",
 	"disconnected":      "Strava disconnected. Events already imported stay on the calendar.",
@@ -280,6 +284,7 @@ var errorText = map[string]string{
 	"date":            "Enter the meeting date.",
 	"nofile":          "Choose the minutes file to upload.",
 	"bigfile":         "That file is too big. Minutes can be up to 20 MB.",
+	"bigphotos":       "Those photos are too big together. Add a few at a time.",
 	"gone":            "That issue was deleted.",
 	"draft":           "There’s already an unsent email here, so the newsletter announcement didn’t replace it. Send it, or press Discard draft, then try “Email members about it” again.",
 }

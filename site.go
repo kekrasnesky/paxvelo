@@ -148,6 +148,7 @@ func newSite(cfg Config) (*Site, error) {
 		"photoStory":   photoStory,
 		"framer":       framer,
 		"inc":          func(i int) int { return i + 1 },
+		"sub":          func(a, b int) int { return a - b },
 		"instagram":    instagramEmbeds,
 		"timeLabel":    timeLabel,
 		"join":         strings.Join,
@@ -203,6 +204,7 @@ func newSite(cfg Config) (*Site, error) {
 	}
 	md.widgets["instagram"] = instagramWidget(nil)
 	md.widgets["board"] = boardWidget(nil)
+	md.widgets["home-photos"] = homePhotosWidget(defaultHomePhotos())
 	s.md, s.content = md, content
 	pages, err := loadContent(content, nil, md)
 	if err != nil {
@@ -250,6 +252,7 @@ func (s *Site) renderer(d contentData) *mdRenderer {
 	}
 	md.widgets["instagram"] = instagramWidget(d.Instagram)
 	md.widgets["board"] = boardWidget(d.Board)
+	md.widgets["home-photos"] = homePhotosWidget(d.HomePhotos)
 	return &md
 }
 

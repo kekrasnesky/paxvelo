@@ -220,6 +220,8 @@ func (a *App) routes() http.Handler {
 	mux.Handle("POST /admin/pages/{file}/reset", a.auth(a.resetPage))
 	mux.Handle("GET /admin/board", a.auth(a.boardAdmin))
 	mux.Handle("POST /admin/board", a.auth(a.saveBoard))
+	mux.Handle("GET /admin/home-photos", a.auth(a.homePhotosAdmin))
+	mux.Handle("POST /admin/home-photos", a.auth(a.saveHomePhotos))
 	mux.Handle("GET /admin/instagram", a.auth(a.instagramAdmin))
 	mux.Handle("POST /admin/instagram", a.auth(a.saveInstagram))
 	mux.Handle("GET /admin/minutes", a.auth(a.minutesAdmin))

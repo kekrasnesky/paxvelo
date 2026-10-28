@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<script>document.documentElement.className='js'</script>
+<script>var r=document.documentElement;r.className='js';if(document.prerendering){r.classList.add('pre');document.addEventListener('prerenderingchange',function(){r.classList.remove('pre')})}</script>
 <title>{{.Title}}</title>
 <meta name="description" content="{{.Desc}}">
 {{with .Path}}<link rel="canonical" href="{{$.SiteURL}}{{.}}">{{end}}

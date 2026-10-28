@@ -23,18 +23,11 @@ body{margin:0;background:var(--paper);color:var(--text);font:300 1rem/1.65 var(-
 body{display:flex;flex-direction:column;min-height:100vh} /* the footer stays at the bottom on short pages */
 main{flex:1 0 auto}
 
-/* Page changes: the header stays put while the old page fades out and the new
-   one rises in. Browsers without view transitions just change pages as before. */
-@view-transition{navigation:auto}
-.hdr{view-transition-name:hdr}
-main{view-transition-name:page}
-::view-transition-group(root),::view-transition-group(page){animation-duration:.18s}
-::view-transition-old(page){animation:pv-out .09s ease-in both}
-::view-transition-new(page){animation:pv-in .18s cubic-bezier(.2,.8,.2,1) both}
-::view-transition-old(root),::view-transition-new(root){animation-duration:.12s}
-@keyframes pv-out{to{opacity:0}}
-@keyframes pv-in{from{opacity:0;transform:translateY(8px)}}
-@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}
+/* Each page's content fades in gently as it opens; the header stays put. A page
+   loaded ahead in the background waits to fade until it's shown (layout.html). */
+@keyframes pv-fade{from{opacity:0}}
+@media (prefers-reduced-motion:no-preference){main{animation:pv-fade .25s ease-out backwards}}
+.pre main{animation-play-state:paused}
 img,svg{display:block;max-width:100%}
 a{color:inherit;text-underline-offset:3px}
 h1,h2,h3{margin:0;font-weight:500;line-height:1.2;letter-spacing:-.01em;color:var(--ink)}
@@ -118,6 +111,18 @@ strong{font-weight:500}
 .photos::-webkit-scrollbar{display:none}
 .photos img{width:100%;height:auto;aspect-ratio:4/3;object-fit:cover;border-radius:var(--radius);scroll-snap-align:start}
 @media (min-width:700px){.photos{grid-auto-columns:minmax(0,1fr);margin:16px 0 0;padding:0;overflow:visible}}
+/* The home page's photo row ({home-photos}): with more than three, wider
+   screens scroll it three at a time, with arrows. */
+.photo-strip{position:relative}
+.strip-btn{display:none}
+@media (min-width:700px){
+  .photo-strip.many .photos{grid-auto-columns:calc((100% - 20px) / 3);overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding:0;scroll-behavior:smooth}
+  .strip-btn:not([hidden]){position:absolute;top:calc(50% + 8px);display:grid;place-items:center;width:40px;height:40px;padding:0 0 3px;border:0;border-radius:50%;background:rgba(45,45,45,.75);color:#fff;font:500 1.6rem/1 var(--font);cursor:pointer;transform:translateY(-50%);transition:background .15s}
+  .strip-btn:hover{background:var(--red)}
+  .strip-btn.prev{left:10px}
+  .strip-btn.next{right:10px}
+}
+@media (prefers-reduced-motion:reduce){.photo-strip.many .photos{scroll-behavior:auto}}
 @media (min-width:900px){
   .cols article:has(>img){display:grid;grid-template-columns:minmax(0,42%) minmax(0,1fr);grid-auto-rows:min-content;gap:0 16px;align-content:start}
   .cols article>img{grid-column:1;grid-row:1/5;height:100%;min-height:150px;aspect-ratio:auto}

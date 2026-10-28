@@ -17,6 +17,7 @@
     <a href="/admin/newsletter"{{if eq .Tab "newsletter"}} aria-current="page"{{end}}>Newsletter</a>
     <a href="/admin/pages"{{if eq .Tab "pages"}} aria-current="page"{{end}}>Pages</a>
     <a href="/admin/board"{{if eq .Tab "board"}} aria-current="page"{{end}}>Board</a>
+    <a href="/admin/home-photos"{{if eq .Tab "home-photos"}} aria-current="page"{{end}}>Home photos</a>
     <a href="/admin/calendar"{{if eq .Tab "calendar"}} aria-current="page"{{end}}>Calendar</a>
     <a href="/admin/rides"{{if eq .Tab "rides"}} aria-current="page"{{end}}>Rides</a>
     <a href="/admin/minutes"{{if eq .Tab "minutes"}} aria-current="page"{{end}}>Minutes</a>
@@ -795,6 +796,30 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   <input type="hidden" name="{{.Field}}" value="{{.Focus}}">
   <p class="muted small">Click the spot to keep in view, like faces. The small previews show how it will be cropped.</p>
 </div>{{end}}
+
+{{define "home-photos"}}{{template "head" .}}
+<div class="title-row"><h1>Home photos</h1><p class="muted">The row of photos on the <a href="/" target="_blank" rel="noopener">home page</a>, up to {{.MaxHomePhotos}}. Phones swipe through them; computers show three at a time.</p></div>
+<form class="issue" method="post" action="/admin/home-photos" enctype="multipart/form-data">
+  <input type="hidden" name="count" value="{{len .HomePhotos}}">
+  {{range $i, $p := .HomePhotos}}<section class="card">
+    <div class="photo-field">
+      {{template "framer" (framer $p.Photo $p.Focus (printf "focus%d" $i))}}
+      <input type="hidden" name="photo{{$i}}" value="{{$p.Photo}}">
+      <div class="fields">
+        <label>What’s in the photo <input name="alt{{$i}}" value="{{$p.Alt}}" maxlength="120" placeholder="Riders lined up at the start of the Thursday ride"></label>
+        <label>Position <input type="number" name="order{{$i}}" value="{{inc $i}}" min="1" max="{{$.MaxHomePhotos}}" class="year"></label>
+        <label class="check"><input type="checkbox" name="remove{{$i}}"> Remove this photo</label>
+      </div>
+    </div>
+  </section>{{end}}
+  {{if lt (len .HomePhotos) .MaxHomePhotos}}<section class="card">
+    <h2>Add photos</h2>
+    <label>Photos <input type="file" name="add" accept="image/jpeg,image/png,image/webp" multiple></label>
+    <p class="muted small">Pick several at once. Room for {{sub .MaxHomePhotos (len .HomePhotos)}} more. They go on the end of the row and are shrunk to load quickly.</p>
+  </section>{{end}}
+  <div class="save-bar"><button>{{icon "save"}}Save</button><span class="muted small">Describe each photo: it helps people using screen readers, and search engines.</span></div>
+</form>
+{{template "foot" .}}{{end}}
 
 {{define "pages"}}{{template "head" .}}
 <div class="title-row"><h1>Pages</h1><p class="muted">Edit the text of any page. Board members have their own Board tab.</p></div>

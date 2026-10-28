@@ -163,6 +163,8 @@ type storeData struct {
 	StravaLink  *StravaLink         `json:"strava_link,omitempty"`
 	Board       []BoardMember       `json:"board,omitempty"`
 	BoardSeeded bool                `json:"board_seeded,omitempty"`
+	HomePhotos  []HomePhoto         `json:"home_photos,omitempty"`
+	HomeSeeded  bool                `json:"home_photos_seeded,omitempty"`
 }
 
 type Store struct {
@@ -227,6 +229,9 @@ func openStore(dir string) (*Store, error) {
 	}
 	if !s.d.BoardSeeded {
 		s.d.Board, s.d.BoardSeeded = defaultBoard(), true
+	}
+	if !s.d.HomeSeeded {
+		s.d.HomePhotos, s.d.HomeSeeded = defaultHomePhotos(), true
 	}
 	if !s.d.SeriesSeeded {
 		s.d.Series, s.d.NextSeries, s.d.SeriesSeeded = defaultSeries(), 3, true
