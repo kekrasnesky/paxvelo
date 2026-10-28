@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"log"
 	"net"
@@ -257,6 +258,34 @@ func (a *App) unsubscribe(w http.ResponseWriter, r *http.Request) {
 		d.State = "invalid"
 	}
 	a.site.render(w, http.StatusOK, "unsubscribe", "/unsubscribe", "Unsubscribe — "+siteName, d)
+}
+
+// ---- Sitemap ----
+
+// sitemap lists the public pages for search engines: the content pages, the
+// calendar, minutes, the join form, and every published newsletter.
+func (a *App) sitemap(w http.ResponseWriter, r *http.Request) {
+	type loc struct {
+		Loc string `xml:"loc"`
+	}
+	var urls []loc
+	for _, p := range *a.site.pageList.Load() {
+		urls = append(urls, loc{a.cfg.SiteURL + p.Path})
+	}
+	for _, path := range []string{"/calendar", "/join", "/minutes", "/newsletter"} {
+		urls = append(urls, loc{a.cfg.SiteURL + path})
+	}
+	for _, is := range a.store.Issues() {
+		if is.IsPublished() {
+			urls = append(urls, loc{a.cfg.SiteURL + is.Path()})
+		}
+	}
+	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
+	w.Write([]byte(xml.Header))
+	xml.NewEncoder(w).Encode(struct {
+		XMLName xml.Name `xml:"http://www.sitemaps.org/schemas/sitemap/0.9 urlset"`
+		URLs    []loc    `xml:"url"`
+	}{URLs: urls})
 }
 
 // ---- Form token ----

@@ -751,7 +751,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
 </table></div>
 <ol class="cal-list">{{range $m.Days}}<li><h3>{{(index .Rides 0).DateLabel}}</h3>
   {{range .Rides}}<a class="cal-ride {{.Status}}" href="/admin/rides/{{.Key}}"><span class="muted">{{.TimeLabel}}</span> {{.Name}}<span class="cal-lead">{{.LeaderSummary}}</span></a>{{end}}</li>
-  {{else}}<li class="empty">No rides this month yet.</li>{{end}}</ol>
+  {{else}}<li class="empty">{{$m.NoDays}}</li>{{end}}</ol>
 {{template "foot" .}}{{end}}
 
 {{define "ride"}}{{template "head" .}}{{$f := .RideForm}}

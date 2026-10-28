@@ -28,6 +28,7 @@ A tempo ride down to Point Lookout and back. The route changes a little from wee
 
 - **Pace:** about 22 mph, depending on who turns out
 - **Drops:** it's fast, but it's not a drop ride. Nobody gets left behind
+- **Who:** members, and experienced riders who haven't joined yet
 - **Season:** March to early October
 - **Start:** Park & Ride by NAS Pax Gate 2, southbound Rt. 235 near Great Mills
 - **Route:** to Point Lookout and back, about 40 miles
@@ -48,10 +49,10 @@ If it's a road bike that shifts and brakes well, yes. Bring a helmet (required),
 
 ### Do I have to join first?
 
-No. Ride with us twice for free, then [join the club](/join) for ${dues-individual} a year, which includes rider insurance on club rides.
+Nope. Ride with us a couple of times, then [join](/join) for ${dues-individual} a year.
 
 ## Leading a Ride
 
-Strava is where rides are posted and where you RSVP. The [ride calendar](/calendar) on this site is where we line up ride leaders, so the club knows every ride has someone running it. See a ride that needs a leader? Open it and type your name. Want to host a weekend ride? Add it to the calendar and post it on Strava.
+Strava is where rides are posted and where you RSVP. The [ride calendar](/calendar) on this site is where we line up ride leaders, so the club knows every ride has someone running it. See a ride that needs a leader? Open it and type your name. Don't see the ride you want? Start it: add it to the calendar and post it on Strava.
 
 New to group riding? Read [Bike Safety 101](bike-safety.md) before your first ride, and ask us anything on [Discord](https://discord.gg/8TtR4pu4C2).

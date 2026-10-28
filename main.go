@@ -97,8 +97,9 @@ func (a *App) routes() http.Handler {
 	mux.Handle("GET /favicon.ico", http.RedirectHandler("/static/img/logo.svg", http.StatusMovedPermanently))
 	mux.HandleFunc("GET /robots.txt", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.Write([]byte("User-agent: *\nDisallow: /admin\nDisallow: /unsubscribe\nDisallow: /strava/\nDisallow: /calendar/new\n"))
+		w.Write([]byte("User-agent: *\nDisallow: /admin\nDisallow: /unsubscribe\nDisallow: /strava/\nDisallow: /calendar/new\nSitemap: " + a.cfg.SiteURL + "/sitemap.xml\n"))
 	})
+	mux.HandleFunc("GET /sitemap.xml", a.sitemap)
 	// Old Squarespace addresses, so existing links and bookmarks still land somewhere.
 	for _, old := range []string{"/info", "/home", "/cart", "/account", "/insurancewaiver"} {
 		mux.Handle("GET "+old, http.RedirectHandler("/", http.StatusMovedPermanently))

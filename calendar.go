@@ -26,6 +26,7 @@ type calView struct {
 	MonthLabel, Prev, Next string
 	Weeks                  [][]calDay
 	Days                   []calDay  // days of the month that have rides, for phones
+	NoDays                 string    // what the phone list says when Days is empty
 	Upcoming               []RideOcc // the next few rides, whatever month is shown
 	UpcomingNote           string    // what to say when there are none
 	Rider                  *Rider
@@ -108,6 +109,7 @@ type calMonth struct {
 	MonthLabel, Prev, Next string
 	Weeks                  [][]calDay
 	Days                   []calDay // days of the month that have rides, for phones
+	NoDays                 string   // what the phone list says when Days is empty
 }
 
 // month builds the month given as "2006-01", or the current one.
@@ -127,13 +129,21 @@ func (a *App) month(m string) calMonth {
 	}
 	cm := calMonth{MonthLabel: first.Format("January 2006"),
 		Prev: first.AddDate(0, -1, 0).Format("2006-01"), Next: first.AddDate(0, 1, 0).Format("2006-01")}
+	thisMonth := first.Year() == today.Year() && first.Month() == today.Month()
+	switch {
+	case first.Before(today) && !thisMonth:
+		cm.NoDays = "No rides this month."
+	case thisMonth:
+		cm.NoDays = "No more rides this month."
+	default:
+		cm.NoDays = "No rides on the calendar this month yet."
+	}
 	var week []calDay
 	for d := start; !d.After(end); d = d.AddDate(0, 0, 1) {
 		date := d.Format("2006-01-02")
 		day := calDay{Date: date, Day: d.Day(), InMonth: d.Month() == first.Month(), Today: d.Equal(today), Past: d.Before(today), Rides: byDate[date]}
 		week = append(week, day)
 		// The phone list skips days already gone in the current month.
-		thisMonth := first.Year() == today.Year() && first.Month() == today.Month()
 		if day.InMonth && len(day.Rides) > 0 && !(thisMonth && day.Past) {
 			cm.Days = append(cm.Days, day)
 		}
@@ -148,7 +158,7 @@ func (a *App) month(m string) calMonth {
 func (a *App) calendarPage(w http.ResponseWriter, r *http.Request) {
 	v := a.calBase(r)
 	m := a.month(r.URL.Query().Get("m"))
-	v.MonthLabel, v.Prev, v.Next, v.Weeks, v.Days = m.MonthLabel, m.Prev, m.Next, m.Weeks, m.Days
+	v.MonthLabel, v.Prev, v.Next, v.Weeks, v.Days, v.NoDays = m.MonthLabel, m.Prev, m.Next, m.Weeks, m.Days, m.NoDays
 	v.Upcoming, v.UpcomingNote = a.upcomingRides()
 	a.renderCal(w, http.StatusOK, "calendar", "/calendar", "Ride Calendar", v)
 }
@@ -159,8 +169,14 @@ func (a *App) calendarPage(w http.ResponseWriter, r *http.Request) {
 func (a *App) upcomingRides() ([]RideOcc, string) {
 	const soon = 4
 	today := a.today()
+	// A ride from earlier today has rolled out, so it isn't upcoming anymore.
+	now := time.Now().In(a.cfg.Location).Format("15:04")
+	todayS := today.Format("2006-01-02")
 	var out []RideOcc
 	for _, o := range a.store.Rides(today, today.AddDate(0, 0, 120)) {
+		if o.Date == todayS && o.Time != "" && o.Time <= now {
+			continue
+		}
 		if !o.Cancelled && len(out) < soon {
 			out = append(out, o)
 		}

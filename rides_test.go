@@ -643,3 +643,55 @@ func TestCalendarUpcomingRides(t *testing.T) {
 		t.Errorf("note: %q", note)
 	}
 }
+
+// A ride from earlier today has rolled out, so it leaves the upcoming list,
+// while one later today stays.
+func TestUpcomingSkipsRidesAlreadyGone(t *testing.T) {
+	a, _, _ := rideApp(t)
+	for _, s := range a.store.AllSeries() {
+		a.store.DeleteSeries(s.ID)
+	}
+	today := a.today().Format("2006-01-02")
+	a.store.AddRide(CalRide{Date: today, Time: "00:00", Name: "Dawn Patrol"})
+	a.store.AddRide(CalRide{Date: today, Name: "Sometime Today"})
+	up, _ := a.upcomingRides()
+	if len(up) != 1 || up[0].Name != "Sometime Today" {
+		t.Errorf("upcoming: %+v", up)
+	}
+}
+
+// On phones, an empty month says what fits: gone, all done, or nothing yet.
+func TestCalendarEmptyMonthNote(t *testing.T) {
+	a, _, _ := rideApp(t)
+	for _, s := range a.store.AllSeries() {
+		a.store.DeleteSeries(s.ID)
+	}
+	now := a.today()
+	for m, want := range map[string]string{
+		now.AddDate(0, -2, 0).Format("2006-01"): "No rides this month.",
+		now.Format("2006-01"):                   "No more rides this month.",
+		now.AddDate(0, 2, 0).Format("2006-01"):  "No rides on the calendar this month yet.",
+	} {
+		if got := a.month(m).NoDays; got != want {
+			t.Errorf("%s: %q, want %q", m, got, want)
+		}
+	}
+}
+
+func TestSitemap(t *testing.T) {
+	_, h, _ := rideApp(t)
+	w := do(t, h, nil, "GET", "/sitemap.xml", "", nil)
+	body := w.Body.String()
+	for _, want := range []string{"<urlset", "/rides</loc>", "/calendar</loc>", "/join</loc>"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("sitemap is missing %q", want)
+		}
+	}
+	if strings.Contains(body, "/admin") {
+		t.Error("the sitemap lists an admin page")
+	}
+	robots := do(t, h, nil, "GET", "/robots.txt", "", nil).Body.String()
+	if !strings.Contains(robots, "Sitemap: ") {
+		t.Error("robots.txt should point to the sitemap")
+	}
+}

@@ -39,9 +39,9 @@
     {{if and .StravaReady (not .Rider) (not .Past)}}<p class="muted-note">Club admin? <a href="/strava/login?next=/calendar/ride/{{$r.Key}}">Sign in with Strava</a> to change leaders or cancel the ride.</p>{{end}}
     {{if .Past}}<p class="cal-note">This ride has already happened.</p>{{end}}
 
+    {{if .CanEdit}}
     {{if and .Leading (not .Rider.Admin)}}<p class="muted-note">To post this ride as a club event on Strava you need to be a club admin there. We’ve let the club admins know, so they can add you or post it for you. Once it’s on Strava, paste the link below.</p>
     {{else if .Leading}}<p class="muted-note">Post it on Strava as a club event, then paste the link below so riders can find it.</p>{{end}}
-    {{if .CanEdit}}
     <form class="cal-strava-form" method="post" action="/calendar/ride/{{$r.Key}}/strava">
       <label>Strava event link <input type="url" name="strava_url" value="{{$r.StravaURL}}" placeholder="https://www.strava.com/clubs/10197/group_events/…"></label>
       <button class="btn btn-quiet">{{icon "save"}}Save link</button>

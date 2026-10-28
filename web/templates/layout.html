@@ -6,7 +6,7 @@
 <script>document.documentElement.className='js'</script>
 <title>{{.Title}}</title>
 <meta name="description" content="{{.Desc}}">
-<link rel="canonical" href="{{.SiteURL}}{{.Path}}">
+{{with .Path}}<link rel="canonical" href="{{$.SiteURL}}{{.}}">{{end}}
 <meta property="og:site_name" content="PaxVelo Cycling Club">
 <meta property="og:title" content="{{.Title}}">
 <meta property="og:description" content="{{.Desc}}">
@@ -20,7 +20,7 @@
 <link rel="preload" href="/static/fonts/poppins-500.woff2?v={{.V}}" as="font" type="font/woff2" crossorigin>
 {{block "head" .}}{{end}}
 <style>{{.CSS}}</style>
-<script type="speculationrules">{"prerender":[{"where":{"and":[{"href_matches":"/*"},{"not":{"href_matches":"/admin*"}},{"not":{"href_matches":"/unsubscribe*"}}]},"eagerness":"moderate"}]}</script>
+<script type="speculationrules">{"prerender":[{"where":{"and":[{"href_matches":"/*"},{"not":{"href_matches":"/admin*"}},{"not":{"href_matches":"/unsubscribe*"}},{"not":{"href_matches":"/strava*"}},{"not":{"href_matches":"/kit"}},{"not":{"href_matches":"/calendar/new*"}},{"not":{"href_matches":"/files/*"}}]},"eagerness":"moderate"}]}</script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>

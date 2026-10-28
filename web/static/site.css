@@ -127,7 +127,7 @@ strong{font-weight:500}
 .page h1{margin-bottom:.7rem;font-size:clamp(1.7rem,3vw,2.4rem)}
 .page p{margin:0 0 .9rem}
 .page .lead{margin-bottom:1.1rem;font-size:1.05rem;line-height:1.6}
-.page ul{margin:0 0 .9rem;padding-left:1.4rem}
+.page ul:not([class]){margin:0 0 .9rem;padding-left:1.4rem}
 .section{margin:1.8rem 0;scroll-margin-top:4.5rem}
 .section h2{margin:0 0 .4rem;font-size:clamp(1.25rem,2vw,1.6rem)}
 .section .facts{margin:.9rem 0 0}

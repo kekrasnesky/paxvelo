@@ -50,7 +50,7 @@
         <span class="cal-lead">{{if eq .Status "led"}}Led by {{end}}{{.LeaderSummary}}</span>
       </a>{{end}}
     </li>
-    {{else}}<li class="cal-none">No rides on the calendar this month yet.</li>
+    {{else}}<li class="cal-none">{{$.Data.NoDays}}</li>
     {{end}}
   </ol>
   <p class="cal-strava">Every ride is also posted on <a href="{{.ClubURL}}" target="_blank" rel="noopener">our Strava club</a>, with the route and any last-minute changes.</p>
