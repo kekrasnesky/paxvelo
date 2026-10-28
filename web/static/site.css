@@ -110,6 +110,7 @@ strong{font-weight:500}
 .photos{display:grid;grid-auto-flow:column;grid-auto-columns:82%;gap:10px;margin:16px calc(-1 * var(--side)) 0;padding:0 var(--side);overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding:0 var(--side);scrollbar-width:none}
 .photos::-webkit-scrollbar{display:none}
 .photos img{width:100%;height:auto;aspect-ratio:4/3;object-fit:cover;border-radius:var(--radius);scroll-snap-align:start}
+.photos img[src*=".png"]{aspect-ratio:auto} /* product pictures, like the kit page's, keep their own shape */
 @media (min-width:700px){.photos{grid-auto-columns:minmax(0,1fr);margin:16px 0 0;padding:0;overflow:visible}}
 /* The home page's photo row ({home-photos}): with more than three, wider
    screens scroll it three at a time, with arrows. */
