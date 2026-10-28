@@ -89,4 +89,4 @@
   </a>
 </div>{{end}}
 
-{{define "rider-bar"}}{{with .Flash}}<p class="cal-msg" role="status">{{.}}</p>{{end}}{{with .Error}}<p class="cal-msg cal-err" role="alert">{{.}}</p>{{end}}{{with .Rider}}<form class="rider-bar" method="post" action="/strava/signout">Signed in with Strava as <strong>{{.Name}}</strong>{{if .Admin}} (club admin){{end}} · <button class="link-button">Sign out</button></form>{{end}}{{end}}
+{{define "rider-bar"}}{{with .Flash}}<p class="cal-msg" role="status">{{.}}</p>{{end}}{{with .Error}}<p class="cal-msg cal-err" role="alert">{{.}}</p>{{end}}{{with .Rider}}<form class="rider-bar" method="post" action="/strava/signout">Signed in with Strava as <strong>{{.Name}}</strong>{{if .Admin}} (club admin){{end}} · <button class="link-button">{{icon "logout"}}Sign out</button></form>{{end}}{{end}}

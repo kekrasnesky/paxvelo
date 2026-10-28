@@ -19,7 +19,7 @@
     <label><span>Pace groups <span class="opt">each group gets its own leader</span></span> <select name="pace">{{$pace := paceOf .Form.Groups}}{{range paceChoices}}<option value="{{.Value}}"{{if eq .Value $pace}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>
     <label><span>Strava event link <span class="opt">optional, add it later if you like</span></span> <input type="url" name="strava_url" value="{{.Form.StravaURL}}" placeholder="https://www.strava.com/clubs/10197/group_events/…"></label>
     <label class="check-row"><input type="checkbox" name="lead" checked> I’ll lead this ride</label>
-    <button class="btn" type="submit">Add to the calendar</button>
+    <button class="btn" type="submit">{{icon "plus"}}Add to the calendar</button>
   </form>
 </article>
 {{end}}{{end}}

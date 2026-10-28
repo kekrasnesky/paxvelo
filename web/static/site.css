@@ -427,3 +427,7 @@ td:hover .cal-add,.cal-add:focus-visible{opacity:1}
   .nl-cover img{aspect-ratio:4/3}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* ---------- Button icons (icons.go) ---------- */
+.ic{flex:none;width:1.1em;height:1.1em;margin-right:.4em;vertical-align:-.2em;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+button:has(>.ic),.btn:has(>.ic){display:inline-flex;align-items:center;justify-content:center}

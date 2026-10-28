@@ -24,7 +24,7 @@
     <a href="/admin/admins"{{if eq .Tab "admins"}} aria-current="page"{{end}}>Admins</a>
     <a href="/" target="_blank" rel="noopener">View site</a>
   </nav>
-  <form method="post" action="/admin/logout">{{with .Me}}<span class="me">{{.}}</span> · {{end}}<button class="link light">Log out</button></form>
+  <form method="post" action="/admin/logout">{{with .Me}}<span class="me">{{.}}</span> · {{end}}<button class="link light">{{icon "logout"}}Log out</button></form>
 </header>{{end}}
 <main class="wrap">
 {{with .Flash}}<p class="flash">{{.}}</p>{{end}}
@@ -126,7 +126,7 @@ initBlock(document);
   <label>Email <input type="email" name="email" value="{{.Email}}" required maxlength="254" autofocus autocomplete="username"></label>
   <label>Password <input type="password" name="password" required autocomplete="current-password"></label>
   {{end}}
-  <button>Log in</button>
+  <button>{{icon "login"}}Log in</button>
   {{if not .SetupLogin}}<p class="small"><a href="/admin/forgot">Forgot your password?</a></p>{{end}}
 </form>
 {{template "foot" .}}{{end}}
@@ -136,7 +136,7 @@ initBlock(document);
   <h1>Reset your password</h1>
   <p class="muted small">Enter the email you log in with, and we’ll email you a link to choose a new password.</p>
   <label>Email <input type="email" name="email" required maxlength="254" autofocus autocomplete="username"></label>
-  <button>Email me a link</button>
+  <button>{{icon "mail"}}Email me a link</button>
   <p class="small"><a href="/admin/login">← Back to log in</a></p>
 </form>
 {{template "foot" .}}{{end}}
@@ -149,7 +149,7 @@ initBlock(document);
   <input type="email" name="email" value="{{.Account.Email}}" autocomplete="username" hidden>
   <label>New password <input type="password" name="password" required minlength="10" autofocus autocomplete="new-password"></label>
   <label>Type it again <input type="password" name="password2" required minlength="10" autocomplete="new-password"></label>
-  <button>Save and log in</button>
+  <button>{{icon "login"}}Save and log in</button>
 </form>
 {{template "foot" .}}{{end}}
 
@@ -169,9 +169,9 @@ initBlock(document);
     <td data-label="Last login">{{with .LastLogin}}<span class="nowrap">{{date .}}</span><br><span class="muted small">{{clock .}}</span>{{else}}<span class="muted">Never</span>{{end}}</td>
     <td data-label="Added"><span class="nowrap">{{date .Added}}</span>{{with .AddedBy}}<br><span class="muted small">by {{.}}</span>{{end}}</td>
     <td class="right cell-act"><div class="acts">
-      <form method="post" action="/admin/admins/{{.ID}}/link"><button class="link">{{if .HasPassword}}Send a reset link{{else}}Send a new link{{end}}</button></form>
+      <form method="post" action="/admin/admins/{{.ID}}/link"><button class="link">{{icon "mail"}}{{if .HasPassword}}Send a reset link{{else}}Send a new link{{end}}</button></form>
       {{if and $.CanNamePresident (not .President)}}<form method="post" action="/admin/admins/{{.ID}}/president" onsubmit="return confirm('Make {{.Name}} the president? Only the president can remove admins and delete members{{if $.Account.President}}, so you won’t be able to anymore{{end}}.')"><button class="link">Make president</button></form>{{end}}
-      {{if and $.CanManage (ne .ID $.Account.ID)}}<form method="post" action="/admin/admins/{{.ID}}/remove" onsubmit="return confirm('Remove {{.Name}} as an admin? They won’t be able to log in.')"><button class="link danger">Remove</button></form>{{end}}
+      {{if and $.CanManage (ne .ID $.Account.ID)}}<form method="post" action="/admin/admins/{{.ID}}/remove" onsubmit="return confirm('Remove {{.Name}} as an admin? They won’t be able to log in.')"><button class="link danger">{{icon "trash"}}Remove</button></form>{{end}}
     </div></td>
   </tr>
   {{else}}<tr><td colspan="6" class="empty">No admin accounts yet. Add yourself first, then everyone else.</td></tr>
@@ -185,7 +185,7 @@ initBlock(document);
     <label>Name <input name="name" required maxlength="60" autocomplete="off"></label>
     <label>Email <input type="email" name="email" required maxlength="254" autocomplete="off"></label>
     <p class="muted small">They get an email with a link to choose their password (it works for 7 days). If they forget it later, they press “Forgot your password?” on the login page.</p>
-    <button>Add and email them</button>
+    <button>{{icon "plus"}}Add and email them</button>
   </form>
   {{if .Account.ID}}<form class="card" method="post" action="/admin/admins/password">
     <h2>Change your password</h2>
@@ -210,7 +210,7 @@ initBlock(document);
   <form class="search" method="get" action="/admin">
     {{with .Dues}}<input type="hidden" name="dues" value="{{.}}">{{end}}
     <input type="search" name="q" value="{{.Q}}" placeholder="Search name, email, or phone" aria-label="Search members">
-    <button class="ghost">Search</button>
+    <button class="ghost">{{icon "search"}}Search</button>
     {{if .Q}}<a href="/admin{{with .Dues}}?dues={{.}}{{end}}">Clear</a>{{end}}
   </form>
   <a class="btn ghost" href="/admin/members.csv">Export CSV</a>
@@ -232,11 +232,11 @@ initBlock(document);
     <td data-label="Plan">{{.PlanName}}</td>
     <td class="nowrap" data-label="{{$.Year}} dues"><form method="post" action="/admin/members/{{.ID}}/paid" class="inline">
       <input type="hidden" name="return" value="/admin?q={{$.Q}}&dues={{$.Dues}}">
-      {{if $paid}}<span class="paid">Paid</span> <input type="hidden" name="paid" value="0"><button class="link small">Undo</button>
-      {{else}}<input type="hidden" name="paid" value="1"><button class="mini">Mark paid</button>{{end}}
+      {{if $paid}}<span class="paid">Paid</span> <input type="hidden" name="paid" value="0"><button class="link small">{{icon "undo"}}Undo</button>
+      {{else}}<input type="hidden" name="paid" value="1"><button class="mini">{{icon "check"}}Mark paid</button>{{end}}
     </form></td>
     <td class="nowrap" data-label="Joined">{{date .Joined}}</td>
-    {{if $.CanManage}}<td class="right cell-act"><form method="post" action="/admin/members/{{.ID}}/delete" onsubmit="return confirm('Delete {{.Email}}? This can’t be undone.')"><button class="link danger">Delete</button></form></td>{{end}}
+    {{if $.CanManage}}<td class="right cell-act"><form method="post" action="/admin/members/{{.ID}}/delete" onsubmit="return confirm('Delete {{.Email}}? This can’t be undone.')"><button class="link danger">{{icon "trash"}}Delete</button></form></td>{{end}}
   </tr>
   {{else}}<tr><td colspan="9" class="empty">{{if or $.Q $.Dues}}Nobody matches that.{{else}}No members yet. Share the join page: <a href="{{$.SiteURL}}/join">{{$.SiteURL}}/join</a>{{end}}</td></tr>
   {{end}}
@@ -253,7 +253,7 @@ initBlock(document);
     <label><span>Emergency contact’s phone <span class="opt">(optional)</span></span><input type="tel" name="emergency_phone" maxlength="30"></label>
     <label>Plan <select name="plan"><option value="individual">Individual</option><option value="family">Family</option></select></label>
     <label class="check"><input type="checkbox" name="paid"> Paid for {{.Year}}</label>
-    <button>Add member</button>
+    <button>{{icon "plus"}}Add member</button>
   </form>
   <form class="card" method="post" action="/admin/import" enctype="multipart/form-data">
     <h2>Import from a spreadsheet</h2>
@@ -266,7 +266,7 @@ initBlock(document);
         <option value="current">Current members only</option>
       </select>
     </label>
-    <button>Import</button>
+    <button>{{icon "upload"}}Import</button>
   </form>
 </div>
 {{if .CanManage}}<p class="muted small footnote"><a href="/admin/backup">Download a full backup</a> of all club data.</p>{{end}}
@@ -287,8 +287,8 @@ initBlock(document);
   </div>
   <div class="send-row">
     <input type="email" name="test_to" value="{{.TestTo}}" aria-label="Send test to">
-    <button class="ghost" formaction="/admin/email/test">Send test</button>
-    {{if or .Draft.Subject .Draft.Body}}<button class="link danger" formaction="/admin/email/discard" onclick="return confirm('Discard this draft?')">Discard draft</button>{{end}}
+    <button class="ghost" formaction="/admin/email/test">{{icon "mail"}}Send test</button>
+    {{if or .Draft.Subject .Draft.Body}}<button class="link danger" formaction="/admin/email/discard" onclick="return confirm('Discard this draft?')">{{icon "trash"}}Discard draft</button>{{end}}
   </div>
   <div class="send-row">
     <label class="inline-label">Send to
@@ -298,7 +298,7 @@ initBlock(document);
         <option value="paid">Paid for {{.Year}} ({{.Paid}})</option>
       </select>
     </label>
-    <button formaction="/admin/email/send" onclick="return confirm('Send this email to: '+this.form.audience.selectedOptions[0].text+'?')">Send email</button>
+    <button formaction="/admin/email/send" onclick="return confirm('Send this email to: '+this.form.audience.selectedOptions[0].text+'?')">{{icon "send"}}Send email</button>
   </div>
 </form>
 
@@ -312,7 +312,7 @@ initBlock(document);
     <td>{{or .Audience "Everyone"}}</td>
     <td class="prog nowrap">{{progress .}}</td>
     <td class="st">{{statusLabel .Status}}{{with .LastError}}<span class="small err-text">{{.}}</span>{{end}}</td>
-    <td class="right act">{{if eq .Status "sending"}}<form method="post" action="/admin/email/{{.ID}}/stop"><button class="link danger">Stop</button></form>{{else if eq .Status "paused"}}<form method="post" action="/admin/email/{{.ID}}/resume"><button class="link">Resume</button></form>{{end}}</td>
+    <td class="right act">{{if eq .Status "sending"}}<form method="post" action="/admin/email/{{.ID}}/stop"><button class="link danger">{{icon "pause"}}Stop</button></form>{{else if eq .Status "paused"}}<form method="post" action="/admin/email/{{.ID}}/resume"><button class="link">{{icon "play"}}Resume</button></form>{{end}}</td>
   </tr>
   {{else}}<tr><td colspan="6" class="empty">Nothing sent yet.</td></tr>
   {{end}}
@@ -331,7 +331,7 @@ initBlock(document);
     </div>
     {{template "mail-preview"}}
   </div>
-  <button>Save welcome email</button>
+  <button>{{icon "save"}}Save welcome email</button>
 </form>
 <script>
 // Formatting buttons and the live preview for each email on this page.
@@ -421,7 +421,7 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
   <div class="send-row">
     <label class="inline-label">Month <select name="month">{{range .Months}}<option value="{{.N}}"{{if eq .N $.NewMonth}} selected{{end}}>{{.Name}}</option>{{end}}</select></label>
     <label class="inline-label">Year <input type="number" name="year" value="{{.NewYear}}" min="2000" max="2100" class="year"></label>
-    <button>Start draft</button>
+    <button>{{icon "plus"}}Start draft</button>
   </div>
 </form>
 {{template "foot" .}}{{end}}
@@ -437,10 +437,10 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
 <div class="issue-actions">
   {{if $is.IsPublished}}
   <a class="btn ghost" href="{{$is.Path}}" target="_blank" rel="noopener">View live</a>
-  <form method="post" action="/admin/newsletter/{{$is.ID}}/email"><button class="ghost">Email members about it</button></form>
-  <form method="post" action="/admin/newsletter/{{$is.ID}}/unpublish" onsubmit="return confirm('Take this issue off the website?')"><button class="ghost">Unpublish</button></form>
+  <form method="post" action="/admin/newsletter/{{$is.ID}}/email"><button class="ghost">{{icon "mail"}}Email members about it</button></form>
+  <form method="post" action="/admin/newsletter/{{$is.ID}}/unpublish" onsubmit="return confirm('Take this issue off the website?')"><button class="ghost">{{icon "eye-off"}}Unpublish</button></form>
   {{end}}
-  <form method="post" action="/admin/newsletter/{{$is.ID}}/copy"><button class="ghost">Make another draft from this</button></form>
+  <form method="post" action="/admin/newsletter/{{$is.ID}}/copy"><button class="ghost">{{icon "copy"}}Make another draft from this</button></form>
 </div>
 <p class="muted small">The issue is made of blocks: add the ones you want with <strong>Add a block</strong> at the bottom, and move or remove them with the buttons on each. Photos upload as soon as you pick or drop them: click a photo to choose the spot to keep in view, and add a caption if you like. Stories with a heading are listed under “In this issue” at the top. The buttons at the bottom save your changes, then preview or publish. In the text boxes: leave a blank line between paragraphs, put **two stars** around words for bold, and write links as [words to click](https://example.com). In link boxes, {strava} and {kit} fill in the club’s Strava page and team store.</p>
 
@@ -464,7 +464,7 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
     <h2>Add a block</h2>
     <div class="send-row">
       <select id="add-kind" aria-label="Kind of block">{{range blockKinds}}<option value="{{.Kind}}">{{.Name}}</option>{{end}}</select>
-      <button type="button" class="ghost" id="add-block">Add</button>
+      <button type="button" class="ghost" id="add-block">{{icon "plus"}}Add</button>
     </div>
     <ul class="kinds small muted">{{range blockKinds}}<li><strong>{{.Name}}:</strong> {{.Help}}</li>{{end}}</ul>
   </section>
@@ -476,9 +476,9 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
   </section>
 
   <div class="save-bar">
-    <button{{if $is.IsPublished}} class="ghost"{{end}}>{{if $is.IsPublished}}Save and update live{{else}}Save draft{{end}}</button>
-    <button class="ghost" formaction="/admin/newsletter/{{$is.ID}}?then=preview" formtarget="_blank">Save and preview</button>
-    {{if and (not $is.IsPublished) (not .MonthLive)}}<button formaction="/admin/newsletter/{{$is.ID}}?then=publish" onclick="return confirm('Save and publish {{$is.Label}} on the website?')">Save and publish</button>{{end}}
+    <button{{if $is.IsPublished}} class="ghost"{{end}}>{{icon "save"}}{{if $is.IsPublished}}Save and update live{{else}}Save draft{{end}}</button>
+    <button class="ghost" formaction="/admin/newsletter/{{$is.ID}}?then=preview" formtarget="_blank">{{icon "eye"}}Save and preview</button>
+    {{if and (not $is.IsPublished) (not .MonthLive)}}<button formaction="/admin/newsletter/{{$is.ID}}?then=publish" onclick="return confirm('Save and publish {{$is.Label}} on the website?')">{{icon "globe"}}Save and publish</button>{{end}}
   </div>
 </form>
 {{range blockKinds}}<template id="tpl-{{.Kind}}">{{template "block" (editBlock (newBlock .Kind) $.IssueRides)}}</template>
@@ -508,7 +508,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   refresh()})();
 </script>
 
-<form class="footnote" method="post" action="/admin/newsletter/{{$is.ID}}/delete" onsubmit="return confirm('Delete the {{$is.Label}} issue? This can’t be undone.')"><button class="link danger">Delete this issue</button></form>
+<form class="footnote" method="post" action="/admin/newsletter/{{$is.ID}}/delete" onsubmit="return confirm('Delete the {{$is.Label}} issue? This can’t be undone.')"><button class="link danger">{{icon "trash"}}Delete this issue</button></form>
 {{template "foot" .}}{{end}}
 
 {{define "block"}}{{$p := .P}}<section class="card block block-{{.Kind.Kind}}" data-name="{{.Kind.Name}}">
@@ -558,7 +558,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   <div class="photo-shown">{{if $s.Photo}}{{template "framer" (framer $s.Photo $s.PhotoFocus (printf "%sphoto_focus" $p))}}{{end}}</div>
   <div class="photo-tools">
     <label class="drop"><input type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden><strong>{{if $s.Photo}}Replace photo{{else}}Add a photo{{end}}</strong> <span class="muted small">Click, or drop one here</span></label>
-    <button type="button" class="link danger photo-remove"{{if not $s.Photo}} hidden{{end}}>Remove photo</button>
+    <button type="button" class="link danger photo-remove"{{if not $s.Photo}} hidden{{end}}>{{icon "trash"}}Remove photo</button>
     <p class="photo-status muted small" role="status"></p>
     <label>Caption (optional) <input name="{{$p}}caption" value="{{$s.Caption}}" maxlength="160" placeholder="A short line under the photo"></label>
   </div>
@@ -588,8 +588,8 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
     <td>{{if .IsPublished}}<span class="paid">Public</span>{{else}}Hidden{{end}}</td>
     <td>{{or .UploadedBy "—"}}</td>
     <td class="right nowrap">
-      <form method="post" action="/admin/minutes/{{.ID}}/publish" class="inline">{{if .IsPublished}}<input type="hidden" name="publish" value="0"><button class="link">Unpublish</button>{{else}}<input type="hidden" name="publish" value="1"><button class="mini">Publish</button>{{end}}</form>
-      · <form method="post" action="/admin/minutes/{{.ID}}/delete" class="inline" onsubmit="return confirm('Delete the minutes for {{.DateLabel}}? This can’t be undone.')"><button class="link danger">Delete</button></form>
+      <form method="post" action="/admin/minutes/{{.ID}}/publish" class="inline">{{if .IsPublished}}<input type="hidden" name="publish" value="0"><button class="link">{{icon "eye-off"}}Unpublish</button>{{else}}<input type="hidden" name="publish" value="1"><button class="mini">{{icon "globe"}}Publish</button>{{end}}</form>
+      · <form method="post" action="/admin/minutes/{{.ID}}/delete" class="inline" onsubmit="return confirm('Delete the minutes for {{.DateLabel}}? This can’t be undone.')"><button class="link danger">{{icon "trash"}}Delete</button></form>
     </td>
   </tr>
   {{else}}<tr><td colspan="5" class="empty">No minutes uploaded yet.</td></tr>
@@ -606,7 +606,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   <label>Minutes file <input type="file" name="file" accept=".pdf,.docx,application/pdf" required></label>
   <p class="muted small">PDF or Word (.docx), up to 20 MB. PDF is best: anyone can open it in their browser. In Word or Google Docs, use File → Download → PDF.</p>
   <label class="check"><input type="checkbox" name="publish"> Publish on the website right away</label>
-  <button>Upload</button>
+  <button>{{icon "upload"}}Upload</button>
 </form>
 {{template "foot" .}}{{end}}
 
@@ -618,7 +618,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
 <form class="card new-issue" method="post" action="/admin/instagram">
   <label>Post links, one per line <textarea name="posts" rows="7" placeholder="https://www.instagram.com/p/…">{{.InstagramText}}</textarea></label>
   <p class="muted small">On Instagram, open a post, tap ⋯ → Copy link (on a computer, copy the address from the browser), and paste it here. Photos, carousels, and reels all work. Leave it empty to show just the “Follow @paxvelo” button. Each newsletter issue has its own Instagram section too.</p>
-  <button>Save</button>
+  <button>{{icon "save"}}Save</button>
 </form>
 {{if .Instagram}}<h2 class="section">On the home page now</h2>
 <ul class="small">{{range .Instagram}}<li><a href="{{.}}" target="_blank" rel="noopener">{{.}}</a></li>{{end}}</ul>{{end}}
@@ -640,7 +640,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
     <td class="nowrap">{{.DateLabel}}<br><span class="muted small">{{.TimeLabel}}</span></td>
     <td><a href="/admin/rides/{{.Key}}">{{.Name}}</a>{{if .Custom}} <span class="tag">One-off</span>{{end}}{{if .Cancelled}} <span class="tag">Cancelled</span>{{end}}</td>
     <td>{{range .Slots}}<span class="leader-line">{{with .Group}}<span class="muted">{{.}}:</span> {{end}}{{with .Leader}}{{.Name}}{{else}}<span class="danger">needs a leader</span>{{end}}</span>{{end}}</td>
-    <td class="right nowrap"><a class="btn mini ghost" href="/admin/rides/{{.Key}}">Edit</a></td>
+    <td class="right nowrap"><a class="btn mini ghost" href="/admin/rides/{{.Key}}">{{icon "pencil"}}Edit</a></td>
   </tr>
   {{else}}<tr><td colspan="4" class="empty">No rides in the next 60 days.</td></tr>
   {{end}}
@@ -656,7 +656,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
     <td class="nowrap">{{.WeekdayName}}s, {{timeLabel .Time}}</td>
     <td class="nowrap">{{.SeasonLabel}}</td>
     <td>{{.Place}}</td>
-    <td class="right nowrap"><a class="btn mini ghost" href="/admin/weekly/{{.ID}}">Edit</a></td>
+    <td class="right nowrap"><a class="btn mini ghost" href="/admin/weekly/{{.ID}}">{{icon "pencil"}}Edit</a></td>
   </tr>
   {{else}}<tr><td colspan="5" class="empty">No weekly rides yet.</td></tr>
   {{end}}
@@ -665,7 +665,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
 <form class="card new-issue" method="post" action="/admin/weekly">
   <h2>Add a weekly ride</h2>
   {{template "series-fields" (seriesBlank)}}
-  <button>Add weekly ride</button>
+  <button>{{icon "plus"}}Add weekly ride</button>
 </form>
 
 <h2 class="section">Import the club’s Strava events</h2>
@@ -718,9 +718,9 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
 <p class="muted small">A weekly ride. Changes apply to every date from today on, except anything changed on one date’s own page. Past dates stay as they were.</p>
 <form class="card new-issue" method="post" action="/admin/weekly/{{$f.ID}}">
   {{template "series-fields" $f}}
-  <button>Save weekly ride</button>
+  <button>{{icon "save"}}Save weekly ride</button>
 </form>
-<form class="footnote" method="post" action="/admin/weekly/{{$f.ID}}/delete" onsubmit="return confirm('Remove {{$f.Name}} from the calendar? Dates that already have a leader stay, as one-off rides.')"><button class="link danger">Remove this weekly ride</button></form>
+<form class="footnote" method="post" action="/admin/weekly/{{$f.ID}}/delete" onsubmit="return confirm('Remove {{$f.Name}} from the calendar? Dates that already have a leader stay, as one-off rides.')"><button class="link danger">{{icon "trash"}}Remove this weekly ride</button></form>
 {{template "foot" .}}{{end}}
 
 {{define "calendar"}}{{template "head" .}}{{$m := .Month}}
@@ -732,9 +732,9 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   <h2>Waiting for approval</h2>
   <p class="muted small">Added on the website by someone who didn’t sign in with Strava. They aren’t on the public calendar until you approve them.</p>
   <ul class="plain">{{range .Held}}<li><strong>{{.Name}}</strong>, {{.DateLabel}}{{if .Time}} at {{.TimeLabel}}{{end}}{{if .Place}}, {{.Place}}{{end}}{{if .AddedBy}} <span class="muted">(added by {{.AddedBy}})</span>{{end}}
-    <form method="post" action="/admin/rides/{{.Key}}/approve" class="inline"><button class="mini">Approve</button></form>
+    <form method="post" action="/admin/rides/{{.Key}}/approve" class="inline"><button class="mini">{{icon "check"}}Approve</button></form>
     <a class="btn mini ghost" href="/admin/rides/{{.Key}}">Open</a>
-    <form method="post" action="/admin/rides/{{.Key}}/delete" class="inline" onsubmit="return confirm('Delete {{.Name}} on {{.DateLabel}}?')"><button class="link danger">Delete</button></form></li>{{end}}</ul>
+    <form method="post" action="/admin/rides/{{.Key}}/delete" class="inline" onsubmit="return confirm('Delete {{.Name}} on {{.DateLabel}}?')"><button class="link danger">{{icon "trash"}}Delete</button></form></li>{{end}}</ul>
 </div>{{end}}
 <div class="cal-bar">
   <nav class="cal-nav" aria-label="Month"><a class="btn mini ghost" href="/admin/calendar?m={{$m.Prev}}" aria-label="Previous month">‹</a><h2>{{$m.MonthLabel}}</h2><a class="btn mini ghost" href="/admin/calendar?m={{$m.Next}}" aria-label="Next month">›</a></nav>
@@ -780,11 +780,11 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
     <p class="muted small">Type a name to make someone the leader, or clear it to open the spot. The club is emailed about every change.</p>
   </fieldset>
   <label>Strava event link (optional) <input type="url" name="strava_url" value="{{$f.StravaURL}}" placeholder="https://www.strava.com/clubs/10197/group_events/…"></label>
-  <button>{{if $f.New}}Add to the calendar{{else}}Save changes{{end}}</button>
+  <button>{{if $f.New}}{{icon "plus"}}Add to the calendar{{else}}{{icon "save"}}Save changes{{end}}</button>
 </form>
 {{if not $f.New}}<div class="send-row footnote">
-  <form method="post" action="/admin/rides/{{$f.Key}}/cancel" class="inline">{{if $f.Cancelled}}<input type="hidden" name="cancel" value="0"><button class="ghost">Put it back on the calendar</button>{{else}}<input type="hidden" name="cancel" value="1"><button class="ghost" onclick="return confirm('Cancel {{$f.Name}} on {{$f.DateLabel}}? The club will be emailed.')">Cancel this ride</button>{{end}}</form>
-  {{if $f.Custom}}<form method="post" action="/admin/rides/{{$f.Key}}/delete" class="inline" onsubmit="return confirm('Delete {{$f.Name}} for good? To keep it on the calendar as cancelled, use Cancel instead.')"><button class="link danger">Delete this ride</button></form>{{end}}
+  <form method="post" action="/admin/rides/{{$f.Key}}/cancel" class="inline">{{if $f.Cancelled}}<input type="hidden" name="cancel" value="0"><button class="ghost">{{icon "undo"}}Put it back on the calendar</button>{{else}}<input type="hidden" name="cancel" value="1"><button class="ghost" onclick="return confirm('Cancel {{$f.Name}} on {{$f.DateLabel}}? The club will be emailed.')">{{icon "ban"}}Cancel this ride</button>{{end}}</form>
+  {{if $f.Custom}}<form method="post" action="/admin/rides/{{$f.Key}}/delete" class="inline" onsubmit="return confirm('Delete {{$f.Name}} for good? To keep it on the calendar as cancelled, use Cancel instead.')"><button class="link danger">{{icon "trash"}}Delete this ride</button></form>{{end}}
 </div>{{end}}
 {{template "foot" .}}{{end}}
 
@@ -810,7 +810,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   <label>Address <span class="addr"><span class="muted">{{.SiteURL}}/</span><input name="address" id="new-address" maxlength="60" placeholder="group-ride-etiquette" pattern="[a-z0-9]+(-[a-z0-9]+)*"></span><span class="muted small">Filled in from the title. Change it if you like: lowercase letters, numbers, and dashes.</span></label>
   <label class="check"><input type="checkbox" name="menu" checked> Add it to the Info menu</label>
   <p class="muted small">The page starts with your title and some sample text showing the formatting, and opens so you can write it. It’s live as soon as it’s added, so replace the sample text right away (or untick the menu box until it’s ready).</p>
-  <button>Add page</button>
+  <button>{{icon "plus"}}Add page</button>
 </form>
 <script>
 // Suggest an address from the title, until someone types their own.
@@ -826,10 +826,10 @@ t.addEventListener('input',function(){if(!own)a.value=t.value.toLowerCase().repl
 <form class="card new-issue" method="post" action="/admin/pages/{{.Page.File}}">
   <label>Page text <textarea name="text" rows="24" id="page-text">{{.PageText}}</textarea></label>
   <p class="muted small"># Title, ## section, **bold**, [link words](https://…), - list item. Leave a blank line between paragraphs.</p>
-  <div class="send-row"><button>Save</button><label class="inline-label">Add a photo <input type="file" id="page-photo" accept="image/jpeg,image/png,image/webp"></label></div>
+  <div class="send-row"><button>{{icon "save"}}Save</button><label class="inline-label">Add a photo <input type="file" id="page-photo" accept="image/jpeg,image/png,image/webp"></label></div>
 </form>
-{{if .Page.New}}<form class="footnote" method="post" action="/admin/pages/{{.Page.File}}/delete" onsubmit="return confirm('Delete the {{.Page.Title}} page? It comes off the website, and this can’t be undone.')"><button class="link danger">Delete this page</button></form>
-{{else if .Page.Edit}}<form class="footnote" method="post" action="/admin/pages/{{.Page.File}}/reset" onsubmit="return confirm('Undo all edits made here and go back to the GitHub version?')"><button class="link danger">Go back to the GitHub version</button></form>{{end}}
+{{if .Page.New}}<form class="footnote" method="post" action="/admin/pages/{{.Page.File}}/delete" onsubmit="return confirm('Delete the {{.Page.Title}} page? It comes off the website, and this can’t be undone.')"><button class="link danger">{{icon "trash"}}Delete this page</button></form>
+{{else if .Page.Edit}}<form class="footnote" method="post" action="/admin/pages/{{.Page.File}}/reset" onsubmit="return confirm('Undo all edits made here and go back to the GitHub version?')"><button class="link danger">{{icon "undo"}}Go back to the GitHub version</button></form>{{end}}
 <p class="muted small">At the top, between the --- lines: <strong>menu:</strong> adds the page to the Info menu with that label (delete the line to take it out), and <strong>order:</strong> sets its place in the menu (a number).</p>
 <script>
 document.getElementById('page-photo').addEventListener('change',function(){var f=this.files[0];if(!f)return;var fd=new FormData();fd.append('photo',f);
@@ -856,6 +856,6 @@ var t=document.getElementById('page-text'),p=t.selectionStart;t.value=t.value.sl
       </div>
     </div>
   </section>{{end}}
-  <div class="save-bar"><button>Save</button><span class="muted small">Photos show as circles: click a photo to keep their face in view.</span></div>
+  <div class="save-bar"><button>{{icon "save"}}Save</button><span class="muted small">Photos show as circles: click a photo to keep their face in view.</span></div>
 </form>
 {{template "foot" .}}{{end}}

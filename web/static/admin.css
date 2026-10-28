@@ -201,3 +201,8 @@ td.email{min-width:9rem;overflow-wrap:anywhere}
   .cards td.empty::before{content:none}
 }
 @media (max-width:900px){.cards .acts{align-items:flex-start}}
+
+/* Button icons (icons.go) */
+.ic{flex:none;width:1.1em;height:1.1em;margin-right:.4em;vertical-align:-.2em;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+button:has(>.ic),.btn:has(>.ic){display:inline-flex;align-items:center;justify-content:center}
+.search button{flex:none}

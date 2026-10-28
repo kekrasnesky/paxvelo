@@ -44,11 +44,11 @@
     {{if .CanEdit}}
     <form class="cal-strava-form" method="post" action="/calendar/ride/{{$r.Key}}/strava">
       <label>Strava event link <input type="url" name="strava_url" value="{{$r.StravaURL}}" placeholder="https://www.strava.com/clubs/10197/group_events/…"></label>
-      <button class="btn btn-quiet">Save link</button>
+      <button class="btn btn-quiet">{{icon "save"}}Save link</button>
     </form>
     {{end}}
     {{if and .Rider .Rider.Admin (not .Past)}}
-    <form method="post" action="/calendar/ride/{{$r.Key}}/cancel" {{if not $r.Cancelled}}onsubmit="return confirm('Cancel {{$r.Name}} on {{$r.DateLabel}}? The club gets an email.')"{{end}}><input type="hidden" name="cancel" value="{{if $r.Cancelled}}0{{else}}1{{end}}"><button class="link-button">{{if $r.Cancelled}}Put it back on the calendar{{else}}Cancel this ride{{end}}</button></form>
+    <form method="post" action="/calendar/ride/{{$r.Key}}/cancel" {{if not $r.Cancelled}}onsubmit="return confirm('Cancel {{$r.Name}} on {{$r.DateLabel}}? The club gets an email.')"{{end}}><input type="hidden" name="cancel" value="{{if $r.Cancelled}}0{{else}}1{{end}}"><button class="link-button">{{if $r.Cancelled}}{{icon "undo"}}Put it back on the calendar{{else}}{{icon "ban"}}Cancel this ride{{end}}</button></form>
     {{end}}
   </section>
 </article>
