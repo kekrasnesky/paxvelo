@@ -695,6 +695,49 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
 {{if .StravaAdmins}}<ul class="small">{{range .StravaAdmins}}<li>{{.}}</li>{{end}}</ul>{{else}}<p class="muted small">Not checked yet.</p>{{end}}
 {{template "foot" .}}{{end}}
 
+{{define "history"}}{{template "head" .}}{{$h := .History}}
+<div class="title-row">
+  <h1>Ride history</h1>
+  <p class="muted">{{$h.Total}} club events from Strava{{with $h.Since}}. Who joined is saved from {{.}} on{{end}}.</p>
+</div>
+{{if not $h.Total}}<p class="flash warn">{{if $h.Connected}}The history is read from Strava once a day. Check back after the next import.{{else}}Connect Strava on the <a href="/admin/rides">Weekly rides</a> tab, and the club’s past events show here.{{end}}</p>
+{{else}}
+<p class="muted small">“Joined” means the rider pressed Join on the Strava event: a sign-up, not proof they rode. Strava keeps who joined for about 16 months, so the site saves each list after the ride and keeps it.{{if $h.Pending}} {{$h.Pending}} recent rides are still to be saved; that takes a few hours.{{end}} Only admins see this page.</p>
+<nav class="filter" aria-label="Year">
+  {{range $h.Years}}<a href="/admin/history?y={{.Year}}"{{if .Current}} aria-current="page"{{end}}>{{.Year}} ({{.Rides}})</a>{{end}}
+  <a href="/admin/history?y=all"{{if eq $h.Year "all"}} aria-current="page"{{end}}>All years</a>
+</nav>
+<div class="grid2">
+  <section>
+    <h2 class="section">Who posted the most rides</h2>
+    {{if $h.Leaders}}<ol class="small">{{range $h.Leaders}}<li>{{.Name}}: {{.Count}}</li>{{end}}</ol>{{else}}<p class="muted small">None.</p>{{end}}
+  </section>
+  <section>
+    <h2 class="section">Who joined the most rides</h2>
+    {{if $h.Riders}}<ol class="small">{{range $h.Riders}}<li>{{.Name}}: {{.Count}}</li>{{end}}</ol>{{else}}<p class="muted small">No saved sign-ups for these rides. Strava only has who joined since about mid-2025.</p>{{end}}
+  </section>
+</div>
+<h2 class="section">Rides per year</h2>
+<div class="table-wrap"><table class="tight">
+  <thead><tr><th>Year</th><th class="right">Rides</th><th class="right">Joined</th></tr></thead>
+  <tbody>{{range $h.Years}}<tr><td><a href="/admin/history?y={{.Year}}">{{.Year}}</a></td><td class="right">{{.Rides}}</td><td class="right">{{if .Joined}}{{.Joined}}{{else}}<span class="muted">–</span>{{end}}</td></tr>{{end}}</tbody>
+</table></div>
+<h2 class="section">{{if eq $h.Year "all"}}Every ride{{else}}Rides in {{$h.Year}}{{end}}</h2>
+<div class="table-wrap"><table class="tight">
+  <thead><tr><th>Date</th><th>Ride</th><th>Posted by</th><th>Route</th><th>Joined</th></tr></thead>
+  <tbody>
+  {{range $h.Rides}}<tr>
+    <td class="nowrap">{{.DateLabel}}{{if eq $h.Year "all"}}, {{slice .Date 0 4}}{{end}}<br><span class="muted small">{{timeLabel .Time}}</span></td>
+    <td><a href="{{.StravaURL}}" target="_blank" rel="noopener">{{.Title}}</a></td>
+    <td>{{.Organizer}}</td>
+    <td>{{.Route}}</td>
+    <td>{{if .Going}}<details class="more"><summary>{{len .Going}}</summary><span class="small">{{range $i, $g := .Going}}{{if $i}}, {{end}}{{$g.Name}}{{end}}</span></details>{{else if .Checked}}<span class="muted">0</span>{{else}}<span class="muted">–</span>{{end}}</td>
+  </tr>{{else}}<tr><td colspan="5" class="empty">No rides this year.</td></tr>{{end}}
+  </tbody>
+</table></div>
+{{end}}
+{{template "foot" .}}{{end}}
+
 {{define "series-fields"}}<div class="pair">
     <label>Name <input name="name" value="{{.Name}}" required maxlength="80" placeholder="Saturday Coffee Ride"></label>
     <label>Start time <input type="time" name="time" required value="{{or .Time "08:00"}}"></label>

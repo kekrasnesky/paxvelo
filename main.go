@@ -213,6 +213,7 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("DELETE /api/rides/{id}", a.apiDeleteRide)
 	mux.HandleFunc("POST /api/strava/sync", a.apiStravaSync)
 	mux.Handle("GET /admin/calendar", a.auth(a.calendarAdmin))
+	mux.Handle("GET /admin/history", a.auth(a.historyAdmin))
 	mux.Handle("GET /admin/rides/new", a.auth(a.newRideAdminPage))
 	mux.Handle("POST /admin/rides/new", a.auth(a.addRideAdmin))
 	mux.Handle("GET /admin/rides/{key}", a.auth(a.rideEditPage))

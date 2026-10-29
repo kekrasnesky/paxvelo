@@ -112,6 +112,8 @@ Each imported ride also gets what the Strava event says: the route (a map, dista
 
 Once a day the import also reads the club's past events to build the **Club Routes** page (`/routes`, in the Info menu): every public route the club rides, most ridden first, with its map and the next ride on the calendar that uses it. Strava limits how often the site can ask, so new routes fill in about 25 an hour. Routes that are private on Strava stay off the page.
 
+The admin's **Rides → History** page lists every club event Strava has (back to 2017): the date, who posted it, the route, and who joined it, with rides per year and who posted and joined the most. Strava keeps who joined an event for only about 16 months, so the import saves each list after the ride and keeps it for good (about 15 rides an hour while catching up). Joining is a sign-up on Strava, not proof someone rode. Only admins see this page.
+
 Strava requires a paid subscription on the account that owns the API application. The connected account needs to stay subscribed, or the import stops with an "Application Inactive" error on the Rides tab.
 
 Strava's public API documents clubs but not club events, so this reads them the way Strava's own apps do. If Strava ever changes that, the Rides tab shows the error and the calendar carries on without the import.

@@ -57,8 +57,11 @@ func fakeStrava(t *testing.T) *httptest.Server {
 	})
 	mux.HandleFunc("GET /api/v3/group_events/{id}/athletes", func(w http.ResponseWriter, r *http.Request) {
 		going := []map[string]any{}
-		if r.PathValue("id") == "601" {
+		switch r.PathValue("id") {
+		case "601":
 			going = append(going, map[string]any{"id": 1}, map[string]any{"id": 2}, map[string]any{"id": 3})
+		case "701":
+			going = append(going, map[string]any{"id": 31, "firstname": "Laura", "lastname": "Smith"}, map[string]any{"id": 32, "firstname": "Tim", "lastname": "Hall"})
 		}
 		json.NewEncoder(w).Encode(going)
 	})
@@ -798,5 +801,55 @@ func TestStravaDetails(t *testing.T) {
 	// So does the API, without the house.
 	if body := do(t, h, nil, "GET", "/api/rides?from="+sun+"&to="+sun, "", nil).Body.String(); strings.Contains(body, "Tulagi") {
 		t.Errorf("the API shows a private start address: %s", body)
+	}
+}
+
+func TestRideHistory(t *testing.T) {
+	a, h, _ := rideApp(t)
+	recent := a.today().AddDate(0, 0, -10).Format("2006-01-02")
+	old := a.today().AddDate(-3, 0, 0).Format("2006-01-02")
+	fakeEventsMu.Lock()
+	fakeEvents = []map[string]any{
+		{"id": 701, "title": "ThNR", "upcoming_occurrences": []string{recent + "T21:15:00Z"}, "route_id": 88,
+			"organizing_athlete": map[string]any{"id": 5, "firstname": "Patrick", "lastname": "O"}},
+		{"id": 702, "title": "SuMR", "upcoming_occurrences": []string{old + "T12:00:00Z"},
+			"organizing_athlete": map[string]any{"id": 6, "firstname": "Michael", "lastname": "D"}},
+	}
+	fakeEventsMu.Unlock()
+	cookie := httptest.NewRecorder()
+	a.setSession(cookie, "Board Member", 3600)
+	admin := cookie.Result().Cookies()[0]
+	w := do(t, h, admin, "POST", "/admin/strava/connect", "", nil)
+	u, _ := url.Parse(w.Header().Get("Location"))
+	do(t, h, admin, "GET", "/admin/strava/callback?code=ann&state="+url.QueryEscape(u.Query().Get("state")), "", nil)
+
+	byID := map[string]PastRide{}
+	for _, p := range a.store.PastRides() {
+		byID[p.ID] = p
+	}
+	thnr, sumr := byID["701"], byID["702"]
+	if thnr.Date != recent || thnr.Organizer != "Patrick O." || thnr.RouteID != "88" || !thnr.final() || len(thnr.Going) != 2 || thnr.Going[0].Name != "Laura S." {
+		t.Errorf("recent ride: %+v", thnr)
+	}
+	if sumr.Date != old || sumr.Checked != nil {
+		t.Errorf("a ride older than Strava keeps sign-ups for shouldn't be asked about: %+v", sumr)
+	}
+	// Saved sign-ups stay when Strava's list changes or empties.
+	a.store.SaveHistory([]PastRide{{ID: "701", Date: recent, Title: "ThNR (renamed)", Organizer: "Patrick O."}})
+	if p := a.store.PastRides()[0]; p.Title != "ThNR (renamed)" || len(p.Going) != 2 {
+		t.Errorf("after the next read: %+v", p)
+	}
+
+	page := do(t, h, admin, "GET", "/admin/history?y="+recent[:4], "", nil).Body.String()
+	for _, want := range []string{"ThNR (renamed)", "Laura S., Tim H.", "Patrick O.: 1", "Laura S.: 1"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("history page is missing %q", want)
+		}
+	}
+	if page = do(t, h, admin, "GET", "/admin/history?y=all", "", nil).Body.String(); !strings.Contains(page, "Michael D.") {
+		t.Error("all years should include the old ride")
+	}
+	if w := do(t, h, nil, "GET", "/admin/history", "", nil); w.Code == http.StatusOK {
+		t.Error("the history should be for admins only")
 	}
 }

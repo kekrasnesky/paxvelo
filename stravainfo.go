@@ -258,7 +258,7 @@ func (s *Store) SetRouteHistory(h map[string]routeHistory) {
 func (s *Store) routeHistoryDue() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.d.RoutesChecked == nil || time.Since(*s.d.RoutesChecked) > 24*time.Hour
+	return s.d.RoutesChecked == nil || time.Since(*s.d.RoutesChecked) > 24*time.Hour || s.d.History == nil
 }
 
 // ClubRoutes returns the routes the club rides that anyone can see, most
@@ -398,7 +398,10 @@ func (a *App) readHistory(get func(string, any) error) error {
 		Route   *struct {
 			Name string `json:"name"`
 		} `json:"route"`
+		Occurrences []string       `json:"upcoming_occurrences"` // for a past event, the day it was
+		Organizer   *stravaAthlete `json:"organizing_athlete"`
 	}
+	var past []PastRide
 	seen := map[string]bool{}
 	names := map[string]map[string]int{}
 	h := map[string]routeHistory{}
@@ -413,6 +416,9 @@ func (a *App) readHistory(get func(string, any) error) error {
 				continue
 			}
 			seen[ev.ID.String()], fresh = true, fresh+1
+			if pr, ok := a.pastRide(ev.ID.String(), ev.Title, ev.RouteID.String(), ev.Occurrences, ev.Organizer); ok {
+				past = append(past, pr)
+			}
 			id := ev.RouteID.String()
 			if id == "" || id == "0" {
 				continue
@@ -447,6 +453,7 @@ func (a *App) readHistory(get func(string, any) error) error {
 		h[id] = x
 	}
 	a.store.SetRouteHistory(h)
+	a.store.SaveHistory(past)
 	return nil
 }
 

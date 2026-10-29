@@ -78,6 +78,7 @@ type adminView struct {
 	StravaLink          *StravaLink
 	APIEnabled          bool
 	SeriesForm          seriesForm
+	History             *historyView // the ride history page
 	// Calendar tab and ride pages
 	Month    calMonth
 	RideForm rideForm
