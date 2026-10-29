@@ -53,7 +53,25 @@ func fakeStrava(t *testing.T) *httptest.Server {
 	})
 	mux.HandleFunc("GET /api/v3/clubs/10197", func(w http.ResponseWriter, r *http.Request) {
 		p := people[strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer tok-")]
-		json.NewEncoder(w).Encode(map[string]any{"id": 10197, "admin": p.clubAdmin, "owner": false})
+		json.NewEncoder(w).Encode(map[string]any{"id": 10197, "admin": p.clubAdmin, "owner": false, "member_count": 148})
+	})
+	mux.HandleFunc("GET /api/v3/group_events/{id}/athletes", func(w http.ResponseWriter, r *http.Request) {
+		going := []map[string]any{}
+		if r.PathValue("id") == "601" {
+			going = append(going, map[string]any{"id": 1}, map[string]any{"id": 2}, map[string]any{"id": 3})
+		}
+		json.NewEncoder(w).Encode(going)
+	})
+	mux.HandleFunc("GET /api/v3/routes/{id}", func(w http.ResponseWriter, r *http.Request) {
+		switch r.PathValue("id") {
+		case "3550943418851772710": // bigger than a float64 holds exactly, like Strava's real route IDs
+			json.NewEncoder(w).Encode(map[string]any{"id": json.Number("3550943418851772710"), "name": "St Mary's Cafe Loop", "distance": 34488.3,
+				"elevation_gain": 122.4, "estimated_moving_time": 3882, "map_urls": map[string]any{"url": "https://maps.example/a", "light_url": "https://maps.example/a@2x"}})
+		case "77":
+			json.NewEncoder(w).Encode(map[string]any{"id": 77, "name": "Someone's Secret Loop", "distance": 1000, "private": true})
+		default:
+			http.Error(w, "not found", http.StatusNotFound)
+		}
 	})
 	mux.HandleFunc("GET /api/v3/clubs/10197/admins", func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode([]map[string]any{{"firstname": "Ann", "lastname": "A."}})
@@ -698,5 +716,87 @@ func TestSitemap(t *testing.T) {
 	robots := do(t, h, nil, "GET", "/robots.txt", "", nil).Body.String()
 	if !strings.Contains(robots, "Sitemap: ") {
 		t.Error("robots.txt should point to the sitemap")
+	}
+}
+
+func TestStravaDetails(t *testing.T) {
+	a, h, _ := rideApp(t)
+	sun := nextWeekday(a, time.Sunday)
+	fakeEventsMu.Lock()
+	fakeEvents = []map[string]any{
+		{"id": 601, "title": "St Mary's City Cafe Ride", "address": "St Mary's City", "upcoming_occurrences": []string{sun + "T14:00:00Z"},
+			"description": "Coffee at the end.", "skill_levels": 2, "start_latlng": []float64{38.19, -76.43}, "private": false,
+			"route_id": json.Number("3550943418851772710"), "route": map[string]any{"name": "St Mary's Cafe Loop"},
+			"organizing_athlete": map[string]any{"id": 18, "firstname": "Gabriel", "lastname": "Murray"}},
+		{"id": 602, "title": "Wildewood Ride", "address": "21725 Tulagi Pl, Lexington Park", "upcoming_occurrences": []string{sun + "T13:00:00Z"},
+			"description": "Meet in the driveway.", "private": true, "start_latlng": []float64{38.3, -76.5}, "route_id": 77,
+			"organizing_athlete": map[string]any{"id": 19, "firstname": "Pat", "lastname": "O"}},
+		{"id": 603, "title": "SuMR", "route_id": json.Number("3550943418851772710")}, // a past event: only counts toward the route
+	}
+	fakeEventsMu.Unlock()
+
+	cookie := httptest.NewRecorder()
+	a.setSession(cookie, "Board Member", 3600)
+	admin := cookie.Result().Cookies()[0]
+	w := do(t, h, admin, "POST", "/admin/strava/connect", "", nil)
+	u, _ := url.Parse(w.Header().Get("Location"))
+	if w = do(t, h, admin, "GET", "/admin/strava/callback?code=ann&state="+url.QueryEscape(u.Query().Get("state")), "", nil); !strings.Contains(w.Header().Get("Location"), "ok=connected") {
+		t.Fatalf("connect: %s", w.Header().Get("Location"))
+	}
+
+	var cafe, home RideOcc
+	for _, o := range a.store.Rides(a.today(), a.today().AddDate(0, 0, 8)) {
+		switch o.Name {
+		case "St Mary's City Cafe Ride":
+			cafe = o
+		case "Wildewood Ride":
+			home = o
+		}
+	}
+	if cafe.Strava == nil || cafe.Strava.Going != 3 || cafe.Strava.PaceLabel() != "Tempo" || cafe.Strava.Organizer != "Gabriel M." {
+		t.Fatalf("cafe ride's Strava details: %+v", cafe.Strava)
+	}
+	if !cafe.Route.Shown() || cafe.Route.Stats() != "21 mi · 400 ft of climbing" || cafe.Route.TimeLabel() != "1 hr 5 min" || cafe.Route.Rides != 2 {
+		t.Errorf("cafe route: %+v", cafe.Route)
+	}
+	if cafe.LeaderSummary() != "Gabriel M." {
+		t.Errorf("the organizer should lead: %q", cafe.LeaderSummary())
+	}
+	if cafe.Meta() != "21 mi · Tempo · 3 going" {
+		t.Errorf("meta: %q", cafe.Meta())
+	}
+	if home.Route.Shown() || home.PublicPlace() != "" || home.DirectionsFor(false) != "" || home.NotesFor(false) != "" {
+		t.Errorf("a private event at a house shouldn't be public: %+v", home)
+	}
+
+	// The public ride page shows the route but not a private event's notes or address.
+	page := do(t, h, nil, "GET", "/calendar/ride/"+cafe.Key, "", nil).Body.String()
+	for _, want := range []string{"Coffee at the end.", "St Mary&#39;s Cafe Loop", "21 mi · 400 ft of climbing", "Tempo", "3 going", "posted by Gabriel M.", "google.com/maps/dir", "maps.example/a@2x"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("cafe ride page is missing %q", want)
+		}
+	}
+	page = do(t, h, nil, "GET", "/calendar/ride/"+home.Key, "", nil).Body.String()
+	for _, hidden := range []string{"Tulagi", "driveway", "Secret Loop", "google.com/maps"} {
+		if strings.Contains(page, hidden) {
+			t.Errorf("public page for a private ride shows %q", hidden)
+		}
+	}
+	if !strings.Contains(page, "ride notes are for club members") {
+		t.Error("the public page should say the notes are for club members")
+	}
+	if page = do(t, h, admin, "GET", "/calendar/ride/"+home.Key, "", nil).Body.String(); !strings.Contains(page, "Tulagi") || !strings.Contains(page, "driveway") {
+		t.Error("an admin should see a private ride's address and notes")
+	}
+
+	// The Routes page lists the club's public routes, with the next ride on each.
+	page = do(t, h, nil, "GET", "/routes", "", nil).Body.String()
+	if !strings.Contains(page, "St Mary&#39;s Cafe Loop") || !strings.Contains(page, "Ridden 2 times") || !strings.Contains(page, "148 riders") ||
+		!strings.Contains(page, "/calendar/ride/"+cafe.Key) || strings.Contains(page, "Secret Loop") {
+		t.Errorf("routes page:\n%s", page)
+	}
+	// So does the API, without the house.
+	if body := do(t, h, nil, "GET", "/api/rides?from="+sun+"&to="+sun, "", nil).Body.String(); strings.Contains(body, "Tulagi") {
+		t.Errorf("the API shows a private start address: %s", body)
 	}
 }

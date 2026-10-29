@@ -99,13 +99,16 @@ type CalRide struct {
 	// Held is a ride someone added on the website without signing in with Strava.
 	// It stays off the calendar, the newsletter and the API until an admin approves it.
 	Held bool `json:"held,omitempty"`
+	// Strava is what the ride's Strava event says, for imported rides.
+	Strava *StravaInfo `json:"strava,omitempty"`
 }
 
 // RideOcc is one ride on the calendar.
 type RideOcc struct {
 	Key string // s3-2026-11-04 for a weekly ride's date, r12 for a one-off ride
 	CalRide
-	Custom bool // a one-off ride, not a weekly one
+	Custom bool   // a one-off ride, not a weekly one
+	Route  *Route // the Strava route, when the event has one
 }
 
 func (o RideOcc) TimeLabel() string { return timeLabel(o.Time) }
@@ -330,6 +333,10 @@ func occOf(r *CalRide) RideOcc {
 	c := *r
 	c.Leaders = append([]Leader(nil), r.Leaders...)
 	c.Groups = append([]string(nil), r.Groups...)
+	if r.Strava != nil {
+		st := *r.Strava
+		c.Strava = &st
+	}
 	if r.SeriesID != 0 {
 		return RideOcc{Key: seriesKey(r.SeriesID, r.Date), CalRide: c}
 	}
@@ -368,6 +375,9 @@ func (s *Store) Rides(from, to time.Time) []RideOcc {
 		}
 		return out[i].Time < out[j].Time
 	})
+	for i := range out {
+		s.withRoute(&out[i])
+	}
 	return out
 }
 
@@ -429,7 +439,9 @@ func (s *Store) Ride(key string) (RideOcc, bool) {
 	if err != nil {
 		return RideOcc{}, false
 	}
-	return occOf(r), true
+	o := occOf(r)
+	s.withRoute(&o)
+	return o, true
 }
 
 // UpdateRide changes a ride under the store's lock. change may refuse with an

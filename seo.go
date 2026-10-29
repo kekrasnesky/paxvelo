@@ -77,7 +77,8 @@ func (s *Site) clubLD(board []BoardMember) template.JS {
 func (s *Site) ridesLD(rides []RideOcc) template.JS {
 	var events []ld
 	for _, o := range rides {
-		if o.Place == "" || o.Cancelled {
+		place := o.PublicPlace()
+		if place == "" || o.Cancelled {
 			continue
 		}
 		layout, at := "2006-01-02", o.Date
@@ -95,8 +96,8 @@ func (s *Site) ridesLD(rides []RideOcc) template.JS {
 		e := ld{
 			"@type": "SportsEvent", "name": o.Name, "startDate": startDate, "sport": "Cycling",
 			"eventStatus": "https://schema.org/EventScheduled", "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
-			"location": ld{"@type": "Place", "name": o.Place,
-				"address": ld{"@type": "PostalAddress", "streetAddress": o.Place, "addressRegion": "MD", "addressCountry": "US"}},
+			"location": ld{"@type": "Place", "name": place,
+				"address": ld{"@type": "PostalAddress", "streetAddress": place, "addressRegion": "MD", "addressCountry": "US"}},
 			"organizer": s.clubOrg(), "url": s.cfg.SiteURL + "/calendar", "isAccessibleForFree": true,
 		}
 		if o.Details != "" {

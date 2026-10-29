@@ -108,6 +108,12 @@ The club's upcoming Strava events can show up on the calendar automatically:
 
 From then on, the site reads the club's events every hour (and whenever you press **Import now**). An event that matches a weekly ride (same day, and the same name or start time) is linked to that weekly ride instead of being added twice. Leaders who signed up on the website are kept when an event changes. An event deleted on Strava leaves the calendar, unless leaders had signed up for it, in which case it's marked cancelled.
 
+Each imported ride also gets what the Strava event says: the route (a map, distance, climbing, and riding time), the pace (Casual, Tempo, or Hammerfest), how many riders have joined, a Directions link to the start, and the ride notes. Whoever posted the event becomes the ride's leader, unless someone already signed up. The calendar lists show the distance, pace, and riders going under each ride. Most club events are private on Strava, and some start at a member's house, so for those the public site leaves out the notes and a start that's a street address (including in the newsletter, search results, and the API). Riders signed in with Strava and admins see everything.
+
+Once a day the import also reads the club's past events to build the **Club Routes** page (`/routes`, in the Info menu): every public route the club rides, most ridden first, with its map and the next ride on the calendar that uses it. Strava limits how often the site can ask, so new routes fill in about 25 an hour. Routes that are private on Strava stay off the page.
+
+Strava requires a paid subscription on the account that owns the API application. The connected account needs to stay subscribed, or the import stops with an "Application Inactive" error on the Rides tab.
+
 Strava's public API documents clubs but not club events, so this reads them the way Strava's own apps do. If Strava ever changes that, the Rides tab shows the error and the calendar carries on without the import.
 
 **Setting up the Strava API application** (once, by a club admin):

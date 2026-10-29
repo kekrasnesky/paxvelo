@@ -79,6 +79,8 @@ type ExternalRide struct {
 	StravaURL string   `json:"strava_url,omitempty"`
 	Groups    []string `json:"groups,omitempty"`
 	Cancelled bool     `json:"cancelled,omitempty"`
+	// Strava is the event's details, for rides imported from Strava.
+	Strava *StravaInfo `json:"-"`
 }
 
 type importResult struct{ Added, Updated, Linked, Removed int }
@@ -116,6 +118,7 @@ func (s *Store) upsertExternal(x ExternalRide, matchSeries bool) (RideOcc, strin
 		if len(x.Groups) > 0 && r.SeriesID == 0 {
 			r.Groups = x.Groups
 		}
+		r.withStrava(x.Strava)
 	}
 	for _, r := range s.d.CalRides {
 		if r.External == x.External {
@@ -138,6 +141,7 @@ func (s *Store) upsertExternal(x ExternalRide, matchSeries bool) (RideOcc, strin
 					continue
 				}
 				r.External, r.StravaURL, r.Cancelled = x.External, x.StravaURL, x.Cancelled
+				r.withStrava(x.Strava)
 				return occOf(r), "linked"
 			}
 		}
@@ -151,6 +155,18 @@ func (s *Store) upsertExternal(x ExternalRide, matchSeries bool) (RideOcc, strin
 	apply(r)
 	s.d.CalRides = append(s.d.CalRides, r)
 	return occOf(r), "added"
+}
+
+// withStrava keeps the event's details. Whoever posted the event leads a ride
+// that has one leader and nobody signed up yet.
+func (r *CalRide) withStrava(st *StravaInfo) {
+	if st == nil {
+		return
+	}
+	r.Strava = st
+	if st.Organizer != "" && len(r.Groups) == 0 && r.leaderFor("") == nil {
+		r.setLeader("", &Leader{Name: st.Organizer, StravaID: st.OrganizerID, SetBy: "Strava", Since: time.Now().UTC()})
+	}
 }
 
 // RemoveExternal takes an outside ride off the calendar. One that has
@@ -297,11 +313,43 @@ func (a *App) stravaToken(ctx context.Context, form url.Values) (stravaTokenRepl
 var errNotConnected = errors.New("no Strava account is connected for importing events")
 
 type stravaEvent struct {
-	ID                  json.Number `json:"id"`
-	Title               string      `json:"title"`
-	Description         string      `json:"description"`
-	Address             string      `json:"address"`
-	UpcomingOccurrences []string    `json:"upcoming_occurrences"`
+	ID                  json.Number    `json:"id"`
+	Title               string         `json:"title"`
+	Description         string         `json:"description"`
+	Address             string         `json:"address"`
+	UpcomingOccurrences []string       `json:"upcoming_occurrences"`
+	Private             bool           `json:"private"`
+	SkillLevels         *int           `json:"skill_levels"`
+	StartLatLng         []float64      `json:"start_latlng"`
+	RouteID             json.Number    `json:"route_id"`
+	Organizer           *stravaAthlete `json:"organizing_athlete"`
+}
+
+// info is what the calendar keeps from the event.
+func (ev stravaEvent) info(going int) *StravaInfo {
+	st := &StravaInfo{Description: cleanNotes(ev.Description), Private: ev.Private, Going: going}
+	if ev.SkillLevels != nil {
+		st.Pace = *ev.SkillLevels
+	}
+	if len(ev.StartLatLng) == 2 {
+		st.Lat, st.Lng = ev.StartLatLng[0], ev.StartLatLng[1]
+	}
+	if id := ev.RouteID.String(); id != "0" {
+		st.RouteID = id
+	}
+	if ev.Organizer != nil {
+		st.Organizer, st.OrganizerID = ev.Organizer.shortName(), ev.Organizer.ID
+	}
+	return st
+}
+
+// cleanNotes tidies an event's notes: plain text, at most 2,000 characters.
+func cleanNotes(s string) string {
+	s = strings.TrimSpace(strings.ReplaceAll(s, "\r\n", "\n"))
+	if r := []rune(s); len(r) > 2000 {
+		s = string(r[:2000]) + "…"
+	}
+	return s
 }
 
 // syncStrava reads the club's upcoming events from Strava and updates the calendar.
@@ -321,35 +369,26 @@ func (a *App) syncStrava(ctx context.Context) (importResult, error) {
 }
 
 func (a *App) readStrava(ctx context.Context) (importResult, error) {
-	link, ok := a.store.StravaLink()
-	if !ok || !a.stravaReady() {
-		return importResult{}, errNotConnected
+	get, err := a.stravaGetter(ctx)
+	if err != nil {
+		return importResult{}, err
 	}
-	if link.AccessToken == "" || time.Now().Unix() > link.Expires-300 {
-		tok, err := a.stravaToken(ctx, url.Values{"refresh_token": {link.RefreshToken}, "grant_type": {"refresh_token"}})
-		if err != nil {
-			return importResult{}, fmt.Errorf("Strava didn’t accept the connection (%v). Connect again", err)
-		}
-		link.AccessToken, link.Expires = tok.AccessToken, tok.ExpiresAt
-		if tok.RefreshToken != "" {
-			link.RefreshToken = tok.RefreshToken
-		}
-		a.store.updateStravaLink(func(l *StravaLink) {
-			l.AccessToken, l.Expires, l.RefreshToken = link.AccessToken, link.Expires, link.RefreshToken
-		})
-	}
-	req, _ := http.NewRequestWithContext(ctx, "GET", a.cfg.StravaAPI+"/api/v3/clubs/"+a.cfg.StravaClubID+"/group_events?upcoming=true&per_page=200", nil)
-	req.Header.Set("Authorization", "Bearer "+link.AccessToken)
 	var events []stravaEvent
-	if err := stravaDo(req, &events); err != nil {
+	if err := get("/clubs/"+a.cfg.StravaClubID+"/group_events?upcoming=true&per_page=200", &events); err != nil {
 		return importResult{}, fmt.Errorf("reading the club’s events: %w", err)
 	}
 	from := a.today()
 	to := from.Add(importWindow)
-	var rides []ExternalRide
+	type occ struct {
+		ev  stravaEvent
+		day time.Time
+		at  time.Time
+	}
+	var occs []occ
+	var ids, routes []string
 	for _, ev := range events {
-		for _, occ := range ev.UpcomingOccurrences {
-			t, err := time.Parse(time.RFC3339, occ)
+		for _, o := range ev.UpcomingOccurrences {
+			t, err := time.Parse(time.RFC3339, o)
 			if err != nil {
 				continue
 			}
@@ -358,12 +397,30 @@ func (a *App) readStrava(ctx context.Context) (importResult, error) {
 			if day.Before(from) || day.After(to) {
 				continue
 			}
-			rides = append(rides, ExternalRide{
-				External: "strava:" + ev.ID.String() + ":" + day.Format("2006-01-02"),
-				Date:     day.Format("2006-01-02"), Time: t.Format("15:04"), Name: cleanName(ev.Title), Place: cleanName(ev.Address),
-				StravaURL: strings.TrimRight(a.cfg.StravaURL, "/") + "/group_events/" + ev.ID.String(),
-			})
+			if len(occs) == 0 || occs[len(occs)-1].ev.ID != ev.ID {
+				ids = append(ids, ev.ID.String())
+				if id := ev.RouteID.String(); id != "" && id != "0" {
+					routes = append(routes, id)
+				}
+			}
+			occs = append(occs, occ{ev, day, t})
 		}
+	}
+	// The details are extras: if Strava won't give them, the rides still import.
+	going := readGoing(get, ids)
+	if err := a.readHistory(get); err != nil {
+		log.Printf("strava routes: %v", err)
+	}
+	a.readRoutes(get, routes)
+	var rides []ExternalRide
+	for _, o := range occs {
+		ev := o.ev
+		rides = append(rides, ExternalRide{
+			External: "strava:" + ev.ID.String() + ":" + o.day.Format("2006-01-02"),
+			Date:     o.day.Format("2006-01-02"), Time: o.at.Format("15:04"), Name: cleanName(ev.Title), Place: cleanName(ev.Address),
+			StravaURL: strings.TrimRight(a.cfg.StravaURL, "/") + "/group_events/" + ev.ID.String(),
+			Strava:    ev.info(going[ev.ID.String()]),
+		})
 	}
 	return a.store.ImportStrava(rides, from.Format("2006-01-02"), to.Format("2006-01-02"))
 }

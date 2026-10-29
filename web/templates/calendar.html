@@ -14,6 +14,7 @@
         <span class="cal-up-date">{{.ShortDate}}</span>
         <span class="cal-time">{{.TimeLabel}}</span> {{.Name}}
         <span class="cal-lead">{{.LeaderSummary}}</span>
+        {{with .Meta}}<span class="cal-meta">{{.}}</span>{{end}}
       </a></li>{{end}}
     </ul>{{else}}<p class="cal-none">{{.UpcomingNote}}</p>{{end}}
   </section>
@@ -48,11 +49,12 @@
       {{range .Rides}}<a class="cal-ride {{.Status}}" href="/calendar/ride/{{.Key}}">
         <span class="cal-time">{{.TimeLabel}}</span> {{.Name}}
         <span class="cal-lead">{{if eq .Status "led"}}Led by {{end}}{{.LeaderSummary}}</span>
+        {{with .Meta}}<span class="cal-meta">{{.}}</span>{{end}}
       </a>{{end}}
     </li>
     {{else}}<li class="cal-none">{{$.Data.NoDays}}</li>
     {{end}}
   </ol>
-  <p class="cal-strava">Every ride is also posted on <a href="{{.ClubURL}}" target="_blank" rel="noopener">our Strava club</a>, with the route and any last-minute changes.</p>
+  <p class="cal-strava">Every ride is also posted on <a href="{{.ClubURL}}" target="_blank" rel="noopener">our Strava club</a>{{with .ClubMembers}}, {{.}} riders strong{{end}}, with the route and any last-minute changes. Curious where we ride? See the <a href="/routes">club’s routes</a>.</p>
 </article>
 {{end}}{{end}}

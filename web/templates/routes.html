@@ -1,0 +1,22 @@
+{{define "content"}}{{with .Data}}
+<article class="page">
+  <h1>Club Routes</h1>
+  <p class="lead">The roads PaxVelo rides most, from our rides posted on <a href="{{.ClubURL}}" target="_blank" rel="noopener">Strava</a>{{with .Members}}, where the club is {{.}} riders strong{{end}}. Open a route on Strava to see the turns or load it on your bike computer.</p>
+  {{if .Routes}}
+  <ul class="routes">
+    {{range .Routes}}<li class="route">
+      {{if .Map}}<a class="route-map" href="{{.URL}}" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="{{.Map}}" alt="" loading="lazy"></a>{{end}}
+      <div class="route-body">
+        <h2><a href="{{.URL}}" target="_blank" rel="noopener">{{.Name}}</a></h2>
+        <p class="route-stats">{{.Stats}}{{with .TimeLabel}} · about {{.}}{{end}}</p>
+        <p class="route-use">Ridden {{if eq .Rides 1}}once{{else}}{{.Rides}} times{{end}}{{with .Usual}}, most often as “{{.}}”{{end}}</p>
+        {{with .Next}}<p class="route-next">Next: <a href="/calendar/ride/{{.Key}}">{{.Name}}, {{.ShortDate}}</a></p>{{end}}
+      </div>
+    </li>{{end}}
+  </ul>
+  <p class="route-credit">Routes and maps from Strava.</p>
+  {{else}}
+  <p class="cal-none">{{if .Connected}}The club’s routes are on their way from Strava. Check back in an hour or two.{{else}}Our routes will show here once the club’s Strava is connected. Until then, <a href="{{.ClubURL}}" target="_blank" rel="noopener">see them on Strava</a>.{{end}}</p>
+  {{end}}
+</article>
+{{end}}{{end}}

@@ -374,7 +374,7 @@ func (a *App) issueRides(is Issue) ridesView {
 		}
 		t, _ := time.Parse("2006-01-02", o.Date)
 		sr := shownRide{Key: o.Key, Month: strings.ToUpper(t.Format("Jan")), Day: t.Format("2"), Weekday: t.Format("Monday"),
-			Name: o.Name, Time: o.TimeLabel(), Place: o.Place, Details: o.Details, Past: o.Date < today}
+			Name: o.Name, Time: o.TimeLabel(), Place: o.PublicPlace(), Details: o.Details, Past: o.Date < today}
 		for _, sl := range o.Slots() {
 			ss := shownSlot{Group: sl.Group}
 			if sl.Leader != nil {

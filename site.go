@@ -222,7 +222,7 @@ func newSite(cfg Config) (*Site, error) {
 	if err := s.renderContent(contentData{}); err != nil {
 		return nil, err
 	}
-	for _, name := range []string{"join", "unsubscribe", "membership", "notfound", "newsletter", "minutes", "calendar", "ride", "ride-new"} {
+	for _, name := range []string{"join", "unsubscribe", "membership", "notfound", "newsletter", "minutes", "calendar", "ride", "ride-new", "routes"} {
 		if s.dynamic[name], err = parse(name + ".html"); err != nil {
 			return nil, err
 		}
@@ -279,7 +279,7 @@ func (s *Site) renderContent(d contentData) error {
 			links = append(links, navLink{p.Path, p.Menu})
 		}
 	}
-	links = append(links, navLink{"/minutes", "Meeting Minutes"})
+	links = append(links, navLink{"/routes", "Club Routes"}, navLink{"/minutes", "Meeting Minutes"})
 	s.infoLinks.Store(&links)
 	s.pageList.Store(&list)
 	pages := map[string]*Page{}
