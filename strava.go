@@ -213,11 +213,10 @@ func (a *App) stravaSignIn(ctx context.Context, code string) (Rider, error) {
 		return stravaDo(req, out)
 	}
 
-	// Their clubs say whether they're in PaxVelo, and whether they're an admin of it.
+	// Their clubs say whether they're in PaxVelo. Since 2026 that list no longer
+	// says who's an admin, so the club itself is asked for that.
 	var clubs []struct {
-		ID    int64 `json:"id"`
-		Admin bool  `json:"admin"`
-		Owner bool  `json:"owner"`
+		ID int64 `json:"id"`
 	}
 	if err := get("/athlete/clubs?per_page=200", &clubs); err != nil {
 		return Rider{}, fmt.Errorf("clubs: %w", err)
@@ -226,12 +225,20 @@ func (a *App) stravaSignIn(ctx context.Context, code string) (Rider, error) {
 	member := false
 	for _, c := range clubs {
 		if strconv.FormatInt(c.ID, 10) == a.cfg.StravaClubID {
-			member, rd.Admin = true, c.Admin || c.Owner
+			member = true
 		}
 	}
 	if !member {
 		return Rider{}, errNotMember
 	}
+	var club struct {
+		Admin bool `json:"admin"`
+		Owner bool `json:"owner"`
+	}
+	if err := get("/clubs/"+a.cfg.StravaClubID, &club); err != nil {
+		return Rider{}, fmt.Errorf("club: %w", err)
+	}
+	rd.Admin = club.Admin || club.Owner
 
 	// While we have a key, refresh the list of club admins the admin portal shows.
 	var admins []stravaAthlete

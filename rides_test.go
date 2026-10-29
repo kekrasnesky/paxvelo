@@ -44,11 +44,16 @@ func fakeStrava(t *testing.T) *httptest.Server {
 	})
 	mux.HandleFunc("GET /api/v3/athlete/clubs", func(w http.ResponseWriter, r *http.Request) {
 		p := people[strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer tok-")]
-		clubs := []map[string]any{{"id": 555, "admin": true}}
+		// Like Strava since 2026, the list doesn't say who's an admin.
+		clubs := []map[string]any{{"id": 555}}
 		if p.member {
-			clubs = append(clubs, map[string]any{"id": 10197, "admin": p.clubAdmin, "owner": false})
+			clubs = append(clubs, map[string]any{"id": 10197})
 		}
 		json.NewEncoder(w).Encode(clubs)
+	})
+	mux.HandleFunc("GET /api/v3/clubs/10197", func(w http.ResponseWriter, r *http.Request) {
+		p := people[strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer tok-")]
+		json.NewEncoder(w).Encode(map[string]any{"id": 10197, "admin": p.clubAdmin, "owner": false})
 	})
 	mux.HandleFunc("GET /api/v3/clubs/10197/admins", func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode([]map[string]any{{"firstname": "Ann", "lastname": "A."}})
