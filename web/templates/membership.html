@@ -67,11 +67,11 @@ the page of an adult on their Family plan. */}}
   </details>
 
   {{if or .HouseholdRoom .Household}}<h3 class="my-h3" id="household">Other adults on your membership</h3>
-  <p>Every adult who rides on your family membership signs their own waiver, each year. We email each one a link to sign theirs.</p>
-  {{with .HouseholdDone}}<p class="muted-note" role="status">{{if eq . "added"}}Added. We emailed them a link to sign their waiver.{{else if eq . "sent"}}Sent. Their link is on its way.{{else if eq . "removed"}}Removed. Waivers they signed stay on the club’s record.{{end}}</p>{{end}}
+  <p>Every adult who rides on your family membership signs their own waiver, each year. We email each one a link to sign theirs{{if not .Paid}} once your {{.Year}} dues are paid{{end}}.</p>
+  {{with .HouseholdDone}}<p class="muted-note" role="status">{{if eq . "added"}}Added. We emailed them a link to sign their waiver.{{else if eq . "added-later"}}Added. We’ll email them a link to sign their waiver once your dues are paid.{{else if eq . "sent"}}Sent. Their link is on its way.{{else if eq . "removed"}}Removed. Waivers they signed stay on the club’s record.{{end}}</p>{{end}}
   {{with .Household}}<ul class="household-list">{{range .}}<li>
     <span><strong>{{.Adult.Name}}</strong>, {{.Adult.Email}}<br>{{if .Waiver}}<span class="dues-paid">{{.Waiver.Year}} waiver signed {{date .Waiver.Signed}} ✓</span>{{else}}{{$.Data.Year}} waiver not signed yet{{end}}</span>
-    <span class="household-tools">{{if not .Waiver}}<form method="post" action="/membership/household#household"><input type="hidden" name="t" value="{{$.Data.Token}}"><input type="hidden" name="do" value="send"><input type="hidden" name="email" value="{{.Adult.Email}}"><button class="link-button" type="submit">Email their link again</button></form>{{end}}
+    <span class="household-tools">{{if and (not .Waiver) $.Data.Paid}}<form method="post" action="/membership/household#household"><input type="hidden" name="t" value="{{$.Data.Token}}"><input type="hidden" name="do" value="send"><input type="hidden" name="email" value="{{.Adult.Email}}"><button class="link-button" type="submit">Email their link again</button></form>{{end}}
       <form method="post" action="/membership/household#household"><input type="hidden" name="t" value="{{$.Data.Token}}"><input type="hidden" name="do" value="remove"><input type="hidden" name="email" value="{{.Adult.Email}}"><button class="link-button" type="submit">Remove<span class="sr"> {{.Adult.Name}}</span></button></form></span>
   </li>{{end}}</ul>{{end}}
   {{if .HouseholdRoom}}<details class="minor-sign"{{if .HouseholdMessage}} open{{end}}>
@@ -82,7 +82,7 @@ the page of an adult on their Family plan. */}}
         <label>Name <input name="adult_name" required maxlength="100" autocomplete="off" placeholder="First and last name" value="{{.HouseholdForm.Name}}"></label>
         <label>Email <input type="email" name="adult_email" required maxlength="254" autocomplete="off" value="{{.HouseholdForm.Email}}"></label>
       </div>
-      <button class="btn" type="submit">Add and email their link</button>
+      <button class="btn" type="submit">{{if .Paid}}Add and email their link{{else}}Add{{end}}</button>
       <p class="msg{{if .HouseholdMessage}} err{{end}}" role="status">{{.HouseholdMessage}}</p>
     </form>
   </details>

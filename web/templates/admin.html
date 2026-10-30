@@ -292,7 +292,7 @@ initBlock(document);
   <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>{{.Year}} dues</th><th>Joined</th></tr></thead>
   <tbody>
   {{range .Unsigned}}<tr>
-    <td data-label="Name">{{.Name}}{{if .Household}}<br><span class="muted small">On {{.Member.Name}}’s family membership</span>{{end}}</td>
+    <td data-label="Name">{{.Name}}{{if .Household}}<br><span class="muted small">On {{.Member.Name}}’s family membership{{if not .LinkSent}}. Their link is emailed once the dues are marked paid.{{end}}</span>{{end}}</td>
     <td class="email" data-label="Email"><a href="mailto:{{.Email}}">{{.Email}}</a></td>
     <td class="nowrap" data-label="Phone">{{if .Household}}<span class="muted">—</span>{{else}}{{with .Member.Phone}}<a href="tel:{{.}}">{{.}}</a>{{else}}<span class="muted">—</span>{{end}}{{end}}</td>
     <td data-label="{{$.Year}} dues">{{if .Member.PaidFor $.Year}}<span class="paid">Paid</span>{{else}}<span class="muted">Not paid</span>{{end}}</td>
@@ -317,7 +317,7 @@ initBlock(document);
   {{end}}
   </tbody>
 </table></div>{{end}}
-<p class="muted small">The club’s insurance needs every member to sign the League of American Bicyclists waiver each year. A waiver covers January to December, so everyone shows as not signed again on January 1. New members sign on the join form. Everyone else signs on their own membership page, from the “My membership” link in every club email, and parents or guardians sign there for each rider under 18 in their household. In January, send an email from the Email tab asking members to sign this year’s waiver. Adults on a family membership sign their own, from a link emailed to them when they’re added on the join form or the member’s page. “Not signed” lists members and those adults: the site can’t know about riders under 18 until someone signs for them. Signed waivers are kept for good, even if a member is deleted. Open one to print it or save it as a PDF.</p>
+<p class="muted small">The club’s insurance needs every member to sign the League of American Bicyclists waiver each year. A waiver covers January to December, so everyone shows as not signed again on January 1. New members sign on the join form. Everyone else signs on their own membership page, from the “My membership” link in every club email, and parents or guardians sign there for each rider under 18 in their household. In January, send an email from the Email tab asking members to sign this year’s waiver. Adults on a family membership sign their own, from a link emailed to them once the member’s dues are marked paid, and again each year when they’re marked paid and that adult hasn’t signed yet. “Not signed” lists members and those adults: the site can’t know about riders under 18 until someone signs for them. Signed waivers are kept for good, even if a member is deleted. Open one to print it or save it as a PDF.</p>
 {{template "foot" .}}{{end}}
 
 {{define "waiver"}}{{template "head" .}}{{with .Waiver}}
@@ -1404,7 +1404,7 @@ var t=document.getElementById('page-text'),p=t.selectionStart;t.value=t.value.sl
     <p class="muted small">Members you add yourself or import never get the welcome email, and renewals don’t get it again.</p></div>
   <div class="card"><h3>Members</h3><ul>
     <li>Every club email has their private membership link: dues status, a PayPal button, this year’s waiver to sign, their details, and emails on or off.</li>
-    <li>The insurance waiver is signed once a year, and parents or guardians sign for each rider under 18 there too. Other adults on a Family membership each get an emailed link to sign their own. The <a href="/admin/waivers">Waivers</a> tab keeps every signed copy and shows who hasn’t signed.</li>
+    <li>The insurance waiver is signed once a year, and parents or guardians sign for each rider under 18 there too. Other adults on a Family membership each get an emailed link to sign their own, once the dues are marked paid. The <a href="/admin/waivers">Waivers</a> tab keeps every signed copy and shows who hasn’t signed.</li>
     <li>Every member email has an unsubscribe link.</li></ul></div>
   <div class="card"><h3>Riders and ride leaders</h3><ul>
     <li>Open a ride, type a name, press <b>I’ll lead</b>. The club inbox is told. Leaders can step down themselves.</li>

@@ -14,7 +14,10 @@ import (
 // and gets club emails, but the club's insurance needs every adult who rides
 // to sign the waiver themselves, each year. So each adult listed gets their
 // own private link, by email, to a page with just their waiver: the same
-// /membership?t= address members use.
+// /membership?t= address members use. Like the welcome email, it waits until
+// an admin marks the member's dues paid, so nobody can use the join form to
+// send emails to strangers; each year, marking them paid emails the adults
+// who haven't signed that year's waiver yet.
 
 const maxHousehold = 3 // adults on a Family membership besides the member
 
@@ -24,6 +27,9 @@ type HouseholdAdult struct {
 	Email string    `json:"email"`
 	Token string    `json:"token"` // the secret in their link to sign the waiver
 	Added time.Time `json:"added"`
+	// LinkSent: their link has been emailed to them, once the member's dues
+	// were paid. Until then "Send me my link" doesn't send it either.
+	LinkSent bool `json:"link_sent,omitempty"`
 }
 
 func (h HouseholdAdult) FirstName() string { return Member{Name: h.Name}.FirstName() }
@@ -69,6 +75,25 @@ func readHousehold(rows []adultRow, own string) ([]HouseholdAdult, string) {
 		}
 	}
 	return out, ""
+}
+
+// emailHousehold emails their links to adults on a member's Family plan, in
+// the background, if the member's dues are paid for this year, and returns
+// their first names. Otherwise it sends nothing, and marking the dues paid
+// sends them.
+func (a *App) emailHousehold(m Member, adults []HouseholdAdult) []string {
+	if !m.PaidFor(a.cfg.ThisYear()) || len(adults) == 0 {
+		return nil
+	}
+	var names, emails []string
+	for _, h := range adults {
+		names, emails = append(names, h.FirstName()), append(emails, h.Email)
+		go a.sendHouseholdLink(m, h) // a failure is logged by send; the member can send it again
+	}
+	if err := a.store.MarkLinksSent(m.ID, emails); err != nil {
+		log.Printf("household links %s: %v", m.Email, err)
+	}
+	return names
 }
 
 // sendHouseholdLink emails an adult on a member's Family plan their link to
@@ -152,11 +177,14 @@ func (a *App) saveHousehold(w http.ResponseWriter, r *http.Request) {
 		h, found := listed(r.PostFormValue("email"))
 		switch {
 		case !found:
+		case !v.Paid:
+			v.HouseholdMessage = fmt.Sprintf("We’ll email %s’s link once your %d dues are paid.", h.FirstName(), v.Year)
 		case !a.limit.Allow("household:"+h.Email, 3, time.Hour):
 			v.HouseholdMessage = fmt.Sprintf("We’ve emailed %s a few times already. Try again in an hour.", h.FirstName())
 		case a.sendHouseholdLink(m, h) != nil:
 			v.HouseholdMessage = "The email didn’t send. Try again later."
 		default:
+			a.store.MarkLinksSent(m.ID, []string{h.Email})
 			done = "sent"
 		}
 	default:
@@ -182,10 +210,10 @@ func (a *App) saveHousehold(w http.ResponseWriter, r *http.Request) {
 				v.HouseholdMessage = "Something went wrong on our end. Try again in a minute."
 				break
 			}
-			for _, h := range added {
-				a.sendHouseholdLink(m, h) // a failure is logged by send; they can send it again
+			done = "added-later" // their link waits for the dues
+			if len(a.emailHousehold(m, added)) > 0 {
+				done = "added"
 			}
-			done = "added"
 		}
 		if v.HouseholdMessage != "" {
 			v.HouseholdForm = row
@@ -227,6 +255,43 @@ func (s *Store) AddHousehold(memberID int, adults []HouseholdAdult, onlyFirst bo
 		return nil, nil
 	}
 	return added, s.save()
+}
+
+// MarkLinksSent notes that adults on a member's Family plan were emailed
+// their links.
+func (s *Store) MarkLinksSent(memberID int, emails []string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	m := s.byID(memberID)
+	if m == nil {
+		return nil
+	}
+	for i := range m.Household {
+		if slices.Contains(emails, m.Household[i].Email) {
+			m.Household[i].LinkSent = true
+		}
+	}
+	return s.save()
+}
+
+// UnsignedHousehold lists the adults on a member's Family plan who haven't
+// signed a year's waiver.
+func (s *Store) UnsignedHousehold(memberID, year int) (Member, []HouseholdAdult) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	m := s.byID(memberID)
+	if m == nil {
+		return Member{}, nil
+	}
+	var out []HouseholdAdult
+	for _, h := range m.Household {
+		if !slices.ContainsFunc(s.d.Waivers, func(w *Waiver) bool {
+			return w.MemberID == memberID && w.Year == year && w.Household && w.RiderEmail == h.Email
+		}) {
+			out = append(out, h)
+		}
+	}
+	return *m, out
 }
 
 // RemoveHousehold takes an adult off a member's Family plan. Waivers they

@@ -185,7 +185,7 @@ func (a *App) sendMembershipLink(w http.ResponseWriter, r *http.Request) {
 				d.Message = "The email didn’t send. Try again later."
 				break
 			}
-		} else if m, h, found := a.store.HouseholdByEmail(email); found {
+		} else if m, h, found := a.store.HouseholdByEmail(email); found && h.LinkSent {
 			if err := a.sendHouseholdLink(m, h); err != nil {
 				d.Message = "The email didn’t send. Try again later."
 				break

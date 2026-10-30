@@ -4,6 +4,7 @@ import (
 	"html/template"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -63,14 +64,44 @@ func TestHouseholdAdults(t *testing.T) {
 	}
 
 	code, body := join("family", url.Values{"adult_name": {"Jo Rider", "", "Max Rider"}, "adult_email": {"jo@example.com", "", "Max@Example.com"}})
-	if code != http.StatusOK || !strings.Contains(body, "We emailed Jo and Max a link to sign their own waiver.") {
+	if code != http.StatusOK || !strings.Contains(body, "Once your dues are paid, we’ll email Jo and Max a link to sign their own waiver.") {
 		t.Fatalf("joining with adults: %d", code)
 	}
 	m, _ := a.store.MemberByEmail("pat@example.com")
 	if len(m.Household) != 2 || m.Household[1].Email != "max@example.com" || m.Household[0].Token == "" {
 		t.Fatalf("household %+v", m.Household)
 	}
+
+	// Nothing goes to them until an admin marks Pat's dues paid: not from
+	// the join form, "Send me my link", or Pat's page.
+	ct, fbody := form(url.Values{"email": {"jo@example.com"}})
+	do(t, h, nil, "POST", "/membership/link", ct, fbody)
+	ct, fbody = form(url.Values{"t": {m.Token}, "do": {"send"}, "email": {"jo@example.com"}})
+	if w := do(t, h, nil, "POST", "/membership/household", ct, fbody); w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "once your "+strconv.Itoa(year)+" dues are paid") {
+		t.Errorf("sending a link before the dues are paid: %d", w.Code)
+	}
+	time.Sleep(100 * time.Millisecond)
+	mu.Lock()
+	_, early := sent["jo@example.com"]
+	mu.Unlock()
+	if early {
+		t.Fatal("an adult's link waits until the dues are paid")
+	}
+	if unsigned := do(t, h, admin, "GET", "/admin/waivers?show=unsigned", "", nil).Body.String(); !strings.Contains(unsigned, "Their link is emailed once the dues are marked paid.") {
+		t.Error("Not signed should say their link is waiting for the dues")
+	}
+	if needsWaivers(a) {
+		t.Error("an unpaid membership doesn't need attention yet")
+	}
+	ct, fbody = form(url.Values{"paid": {"1"}})
+	if w := do(t, h, admin, "POST", "/admin/members/"+strconv.Itoa(m.ID)+"/paid", ct, fbody); !strings.Contains(w.Header().Get("Location"), "-links") {
+		t.Errorf("marking paid should email the adults: %s", w.Header().Get("Location"))
+	}
+	if !needsWaivers(a) {
+		t.Error("Jo and Max ride on paid dues without a waiver")
+	}
 	jo := link("jo@example.com")
+	link("max@example.com")
 	if !strings.Contains(sent["jo@example.com"], "Pat Rider’s PaxVelo family membership") {
 		t.Error("the email should say whose membership they're on")
 	}
@@ -81,7 +112,7 @@ func TestHouseholdAdults(t *testing.T) {
 		t.Error("an adult's link should open their own waiver, and nothing of the member's")
 	}
 	tok := strings.TrimPrefix(jo, "/membership?t=")
-	ct, fbody := form(url.Values{"t": {tok}, "waiver": {"yes"}, "signature": {"Pat Rider"}})
+	ct, fbody = form(url.Values{"t": {tok}, "waiver": {"yes"}, "signature": {"Pat Rider"}})
 	if w := do(t, h, nil, "POST", "/membership/waiver", ct, fbody); w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "as the club has it: Jo Rider") {
 		t.Errorf("an adult signs with their own name: %d", w.Code)
 	}
@@ -100,15 +131,11 @@ func TestHouseholdAdults(t *testing.T) {
 		t.Error("Pat signed their own on the join form")
 	}
 
-	// The record: Max still hasn't signed, and once Pat pays, that needs attention.
+	// The record: Max still hasn't signed.
 	unsigned := do(t, h, admin, "GET", "/admin/waivers?show=unsigned", "", nil).Body.String()
 	if !strings.Contains(unsigned, "max@example.com") || strings.Contains(unsigned, "jo@example.com") || !strings.Contains(unsigned, "On Pat Rider’s family membership") {
 		t.Error("Not signed should list Max, on Pat's membership")
 	}
-	if needsWaivers(a) {
-		t.Error("an unpaid membership doesn't need attention yet")
-	}
-	a.store.SetPaid(m.ID, year, true)
 	if !needsWaivers(a) {
 		t.Error("Max rides on paid dues without a waiver")
 	}

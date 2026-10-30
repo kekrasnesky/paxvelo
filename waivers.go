@@ -474,6 +474,7 @@ type unsignedRider struct {
 	Member      Member
 	Name, Email string
 	Household   bool
+	LinkSent    bool // for an adult on a Family plan: their link was emailed
 }
 
 func (a *App) unsignedRiders(year int) []unsignedRider {
@@ -487,7 +488,7 @@ func (a *App) unsignedRiders(year int) []unsignedRider {
 		}
 		for _, h := range m.Household {
 			if _, ok := a.store.HouseholdWaiver(m.ID, year, h.Email); !ok {
-				out = append(out, unsignedRider{Member: m, Name: h.Name, Email: h.Email, Household: true})
+				out = append(out, unsignedRider{Member: m, Name: h.Name, Email: h.Email, Household: true, LinkSent: h.LinkSent})
 			}
 		}
 	}

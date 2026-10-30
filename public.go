@@ -252,17 +252,14 @@ func (a *App) join(w http.ResponseWriter, r *http.Request) {
 	}
 	// The other adults on a Family plan sign their own waivers, with the link
 	// emailed to them. Someone already on the list who has adults keeps them.
-	var emailed []string
+	var added []HouseholdAdult
 	if m.Plan == "family" && len(adults) > 0 {
-		added, err := a.store.AddHousehold(m.ID, adults, result != Joined)
-		if err != nil {
+		var err error
+		if added, err = a.store.AddHousehold(m.ID, adults, result != Joined); err != nil {
 			log.Printf("join %s: household: %v", details.Email, err)
 		}
-		for _, h := range added {
-			go a.sendHouseholdLink(m, h) // a failure is logged by send
-			emailed = append(emailed, h.FirstName())
-		}
 	}
+	emailed := a.emailHousehold(m, added) // if their dues are paid already; otherwise once they are
 
 	d := joinData{OK: true, Form: memberDetails{Email: m.Email}} // the email, for "Email me my membership page link"
 	first := m.FirstName()
@@ -291,6 +288,12 @@ func (a *App) join(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(emailed) > 0 {
 		d.Detail += " We emailed " + andList(emailed) + " a link to sign their own waiver."
+	} else if len(added) > 0 {
+		var names []string
+		for _, h := range added {
+			names = append(names, h.FirstName())
+		}
+		d.Detail += " Once your dues are paid, we’ll email " + andList(names) + " a link to sign their own waiver."
 	}
 	reply(http.StatusOK, d)
 }
