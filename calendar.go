@@ -37,14 +37,13 @@ type calView struct {
 	Token                  string // form token, for spam checks
 
 	// One ride
-	Ride        RideOcc
-	Spots       []spotView
-	Series      bool
-	Past        bool
-	Leading     bool // the signed-in rider leads a group of this ride
-	CanEdit     bool
-	CanSetLevel bool // a club admin signed in with Strava
-	MembersURL  string
+	Ride       RideOcc
+	Spots      []spotView
+	Series     bool
+	Past       bool
+	Leading    bool // the signed-in rider leads a group of this ride
+	CanEdit    bool
+	MembersURL string
 
 	// Adding a ride
 	Form     CalRide
@@ -59,7 +58,6 @@ var calFlash = map[string]string{
 	"cancelled": "Ride cancelled.",
 	"restored":  "Ride back on the calendar.",
 	"strava":    "Strava event link saved.",
-	"level":     "Level saved.",
 }
 
 var calError = map[string]string{
@@ -242,7 +240,6 @@ func (a *App) rideRights(v *calView, o RideOcc) {
 		v.Spots = append(v.Spots, sp)
 	}
 	v.CanEdit = open && v.Rider != nil && (v.Leading || v.Rider.Admin)
-	v.CanSetLevel = !v.Past && v.Rider != nil && v.Rider.Admin
 }
 
 // sameLeader reports whether a leader is this rider: by Strava account when
@@ -446,27 +443,6 @@ func (a *App) cancelRide(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rideBack(w, r, key, "ok=restored")
-}
-
-// setRideLevel changes how fast a ride is billed: club admins only.
-func (a *App) setRideLevel(w http.ResponseWriter, r *http.Request) {
-	key := r.PathValue("key")
-	rd, ok := a.riderPost(w, r)
-	if !ok {
-		return
-	}
-	_, err := a.store.UpdateRide(key, func(c *CalRide) error {
-		if !rd.Admin {
-			return errNotYours
-		}
-		c.Level = levelFor(r.FormValue("level"))
-		return nil
-	})
-	if code := rideErrCode(err); code != "" {
-		rideBack(w, r, key, "err="+code)
-		return
-	}
-	rideBack(w, r, key, "ok=level")
 }
 
 // newRidePage is the form for adding a ride: just a date, a time, and a name.
