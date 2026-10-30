@@ -249,11 +249,14 @@ func readBehold(ctx context.Context, feed string) (*beholdFeed, error) {
 	return &f, nil
 }
 
+var markdownLinkRE = regexp.MustCompile(`\[([^\]]*)\]\([^)\s]*\)`)
+
 // post turns what the feed says about a post into the site's record of it.
 func (m beholdMedia) post() InstaPost {
-	caption := m.Pruned
-	if caption == "" {
-		caption = m.Caption
+	caption := m.Caption
+	if m.Pruned != "" {
+		// Behold writes links in its pruned caption as markdown.
+		caption = markdownLinkRE.ReplaceAllString(m.Pruned, "$1")
 	}
 	p := InstaPost{ID: m.ID, Code: instaCode(m.Permalink), Kind: m.Kind, Caption: strings.TrimSpace(caption), Link: m.Permalink}
 	p.Time, _ = time.Parse("2006-01-02T15:04:05-0700", m.Timestamp)

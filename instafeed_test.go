@@ -23,7 +23,7 @@ func fakeBehold(t *testing.T, reads *atomic.Int32) *httptest.Server {
 			return map[string]any{"large": map[string]any{"mediaUrl": cdn + name, "width": 1000, "height": 1000}}
 		}
 		json.NewEncoder(w).Encode(map[string]any{"username": "paxvelo", "posts": []map[string]any{
-			{"id": "1", "mediaType": "VIDEO", "isReel": true, "caption": "Thursday night ride\n#paxvelo", "prunedCaption": "Thursday night ride",
+			{"id": "1", "mediaType": "VIDEO", "isReel": true, "caption": "Thursday night ride\n#paxvelo", "prunedCaption": "Thursday night ride at [paxvelo.club](https://paxvelo.club)",
 				"permalink": "https://www.instagram.com/reel/REEL1/", "mediaUrl": cdn + "1.mp4", "thumbnailUrl": cdn + "1t.jpg",
 				"sizes": large("1.webp"), "timestamp": "2026-10-20T22:10:00+0000"},
 			// A reel with music from Instagram's library: no video file.
@@ -74,7 +74,7 @@ func TestInstagramFeed(t *testing.T) {
 	for _, want := range []string{
 		`<video controls playsinline preload="none" poster="/instagram/1.webp" src="/instagram/1.mp4"`,
 		`<img src="/instagram/2.jpg"`, `class="ig-play"`, "Watch on Instagram", // the reel without its video
-		`<span class="ig-count">1 / 2</span>`, "Thursday night ride", "Follow @paxvelo",
+		`<span class="ig-count">1 / 2</span>`, "Thursday night ride at paxvelo.club<", "Follow @paxvelo",
 	} {
 		if !strings.Contains(home, want) {
 			t.Errorf("home page is missing %s", want)
