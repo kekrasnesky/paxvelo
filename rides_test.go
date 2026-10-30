@@ -798,6 +798,12 @@ func TestStravaDetails(t *testing.T) {
 		!strings.Contains(page, "/calendar/ride/"+cafe.Key) || strings.Contains(page, "Secret Loop") {
 		t.Errorf("routes page:\n%s", page)
 	}
+	// A route ridden only once stays off it.
+	a.store.saveRoute(Route{ID: "99", Name: "One-Off Loop", Distance: 1000, Checked: time.Now()})
+	a.store.SetRouteHistory(map[string]routeHistory{"3550943418851772710": {Rides: 2}, "99": {Rides: 1}})
+	if page = do(t, h, nil, "GET", "/routes", "", nil).Body.String(); strings.Contains(page, "One-Off Loop") || !strings.Contains(page, "St Mary&#39;s Cafe Loop") {
+		t.Errorf("a one-ride route is on the routes page:\n%s", page)
+	}
 	// So does the API, without the house.
 	if body := do(t, h, nil, "GET", "/api/rides?from="+sun+"&to="+sun, "", nil).Body.String(); strings.Contains(body, "Tulagi") {
 		t.Errorf("the API shows a private start address: %s", body)

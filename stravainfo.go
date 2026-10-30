@@ -261,14 +261,14 @@ func (s *Store) routeHistoryDue() bool {
 	return s.d.RoutesChecked == nil || time.Since(*s.d.RoutesChecked) > 24*time.Hour || s.d.History == nil
 }
 
-// ClubRoutes returns the routes the club rides that anyone can see, most
-// ridden first.
+// ClubRoutes returns the routes the club has ridden more than once that anyone
+// can see, most ridden first. One-off routes stay off the page.
 func (s *Store) ClubRoutes() []Route {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var out []Route
 	for _, r := range s.d.Routes {
-		if r.Shown() && r.Rides > 0 {
+		if r.Shown() && r.Rides > 1 {
 			out = append(out, *r)
 		}
 	}
