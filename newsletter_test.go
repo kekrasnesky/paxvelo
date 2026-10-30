@@ -197,7 +197,7 @@ func TestInstagramOnHomePage(t *testing.T) {
 		t.Fatalf("save: %d %s", w.Code, w.Body.String())
 	}
 	home := do(t, h, nil, "GET", "/", "", nil).Body.String()
-	for _, want := range []string{`data-instgrm-permalink="https://www.instagram.com/p/ABC123/"`, "Follow @paxvelo"} {
+	for _, want := range []string{`data-instgrm-permalink="https://www.instagram.com/p/ABC123/"`} {
 		if !strings.Contains(home, want) {
 			t.Errorf("home page is missing %s", want)
 		}

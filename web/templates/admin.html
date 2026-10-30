@@ -642,7 +642,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
 <h2 class="section">Which posts</h2>
 <form class="card new-issue" method="post" action="/admin/instagram">
   <label>Post links, one per line <textarea name="posts" rows="7" placeholder="https://www.instagram.com/p/…">{{.InstagramText}}</textarea></label>
-  <p class="muted small">{{if .InstagramLink}}Leave it empty to show the 3 latest posts, which change on their own as the club posts. Or paste up to 6 links to pick them yourself: copy them from the list below, or on Instagram tap ⋯ → Copy link.{{else}}Pick up to 6 posts. On Instagram, open a post, tap ⋯ → Copy link (on a computer, copy the address from the browser), and paste it here. Leave it empty to show just the “Follow @paxvelo” button.{{end}} Each newsletter issue has its own Instagram section too.</p>
+  <p class="muted small">{{if .InstagramLink}}Leave it empty to show the 3 latest posts, which change on their own as the club posts. Or paste up to 6 links to pick them yourself: copy them from the list below, or on Instagram tap ⋯ → Copy link.{{else}}Pick up to 6 posts. On Instagram, open a post, tap ⋯ → Copy link (on a computer, copy the address from the browser), and paste it here. Leave it empty to show no posts.{{end}} Each newsletter issue has its own Instagram section too.</p>
   <button>{{icon "save"}}Save</button>
 </form>
 

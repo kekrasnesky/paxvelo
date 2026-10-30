@@ -80,10 +80,10 @@ func instagramRow(picked []string, feed []InstaPost, latest int) template.HTML {
 	return template.HTML(b.String())
 }
 
-// instagramWidget is what {instagram} becomes on a page: the posts and a link
-// to follow the club.
+// instagramWidget is what {instagram} becomes on a page: the posts. The
+// footer links to the club's profile.
 func instagramWidget(posts []string, feed []InstaPost) template.HTML {
-	return instagramRow(posts, feed, instaLatest) + template.HTML(`<p><a class="btn" href="`+instagramProfile+`" target="_blank" rel="noopener">Follow @paxvelo on Instagram</a></p>`)
+	return instagramRow(posts, feed, instaLatest)
 }
 
 // ---- Admin ----

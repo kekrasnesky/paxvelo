@@ -36,8 +36,6 @@ As a nonprofit, PaxVelo exists to enrich the community we ride in. Each year we 
 
 ## On Instagram
 
-Club rides, race days, and the roads of Southern Maryland, as they happen.
-
 {instagram}
 
 ## Become a Member

@@ -74,7 +74,7 @@ func TestInstagramFeed(t *testing.T) {
 	for _, want := range []string{
 		`<video controls playsinline preload="none" poster="/instagram/1.webp" src="/instagram/1.mp4"`,
 		`<img src="/instagram/2.jpg"`, `class="ig-play"`, "Watch on Instagram", // the reel without its video
-		`<span class="ig-count">1 / 2</span>`, "Thursday night ride at paxvelo.club<", "Follow @paxvelo",
+		`<span class="ig-count">1 / 2</span>`, "Thursday night ride at paxvelo.club<",
 	} {
 		if !strings.Contains(home, want) {
 			t.Errorf("home page is missing %s", want)
