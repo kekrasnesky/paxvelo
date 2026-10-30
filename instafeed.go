@@ -1,8 +1,8 @@
 package main
 
 import (
+	"cmp"
 	"context"
-	"crypto/hmac"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,30 +14,28 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 )
 
-// The club's Instagram feed, through Instagram's API ("Instagram API with
-// Unified Login", the only setup Meta offers new apps). An admin connects the
-// @paxvelo account once (it must be a Business or Creator account) through
-// the Meta app's login configuration; every hour the site reads the latest
-// posts and downloads the ones it shows, so they appear in the site's own
-// layout: all the same size, with videos that play on the page. Instagram's
-// own embed can't do that, since its player won't start inside other websites.
+// The club's Instagram feed, through Behold (behold.so), which connects to
+// Instagram with its own Meta app and hands out the latest posts as a JSON
+// feed. Meta's own API needs a Meta developer app and a business portfolio
+// holding the Instagram account, which Meta wouldn't let the club finish.
 //
-// The login gives a key for the club's business portfolio that doesn't run
-// out (the configuration's choice). Posts the site hasn't downloaded (older
-// ones, or a reel whose music Instagram won't hand out) fall back to
-// Instagram's embed or a link.
+// An admin pastes the feed's link once. Every few hours the site reads it and
+// downloads the posts it shows, so they appear in the site's own layout: all
+// the same size, with videos that play on the page. Instagram's own embed
+// can't do that, since its player won't start inside other websites. Each
+// read of the feed counts toward Behold's monthly limit (1,200 on the free
+// plan, which updates the feed once a day), so the site reads it 8 times a
+// day. Posts the site hasn't downloaded (older ones, or a reel whose music
+// Instagram won't hand out) fall back to Instagram's embed or a link.
 
-// InstagramLink is the connected Instagram account.
+// InstagramLink is the connected Instagram feed.
 type InstagramLink struct {
+	Feed       string     `json:"feed"` // the Behold feed's link
 	Username   string     `json:"username"`
-	AccountID  string     `json:"account_id"`
-	Token      string     `json:"token"`
-	Expires    time.Time  `json:"expires,omitzero"` // zero: the key doesn't run out
 	LastSync   *time.Time `json:"last_sync,omitempty"`
 	LastError  string     `json:"last_error,omitempty"`
 	LastResult string     `json:"last_result,omitempty"`
@@ -60,8 +58,8 @@ type InstaPost struct {
 }
 
 const (
-	// How many recent posts the site keeps track of, so admins can pick from them.
-	instaFeedSize = 30
+	// How often the site reads the feed.
+	instaSyncEvery = 3 * time.Hour
 	// The home page shows this many of the latest posts when none are picked.
 	instaLatest = 3
 	// A video bigger than this stays on Instagram.
@@ -77,10 +75,6 @@ func instaCode(link string) string {
 		return m[1]
 	}
 	return ""
-}
-
-func (a *App) instagramReady() bool {
-	return a.cfg.InstagramAppID != "" && a.cfg.InstagramAppSecret != "" && a.cfg.InstagramConfigID != ""
 }
 
 func (a *App) instaDir() string { return filepath.Join(a.cfg.DataDir, "instagram") }
@@ -165,43 +159,25 @@ func (s *Store) instaWanted() map[string]bool {
 
 // ---- Connecting ----
 
+var beholdFeedRE = regexp.MustCompile(`^/[A-Za-z0-9_-]{6,64}$`)
+
+// instagramConnect saves the pasted feed link, once reading it works.
 func (a *App) instagramConnect(w http.ResponseWriter, r *http.Request) {
-	if !a.instagramReady() {
-		back(w, r, "/admin/instagram?err=noinstagram")
+	feed := strings.TrimRight(strings.TrimSpace(r.FormValue("feed")), "/")
+	id, ok := strings.CutPrefix(feed, a.cfg.InstagramFeeds)
+	if !ok || !beholdFeedRE.MatchString(id) {
+		back(w, r, "/admin/instagram?err=igfeed")
 		return
 	}
-	ts := strconv.FormatInt(time.Now().Unix(), 10)
-	q := url.Values{
-		"client_id": {a.cfg.InstagramAppID}, "config_id": {a.cfg.InstagramConfigID}, "redirect_uri": {a.instagramRedirect()},
-		"response_type": {"code"}, "override_default_response_type": {"true"}, "state": {ts + "." + sign(a.riderKey(), "instagram|"+ts)},
-	}
-	http.Redirect(w, r, a.cfg.InstagramAuth+"/dialog/oauth?"+q.Encode(), http.StatusSeeOther)
-}
-
-func (a *App) instagramRedirect() string { return a.cfg.SiteURL + "/admin/instagram/callback" }
-
-func (a *App) instagramCallback(w http.ResponseWriter, r *http.Request) {
-	q := r.URL.Query()
-	ts, sig, _ := strings.Cut(q.Get("state"), ".")
-	n, err := strconv.ParseInt(ts, 10, 64)
-	if err != nil || !hmac.Equal([]byte(sig), []byte(sign(a.riderKey(), "instagram|"+ts))) || time.Since(time.Unix(n, 0)) > 15*time.Minute {
-		back(w, r, "/admin/instagram?err=igconnect")
-		return
-	}
-	code := strings.TrimSuffix(q.Get("code"), "#_")
-	if code == "" {
-		back(w, r, "/admin/instagram?err=igdenied")
-		return
-	}
-	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Minute)
 	defer cancel()
-	link, err := a.instagramLogin(ctx, code)
+	f, err := readBehold(ctx, feed)
 	if err != nil {
 		log.Printf("instagram connect: %v", err)
 		back(w, r, "/admin/instagram?err=igconnect")
 		return
 	}
-	if err := a.store.SetInstagramLink(link); err != nil {
+	if err := a.store.SetInstagramLink(&InstagramLink{Feed: feed, Username: f.Username}); err != nil {
 		back(w, r, "/admin/instagram?err=save")
 		return
 	}
@@ -210,42 +186,6 @@ func (a *App) instagramCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	back(w, r, "/admin/instagram?ok=igconnected")
-}
-
-// instagramLogin trades the code from the login for the club's key, and
-// finds the Instagram account it was given.
-func (a *App) instagramLogin(ctx context.Context, code string) (*InstagramLink, error) {
-	q := url.Values{"client_id": {a.cfg.InstagramAppID}, "client_secret": {a.cfg.InstagramAppSecret},
-		"redirect_uri": {a.instagramRedirect()}, "code": {code}}
-	req, _ := http.NewRequestWithContext(ctx, "GET", a.cfg.InstagramAPI+instaVersion+"/oauth/access_token?"+q.Encode(), nil)
-	var k struct {
-		AccessToken string `json:"access_token"`
-		ExpiresIn   int64  `json:"expires_in"`
-	}
-	if err := instaDo(req, &k); err != nil {
-		return nil, fmt.Errorf("code: %w", err)
-	}
-	if k.AccessToken == "" {
-		return nil, errors.New("Instagram sent no key")
-	}
-	link := &InstagramLink{Token: k.AccessToken}
-	if k.ExpiresIn > 0 {
-		link.Expires = time.Now().UTC().Add(time.Duration(k.ExpiresIn) * time.Second)
-	}
-	var accounts struct {
-		Data []struct {
-			ID       string `json:"id"`
-			Username string `json:"username"`
-		} `json:"data"`
-	}
-	if err := a.instaGet(ctx, link.Token, "/me/assigned_instagram_accounts?fields=id,username", &accounts); err != nil {
-		return nil, fmt.Errorf("account: %w", err)
-	}
-	if len(accounts.Data) == 0 {
-		return nil, errors.New("no Instagram account was shared")
-	}
-	link.AccountID, link.Username = accounts.Data[0].ID, accounts.Data[0].Username
-	return link, nil
 }
 
 func (a *App) instagramDisconnect(w http.ResponseWriter, r *http.Request) {
@@ -267,66 +207,69 @@ func (a *App) instagramSyncNow(w http.ResponseWriter, r *http.Request) {
 
 // ---- Reading the feed ----
 
-// instaVersion is the version of Meta's API the site was written for.
-const instaVersion = "/v26.0"
-
-func (a *App) instaGet(ctx context.Context, token, path string, out any) error {
-	sep := "?"
-	if strings.Contains(path, "?") {
-		sep = "&"
-	}
-	req, _ := http.NewRequestWithContext(ctx, "GET", a.cfg.InstagramAPI+instaVersion+path+sep+"access_token="+url.QueryEscape(token), nil)
-	return instaDo(req, out)
-}
-
 var instaClient = &http.Client{Timeout: 30 * time.Second}
 
-func instaDo(req *http.Request, out any) error {
+// beholdFeed is what Behold's feed link answers.
+type beholdFeed struct {
+	Username string        `json:"username"`
+	Posts    []beholdMedia `json:"posts"`
+}
+
+type beholdMedia struct {
+	ID        string `json:"id"`
+	Kind      string `json:"mediaType"`
+	Caption   string `json:"caption"`
+	Pruned    string `json:"prunedCaption"` // without the hashtags
+	MediaURL  string `json:"mediaUrl"`      // a video's file, or the photo
+	Thumbnail string `json:"thumbnailUrl"`  // a video's cover
+	Permalink string `json:"permalink"`
+	Timestamp string `json:"timestamp"`
+	Sizes     struct {
+		Large struct {
+			MediaURL string `json:"mediaUrl"`
+		} `json:"large"`
+	} `json:"sizes"`
+	Children []beholdMedia `json:"children"`
+}
+
+func readBehold(ctx context.Context, feed string) (*beholdFeed, error) {
+	req, _ := http.NewRequestWithContext(ctx, "GET", feed, nil)
 	resp, err := instaClient.Do(req)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		var e struct {
-			Error struct {
-				Message string `json:"message"`
-			} `json:"error"`
-		}
-		json.NewDecoder(io.LimitReader(resp.Body, 1<<16)).Decode(&e)
-		if e.Error.Message != "" {
-			return fmt.Errorf("Instagram answered %s: %s", resp.Status, e.Error.Message)
-		}
-		return fmt.Errorf("Instagram answered %s", resp.Status)
+		return nil, fmt.Errorf("the feed answered %s", resp.Status)
 	}
-	return json.NewDecoder(resp.Body).Decode(out)
+	var f beholdFeed
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 8<<20)).Decode(&f); err != nil {
+		return nil, fmt.Errorf("reading the feed: %w", err)
+	}
+	return &f, nil
 }
 
-type instaMedia struct {
-	ID        string `json:"id"`
-	Kind      string `json:"media_type"`
-	Caption   string `json:"caption"`
-	MediaURL  string `json:"media_url"`
-	Thumbnail string `json:"thumbnail_url"`
-	Permalink string `json:"permalink"`
-	Timestamp string `json:"timestamp"`
-	Children  *struct {
-		Data []instaMedia `json:"data"`
-	} `json:"children"`
-}
-
-// post turns what Instagram says about a post into the site's record of it.
-func (m instaMedia) post() InstaPost {
-	p := InstaPost{ID: m.ID, Code: instaCode(m.Permalink), Kind: m.Kind, Caption: strings.TrimSpace(m.Caption), Link: m.Permalink}
+// post turns what the feed says about a post into the site's record of it.
+func (m beholdMedia) post() InstaPost {
+	caption := m.Pruned
+	if caption == "" {
+		caption = m.Caption
+	}
+	p := InstaPost{ID: m.ID, Code: instaCode(m.Permalink), Kind: m.Kind, Caption: strings.TrimSpace(caption), Link: m.Permalink}
 	p.Time, _ = time.Parse("2006-01-02T15:04:05-0700", m.Timestamp)
 	first := m
-	if m.Kind == "CAROUSEL_ALBUM" && m.Children != nil && len(m.Children.Data) > 0 {
-		first, p.Count = m.Children.Data[0], len(m.Children.Data)
+	if m.Kind == "CAROUSEL_ALBUM" && len(m.Children) > 0 {
+		first, p.Count = m.Children[0], len(m.Children)
 	}
+	// Behold's resized cover (on its own server) is smaller than Instagram's.
+	p.CoverURL = first.Sizes.Large.MediaURL
 	if first.Kind == "VIDEO" {
 		// Instagram leaves out the video of a reel with music from its library.
-		p.IsVideo, p.CoverURL, p.VideoURL = true, first.Thumbnail, first.MediaURL
-	} else {
+		p.IsVideo, p.VideoURL = true, first.MediaURL
+		if p.CoverURL == "" {
+			p.CoverURL = cmp.Or(first.Thumbnail, m.Thumbnail)
+		}
+	} else if p.CoverURL == "" {
 		p.CoverURL = first.MediaURL
 	}
 	return p
@@ -350,25 +293,22 @@ func (a *App) syncInstagram(ctx context.Context) error {
 
 func (a *App) readInstagram(ctx context.Context) (int, error) {
 	link, ok := a.store.InstagramLink()
-	if !ok || !a.instagramReady() {
+	if !ok {
 		return 0, errors.New("Instagram isn’t connected")
 	}
-	if link.AccountID == "" || (!link.Expires.IsZero() && time.Now().After(link.Expires)) {
-		return 0, errors.New("Instagram’s key ran out. Connect Instagram again")
+	page, err := readBehold(ctx, link.Feed)
+	if err != nil {
+		return 0, err
 	}
-	var page struct {
-		Data []instaMedia `json:"data"`
-	}
-	fields := "id,media_type,caption,media_url,thumbnail_url,permalink,timestamp,children{media_type,media_url,thumbnail_url}"
-	if err := a.instaGet(ctx, link.Token, "/"+link.AccountID+"/media?limit="+strconv.Itoa(instaFeedSize)+"&fields="+url.QueryEscape(fields), &page); err != nil {
-		return 0, fmt.Errorf("reading the posts: %w", err)
+	if page.Username != "" && page.Username != link.Username {
+		a.store.updateInstagramLink(func(l *InstagramLink) { l.Username = page.Username })
 	}
 	old := map[string]InstaPost{}
 	for _, p := range a.store.InstaFeed() {
 		old[p.ID] = p
 	}
 	var feed []InstaPost
-	for _, m := range page.Data {
+	for _, m := range page.Posts {
 		p := m.post()
 		if p.Code == "" {
 			continue
@@ -413,8 +353,12 @@ func (a *App) downloadInsta(ctx context.Context, feed []InstaPost) {
 			continue
 		}
 		if p.Cover == "" && p.CoverURL != "" {
-			if err := fetchTo(ctx, p.CoverURL, filepath.Join(dir, p.ID+".jpg"), 20<<20); err == nil {
-				p.Cover = p.ID + ".jpg"
+			name := p.ID + ".jpg"
+			if u, err := url.Parse(p.CoverURL); err == nil && strings.HasSuffix(u.Path, ".webp") {
+				name = p.ID + ".webp"
+			}
+			if err := fetchTo(ctx, p.CoverURL, filepath.Join(dir, name), 20<<20); err == nil {
+				p.Cover = name
 			} else {
 				log.Printf("instagram: cover for %s: %v", p.Code, err)
 			}
@@ -470,7 +414,7 @@ func fetchTo(ctx context.Context, src, dst string, limit int64) error {
 	return os.Rename(tmp, dst)
 }
 
-// instagramSyncLoop reads the feed every hour while Instagram is connected.
+// instagramSyncLoop reads the feed every few hours while Instagram is connected.
 func (a *App) instagramSyncLoop(ctx context.Context) {
 	for {
 		if _, ok := a.store.InstagramLink(); ok {
@@ -479,7 +423,7 @@ func (a *App) instagramSyncLoop(ctx context.Context) {
 			cancel()
 		}
 		select {
-		case <-time.After(time.Hour):
+		case <-time.After(instaSyncEvery):
 		case <-ctx.Done():
 			return
 		}

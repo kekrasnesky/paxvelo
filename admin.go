@@ -57,11 +57,10 @@ type adminView struct {
 	// Minutes tab
 	Minutes []Minutes
 	// Instagram tab
-	Instagram      []string
-	InstagramText  string
-	InstagramReady bool
-	InstagramLink  *InstagramLink
-	InstaFeed      []InstaPost
+	Instagram     []string
+	InstagramText string
+	InstagramLink *InstagramLink
+	InstaFeed     []InstaPost
 	// Pages and Board tabs
 	Pages    []pageRow
 	Page     pageRow
@@ -234,7 +233,7 @@ var flashText = map[string]string{
 	"synced":            "The club’s Strava events are up to date.",
 	"igconnected":       "Instagram is connected. The home page shows the club’s posts in the site’s own layout now.",
 	"igconnected-error": "Instagram is connected, but reading the posts didn’t work. See the error below.",
-	"igdisconnected":    "Instagram disconnected. The home page uses Instagram’s embed for picked posts again.",
+	"igdisconnected":    "Instagram feed removed. The home page uses Instagram’s embed for picked posts again.",
 	"igsynced":          "The club’s Instagram posts are up to date.",
 	"series-added":      "Weekly ride added to the calendar.",
 	"series-saved":      "Weekly ride saved. Its dates from today on are updated.",
@@ -283,9 +282,8 @@ var errorText = map[string]string{
 	"connect":         "Connecting to Strava didn’t work. Try again.",
 	"sync":            "Reading the club’s events from Strava didn’t work. See the error below.",
 	"nostrava":        "Add the Strava API settings to paxvelo.conf first (README.md, “Ride calendar”).",
-	"noinstagram":     "Add the Instagram app settings to paxvelo.conf first (README.md, “Instagram”).",
-	"igconnect":       "Connecting Instagram didn’t work. Try again, and approve on Instagram.",
-	"igdenied":        "Instagram connection was cancelled.",
+	"igfeed":          "That isn’t a Behold feed link. Copy it from the feed in Behold; it starts with https://feeds.behold.so/.",
+	"igconnect":       "Reading that feed didn’t work. Check the link in Behold and try again.",
 	"igsync":          "Reading the Instagram posts didn’t work. See the error below.",
 	"season":          "Pick both season dates, or neither.",
 	"noride":          "That ride isn’t on the calendar anymore.",

@@ -45,13 +45,9 @@ type Config struct {
 	RidesEmail         string // where ride leader notices go
 	CalendarAPIKey     string // lets scripts change the calendar through /api
 
-	// The club's Instagram feed on the home page (a Meta app's ID and secret,
-	// and its Instagram login configuration)
-	InstagramAppID     string
-	InstagramAppSecret string
-	InstagramConfigID  string
-	InstagramAuth      string // https://www.facebook.com; tests point these elsewhere
-	InstagramAPI       string // https://graph.facebook.com
+	// Where the club's Instagram feed links point (Behold's feed server);
+	// tests point it elsewhere
+	InstagramFeeds string
 }
 
 const defaultKitURL = "https://jakroo.com/store-front?storeId=rJgx0naZoge&titleProp=paxvelo&bannerProp=https://jakroo.storage.googleapis.com/team_stores_banner/ryYi5fMige-8e8f3f54b2b9f-blob"
@@ -145,11 +141,7 @@ func loadConfig() (Config, error) {
 		StravaAPI:          strings.TrimRight(get("STRAVA_API", "https://www.strava.com"), "/"),
 		CalendarAPIKey:     get("CALENDAR_API_KEY", ""),
 
-		InstagramAppID:     get("INSTAGRAM_APP_ID", ""),
-		InstagramAppSecret: get("INSTAGRAM_APP_SECRET", ""),
-		InstagramConfigID:  get("INSTAGRAM_CONFIG_ID", ""),
-		InstagramAuth:      strings.TrimRight(get("INSTAGRAM_AUTH", "https://www.facebook.com"), "/"),
-		InstagramAPI:       strings.TrimRight(get("INSTAGRAM_API", "https://graph.facebook.com"), "/"),
+		InstagramFeeds: strings.TrimRight(get("INSTAGRAM_FEEDS", "https://feeds.behold.so"), "/"),
 	}
 	c.FromEmail = get("FROM_EMAIL", c.SMTPUser)
 	c.AdminEmail = get("ADMIN_EMAIL", c.FromEmail)

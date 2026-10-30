@@ -619,24 +619,24 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   <p class="muted">The posts under “On Instagram” on the home page.</p>
 </div>
 
-<h2 class="section">The club’s Instagram account</h2>
+<h2 class="section">The club’s Instagram feed</h2>
 {{with .InstagramLink}}
 <div class="card">
-  <p>Connected as <strong>@{{.Username}}</strong>. Every hour the site reads the latest posts and keeps its own copy of the ones it shows, so they appear in the site’s layout, all the same size, with videos that play on the page.</p>
-  <p class="small">{{with .LastSync}}Last checked {{datetime .}}.{{end}} {{with .LastResult}}{{.}}.{{end}} {{if .Expires.IsZero}}The connection doesn’t run out.{{else}}The connection is good until {{date .Expires}}; connect again before then.{{end}}</p>
+  <p>Connected{{with .Username}} to <strong>@{{.}}</strong>{{end}} through Behold. Every few hours the site reads the latest posts and keeps its own copy of the ones it shows, so they appear in the site’s layout, all the same size, with videos that play on the page. Behold’s free plan updates the feed once a day, so a new post can take up to a day to appear.</p>
+  <p class="small">{{with .LastSync}}Last checked {{datetime .}}.{{end}} {{with .LastResult}}{{.}}.{{end}} Feed: <span class="muted">{{.Feed}}</span></p>
   {{with .LastError}}<p class="flash err">The last check didn’t work: {{.}}</p>{{end}}
   <div class="send-row">
     <form method="post" action="/admin/instagram/sync"><button>Check now</button></form>
-    <form method="post" action="/admin/instagram/disconnect" onsubmit="return confirm('Disconnect Instagram? The home page goes back to Instagram’s embed for picked posts.')"><button class="link danger">Disconnect</button></form>
+    <form method="post" action="/admin/instagram/disconnect" onsubmit="return confirm('Remove the Instagram feed? The home page goes back to Instagram’s embed for picked posts.')"><button class="link danger">Remove feed</button></form>
   </div>
 </div>
 {{else}}
-<div class="card">
-  <p>Connect the club’s Instagram account and the home page shows its latest posts automatically, drawn by the site: all the same size, with videos that play right on the page. Without it, picked posts use Instagram’s embed, whose videos usually only play on Instagram.</p>
-  {{if .InstagramReady}}<form method="post" action="/admin/instagram/connect"><button>Connect Instagram</button></form>
-  <p class="muted small">Log in to Instagram as the club’s account when asked. It must be a Business or Creator account (Instagram app → Settings → Account type and tools).</p>
-  {{else}}<p class="muted small">First add the Instagram app’s settings to paxvelo.conf (README.md, “Instagram”).</p>{{end}}
-</div>
+<form class="card new-issue" method="post" action="/admin/instagram/connect">
+  <p>Connect the club’s Instagram through Behold and the home page shows its latest posts automatically, drawn by the site: all the same size, with videos that play right on the page. Without it, picked posts use Instagram’s embed, whose videos usually only play on Instagram.</p>
+  <label>Behold feed link <input name="feed" type="url" placeholder="https://feeds.behold.so/…" required></label>
+  <p class="muted small">At behold.so (free), connect the club’s Instagram (it must be a Business or Creator account), make a <strong>JSON feed</strong>, and copy its link here. README.md, “Instagram”, has the steps.</p>
+  <button>Connect</button>
+</form>
 {{end}}
 
 <h2 class="section">Which posts</h2>

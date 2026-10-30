@@ -241,7 +241,6 @@ func (a *App) routes() http.Handler {
 	mux.Handle("GET /admin/instagram", a.auth(a.instagramAdmin))
 	mux.Handle("POST /admin/instagram", a.auth(a.saveInstagram))
 	mux.Handle("POST /admin/instagram/connect", a.auth(a.instagramConnect))
-	mux.Handle("GET /admin/instagram/callback", a.auth(a.instagramCallback))
 	mux.Handle("POST /admin/instagram/disconnect", a.auth(a.instagramDisconnect))
 	mux.Handle("POST /admin/instagram/sync", a.auth(a.instagramSyncNow))
 	mux.Handle("GET /admin/minutes", a.auth(a.minutesAdmin))

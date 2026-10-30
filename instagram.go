@@ -96,7 +96,7 @@ func (a *App) instagramAdmin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) instagramView() adminView {
-	v := adminView{Title: "Instagram", Tab: "instagram", Instagram: a.store.Instagram(), InstagramReady: a.instagramReady(), InstaFeed: a.store.InstaFeed()}
+	v := adminView{Title: "Instagram", Tab: "instagram", Instagram: a.store.Instagram(), InstaFeed: a.store.InstaFeed()}
 	if l, ok := a.store.InstagramLink(); ok {
 		v.InstagramLink = &l
 	}

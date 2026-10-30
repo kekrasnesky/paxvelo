@@ -152,19 +152,18 @@ Ride fields: `date` (required, `2026-11-07`), `name` (required), `time` (24-hour
 
 The home page has an "On Instagram" section, set up in the admin portal under **Instagram**. Each newsletter issue can also show up to 3 posts.
 
-**With the club's Instagram connected** (below), the site reads the latest posts every hour and draws them itself: all the same size, with videos that play right on the page, a line of the caption, and a link to the post. With no posts picked, the home page shows the 3 latest, so it changes on its own as the club posts. Paste up to 6 post links to pick them instead (the admin tab lists the latest posts to copy from). The site keeps its own copy of each post it shows in `data/instagram` (a cache, left out of backups), since Instagram's links to the files expire. A reel that uses music from Instagram's library comes without its video (Instagram's rule), so it shows its cover and plays on Instagram.
+**With the club's Instagram connected** (below), the site reads the latest posts every few hours and draws them itself: all the same size, with videos that play right on the page, a line of the caption, and a link to the post. With no posts picked, the home page shows the 3 latest, so it changes on its own as the club posts. Paste up to 6 post links to pick them instead (the admin tab lists the latest posts to copy from). The site keeps its own copy of each post it shows in `data/instagram` (a cache, left out of backups), since Instagram's links to the files expire. A reel that uses music from Instagram's library comes without its video (Instagram's rule), so it shows its cover and plays on Instagram.
 
-**Without it**, picked posts use Instagram's own embed. Instagram's player usually won't start inside other websites, so videos play only on Instagram, and posts come out different heights. That embed also loads a script from Instagram, which Instagram may use to track visitors who are logged in; it loads only when the posts are about to scroll into view. A picked post that's older than the latest 30 uses the embed too.
+**Without it**, picked posts use Instagram's own embed. Instagram's player usually won't start inside other websites, so videos play only on Instagram, and posts come out different heights. That embed also loads a script from Instagram, which Instagram may use to track visitors who are logged in; it loads only when the posts are about to scroll into view. A picked post that isn't among the feed's latest posts uses the embed too.
 
-**Connecting Instagram** (once):
+**Connecting Instagram** (once), through [Behold](https://behold.so), which reads Instagram for the site. (Meta's own API needs a Meta developer app and a business portfolio holding the Instagram account, and Meta wouldn't finish adding the account.)
 
 1. In the Instagram app, make @paxvelo a **Business** or **Creator** account (Settings → Account type and tools → Switch to professional account). It's free and the account stays public. No Facebook Page is needed.
-2. At https://developers.facebook.com/apps, create an app (use case **Other**, type **Business**) and add the **Instagram** product. Meta now gives new apps only **API setup with Unified login**, which needs the app connected to a business portfolio (a free Meta Business Suite account for the club; it doesn't need verifying, since the site only reads the club's own posts).
-3. On **Instagram → API setup with Unified login**, press **Create new configuration** (the default: a system-user key that never expires), and register the redirect URL `https://www.paxvelo.cc/admin/instagram/callback` (change it to paxvelo.club when the site moves).
-4. Put the app's **App ID** and **App secret** (App settings → Basic) and the **Configuration ID** into `paxvelo.conf` on the server as `INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET` and `INSTAGRAM_CONFIG_ID`, then restart the site.
-5. In the admin, open **Instagram**, press **Connect Instagram**, log in, and choose @paxvelo when asked which Instagram account to share. Whoever logs in needs a role on the Meta app while it's in Development mode.
+2. Sign up at https://behold.so (the free plan is enough) and connect @paxvelo as a source.
+3. Make a feed of type **JSON** and copy its link (`https://feeds.behold.so/…`).
+4. In the admin, open **Instagram**, paste the link, and press **Connect**.
 
-The app only reads the club's own posts, so it doesn't need Meta's app review, and its key doesn't run out. If the Instagram tab shows an error (say the app was removed from the business portfolio), press Connect Instagram again.
+Behold's free plan updates the feed once a day, shows the latest 6 posts, and allows 1,200 reads a month. The site reads it every 3 hours (about 240 a month), plus when you press **Check now** or save picks. Pick from those 6 (older posts use Instagram's embed). If the feed stops working, the Instagram tab shows the error; reconnect @paxvelo in Behold.
 
 ## Meeting minutes
 

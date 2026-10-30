@@ -8,42 +8,32 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
-	"time"
 )
 
-// fakeInstagram stands in for Instagram's login, API, and file servers.
-func fakeInstagram(t *testing.T) *httptest.Server {
+// fakeBehold stands in for Behold's feed server and the files it points to.
+func fakeBehold(t *testing.T, reads *atomic.Int32) *httptest.Server {
 	var srv *httptest.Server
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /v26.0/oauth/access_token", func(w http.ResponseWriter, r *http.Request) {
-		q := r.URL.Query()
-		if q.Get("code") != "good-code" || q.Get("client_secret") != "ig-secret" || q.Get("redirect_uri") == "" {
-			http.Error(w, `{"error":{"message":"bad code"}}`, http.StatusBadRequest)
-			return
-		}
-		json.NewEncoder(w).Encode(map[string]any{"access_token": "suat-1", "token_type": "bearer"})
-	})
-	mux.HandleFunc("GET /v26.0/me/assigned_instagram_accounts", func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(map[string]any{"data": []map[string]any{{"id": "17841", "username": "paxvelo"}}})
-	})
-	mux.HandleFunc("GET /v26.0/17841/media", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Query().Get("access_token") != "suat-1" {
-			http.Error(w, `{"error":{"message":"Invalid OAuth access token"}}`, http.StatusUnauthorized)
-			return
-		}
+	mux.HandleFunc("GET /feed-abc123", func(w http.ResponseWriter, r *http.Request) {
+		reads.Add(1)
 		cdn := srv.URL + "/cdn/"
-		json.NewEncoder(w).Encode(map[string]any{"data": []map[string]any{
-			{"id": "1", "media_type": "VIDEO", "caption": "Thursday night ride\n#paxvelo", "permalink": "https://www.instagram.com/reel/REEL1/",
-				"media_url": cdn + "1.mp4", "thumbnail_url": cdn + "1.jpg", "timestamp": "2026-10-20T22:10:00+0000"},
+		large := func(name string) map[string]any {
+			return map[string]any{"large": map[string]any{"mediaUrl": cdn + name, "width": 1000, "height": 1000}}
+		}
+		json.NewEncoder(w).Encode(map[string]any{"username": "paxvelo", "posts": []map[string]any{
+			{"id": "1", "mediaType": "VIDEO", "isReel": true, "caption": "Thursday night ride\n#paxvelo", "prunedCaption": "Thursday night ride",
+				"permalink": "https://www.instagram.com/reel/REEL1/", "mediaUrl": cdn + "1.mp4", "thumbnailUrl": cdn + "1t.jpg",
+				"sizes": large("1.webp"), "timestamp": "2026-10-20T22:10:00+0000"},
 			// A reel with music from Instagram's library: no video file.
-			{"id": "2", "media_type": "VIDEO", "caption": "Hill repeats", "permalink": "https://www.instagram.com/reel/REEL2/",
-				"thumbnail_url": cdn + "2.jpg", "timestamp": "2026-10-18T12:00:00+0000"},
-			{"id": "3", "media_type": "CAROUSEL_ALBUM", "caption": "Pizza after the ride", "permalink": "https://www.instagram.com/p/ALBUM3/",
-				"media_url": cdn + "3.jpg", "timestamp": "2026-10-10T12:00:00+0000",
-				"children": map[string]any{"data": []map[string]any{{"media_type": "IMAGE", "media_url": cdn + "3.jpg"}, {"media_type": "IMAGE", "media_url": cdn + "3b.jpg"}}}},
-			{"id": "4", "media_type": "IMAGE", "caption": "Older photo", "permalink": "https://www.instagram.com/p/PHOTO4/",
-				"media_url": cdn + "4.jpg", "timestamp": "2026-09-01T12:00:00+0000"},
+			{"id": "2", "mediaType": "VIDEO", "isReel": true, "caption": "Hill repeats", "permalink": "https://www.instagram.com/reel/REEL2/",
+				"thumbnailUrl": cdn + "2.jpg", "timestamp": "2026-10-18T12:00:00+0000"},
+			{"id": "3", "mediaType": "CAROUSEL_ALBUM", "caption": "Pizza after the ride", "permalink": "https://www.instagram.com/p/ALBUM3/",
+				"mediaUrl": cdn + "3.jpg", "sizes": large("3.webp"), "timestamp": "2026-10-10T12:00:00+0000",
+				"children": []map[string]any{{"id": "3a", "mediaType": "IMAGE", "mediaUrl": cdn + "3.jpg", "sizes": large("3.webp")}, {"id": "3b", "mediaType": "IMAGE", "mediaUrl": cdn + "3b.jpg"}}},
+			{"id": "4", "mediaType": "IMAGE", "caption": "Older photo", "permalink": "https://www.instagram.com/p/PHOTO4/",
+				"mediaUrl": cdn + "4.jpg", "sizes": large("4.webp"), "timestamp": "2026-09-01T12:00:00+0000"},
 		}})
 	})
 	mux.HandleFunc("GET /cdn/{file}", func(w http.ResponseWriter, r *http.Request) {
@@ -56,30 +46,33 @@ func fakeInstagram(t *testing.T) *httptest.Server {
 
 func TestInstagramFeed(t *testing.T) {
 	a, _, admin := testApp(t)
-	ig := fakeInstagram(t)
-	a.cfg.InstagramAppID, a.cfg.InstagramAppSecret, a.cfg.InstagramConfigID = "ig-app", "ig-secret", "cfg-9"
-	a.cfg.InstagramAuth, a.cfg.InstagramAPI = ig.URL, ig.URL
+	var reads atomic.Int32
+	feeds := fakeBehold(t, &reads)
+	a.cfg.InstagramFeeds = feeds.URL
 	h := a.routes()
 
-	// Connecting: the admin approves on Instagram, which sends them back here.
-	w := do(t, h, admin, "POST", "/admin/instagram/connect", "", nil)
-	u, _ := url.Parse(w.Header().Get("Location"))
-	if u.Path != "/dialog/oauth" || u.Query().Get("config_id") != "cfg-9" || u.Query().Get("client_id") != "ig-app" {
-		t.Fatalf("authorize: %s", u)
+	if page := do(t, h, admin, "GET", "/admin/instagram", "", nil).Body.String(); !strings.Contains(page, `name="feed"`) {
+		t.Error("the Instagram tab should ask for the feed link")
 	}
-	w = do(t, h, admin, "GET", "/admin/instagram/callback?code=good-code%23_&state="+url.QueryEscape(u.Query().Get("state")), "", nil)
-	if !strings.Contains(w.Header().Get("Location"), "ok=igconnected") {
-		t.Fatalf("callback: %s", w.Header().Get("Location"))
+
+	// Only a Behold feed link is taken.
+	ct, body := form(url.Values{"feed": {"https://example.com/feed-abc123"}})
+	if w := do(t, h, admin, "POST", "/admin/instagram/connect", ct, body); !strings.Contains(w.Header().Get("Location"), "err=igfeed") {
+		t.Fatalf("a link elsewhere: %s", w.Header().Get("Location"))
+	}
+	ct, body = form(url.Values{"feed": {feeds.URL + "/feed-abc123/"}})
+	if w := do(t, h, admin, "POST", "/admin/instagram/connect", ct, body); !strings.Contains(w.Header().Get("Location"), "ok=igconnected") {
+		t.Fatalf("connect: %s", w.Header().Get("Location"))
 	}
 	link, _ := a.store.InstagramLink()
-	if link.Username != "paxvelo" || link.AccountID != "17841" || link.Token != "suat-1" || !link.Expires.IsZero() || link.LastError != "" {
+	if link.Username != "paxvelo" || link.Feed != feeds.URL+"/feed-abc123" || link.LastError != "" {
 		t.Errorf("link: %+v", link)
 	}
 
 	// With nothing picked, the home page shows the 3 latest posts, drawn by the site.
 	home := do(t, h, nil, "GET", "/", "", nil).Body.String()
 	for _, want := range []string{
-		`<video controls playsinline preload="none" poster="/instagram/1.jpg" src="/instagram/1.mp4"`,
+		`<video controls playsinline preload="none" poster="/instagram/1.webp" src="/instagram/1.mp4"`,
 		`<img src="/instagram/2.jpg"`, `class="ig-play"`, "Watch on Instagram", // the reel without its video
 		`<span class="ig-count">1 / 2</span>`, "Thursday night ride", "Follow @paxvelo",
 	} {
@@ -98,10 +91,10 @@ func TestInstagramFeed(t *testing.T) {
 	}
 
 	// Picking posts: one from the feed, and an older one the site falls back to Instagram's embed for.
-	ct, body := form(url.Values{"posts": {"https://www.instagram.com/p/PHOTO4/\nhttps://www.instagram.com/p/OLDONE/"}})
+	ct, body = form(url.Values{"posts": {"https://www.instagram.com/p/PHOTO4/\nhttps://www.instagram.com/p/OLDONE/"}})
 	do(t, h, admin, "POST", "/admin/instagram", ct, body)
 	home = do(t, h, nil, "GET", "/", "", nil).Body.String()
-	if !strings.Contains(home, `<img src="/instagram/4.jpg"`) || !strings.Contains(home, `data-instgrm-permalink="https://www.instagram.com/p/OLDONE/"`) ||
+	if !strings.Contains(home, `<img src="/instagram/4.webp"`) || !strings.Contains(home, `data-instgrm-permalink="https://www.instagram.com/p/OLDONE/"`) ||
 		!strings.Contains(home, `class="insta insta-embeds"`) || strings.Contains(home, "Thursday night ride") {
 		t.Errorf("picked posts on the home page:\n%s", home)
 	}
@@ -112,10 +105,9 @@ func TestInstagramFeed(t *testing.T) {
 		t.Error("the admin tab should show the account and the latest posts")
 	}
 
-	// A key that ran out asks for connecting again.
-	a.store.updateInstagramLink(func(l *InstagramLink) { l.Expires = time.Now().Add(-time.Hour) })
-	if err := a.syncInstagram(t.Context()); err == nil || !strings.Contains(err.Error(), "Connect Instagram again") {
-		t.Errorf("sync with a key that ran out: %v", err)
+	// Each read of the feed counts toward Behold's monthly limit, so the site reads it sparingly.
+	if n := reads.Load(); n > 4 {
+		t.Errorf("the feed was read %d times", n)
 	}
 
 	// Disconnecting goes back to Instagram's embed.
