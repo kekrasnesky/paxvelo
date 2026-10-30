@@ -77,11 +77,16 @@ func (a *App) saveHomePhotos(w http.ResponseWriter, r *http.Request) {
 		order int
 	}
 	var rows []row
+	removed, added := 0, 0
 	count, _ := strconv.Atoi(r.FormValue("count"))
 	for i := 0; i < count && i < maxHomePhotos; i++ {
 		f := func(name string) string { return strings.TrimSpace(r.FormValue(fmt.Sprintf("%s%d", name, i))) }
 		p := HomePhoto{Photo: f("photo"), Alt: cleanName(f("alt")), Focus: cleanFocus(f("focus"))}
-		if f("remove") != "" || !sitePhoto(p.Photo) {
+		if f("remove") != "" {
+			removed++
+			continue
+		}
+		if !sitePhoto(p.Photo) {
 			continue
 		}
 		order, err := strconv.Atoi(f("order"))
@@ -112,6 +117,7 @@ func (a *App) saveHomePhotos(w http.ResponseWriter, r *http.Request) {
 			}
 			if u != "" {
 				photos = append(photos, HomePhoto{Photo: u})
+				added++
 			}
 		}
 	}
@@ -121,9 +127,25 @@ func (a *App) saveHomePhotos(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(problems) > 0 {
 		v := adminView{Title: "Home photos", Tab: "home-photos", HomePhotos: a.store.HomePhotos(), MaxHomePhotos: maxHomePhotos,
-			Error: "Saved, but: " + strings.Join(problems, " ")}
+			Flash: homePhotosSaved(added, removed), Error: strings.Join(problems, " ")}
 		a.renderAdmin(w, r, http.StatusOK, "home-photos", v)
 		return
 	}
-	back(w, r, "/admin/home-photos?ok=home-photos")
+	back(w, r, fmt.Sprintf("/admin/home-photos?ok=home-photos&added=%d&removed=%d", added, removed))
+}
+
+// homePhotosSaved says what a save changed.
+func homePhotosSaved(added, removed int) string {
+	var did []string
+	if added > 0 {
+		did = append(did, fmt.Sprintf("added %d %s", added, plural(added, "photo", "photos")))
+	}
+	if removed > 0 {
+		did = append(did, fmt.Sprintf("removed %d %s", removed, plural(removed, "photo", "photos")))
+	}
+	if len(did) == 0 {
+		return "Saved. The home page is updated."
+	}
+	s := strings.Join(did, " and ")
+	return strings.ToUpper(s[:1]) + s[1:] + ". The home page is updated."
 }

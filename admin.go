@@ -318,6 +318,10 @@ func flashFrom(r *http.Request) (flash, errMsg string) {
 		if b > 0 {
 			flash += fmt.Sprintf(" %d %s skipped (no valid email).", b, plural(b, "row", "rows"))
 		}
+	} else if code == "home-photos" {
+		added, _ := strconv.Atoi(q.Get("added"))
+		removed, _ := strconv.Atoi(q.Get("removed"))
+		flash = homePhotosSaved(added, removed)
 	} else {
 		flash = flashText[code]
 	}

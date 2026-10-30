@@ -881,26 +881,67 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
 
 {{define "home-photos"}}{{template "head" .}}
 <div class="title-row"><h1>Home photos</h1><p class="muted">The row of photos on the <a href="/" target="_blank" rel="noopener">home page</a>, up to {{.MaxHomePhotos}}. Phones swipe through them; computers show three at a time.</p></div>
-<form class="issue" method="post" action="/admin/home-photos" enctype="multipart/form-data">
+<form class="issue" id="home-photos" method="post" action="/admin/home-photos" enctype="multipart/form-data">
   <input type="hidden" name="count" value="{{len .HomePhotos}}">
-  {{range $i, $p := .HomePhotos}}<section class="card">
+  {{range $i, $p := .HomePhotos}}<section class="card home-photo">
     <div class="photo-field">
       {{template "framer" (framer $p.Photo $p.Focus (printf "focus%d" $i))}}
       <input type="hidden" name="photo{{$i}}" value="{{$p.Photo}}">
       <div class="fields">
         <label>What’s in the photo <input name="alt{{$i}}" value="{{$p.Alt}}" maxlength="120" placeholder="Riders lined up at the start of the Thursday ride"></label>
         <label>Position <input type="number" name="order{{$i}}" value="{{inc $i}}" min="1" max="{{$.MaxHomePhotos}}" class="year"></label>
-        <label class="check"><input type="checkbox" name="remove{{$i}}"> Remove this photo</label>
+        <label class="check"><input type="checkbox" name="remove{{$i}}" class="remove-photo"> Remove this photo</label>
+        <p class="removing-note" hidden>This photo comes off the home page when you press Save.</p>
       </div>
     </div>
   </section>{{end}}
   {{if lt (len .HomePhotos) .MaxHomePhotos}}<section class="card">
     <h2>Add photos</h2>
-    <label>Photos <input type="file" name="add" accept="image/jpeg,image/png,image/webp" multiple></label>
+    <label>Photos <input type="file" name="add" id="add-photos" accept="image/jpeg,image/png,image/webp" multiple data-room="{{sub .MaxHomePhotos (len .HomePhotos)}}"></label>
     <p class="muted small">Pick several at once. Room for {{sub .MaxHomePhotos (len .HomePhotos)}} more. They go on the end of the row and are shrunk to load quickly.</p>
+    <div class="picked" id="picked" hidden></div>
   </section>{{end}}
-  <div class="save-bar"><button>{{icon "save"}}Save</button><span class="muted small">Describe each photo: it helps people using screen readers, and search engines.</span></div>
+  <div class="save-bar"><button id="save-photos">{{icon "save"}}Save</button><span class="muted small" id="save-status" role="status">Describe each photo: it helps people using screen readers, and search engines.</span></div>
+  <div class="meter upload-meter" id="upload-meter" hidden><span></span></div>
 </form>
+<script>
+// Say what's about to change, and how an upload is going: big photos can take
+// a while on a slow connection, and the page otherwise just sits there.
+(function(){
+var form=document.getElementById('home-photos'),add=document.getElementById('add-photos'),picked=document.getElementById('picked'),
+  status=document.getElementById('save-status'),btn=document.getElementById('save-photos'),meter=document.getElementById('upload-meter'),hint=status.textContent;
+function n(k,one,many){return k+' '+(k===1?one:many)}
+function pending(){
+  var adding=add?add.files.length:0,removing=form.querySelectorAll('.remove-photo:checked').length,parts=[];
+  if(adding)parts.push(n(adding,'photo','photos')+' to add');
+  if(removing)parts.push(n(removing,'photo','photos')+' to remove');
+  status.textContent=parts.length?'Not saved yet: '+parts.join(', ')+'. Press Save.':hint;
+  status.classList.toggle('pending',parts.length>0);
+}
+form.querySelectorAll('.remove-photo').forEach(function(c){c.addEventListener('change',function(){
+  var card=c.closest('.home-photo');card.classList.toggle('removing',c.checked);card.querySelector('.removing-note').hidden=!c.checked;pending()})});
+if(add)add.addEventListener('change',function(){
+  picked.innerHTML='';var fs=add.files,room=+add.dataset.room;
+  for(var i=0;i<fs.length;i++){var f=document.createElement('figure'),img=document.createElement('img'),cap=document.createElement('figcaption');
+    img.src=URL.createObjectURL(fs[i]);img.alt='';cap.textContent=fs[i].name;f.appendChild(img);f.appendChild(cap);if(i>=room)f.className='over';picked.appendChild(f)}
+  picked.hidden=!fs.length;
+  if(fs.length>room){var p=document.createElement('p');p.className='err-text small';p.textContent='Only '+n(room,'photo fits','photos fit')+'; the last '+(fs.length-room)+' won’t be added.';picked.appendChild(p)}
+  pending()});
+form.addEventListener('submit',function(e){
+  if(!window.FormData||!window.XMLHttpRequest)return;
+  e.preventDefault();
+  var files=add?add.files.length:0,x=new XMLHttpRequest(),bar=meter.firstElementChild;
+  btn.disabled=true;status.classList.remove('pending');
+  status.textContent=files?'Uploading '+n(files,'photo','photos')+'… 0%':'Saving…';
+  if(files){meter.hidden=false;bar.style.width='0%'}
+  x.upload.onprogress=function(ev){if(!files||!ev.lengthComputable)return;var pc=Math.round(ev.loaded*100/ev.total);bar.style.width=pc+'%';
+    status.textContent=pc<100?'Uploading '+n(files,'photo','photos')+'… '+pc+'%':'Uploaded. Shrinking the photos and updating the home page…'};
+  x.onload=function(){history.replaceState(null,'',x.responseURL);document.open();document.write(x.responseText);document.close();window.scrollTo(0,0)};
+  x.onerror=function(){btn.disabled=false;meter.hidden=true;status.textContent='The upload didn’t go through. Check your connection and press Save again.';status.classList.add('pending')};
+  x.open('POST',form.action);x.send(new FormData(form));
+});
+})();
+</script>
 {{template "foot" .}}{{end}}
 
 {{define "pages"}}{{template "head" .}}
