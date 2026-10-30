@@ -375,6 +375,10 @@ td:hover .cal-add,.cal-add:focus-visible{opacity:1}
 .route p{margin:.3rem 0 0;font-size:.92rem}
 .route-stats{font-weight:500}
 .route-use{color:#6b625b}
+.route-vars{margin:.4rem 0 0;color:#6b625b;font-size:.85rem}
+.route-vars summary{cursor:pointer}
+.route-vars ul{margin:.35rem 0 0;padding-left:1.1rem}
+.route-vars li{margin:.15rem 0}
 .route-credit{margin-top:1.4rem!important;color:#6b625b;font-size:.85rem}
 .cal-back{margin-bottom:.6rem!important;font-size:.95rem}
 .cal-back a{text-decoration:none}

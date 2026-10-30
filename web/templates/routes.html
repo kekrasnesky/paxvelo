@@ -10,6 +10,9 @@
         <h2><a href="{{.URL}}" target="_blank" rel="noopener">{{.Name}}</a></h2>
         <p class="route-stats">{{.Stats}}{{with .TimeLabel}} · about {{.}}{{end}}</p>
         <p class="route-use">Ridden {{if eq .Rides 1}}once{{else}}{{.Rides}} times{{end}}{{with .Usual}}, most often as “{{.}}”{{end}}</p>
+        {{with .Variants}}<details class="route-vars"><summary>Also posted as {{len .}} other route{{if gt (len .) 1}}s{{end}}</summary>
+          <ul>{{range .}}<li><a href="{{.URL}}" target="_blank" rel="noopener">{{.Name}}</a> · {{.Miles}}, ridden {{if eq .Rides 1}}once{{else}}{{.Rides}} times{{end}}</li>{{end}}</ul>
+        </details>{{end}}
         {{with .Next}}<p class="route-next">Next: <a href="/calendar/ride/{{.Key}}">{{.Name}}, {{.ShortDate}}</a></p>{{end}}
       </div>
     </li>{{end}}

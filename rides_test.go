@@ -814,6 +814,15 @@ func TestStravaDetails(t *testing.T) {
 	if page = do(t, h, nil, "GET", "/routes", "", nil).Body.String(); strings.Contains(page, "One-Off Loop") || !strings.Contains(page, "St Mary&#39;s Cafe Loop") {
 		t.Errorf("a one-ride route is on the routes page:\n%s", page)
 	}
+	// The same ride posted as another route shares its card, and its rides count.
+	a.store.saveRoute(Route{ID: "98", Name: "St Mary's Cafe Ride v2", Distance: 34000, Elevation: 120, Checked: time.Now()})
+	a.store.SetRouteHistory(map[string]routeHistory{"3550943418851772710": {Rides: 2}, "98": {Rides: 1}})
+	page = do(t, h, nil, "GET", "/routes", "", nil).Body.String()
+	for _, want := range []string{"Ridden 3 times", "Also posted as 1 other route", "St Mary&#39;s Cafe Ride v2</a> · 21 mi, ridden once", "strava.com/routes/98"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("routes page is missing %q:\n%s", want, page)
+		}
+	}
 	// So does the API, without the house.
 	if body := do(t, h, nil, "GET", "/api/rides?from="+sun+"&to="+sun, "", nil).Body.String(); strings.Contains(body, "Tulagi") {
 		t.Errorf("the API shows a private start address: %s", body)

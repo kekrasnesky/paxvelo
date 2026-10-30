@@ -258,23 +258,17 @@ func (s *Store) routeHistoryDue() bool {
 	return s.d.RoutesChecked == nil || time.Since(*s.d.RoutesChecked) > 24*time.Hour || s.d.History == nil
 }
 
-// ClubRoutes returns the routes the club has ridden more than once that anyone
-// can see, most ridden first. One-off routes stay off the page.
+// ClubRoutes returns the routes the club rides that anyone can see.
+// groupRoutes makes them into the Routes page's cards.
 func (s *Store) ClubRoutes() []Route {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var out []Route
 	for _, r := range s.d.Routes {
-		if r.Shown() && r.Rides > 1 {
+		if r.Shown() && r.Rides > 0 {
 			out = append(out, *r)
 		}
 	}
-	sort.Slice(out, func(i, j int) bool {
-		if out[i].Rides != out[j].Rides {
-			return out[i].Rides > out[j].Rides
-		}
-		return out[i].Name < out[j].Name
-	})
 	return out
 }
 
@@ -463,28 +457,33 @@ type routesView struct {
 	Connected bool
 }
 
+// routeCard is one ride on the Routes page: its most ridden route, with the
+// rides of all its routes added up.
 type routeCard struct {
 	Route
-	Next *RideOcc // the next ride on the calendar that uses it
+	Family   int      // which of routeFamilies it is, or -1
+	Variants []Route  // its other routes, most ridden first
+	Next     *RideOcc // the next ride on the calendar that uses it
 }
 
 func (a *App) routesPage(w http.ResponseWriter, r *http.Request) {
 	_, connected := a.store.StravaLink()
 	v := routesView{Members: a.store.StravaClub().Members, ClubURL: a.cfg.StravaURL, Connected: connected}
-	next := map[string]RideOcc{}
 	today := a.today()
-	for _, o := range a.store.Rides(today, today.AddDate(0, 0, 60)) {
-		if o.Strava == nil || o.Cancelled {
-			continue
+	rides := a.store.Rides(today, today.AddDate(0, 0, 60))
+	for _, c := range groupRoutes(a.store.ClubRoutes()) {
+		ids := map[string]bool{c.ID: true}
+		for _, r := range c.Variants {
+			ids[r.ID] = true
 		}
-		if _, ok := next[o.Strava.RouteID]; !ok {
-			next[o.Strava.RouteID] = o
-		}
-	}
-	for _, rt := range a.store.ClubRoutes() {
-		c := routeCard{Route: rt}
-		if o, ok := next[rt.ID]; ok {
-			c.Next = &o
+		for _, o := range rides {
+			if o.Cancelled {
+				continue
+			}
+			if (o.Strava != nil && ids[o.Strava.RouteID]) || (c.Family >= 0 && routeFamilies[c.Family].re.MatchString(o.Name)) {
+				c.Next = &o
+				break
+			}
 		}
 		v.Routes = append(v.Routes, c)
 	}
