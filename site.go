@@ -62,6 +62,7 @@ type Site struct {
 	version     string
 	notFound404 []byte
 	csp         string // the public pages' Content-Security-Policy (csp.go)
+	waiver      waiverText
 }
 
 // view is what every public template receives.
@@ -137,6 +138,9 @@ func newSite(cfg Config) (*Site, error) {
 		return nil, err
 	}
 	s.css, s.js, s.adminCSS = template.CSS(css), template.JS(js), template.CSS(adminCSS)
+	if s.waiver, err = loadWaiver(); err != nil {
+		return nil, err
+	}
 
 	funcs := template.FuncMap{
 		"infoLinks":    func() []navLink { return *s.infoLinks.Load() },
@@ -172,8 +176,10 @@ func newSite(cfg Config) (*Site, error) {
 		"external":     func(u string) bool { return strings.HasPrefix(u, "http://") || strings.HasPrefix(u, "https://") },
 		"icon":         icon,
 		"riderLevels":  func() []choice { return riderLevels },
+		"waiverText":   func() template.HTML { return s.waiver.HTML },
+		"guardianText": func() template.HTML { return s.waiver.Guardian },
 	}
-	base, err := template.New("").Funcs(funcs).ParseFS(webFS, "web/templates/layout.html")
+	base, err := template.New("").Funcs(funcs).ParseFS(webFS, "web/templates/layout.html", "web/templates/signature.html")
 	if err != nil {
 		return nil, err
 	}

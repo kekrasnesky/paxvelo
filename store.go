@@ -41,11 +41,16 @@ type Member struct {
 	// admin marks their dues paid, which sends their welcome email. Members
 	// added by an admin or imported never get one.
 	WelcomePending bool `json:"welcome_pending,omitempty"`
+	// When they ticked "I agree to the club terms" on the join form.
+	TermsAgreed *time.Time `json:"terms_agreed,omitempty"`
 }
 
 // memberDetails is what someone fills in to join.
 type memberDetails struct {
 	Name, Email, Plan, Phone, EmergencyName, EmergencyPhone, Level string
+	Terms, Waiver                                                  bool   // ticked the club terms and waiver boxes
+	Signature                                                      string // the name typed to sign the waiver
+	Drawing                                                        []byte // the signature drawn on the waiver, a PNG
 }
 
 // update fills in the contact details someone gave, keeping what's already
@@ -63,6 +68,16 @@ func (m *Member) update(d memberDetails) {
 	}
 	if d.Level != "" {
 		m.Level = d.Level
+	}
+	m.agree(d)
+}
+
+// agree records when someone first agreed to the club terms. (Their waiver,
+// signed every year, is kept apart: see waivers.go.)
+func (m *Member) agree(d memberDetails) {
+	if d.Terms && m.TermsAgreed == nil {
+		now := time.Now().UTC()
+		m.TermsAgreed = &now
 	}
 }
 
@@ -82,6 +97,7 @@ func (m *Member) fill(d memberDetails) {
 	if m.Level == "" {
 		m.Level = d.Level
 	}
+	m.agree(d)
 }
 
 func (m Member) Active() bool { return m.Unsubscribed == nil }
@@ -151,6 +167,12 @@ type storeData struct {
 	EmailsSent    map[string]int `json:"emails_sent,omitempty"`    // emails sent today, by day (UTC)
 	NextAdmin     int            `json:"next_admin_id,omitempty"`
 	Admins        []*AdminUser   `json:"admins,omitempty"`
+
+	// Signed insurance waivers (waivers.go), and every version of the
+	// waiver's text anyone signed, by version.
+	NextWaiver  int               `json:"next_waiver_id,omitempty"`
+	Waivers     []*Waiver         `json:"waivers,omitempty"`
+	WaiverTexts map[string]string `json:"waiver_texts,omitempty"`
 
 	// Ride calendar
 	NextRide            int                  `json:"next_ride_id,omitempty"`

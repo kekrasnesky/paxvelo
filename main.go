@@ -110,9 +110,10 @@ func (a *App) routes() http.Handler {
 		w.Write([]byte(bingSiteAuth))
 	})
 	// Old Squarespace addresses, so existing links and bookmarks still land somewhere.
-	for _, old := range []string{"/info", "/home", "/cart", "/account", "/insurancewaiver"} {
+	for _, old := range []string{"/info", "/home", "/cart", "/account"} {
 		mux.Handle("GET "+old, http.RedirectHandler("/", http.StatusMovedPermanently))
 	}
+	mux.Handle("GET /insurancewaiver", http.RedirectHandler("/membership", http.StatusMovedPermanently)) // the waiver is signed there now
 	mux.Handle("GET /tnrinfo", http.RedirectHandler("/rides#tuesday-night-ride", http.StatusMovedPermanently))
 	mux.Handle("GET /thnr-info", http.RedirectHandler("/rides#thursday-night-ride", http.StatusMovedPermanently))
 
@@ -161,6 +162,8 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("POST /membership", a.saveMembership)
 	mux.HandleFunc("POST /membership/emails", a.resubscribe)
 	mux.HandleFunc("POST /membership/link", a.sendMembershipLink)
+	mux.HandleFunc("POST /membership/waiver", a.signWaiver)
+	mux.HandleFunc("POST /membership/waiver/minor", a.signMinorWaiver)
 
 	// Admin portal.
 	mux.HandleFunc("GET /admin/login", a.loginPage)
@@ -184,6 +187,10 @@ func (a *App) routes() http.Handler {
 	mux.Handle("POST /admin/members/{id}/delete", a.auth(a.deleteMember))
 	mux.Handle("POST /admin/members/{id}/paid", a.auth(a.markPaid))
 	mux.Handle("GET /admin/members.csv", a.auth(a.exportCSV))
+	mux.Handle("GET /admin/waivers", a.auth(a.waiversPage))
+	mux.Handle("GET /admin/waivers.csv", a.auth(a.exportWaivers))
+	mux.Handle("GET /admin/waivers/{id}", a.auth(a.waiverPage))
+	mux.Handle("GET /admin/waivers/{id}/signature.png", a.auth(a.waiverSignature))
 	mux.Handle("POST /admin/import", a.auth(a.importCSV))
 	mux.Handle("GET /admin/backup", a.auth(a.backup))
 	mux.Handle("GET /admin/email", a.auth(a.emailPage))

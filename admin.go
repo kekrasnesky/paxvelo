@@ -37,6 +37,13 @@ type adminView struct {
 	Active, Unsub int
 	Paid, Unpaid  int // active members paid / not paid for Year
 	Allowance     emailAllowance
+	// Waivers tab: Year's signed waivers, and active members without one
+	Waivers     []Waiver
+	Unsigned    []Member
+	WaiverYears []int
+	Show        string // "", "signed", "unsigned"
+	Waiver      *Waiver
+	WaiverHTML  template.HTML // the text that Waiver's member signed
 	// CanManage: the logged-in admin may delete members and remove admins
 	// (the president, or whoever has the server's setup password).
 	CanManage bool

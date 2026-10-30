@@ -25,8 +25,12 @@ type joinData struct {
 	Message          string        // error text, or the headline after joining
 	Detail           string        // the sentence under the headline
 	PayURL, PayLabel string        // PayPal button, when dues are owed
+	Today            string        // the date beside the waiver signature
 	OK, Failed       bool
 }
+
+// signedDate is today's date, for the waiver signature.
+func (a *App) signedDate() string { return a.today().Format("January 2, 2006") }
 
 // joinDetails reads the join form: name (one box, or first and last), email,
 // plan, phone, and an emergency contact. On a problem it returns the
@@ -44,6 +48,8 @@ func joinDetails(r *http.Request, all bool) (memberDetails, string) {
 		Phone: cleanPhone(r.FormValue("phone")), EmergencyName: cleanName(r.FormValue("emergency_name")),
 		EmergencyPhone: cleanPhone(r.FormValue("emergency_phone")),
 		Level:          cleanLevel(r.FormValue("level")),
+		Terms:          r.FormValue("terms") != "",
+		Waiver:         r.FormValue("waiver") != "", Signature: cleanName(r.FormValue("signature")),
 	}
 	email, ok := cleanEmail(r.FormValue("email"))
 	d.Email = email
@@ -70,6 +76,18 @@ func joinDetails(r *http.Request, all bool) (memberDetails, string) {
 		return d, "emergency"
 	case badPhone("emergency_phone", d.EmergencyPhone):
 		return d, "emergency-phone"
+	case all && !d.Terms:
+		return d, "terms"
+	case all && !d.Waiver:
+		return d, "waiver"
+	case all && !strings.EqualFold(d.Signature, d.Name):
+		return d, "signature"
+	}
+	if all {
+		var ok bool
+		if d.Drawing, ok = drawnSignature(r); !ok {
+			return d, "drawing"
+		}
 	}
 	return d, ""
 }
@@ -84,6 +102,10 @@ var joinProblems = map[string]string{
 	"level":           "Pick the one that sounds most like you.",
 	"emergency":       "Enter the name of someone we can call in an emergency.",
 	"emergency-phone": "Enter your emergency contact’s 10-digit phone number, like 301-555-0123.",
+	"terms":           "Tick the box to agree to the club terms.",
+	"waiver":          "Tick the box to agree to the insurance waiver.",
+	"signature":       "To sign the waiver, type your first and last name just as you entered them above.",
+	"drawing":         "Sign in the box with your finger, a stylus or your mouse.",
 }
 
 // phoneDigits keeps just the digits of a phone number.
@@ -118,7 +140,7 @@ func cleanPhone(s string) string {
 }
 
 func (a *App) joinPage(w http.ResponseWriter, r *http.Request) {
-	d := joinData{Token: a.formToken(), Plan: cleanPlan(r.URL.Query().Get("plan"))}
+	d := joinData{Token: a.formToken(), Plan: cleanPlan(r.URL.Query().Get("plan")), Today: a.signedDate()}
 	a.site.render(w, http.StatusOK, "join", "/join", "Become a Member — "+siteName, d)
 }
 
@@ -126,13 +148,14 @@ func (a *App) joinPage(w http.ResponseWriter, r *http.Request) {
 // PayPal link for their plan. With JavaScript it answers in JSON and the page
 // updates in place; without JavaScript it re-renders the page.
 func (a *App) join(w http.ResponseWriter, r *http.Request) {
-	r.Body = http.MaxBytesReader(w, r.Body, 16<<10)
+	r.Body = http.MaxBytesReader(w, r.Body, maxSignatureForm)
 	r.ParseForm()
 	plan := cleanPlan(r.FormValue("plan"))
 	typed := memberDetails{
 		Name: r.FormValue("name"), Email: r.FormValue("email"), Phone: r.FormValue("phone"),
 		EmergencyName: r.FormValue("emergency_name"), EmergencyPhone: r.FormValue("emergency_phone"),
-		Level: r.FormValue("level"),
+		Level: r.FormValue("level"), Terms: r.FormValue("terms") != "",
+		Waiver: r.FormValue("waiver") != "", Signature: r.FormValue("signature"),
 	}
 	reply := func(status int, d joinData) {
 		if strings.Contains(r.Header.Get("Accept"), "application/json") {
@@ -144,7 +167,7 @@ func (a *App) join(w http.ResponseWriter, r *http.Request) {
 			})
 			return
 		}
-		d.Token, d.Plan = a.formToken(), plan
+		d.Token, d.Plan, d.Today = a.formToken(), plan, a.signedDate()
 		if !d.OK {
 			d.Failed, d.Form = true, typed
 			d.First, d.Last = r.FormValue("first"), r.FormValue("last")
@@ -191,8 +214,14 @@ func (a *App) join(w http.ResponseWriter, r *http.Request) {
 	if result == Joined {
 		go a.mailer.NotifySignup(m) // their welcome email waits until an admin marks them paid
 	}
+	// This year's waiver, unless they already signed one. Someone already on
+	// the list keeps the name on file, so the record shows both that and the
+	// name typed.
+	if _, _, err := a.store.SignWaiver(Waiver{MemberID: m.ID, Year: year, Signature: details.Signature, Drawing: details.Drawing, Where: "Join form", IP: clientIP(r)}, a.site.waiver); err != nil {
+		log.Printf("join %s: waiver: %v", details.Email, err)
+	}
 
-	d := joinData{OK: true}
+	d := joinData{OK: true, Form: memberDetails{Email: m.Email}} // the email, for "Email me my membership page link"
 	first := m.FirstName()
 	dues := a.cfg.Dues(m.Plan)
 	owes := !m.PaidFor(year)

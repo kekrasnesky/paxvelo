@@ -20,7 +20,7 @@ type adminGroup struct {
 
 var adminGroups = []adminGroup{
 	{"Home", "/admin", []adminSection{{"attention", "Needs attention", "/admin"}, {"guide", "How the site works", "/admin/guide"}}},
-	{"Members", "/admin/members", []adminSection{{"members", "Members", "/admin/members"}}},
+	{"Members", "/admin/members", []adminSection{{"members", "Members", "/admin/members"}, {"waivers", "Waivers", "/admin/waivers"}}},
 	{"Email", "/admin/email", []adminSection{{"email", "Email members", "/admin/email"}, {"newsletter", "Newsletter", "/admin/newsletter"}}},
 	{"Rides", "/admin/calendar", []adminSection{{"calendar", "Calendar", "/admin/calendar"}, {"rides", "Weekly rides", "/admin/rides"}, {"history", "History", "/admin/history"}}},
 	{"Website", "/admin/pages", []adminSection{{"pages", "Pages", "/admin/pages"}, {"home-photos", "Home photos", "/admin/home-photos"},
@@ -101,6 +101,21 @@ func (a *App) attention() []attentionItem {
 		out = append(out, attentionItem{
 			Text: fmt.Sprintf("%d %s added on the website %s waiting for approval.", len(held), plural(len(held), "ride", "rides"), plural(len(held), "is", "are")),
 			Href: "/admin/calendar", Link: "Review",
+		})
+	}
+
+	// Members riding on this year's dues need this year's waiver for the insurance.
+	year := a.cfg.ThisYear()
+	unsigned := 0
+	for _, m := range a.store.Members() {
+		if _, ok := a.store.WaiverFor(m.ID, year); m.Active() && m.PaidFor(year) && !ok {
+			unsigned++
+		}
+	}
+	if unsigned > 0 {
+		out = append(out, attentionItem{
+			Text: fmt.Sprintf("%d %s paid for %d but %s signed this year’s insurance waiver.", unsigned, plural(unsigned, "member", "members"), year, plural(unsigned, "hasn’t", "haven’t")),
+			Href: "/admin/waivers?show=unsigned", Link: "See who",
 		})
 	}
 

@@ -11,6 +11,58 @@
   {{with .PayURL}}<p><a class="btn" href="{{.}}">{{$.Data.PayLabel}}</a></p>{{else}}<p>Email <a href="mailto:PaxVeloClub@gmail.com">PaxVeloClub@gmail.com</a> and we’ll tell you how to pay.</p>{{end}}
   <p class="muted-note">Just paid? It shows here once the treasurer marks it, usually within a few days.</p>{{end}}
 
+  <h2 class="my-h" id="waiver">Insurance waiver</h2>
+  {{with .Waiver}}<p class="dues-paid">{{.Year}} waiver: signed ✓</p>
+  <p class="muted-note">{{if $.Data.WaiverSigned}}Thanks! {{end}}You signed it as {{.Signature}} on {{date .Signed}}. You’ll sign a new one each year, from January.</p>
+  {{else}}<p>The club’s insurance needs every member to sign this waiver once a year. Your {{.Year}} waiver isn’t signed yet.</p>
+  <form class="join" method="post" action="/membership/waiver#waiver">
+    <input type="hidden" name="t" value="{{.Token}}">
+    <fieldset class="terms waiver">
+      <legend>{{.Year}} waiver</legend>
+      <div class="waiver-text" tabindex="0" role="region" aria-label="Insurance waiver">
+        {{waiverText}}
+      </div>
+      <label class="check-row"><input type="checkbox" name="waiver" value="yes" required{{if .WaiverTicked}} checked{{end}}> I have read and agree to the waiver.</label>
+      <label>Print your full name <input name="signature" required maxlength="100" autocomplete="off" placeholder="Type your first and last name" value="{{.Signature}}"></label>
+      {{template "signature-pad" "own"}}
+      <p class="hint">This signs your waiver for {{.Year}}.</p>
+    </fieldset>
+    <button class="btn" type="submit">Sign the waiver</button>
+    <p class="msg{{if .WaiverMessage}} err{{end}}" role="status">{{.WaiverMessage}}</p>
+  </form>{{end}}
+
+  <h3 class="my-h3" id="minors">Riders under 18</h3>
+  <p>Riders under 18 can’t sign the waiver themselves. As their parent or legal guardian, sign for each one here, every year.</p>
+  {{with .Minors}}<ul class="minor-list">{{range .}}<li><strong>{{.Rider}}</strong>, age {{.RiderAge}}: {{.Year}} waiver signed {{date .Signed}} ✓</li>{{end}}</ul>
+  {{if $.Data.MinorSigned}}<p class="muted-note" role="status">Thanks! That rider’s waiver is signed.</p>{{end}}{{end}}
+  {{$f := .MinorForm}}<details class="minor-sign"{{if .MinorMessage}} open{{end}}>
+    <summary class="btn btn-quiet">Sign for a rider under 18</summary>
+    <form class="join" method="post" action="/membership/waiver/minor#minors">
+      <input type="hidden" name="t" value="{{.Token}}">
+      <fieldset class="terms waiver">
+        <legend>{{.Year}} waiver for a rider under 18</legend>
+        <div class="pair">
+          <label>Rider’s first name <input name="rider_first" required maxlength="50" autocomplete="off" value="{{$f.First}}"></label>
+          <label>Rider’s last name <input name="rider_last" required maxlength="50" autocomplete="off" value="{{$f.Last}}"></label>
+        </div>
+        <label class="age">Rider’s age <input type="number" name="rider_age" required min="1" max="17" inputmode="numeric" value="{{$f.Age}}"></label>
+        <div class="waiver-text" tabindex="0" role="region" aria-label="Insurance waiver, with the release for parents and guardians">
+          {{waiverText}}
+          {{guardianText}}
+        </div>
+        <label class="check-row"><input type="checkbox" name="guardian" value="yes" required{{if $f.Ticked}} checked{{end}}> I’m this rider’s parent or legal guardian. I have read and agree to the waiver and to the release for parents and guardians, for them.</label>
+        <div class="pair">
+          <label>Print your full name <input name="signature" required maxlength="100" autocomplete="off" placeholder="Type your first and last name" value="{{$f.Signature}}"></label>
+          <label>Your phone <input type="tel" name="guardian_phone" required maxlength="20" autocomplete="tel-national" placeholder="301-555-0123" pattern="\d{3}-\d{3}-\d{4}" title="10 digits, like 301-555-0123" value="{{$f.Phone}}"></label>
+        </div>
+        {{template "signature-pad" "minor"}}
+        <p class="hint">You sign as the rider’s parent or guardian. This signs their waiver for {{.Year}}.</p>
+      </fieldset>
+      <button class="btn" type="submit">Sign for this rider</button>
+      <p class="msg{{if .MinorMessage}} err{{end}}" role="status">{{.MinorMessage}}</p>
+    </form>
+  </details>
+
   <h2 class="my-h">Your details</h2>
   <form class="join" method="post" action="/membership">
     <input type="hidden" name="t" value="{{.Token}}">
@@ -45,7 +97,7 @@
 {{else}}
   <h1>My Membership</h1>
   {{if eq .State "invalid"}}<p class="lead">That link isn’t valid. It may have been copied incompletely. We’ll email you a fresh one.</p>
-  {{else}}<p class="lead">Check your dues and update your details. Every club email has a “My membership” link, or we’ll email you one.</p>{{end}}
+  {{else}}<p class="lead">Check your dues, sign this year’s insurance waiver, and update your details. Every club email has a “My membership” link, or we’ll email you one.</p>{{end}}
   <form class="join" method="post" action="/membership/link">
     <label>Email <input type="email" name="email" required maxlength="254" autocomplete="email" value="{{.Email}}"></label>
     <button class="btn" type="submit">{{icon "send"}}Send me my link</button>

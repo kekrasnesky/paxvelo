@@ -14,8 +14,15 @@ import (
 )
 
 // joinForm is a filled-in Join form, as a rider sends it (with a form token
-// from a page loaded a few seconds ago, so it passes the spam check).
+// from a page loaded a few seconds ago, so it passes the spam check). The club
+// terms and waiver boxes are ticked, and the waiver signed with the name typed,
+// unless vals says otherwise.
 func joinForm(a *App, vals url.Values) (string, *strings.Reader) {
+	for k, v := range map[string]string{"terms": "yes", "waiver": "yes", "signature": vals.Get("first") + " " + vals.Get("last") + vals.Get("name")} {
+		if !vals.Has(k) {
+			vals.Set(k, v)
+		}
+	}
 	ts := strconv.FormatInt(time.Now().Add(-10*time.Second).Unix(), 10)
 	vals.Set("ft", ts+"."+sign(a.formKey(), ts)[:24])
 	return "application/x-www-form-urlencoded", strings.NewReader(vals.Encode())
@@ -70,6 +77,21 @@ func TestJoinWithEmergencyContact(t *testing.T) {
 	if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "emergency contact’s 10-digit phone") {
 		t.Fatalf("a join without an emergency phone should be refused: %d", w.Code)
 	}
+	for _, c := range []struct{ field, value, want string }{
+		{"terms", "", "agree to the club terms"},
+		{"waiver", "", "agree to the insurance waiver"},
+		{"signature", "", "To sign the waiver"},
+		{"signature", "Someone Else", "To sign the waiver"},
+	} {
+		form := url.Values{c.field: {c.value}}
+		for k, v := range full {
+			form[k] = v
+		}
+		ct, body = joinForm(a, form)
+		if w := do(t, h, nil, "POST", "/join", ct, body); w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), c.want) || len(a.store.Members()) != 0 {
+			t.Fatalf("a join with %s %q should be refused: %d", c.field, c.value, w.Code)
+		}
+	}
 
 	ct, body = joinForm(a, full)
 	r := httptest.NewRequest("POST", "/join", body)
@@ -89,6 +111,12 @@ func TestJoinWithEmergencyContact(t *testing.T) {
 	m := ms[0]
 	if m.Name != "Pat Rider" || m.Email != "pat@example.com" || m.Plan != "family" || m.Phone != "301-555-0123" || m.EmergencyName != "Sam Rider" || m.EmergencyPhone != "240-555-0199" {
 		t.Errorf("saved %+v", m)
+	}
+	if m.TermsAgreed == nil || time.Since(*m.TermsAgreed) > time.Minute {
+		t.Errorf("when they agreed to the club terms should be saved, got %v", m.TermsAgreed)
+	}
+	if ws := a.store.Waivers(a.cfg.ThisYear()); len(ws) != 1 || ws[0].MemberID != m.ID || ws[0].Signature != "Pat Rider" || ws[0].Where != "Join form" || time.Since(ws[0].Signed) > time.Minute {
+		t.Errorf("this year's waiver should be saved, got %+v", ws)
 	}
 
 	// Anyone can type anyone's email into the form, so joining again with

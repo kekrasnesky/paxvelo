@@ -36,15 +36,42 @@
       </div>
     </fieldset>
     <p class="hint">Only the club’s board sees these details.</p>
+    <fieldset class="terms">
+      <legend>Club terms</legend>
+      <p>As a member, you’re a steward of the sport. How you ride, and how you treat people on and off the bike, reflects on all of us. So we ask every member to:</p>
+      <ul>
+        <li>Be kind to other riders, drivers, and everyone you meet on the road.</li>
+        <li>Follow the rules of the road.</li>
+        <li>Carry yourself in a way that reflects well on PaxVelo.</li>
+      </ul>
+      <label class="check-row"><input type="checkbox" name="terms" value="yes" required{{if .Data.Form.Terms}} checked{{end}}> I agree to the club terms.</label>
+    </fieldset>
+    <fieldset class="terms waiver">
+      <legend>Insurance waiver</legend>
+      <p>The club is insured through the League of American Bicyclists. Please read the League’s waiver all the way through before you sign.</p>
+      <div class="waiver-text" tabindex="0" role="region" aria-label="Insurance waiver">
+        {{waiverText}}
+      </div>
+      <label class="check-row"><input type="checkbox" name="waiver" value="yes" required{{if .Data.Form.Waiver}} checked{{end}}> I have read and agree to the waiver.</label>
+      <label>Print your full name <input name="signature" required maxlength="100" autocomplete="off" placeholder="Type your first and last name" value="{{.Data.Form.Signature}}"></label>
+      {{template "signature-pad" "join"}}
+      <p class="hint">Date signed: {{.Data.Today}}.</p>
+      <p class="hint">Signing up riders under 18 in your household? Join yourself first, then sign for each of them as their parent or legal guardian. Riders under 18 can’t join on their own.</p>
+    </fieldset>
     <button class="btn" type="submit">Continue to payment</button>
     <p class="msg{{if .Data.Failed}} err{{end}}" role="status" aria-live="polite">{{if .Data.Failed}}{{.Data.Message}}{{end}}</p>
   </form>
   <div class="joined" tabindex="-1"{{if not .Data.OK}} hidden{{end}}>
     <p class="joined-title">{{if .Data.OK}}{{.Data.Message}}{{end}}</p>
     <p class="joined-detail">{{.Data.Detail}}</p>
-    <p class="joined-pay"{{if not .Data.PayURL}} hidden{{end}}><a class="btn" href="{{.Data.PayURL}}">{{.Data.PayLabel}}</a></p>
-    <p>While you’re here, read <a href="/bike-safety">Bike Safety 101</a> and <a href="{{.Club.StravaURL}}" target="_blank" rel="noopener">find a ride on Strava</a>.</p>
+    <p class="joined-pay"{{if not .Data.PayURL}} hidden{{end}}><a class="btn" href="{{.Data.PayURL}}" target="_blank" rel="noopener noreferrer"><span>{{.Data.PayLabel}}</span><span class="sr"> (opens in a new tab)</span></a></p>
+    <p>While you’re here, read <a href="/bike-safety" target="_blank" rel="noopener noreferrer">Bike Safety 101<span class="sr"> (opens in a new tab)</span></a> and <a href="{{.Club.StravaURL}}" target="_blank" rel="noopener noreferrer">find a ride on Strava<span class="sr"> (opens in a new tab)</span></a>.</p>
+    <form class="joined-minors" method="post" action="/membership/link" target="_blank">
+      <input type="hidden" name="email" value="{{.Data.Form.Email}}">
+      <p>Riders under 18 in your household need you to sign the waiver for them, as their parent or guardian. You do that on your membership page.</p>
+      <button class="btn btn-quiet" type="submit">Email me my membership page link<span class="sr"> (opens in a new tab)</span></button>
+    </form>
   </div>
-  <p class="muted-note">Already a member? <a href="/membership">Check your dues or update your details</a>.</p>
+  <p class="muted-note">Already a member? <a href="/membership" target="_blank" rel="noopener noreferrer">Check your dues or update your details<span class="sr"> (opens in a new tab)</span></a>.</p>
 </article>
 {{end}}

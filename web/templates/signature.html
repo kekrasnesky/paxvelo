@@ -1,0 +1,12 @@
+{{/* The box a waiver is signed in, with a finger, stylus or mouse. It stays
+hidden without JavaScript, and then the typed name is the signature. The
+argument names the box, for its label. */}}
+{{define "signature-pad"}}<div class="sig" hidden>
+  <p class="sig-label" id="{{.}}-sig-label">Sign here with your finger, a stylus or your mouse</p>
+  <canvas class="sig-canvas" role="img" aria-labelledby="{{.}}-sig-label"></canvas>
+  <input type="hidden" name="signature_image">
+  <p class="sig-typed" hidden>Your typed name is your signature.</p>
+  <div class="sig-tools"><button type="button" class="link-button sig-clear">Clear</button><button type="button" class="link-button sig-type">Can’t draw? Sign with your typed name</button></div>
+  <p class="sig-msg" role="alert"></p>
+</div>
+<noscript><p class="hint">Typing your name signs the waiver.</p></noscript>{{end}}

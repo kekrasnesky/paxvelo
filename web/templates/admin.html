@@ -275,6 +275,76 @@ initBlock(document);
 {{if .CanManage}}<p class="muted small footnote"><a href="/admin/backup">Download a full backup</a> of all club data.</p>{{end}}
 {{template "foot" .}}{{end}}
 
+{{define "waivers"}}{{template "head" .}}
+<div class="title-row">
+  <h1>Waivers</h1>
+  <p class="muted">{{len .Waivers}} signed for {{.Year}}, {{len .Unsigned}} active {{if eq (len .Unsigned) 1}}member hasn’t{{else}}members haven’t{{end}}</p>
+</div>
+<div class="tools">
+  <nav class="filter year-pick" aria-label="Year">{{range .WaiverYears}}<a href="/admin/waivers?year={{.}}{{with $.Show}}&show={{.}}{{end}}"{{if eq . $.Year}} aria-current="page"{{end}}>{{.}}</a>{{end}}</nav>
+  <a class="btn ghost" href="/admin/waivers.csv?year={{.Year}}">Export CSV</a>
+</div>
+<nav class="filter" aria-label="Show">
+  <a href="/admin/waivers?year={{.Year}}"{{if ne .Show "unsigned"}} aria-current="page"{{end}}>Signed ({{len .Waivers}})</a>
+  <a href="/admin/waivers?year={{.Year}}&show=unsigned"{{if eq .Show "unsigned"}} aria-current="page"{{end}}>Not signed ({{len .Unsigned}})</a>
+</nav>
+{{if eq .Show "unsigned"}}<div class="table-wrap"><table class="tight cards">
+  <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>{{.Year}} dues</th><th>Joined</th></tr></thead>
+  <tbody>
+  {{range .Unsigned}}<tr>
+    <td data-label="Name">{{.Name}}</td>
+    <td class="email" data-label="Email"><a href="mailto:{{.Email}}">{{.Email}}</a></td>
+    <td class="nowrap" data-label="Phone">{{with .Phone}}<a href="tel:{{.}}">{{.}}</a>{{else}}<span class="muted">—</span>{{end}}</td>
+    <td data-label="{{$.Year}} dues">{{if .PaidFor $.Year}}<span class="paid">Paid</span>{{else}}<span class="muted">Not paid</span>{{end}}</td>
+    <td class="nowrap" data-label="Joined">{{date .Joined}}</td>
+  </tr>
+  {{else}}<tr><td colspan="5" class="empty">Every active member has signed a {{.Year}} waiver.</td></tr>
+  {{end}}
+  </tbody>
+</table></div>
+{{else}}<div class="table-wrap"><table class="tight cards">
+  <thead><tr><th>Rider</th><th>Email</th><th>Signed as</th><th>Signed</th><th>Where</th><th><span class="sr">Signed copy</span></th></tr></thead>
+  <tbody>
+  {{range .Waivers}}<tr>
+    <td data-label="Rider">{{.RiderName}}{{if .Minor}} <span class="tag">Under 18, age {{.RiderAge}}</span><br><span class="muted small">Signed by {{.Name}}, parent or guardian</span>{{end}}</td>
+    <td class="email" data-label="Email"><a href="mailto:{{.Email}}">{{.Email}}</a></td>
+    <td data-label="Signed as">{{if .Drawing}}<img class="sig-thumb" src="/admin/waivers/{{.ID}}/signature.png" alt="Signature drawn by {{.Signature}}" loading="lazy"><br>{{end}}{{.Signature}}{{if not .Drawing}} <span class="muted small">(typed)</span>{{end}}</td>
+    <td class="nowrap" data-label="Signed">{{datetime .Signed}}</td>
+    <td data-label="Where">{{.Where}}</td>
+    <td class="right cell-act"><a href="/admin/waivers/{{.ID}}">View signed copy</a></td>
+  </tr>
+  {{else}}<tr><td colspan="6" class="empty">Nobody has signed a {{.Year}} waiver yet.</td></tr>
+  {{end}}
+  </tbody>
+</table></div>{{end}}
+<p class="muted small">The club’s insurance needs every member to sign the League of American Bicyclists waiver each year. A waiver covers January to December, so everyone shows as not signed again on January 1. New members sign on the join form. Everyone else signs on their own membership page, from the “My membership” link in every club email, and parents or guardians sign there for each rider under 18 in their household. In January, send an email from the Email tab asking members to sign this year’s waiver. “Not signed” lists members only: the site can’t know about riders under 18 until someone signs for them. Signed waivers are kept for good, even if a member is deleted. Open one to print it or save it as a PDF.</p>
+{{template "foot" .}}{{end}}
+
+{{define "waiver"}}{{template "head" .}}{{with .Waiver}}
+<p class="no-print"><a href="/admin/waivers?year={{.Year}}">← All {{.Year}} waivers</a></p>
+<h1>Insurance waiver, {{.Year}}</h1>
+<dl class="waiver-meta">
+  {{if .Minor}}<dt>Rider</dt><dd>{{.Rider}}, age {{.RiderAge}} (under 18)</dd>
+  <dt>Parent or guardian</dt><dd>{{.Name}}, {{.Email}}, {{.GuardianPhone}}</dd>
+  {{else}}<dt>Member</dt><dd>{{.Name}}, {{.Email}}</dd>{{end}}
+  <dt>Printed name</dt><dd>{{.Signature}}</dd>
+  <dt>Signature</dt><dd>{{if .Drawing}}Drawn with a finger, stylus or mouse (below){{else}}Typed name only{{end}}</dd>
+  <dt>Signed</dt><dd>{{datetime .Signed}}</dd>
+  <dt>Where</dt><dd>{{.Where}}, {{$.SiteURL}}{{with .IP}}, from IP address {{.}}{{end}}</dd>
+  <dt>Covers</dt><dd>January 1 to December 31, {{.Year}}</dd>
+  <dt>Waiver version</dt><dd>{{.Version}}</dd>
+</dl>
+{{if .Minor}}<p>As the rider’s parent or legal guardian, they ticked “I’m this rider’s parent or legal guardian. I have read and agree to the waiver and to the release for parents and guardians, for them.” and {{if .Drawing}}signed{{else}}typed their name to sign{{end}} this text:</p>
+{{else}}<p>They ticked “I have read and agree to the waiver” and {{if .Drawing}}signed{{else}}typed their name to sign{{end}} this text:</p>{{end}}
+<div class="waiver-copy">{{$.WaiverHTML}}</div>
+<div class="sig-block">
+  <div><span class="sig-line">{{if .Drawing}}<img src="/admin/waivers/{{.ID}}/signature.png" alt="Signature drawn by {{.Signature}}">{{else}}<span class="sig-typed-name">{{.Signature}}</span>{{end}}</span><span class="muted small">{{if .Minor}}Parent or guardian’s signature{{else}}Participant’s signature{{end}}</span></div>
+  <div><span class="sig-line">{{.Signature}}</span><span class="muted small">Printed name</span></div>
+  <div><span class="sig-line">{{date .Signed}}</span><span class="muted small">Date</span></div>
+</div>
+<p class="muted small no-print">To keep a copy, use your browser’s Print and choose Save as PDF.</p>
+{{end}}{{template "foot" .}}{{end}}
+
 {{define "email"}}{{template "head" .}}
 {{if not .Live}}<p class="flash warn">Test mode: emails are written to the server log instead of being sent. Add the SMTP settings to paxvelo.conf to send for real.</p>{{end}}
 <h1>Email members</h1>
@@ -1326,12 +1396,13 @@ var t=document.getElementById('page-text'),p=t.selectionStart;t.value=t.value.sl
     <li>Find rides on <a href="/calendar" target="_blank" rel="noopener">/calendar</a>, tagged Social, Intermediate or Elite, with route maps from Strava.</li>
     <li>RSVP on Strava. The website doesn’t take RSVPs.</li></ul></div>
   <div class="card"><h3>New members</h3><ol>
-    <li>Pick Individual (${{.Guide.DuesIndividual}}) or Family (${{.Guide.DuesFamily}}) and fill in the <a href="/join" target="_blank" rel="noopener">join form</a>, with one riding question.</li>
+    <li>Pick Individual (${{.Guide.DuesIndividual}}) or Family (${{.Guide.DuesFamily}}) and fill in the <a href="/join" target="_blank" rel="noopener">join form</a>, with one riding question, the club terms and this year’s insurance waiver.</li>
     <li>Every admin gets a “New member” email. The member goes on to PayPal.</li>
     <li>The first time an admin presses <b>Mark paid</b>, they get the welcome email with the riding advice for their answer.</li></ol>
     <p class="muted small">Members you add yourself or import never get the welcome email, and renewals don’t get it again.</p></div>
   <div class="card"><h3>Members</h3><ul>
-    <li>Every club email has their private membership link: dues status, a PayPal button, their details, and emails on or off.</li>
+    <li>Every club email has their private membership link: dues status, a PayPal button, this year’s waiver to sign, their details, and emails on or off.</li>
+    <li>The insurance waiver is signed once a year, and parents or guardians sign for each rider under 18 there too. The <a href="/admin/waivers">Waivers</a> tab keeps every signed copy and shows who hasn’t signed.</li>
     <li>Every member email has an unsubscribe link.</li></ul></div>
   <div class="card"><h3>Riders and ride leaders</h3><ul>
     <li>Open a ride, type a name, press <b>I’ll lead</b>. The club inbox is told. Leaders can step down themselves.</li>

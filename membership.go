@@ -28,6 +28,19 @@ type membershipData struct {
 	Message    string // a problem with what was typed
 	EmailsBack bool   // club emails were just turned back on
 	Email      string // typed into "send me my link"
+	// This year's insurance waiver (waivers.go): the signed one, or the form
+	// to sign it.
+	Waiver        *Waiver
+	WaiverSigned  bool   // just signed
+	WaiverMessage string // a problem signing it
+	Signature     string // what was typed, to show again after a mistake
+	WaiverTicked  bool
+	// Waivers they signed this year as parent or guardian of riders under
+	// 18, and the form to sign another.
+	Minors       []Waiver
+	MinorForm    minorForm
+	MinorSigned  bool   // just signed one
+	MinorMessage string // a problem signing it
 }
 
 // membershipURL is a member's private link to their page.
@@ -44,6 +57,11 @@ func (a *App) membershipView(m Member, token string) membershipData {
 			d.PayURL, d.PayLabel = link, fmt.Sprintf("Pay $%d with PayPal", a.cfg.Dues(m.Plan))
 		}
 	}
+	if w, ok := a.store.WaiverFor(m.ID, year); ok {
+		d.Waiver = &w
+	}
+	d.Minors = a.store.MinorWaivers(m.ID, year)
+	d.MinorForm.Phone = m.Phone
 	return d
 }
 
@@ -62,7 +80,10 @@ func (a *App) membershipPage(w http.ResponseWriter, r *http.Request) {
 		a.renderMembership(w, http.StatusOK, membershipData{State: "invalid"})
 		return
 	}
-	a.renderMembership(w, http.StatusOK, a.membershipView(m, t))
+	v := a.membershipView(m, t)
+	v.WaiverSigned = v.Waiver != nil && r.URL.Query().Get("signed") != ""
+	v.MinorSigned = len(v.Minors) > 0 && r.URL.Query().Get("minor") != ""
+	a.renderMembership(w, http.StatusOK, v)
 }
 
 // saveMembership saves the details a member changed on their page.

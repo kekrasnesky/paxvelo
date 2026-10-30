@@ -111,6 +111,71 @@
     if(q&&!confirm(q))e.preventDefault();
   });
 
+  // Waiver signatures: drawn with a finger, stylus or mouse (pointer events
+  // cover all three). The strokes are kept as fractions of the box, so they
+  // redraw sharply when the box changes size, and saved as a 600×200 PNG.
+  // A form sent with "drawn" needs a drawing: "Can't draw?" takes it away,
+  // leaving the typed name as the signature, as it is without JavaScript.
+  d.querySelectorAll('.sig').forEach(function(box){
+    var c=box.querySelector('canvas'),out=box.querySelector('input[name=signature_image]'),msg=box.querySelector('.sig-msg'),
+      typeBtn=box.querySelector('.sig-type'),typed=box.querySelector('.sig-typed'),f=box.closest('form'),strokes=[],cur=null;
+    var drawn=d.createElement('input');drawn.type='hidden';drawn.name='drawn';drawn.value='1';box.appendChild(drawn);
+    box.hidden=false;
+    function paint(ctx,w,h,line){
+      ctx.clearRect(0,0,w,h);ctx.lineWidth=line;ctx.lineCap=ctx.lineJoin='round';ctx.strokeStyle='#1d1b1a';
+      strokes.forEach(function(s){
+        ctx.beginPath();ctx.moveTo(s[0][0]*w,s[0][1]*h);
+        for(var i=1;i<s.length;i++)ctx.lineTo(s[i][0]*w,s[i][1]*h);
+        if(s.length===1)ctx.lineTo(s[0][0]*w+.5,s[0][1]*h); // a dot
+        ctx.stroke();
+      });
+    }
+    function show(){var k=window.devicePixelRatio||1;paint(c.getContext('2d'),c.width,c.height,2.4*k)}
+    function size(){
+      var r=c.getBoundingClientRect(),k=window.devicePixelRatio||1;
+      if(!r.width)return;
+      c.width=Math.round(r.width*k);c.height=Math.round(r.height*k);show();
+    }
+    function save(){
+      if(!strokes.length){out.value='';return}
+      var o=d.createElement('canvas');o.width=600;o.height=200;
+      paint(o.getContext('2d'),600,200,3.5);out.value=o.toDataURL('image/png');
+      msg.textContent='';
+    }
+    function at(e){var r=c.getBoundingClientRect();return[Math.min(1,Math.max(0,(e.clientX-r.left)/r.width)),Math.min(1,Math.max(0,(e.clientY-r.top)/r.height))]}
+    c.addEventListener('pointerdown',function(e){
+      if(e.button>0)return;
+      e.preventDefault();
+      try{c.setPointerCapture(e.pointerId)}catch(err){} // keeps the stroke going past the edge; drawing works without it
+      cur=[at(e)];strokes.push(cur);show();
+    });
+    c.addEventListener('pointermove',function(e){
+      if(!cur)return;
+      // The in-between points a fast finger makes, for smooth curves
+      var pts=e.getCoalescedEvents?e.getCoalescedEvents():[];
+      (pts.length?pts:[e]).forEach(function(p){cur.push(at(p))});show();
+    });
+    function end(){if(cur){cur=null;save()}}
+    c.addEventListener('pointerup',end);c.addEventListener('pointercancel',end);
+    box.querySelector('.sig-clear').addEventListener('click',function(){strokes=[];show();save()});
+    typeBtn.addEventListener('click',function(){
+      var off=!drawn.disabled;drawn.disabled=off;out.disabled=off;c.hidden=off;typed.hidden=!off;msg.textContent='';
+      box.querySelector('.sig-clear').hidden=off;
+      typeBtn.textContent=off?'Draw my signature instead':'Can’t draw? Sign with your typed name';
+      if(!off)size();
+    });
+    // Runs before the join form's own submit handler, which is added below.
+    if(f)f.addEventListener('submit',function(e){
+      if(drawn.disabled||out.value)return;
+      e.preventDefault();e.stopImmediatePropagation();
+      msg.textContent='Sign in the box with your finger, a stylus or your mouse.';
+      c.scrollIntoView({block:'center',behavior:'smooth'});
+    });
+    window.addEventListener('resize',size);
+    var det=box.closest('details');if(det)det.addEventListener('toggle',size); // sized once it's shown
+    size();
+  });
+
   // Join form: write phone numbers as 301-555-0123 while they're typed
   d.querySelectorAll('form.join input[type=tel][pattern]').forEach(function(el){
     function fmt(){
@@ -144,7 +209,8 @@
         var done=d.querySelector('.joined'),pay=done.querySelector('.joined-pay');
         done.querySelector('.joined-title').textContent=j.message;
         done.querySelector('.joined-detail').textContent=j.detail||'';
-        if(j.pay_url){var a=pay.querySelector('a');a.href=j.pay_url;a.textContent=j.pay_label;pay.hidden=false}else{pay.hidden=true}
+        var link=done.querySelector('.joined-minors input[name=email]');if(link)link.value=form.querySelector('input[name=email]').value;
+        if(j.pay_url){var a=pay.querySelector('a');a.href=j.pay_url;a.querySelector('span').textContent=j.pay_label;pay.hidden=false}else{pay.hidden=true}
         form.hidden=true;done.hidden=false;done.focus();
       })
       .catch(function(){fail('Couldn’t reach the server. Check your connection and try again.')});
