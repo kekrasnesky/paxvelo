@@ -98,7 +98,7 @@ func (a *App) routes() http.Handler {
 	}
 	mux.Handle("GET /static/", a.site.staticFiles("/static/", a.site.static))
 	mux.Handle("GET /photos/", a.site.staticFiles("/photos/", a.site.photos))
-	mux.Handle("GET /favicon.ico", http.RedirectHandler("/static/img/logo.svg", http.StatusMovedPermanently))
+	mux.Handle("GET /favicon.ico", http.RedirectHandler("/static/img/favicon.svg", http.StatusMovedPermanently))
 	mux.HandleFunc("GET /robots.txt", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.Write([]byte("User-agent: *\nDisallow: /admin\nDisallow: /unsubscribe\nDisallow: /membership\nDisallow: /strava/\nDisallow: /calendar/new\nSitemap: " + a.cfg.SiteURL + "/sitemap.xml\n"))

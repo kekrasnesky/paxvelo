@@ -34,7 +34,7 @@ The photos are placeholders cut from a screenshot. Replace them with the origina
 
 - `content/photos/hero.webp`: the big group photo, about 2000px wide (and `hero-phone.webp`, a square crop for phones)
 - `content/photos/ride.webp` and `giving.webp`: the two homepage photos, about 1000px wide (cropped to the same shape automatically)
-- The club logo is `web/static/img/logo.svg`, also used as the browser-tab icon. `logo-light.svg` is the same logo with the black parts in cream, for the dark header. `logo.png` (for emails) and `og.jpg` (the picture shown when someone shares a link) are made from it.
+- The club logo is `web/static/img/logo.svg`. The browser-tab icon, `favicon.svg`, is just its P and V, without the stripes, so they're big enough to make out. `logo-light.svg` is the same logo with the black parts in cream, for the dark header. `logo.png` (for emails) and `og.jpg` (the picture shown when someone shares a link) are made from it.
 
 To make WebP files, drop photos into https://squoosh.app, choose WebP at quality 75, and download. JPGs work too if you change the file name in `content/home.md`.
 

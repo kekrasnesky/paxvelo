@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The browser-tab icon: just the P and V from logo.svg, without the stripes
+     on either side, in a square around them so they fill the tab. The V's
+     right arm stops where the red stripe used to carry on to the right.
+     On a dark tab bar the black P would vanish, so it turns cream, like the
+     header's logo-light.svg. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="220.8 -0.4 512 512">
+  <style>
+    .p { fill: #171717; }
+    @media (prefers-color-scheme: dark) { .p { fill: #f5f2ec; } }
+  </style>
+  <path class="p" d="M486.12,2.07h-135.11s-.02,0-.02.01l-86.76,135.31s0,.04.02.04h76.48s.02,0,.02-.01l36.24-56.85s.01-.01.02-.01h108.9c15.47,0,28.53,13.07,28.53,28.53s-13.07,28.53-28.53,28.53h-102.4s-.02,0-.02.01l-141.84,229.83s0,.04.02.04h76.81s.02,0,.02-.01l91.32-149.86s.01-.01.02-.01h76.07c58.02,0,105.8-46.15,108.42-103.56,2.79-61.2-46.98-111.99-108.23-111.99Z"/>
+  <polygon fill="#df1a22" points="635.51 165.99 523.06 343.58 494.57 243.3 417.69 243.3 493.19 509.06 711.94 165.99"/>
+</svg>
