@@ -91,7 +91,7 @@ The first paragraph after the title is shown a little larger.
 Photos live in the `photos` folder inside this one.
 
 - **To add a photo:** open the `photos` folder, click **Add file → Upload files**, drag the photo in, and click **Commit changes**. Then put it on a page with a line like `![What the photo shows](photos/my-photo.webp)`. The words in the square brackets describe the photo for people using screen readers.
-- **A row of photos:** put two or more photos on one line, with nothing else. They sit side by side (swipeable on phones), cropped to the same 4:3 shape. Like the row on the home page. PNG pictures aren't cropped, for product pictures like the jersey and bibs on the kit page: make them the same size so they line up.
+- **A row of photos:** put two or more photos on one line, with nothing else. They sit side by side (swipeable on phones), cropped to the same 4:3 shape. Like the row on the home page. PNG pictures, and pictures whose file name starts with `kit-`, aren't cropped, for product pictures like the jersey and bibs on the kit page: make them the same size so they line up.
 - **To replace a photo:** upload a new one with exactly the same file name. It replaces the old one everywhere.
 - **The big photo at the top of the home page** is `photos/hero.webp` (wide, about 2000px across) and `photos/hero-phone.webp` (square, used on phones).
 

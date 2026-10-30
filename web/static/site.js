@@ -25,6 +25,8 @@
   if(ddBtn){
     ddBtn.addEventListener('click',function(e){e.stopPropagation();setDD(!dd.classList.contains('open'))});
     d.addEventListener('click',function(e){if(!dd.contains(e.target))setDD(false)});
+    // Tabbing on past the last link closes it too
+    dd.addEventListener('focusout',function(e){if(e.relatedTarget&&!dd.contains(e.relatedTarget))setDD(false)});
   }
   d.addEventListener('keydown',function(e){
     if(e.key!=='Escape')return;
@@ -73,33 +75,56 @@
   // seconds (a screenful on wider screens, one photo on phones) and starts
   // over at the end. It waits while someone's pointing at it, touching it, or
   // has it focused, and while it's off screen; not at all for people who
-  // prefer less motion.
+  // prefer less motion. Its pause button stops it for good, until pressed again.
   d.querySelectorAll('.photo-strip.slides').forEach(function(strip){
     if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)return;
-    var row=strip.querySelector('.photos'),hover=false,focus=false,seen=true,until=0;
-    function step(){
-      if(hover||focus||!seen||d.hidden||Date.now()<until)return;
+    var row=strip.querySelector('.photos'),pause=strip.querySelector('.strip-pause'),hover=false,focus=false,seen=true,until=0,paused=false;
+    function advance(){
       var end=row.scrollWidth-row.clientWidth;if(end<=2)return;
       if(row.scrollLeft>=end-2){row.scrollTo({left:0,behavior:'smooth'});return}
       var by=innerWidth>=700?row.clientWidth+10:row.querySelector('img').getBoundingClientRect().width+10;
       row.scrollBy({left:by,behavior:'smooth'});
     }
+    function step(){if(!paused&&!hover&&!focus&&seen&&!d.hidden&&Date.now()>=until)advance()}
+    if(pause){
+      pause.hidden=false;
+      pause.addEventListener('click',function(){
+        paused=!paused;
+        pause.textContent=paused?'▶':'❚❚';
+        pause.setAttribute('aria-label',paused?'Play slideshow':'Pause slideshow');
+        if(!paused)advance(); // move on right away, so pressing play visibly does something
+      });
+    }
     strip.addEventListener('mouseenter',function(){hover=true});
     strip.addEventListener('mouseleave',function(){hover=false});
-    strip.addEventListener('focusin',function(){focus=true});
+    strip.addEventListener('focusin',function(e){focus=e.target!==pause});
     strip.addEventListener('focusout',function(){focus=false});
     strip.addEventListener('pointerdown',function(){until=Date.now()+15000});
     if('IntersectionObserver' in window)new IntersectionObserver(function(es){seen=es[0].isIntersecting}).observe(strip);
     setInterval(step,5000);
   });
 
+  // Forms that ask first (take over, step down, cancel a ride): the question
+  // is in data-confirm, since the page's security policy won't run onsubmit=""
+  d.addEventListener('submit',function(e){
+    var q=e.target.getAttribute('data-confirm');
+    if(q&&!confirm(q))e.preventDefault();
+  });
+
   // Join form: write phone numbers as 301-555-0123 while they're typed
   d.querySelectorAll('form.join input[type=tel][pattern]').forEach(function(el){
     function fmt(){
+      // Count the digits before the cursor, so it can go back after the same
+      // digit once the dashes move (otherwise it jumps to the end)
+      var before=el.value.slice(0,el.selectionStart).replace(/\D/g,'').length;
       var n=el.value.replace(/\D/g,'');
-      if(n[0]==='1')n=n.slice(1); // no US area code starts with 1, so it's the country code
+      if(n[0]==='1'){n=n.slice(1);before=Math.max(0,before-1)} // no US area code starts with 1, so it's the country code
       n=n.slice(0,10);
       el.value=n.length>6?n.slice(0,3)+'-'+n.slice(3,6)+'-'+n.slice(6):n.length>3?n.slice(0,3)+'-'+n.slice(3):n;
+      if(d.activeElement!==el)return;
+      var at=0;
+      for(var k=0;at<el.value.length&&k<before;at++)if(el.value[at]!=='-')k++;
+      el.setSelectionRange(at,at);
     }
     el.addEventListener('input',fmt);
     if(el.value)fmt();

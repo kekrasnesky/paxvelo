@@ -36,8 +36,9 @@ func defaultHomePhotos() []HomePhoto {
 }
 
 var homePhotosTpl = template.Must(template.New("").Parse(`{{if .}}<div class="photo-strip{{if gt (len .) 3}} many{{end}}{{if gt (len .) ` + strconv.Itoa(slideshowAfter) + `}} slides{{end}}">
-<div class="photos" tabindex="0" aria-label="Club photos">{{range .}}<img src="{{.Photo}}" alt="{{or .Alt "A PaxVelo club ride"}}" width="900" height="675" loading="lazy" decoding="async"{{with .Focus}} style="object-position:{{.}}"{{end}}>{{end}}</div>
+<div class="photos" tabindex="0" role="region" aria-label="Club photos">{{range .}}<img src="{{.Photo}}" alt="{{or .Alt "A PaxVelo club ride"}}" width="900" height="675" loading="lazy" decoding="async"{{with .Focus}} style="object-position:{{.}}"{{end}}>{{end}}</div>
 {{if gt (len .) 3}}<button class="strip-btn prev" type="button" aria-label="Previous photos" hidden>‹</button><button class="strip-btn next" type="button" aria-label="More photos" hidden>›</button>{{end}}
+{{if gt (len .) ` + strconv.Itoa(slideshowAfter) + `}}<button class="strip-pause" type="button" aria-label="Pause slideshow" hidden>❚❚</button>{{end}}
 </div>
 {{end}}`))
 

@@ -110,7 +110,7 @@ strong{font-weight:500}
 .photos{display:grid;grid-auto-flow:column;grid-auto-columns:82%;gap:10px;margin:16px calc(-1 * var(--side)) 0;padding:0 var(--side);overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding:0 var(--side);scrollbar-width:none}
 .photos::-webkit-scrollbar{display:none}
 .photos img{width:100%;height:auto;aspect-ratio:4/3;object-fit:cover;border-radius:var(--radius);scroll-snap-align:start}
-.photos img[src*=".png"]{aspect-ratio:auto} /* product pictures, like the kit page's, keep their own shape */
+.photos img:is([src*=".png"],[src*="/kit-"]){aspect-ratio:auto} /* product pictures, like the kit page's, keep their own shape */
 @media (min-width:700px){.photos{grid-auto-columns:minmax(0,1fr);margin:16px 0 0;padding:0;overflow:visible}}
 /* The home page's photo row ({home-photos}): with more than three, wider
    screens scroll it three at a time, with arrows. */
@@ -124,6 +124,9 @@ strong{font-weight:500}
   .strip-btn.next{right:10px}
 }
 @media (prefers-reduced-motion:reduce){.photo-strip.many .photos{scroll-behavior:auto}}
+/* The slideshow's pause button (site.js shows it while the slideshow runs) */
+.strip-pause{position:absolute;right:10px;bottom:10px;display:grid;place-items:center;width:36px;height:36px;padding:0;border:0;border-radius:50%;background:rgba(45,45,45,.75);color:#fff;font:500 .75rem/1 var(--font);cursor:pointer;transition:background .15s}
+@media (hover:hover){.strip-pause:hover{background:var(--red)}}
 @media (min-width:900px){
   .cols article:has(>img){display:grid;grid-template-columns:minmax(0,42%) minmax(0,1fr);grid-auto-rows:min-content;gap:0 16px;align-content:start}
   .cols article>img{grid-column:1;grid-row:1/5;height:100%;min-height:150px;aspect-ratio:auto}
@@ -403,14 +406,12 @@ td:hover .cal-add,.cal-add:focus-visible{opacity:1}
 .cal-strava-form{display:flex;flex-wrap:wrap;align-items:flex-end;gap:.8rem;margin:1.4rem 0 1rem}
 .cal-strava-form label{display:grid;flex:1;min-width:14rem;gap:.3rem;font-size:.9rem;font-weight:500}
 .cal-strava-form input{padding:.75rem .9rem;border:1px solid #cdbfb5;font:300 1rem var(--font)}
-.pair{display:grid;grid-template-columns:1fr 1fr;gap:1.15rem}
 .opt{font-weight:300;color:#6b625b;font-size:.85rem}
 .check-row{display:flex!important;align-items:center;gap:.6rem;font-weight:300!important}
 .check-row input{width:auto!important}
 @media (max-width:767px){
   .cal-grid,.cal-key{display:none}
   .cal-list{display:block}
-  .pair{grid-template-columns:1fr}
 }
 
 /* ---------- Buttons and forms ---------- */

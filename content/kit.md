@@ -7,7 +7,7 @@ description: PaxVelo club kit, custom-made by Jakroo. Order any time from the te
 
 Ride in club colors. Our kit is custom-made by Jakroo, and you order it from the PaxVelo team store on their website.
 
-![The blue PaxVelo club jersey](photos/kit-jersey.png) ![Black PaxVelo bib shorts](photos/kit-bibs.png)
+![The blue PaxVelo club jersey](photos/kit-jersey.webp) ![Black PaxVelo bib shorts](photos/kit-bibs.webp)
 
 ## Two Ways to Order
 

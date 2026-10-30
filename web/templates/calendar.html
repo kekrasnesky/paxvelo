@@ -39,7 +39,7 @@
         <div class="cal-day"><span>{{.Day}}</span>{{if and .InMonth (not .Past)}}<a class="cal-add" href="/calendar/new?date={{.Date}}" aria-label="Add a ride on {{.Date}}">+</a>{{end}}</div>
         {{range .Rides}}<a class="cal-ride {{.Status}}" href="/calendar/ride/{{.Key}}">
           <span class="cal-time">{{.TimeLabel}}</span> {{.Name}}
-          <span class="lvl-dots">{{range .Levels}}<span class="lvl-dot lvl-{{.Key}}" title="{{.Name}}, {{.MPH}}"></span>{{end}}</span>
+          <span class="lvl-dots">{{range .Levels}}<span class="lvl-dot lvl-{{.Key}}" role="img" aria-label="{{.Name}}, {{.MPH}}" title="{{.Name}}, {{.MPH}}"></span>{{end}}</span>
           <span class="cal-lead">{{.LeaderSummary}}</span>
         </a>{{end}}
       </td>{{end}}

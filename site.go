@@ -61,6 +61,7 @@ type Site struct {
 	adminCSS    template.CSS
 	version     string
 	notFound404 []byte
+	csp         string // the public pages' Content-Security-Policy (csp.go)
 }
 
 // view is what every public template receives.
@@ -235,6 +236,7 @@ func newSite(cfg Config) (*Site, error) {
 		return nil, err
 	}
 	s.notFound404 = nf.Bytes()
+	s.csp = publicCSP(scriptHashes(s.notFound404))
 
 	if s.email, err = template.New("").ParseFS(webFS, "web/templates/email.html"); err != nil {
 		return nil, err

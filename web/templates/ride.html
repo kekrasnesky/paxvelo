@@ -38,8 +38,8 @@
             {{if not $d.Rider}}<input name="leader_name" required maxlength="60" autocomplete="name" placeholder="Your name" aria-label="Your name{{with .Group}}, to lead {{.}}{{end}}">{{end}}
             <button class="btn">I’ll lead{{if .Group}} this group{{else}} this ride{{end}}</button>
           </form>{{end}}
-          {{if .CanTakeOver}}<form method="post" action="/calendar/ride/{{$r.Key}}/lead" onsubmit="return confirm('Take over from {{.Leader.Name}}?')"><input type="hidden" name="ft" value="{{$d.Token}}"><input type="hidden" name="group" value="{{.Group}}"><button class="btn btn-quiet">Take over</button></form>{{end}}
-          {{if .CanStepDown}}<form method="post" action="/calendar/ride/{{$r.Key}}/stepdown" onsubmit="return confirm('{{if .Mine}}Step down? Someone else will need to lead.{{else}}Remove {{.Leader.Name}} as the leader?{{end}}')"><input type="hidden" name="group" value="{{.Group}}"><button class="btn btn-quiet">{{if .Mine}}Step down{{else}}Remove{{end}}</button></form>{{end}}
+          {{if .CanTakeOver}}<form method="post" action="/calendar/ride/{{$r.Key}}/lead" data-confirm="Take over from {{.Leader.Name}}?"><input type="hidden" name="ft" value="{{$d.Token}}"><input type="hidden" name="group" value="{{.Group}}"><button class="btn btn-quiet">Take over</button></form>{{end}}
+          {{if .CanStepDown}}<form method="post" action="/calendar/ride/{{$r.Key}}/stepdown" data-confirm="{{if .Mine}}Step down? Someone else will need to lead.{{else}}Remove {{.Leader.Name}} as the leader?{{end}}"><input type="hidden" name="group" value="{{.Group}}"><button class="btn btn-quiet">{{if .Mine}}Step down{{else}}Remove{{end}}</button></form>{{end}}
         </div>
       </li>{{end}}
     </ul>
@@ -55,7 +55,7 @@
     </form>
     {{end}}
     {{if and .Rider .Rider.Admin (not .Past)}}
-    <form method="post" action="/calendar/ride/{{$r.Key}}/cancel" {{if not $r.Cancelled}}onsubmit="return confirm('Cancel {{$r.Name}} on {{$r.DateLabel}}? The club gets an email.')"{{end}}><input type="hidden" name="cancel" value="{{if $r.Cancelled}}0{{else}}1{{end}}"><button class="link-button">{{if $r.Cancelled}}{{icon "undo"}}Put it back on the calendar{{else}}{{icon "ban"}}Cancel this ride{{end}}</button></form>
+    <form method="post" action="/calendar/ride/{{$r.Key}}/cancel" {{if not $r.Cancelled}}data-confirm="Cancel {{$r.Name}} on {{$r.DateLabel}}? The club gets an email."{{end}}><input type="hidden" name="cancel" value="{{if $r.Cancelled}}0{{else}}1{{end}}"><button class="link-button">{{if $r.Cancelled}}{{icon "undo"}}Put it back on the calendar{{else}}{{icon "ban"}}Cancel this ride{{end}}</button></form>
     {{end}}
   </section>
 </article>

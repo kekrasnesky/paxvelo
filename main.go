@@ -251,15 +251,20 @@ func (a *App) routes() http.Handler {
 	mux.Handle("POST /admin/newsletter/{id}/email", a.auth(a.emailIssue))
 
 	mux.HandleFunc("/", a.site.serveAny)
-	return secureHeaders(mux)
+	return secureHeaders(mux, a.site.csp)
 }
 
-func secureHeaders(next http.Handler) http.Handler {
+// secureHeaders adds the browser security headers. csp is the public pages'
+// Content-Security-Policy (csp.go).
+func secureHeaders(next http.Handler, csp string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
 		h.Set("X-Frame-Options", "DENY")
+		if p := cspFor(r.URL.Path, csp); p != "" {
+			h.Set("Content-Security-Policy", p)
+		}
 		next.ServeHTTP(w, r)
 	})
 }
