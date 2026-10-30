@@ -715,7 +715,7 @@ func draftFrom(r *http.Request) EmailDraft {
 func (a *App) emailPreview(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 256<<10)
 	d := draftFrom(r)
-	pat := Member{Name: "Pat Rider", Plan: "individual", Level: "some", Rides: []string{"tnr-b", "thursday"}}
+	pat := Member{Name: "Pat Rider", Plan: "individual", Level: "some"}
 	page, err := a.site.renderEmail(a.mailer.personalize(d.Subject, pat), a.mailer.personalize(d.Body, pat), memberLinks{Mine: "#", Unsub: "#"}, "")
 	if err != nil {
 		http.Error(w, "The preview couldn’t be made.", http.StatusInternalServerError)
@@ -795,6 +795,15 @@ func (a *App) saveWelcome(w http.ResponseWriter, r *http.Request) {
 		Enabled: r.FormValue("enabled") != "",
 		Subject: strings.TrimSpace(r.FormValue("subject")),
 		Body:    strings.TrimSpace(r.FormValue("body")),
+		Tips:    map[string]string{},
+	}
+	for _, c := range riderLevels {
+		// Advice left as the built-in text isn't saved, so it follows any
+		// later change to the built-in advice.
+		t := strings.TrimSpace(strings.ReplaceAll(r.FormValue("tips_"+c.Value), "\r\n", "\n"))
+		if t != "" && t != levelAdvice[c.Value] {
+			we.Tips[c.Value] = t
+		}
 	}
 	if we.Subject == "" || we.Body == "" {
 		back(w, r, "/admin/email?err=welcome#welcome")

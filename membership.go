@@ -38,7 +38,7 @@ func (c Config) membershipURL(token string) string {
 func (a *App) membershipView(m Member, token string) membershipData {
 	year := a.cfg.ThisYear()
 	d := membershipData{State: "page", Token: token, Member: m, Year: year, Paid: m.PaidFor(year), PlanName: strings.ToLower(m.PlanName()),
-		Form: memberDetails{Phone: m.Phone, EmergencyName: m.EmergencyName, EmergencyPhone: m.EmergencyPhone, Level: m.Level, Rides: m.Rides}}
+		Form: memberDetails{Phone: m.Phone, EmergencyName: m.EmergencyName, EmergencyPhone: m.EmergencyPhone, Level: m.Level}}
 	if !d.Paid {
 		if link := a.cfg.PayLink(m.Plan); link != "" {
 			d.PayURL, d.PayLabel = link, fmt.Sprintf("Pay $%d with PayPal", a.cfg.Dues(m.Plan))
@@ -78,7 +78,6 @@ func (a *App) saveMembership(w http.ResponseWriter, r *http.Request) {
 	d := memberDetails{
 		Phone: cleanPhone(r.FormValue("phone")), EmergencyName: cleanName(r.FormValue("emergency_name")),
 		EmergencyPhone: cleanPhone(r.FormValue("emergency_phone")), Level: cleanLevel(r.FormValue("level")),
-		Rides: cleanRides(r.Form["rides"]),
 	}
 	problem := ""
 	switch {
@@ -95,7 +94,7 @@ func (a *App) saveMembership(w http.ResponseWriter, r *http.Request) {
 		v := a.membershipView(m, t)
 		v.Message = joinProblems[problem]
 		v.Form = memberDetails{Phone: r.FormValue("phone"), EmergencyName: r.FormValue("emergency_name"),
-			EmergencyPhone: r.FormValue("emergency_phone"), Level: r.FormValue("level"), Rides: r.Form["rides"]}
+			EmergencyPhone: r.FormValue("emergency_phone"), Level: r.FormValue("level")}
 		a.renderMembership(w, http.StatusBadRequest, v)
 		return
 	}
@@ -186,7 +185,7 @@ func (s *Store) UpdateMemberDetails(token string, d memberDetails) (Member, bool
 		return Member{}, false, nil
 	}
 	m.Phone, m.EmergencyName, m.EmergencyPhone = d.Phone, d.EmergencyName, d.EmergencyPhone
-	m.Level, m.Rides = d.Level, d.Rides
+	m.Level = d.Level
 	return *m, true, s.save()
 }
 

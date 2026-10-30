@@ -27,11 +27,6 @@
       {{range riderLevels}}<label><input type="radio" name="level" value="{{.Value}}" required{{if eq $.Data.Form.Level .Value}} checked{{end}}><span>{{.Label}}</span></label>
       {{end}}
     </fieldset>
-    <fieldset class="pick two">
-      <legend>Which rides interest you? <span class="opt">Optional</span></legend>
-      {{range clubRides}}<label><input type="checkbox" name="rides" value="{{.Value}}"{{if $.Data.Form.Picked .Value}} checked{{end}}><span>{{.Label}}</span></label>
-      {{end}}
-    </fieldset>
     <p class="hint">Only the club’s board sees these details.</p>
     <button class="btn" type="submit">{{icon "save"}}Save</button>
     <p class="msg{{if .Message}} err{{end}}" role="status">{{if .Message}}{{.Message}}{{else if .Saved}}Saved. Thanks for keeping it current.{{end}}</p>

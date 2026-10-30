@@ -30,12 +30,12 @@ func TestMembershipPage(t *testing.T) {
 	if w := do(t, h, nil, "POST", "/membership", ct, body); w.Code != http.StatusBadRequest {
 		t.Errorf("a bad phone should be refused: %d", w.Code)
 	}
-	ct, body = form(url.Values{"t": {m.Token}, "phone": {"3015550000"}, "emergency_name": {"Lee Rider"}, "emergency_phone": {"240 555 0100"}, "level": {"racer"}, "rides": {"tnr-a"}})
+	ct, body = form(url.Values{"t": {m.Token}, "phone": {"3015550000"}, "emergency_name": {"Lee Rider"}, "emergency_phone": {"240 555 0100"}, "level": {"racer"}})
 	if w := do(t, h, nil, "POST", "/membership", ct, body); !strings.Contains(w.Body.String(), "Saved.") {
 		t.Errorf("saving should say so: %d", w.Code)
 	}
 	got, _ := a.store.MemberByToken(m.Token)
-	if got.Phone != "301-555-0000" || got.EmergencyName != "Lee Rider" || got.EmergencyPhone != "240-555-0100" || got.Level != "racer" || got.RideNames() != "Tue A" {
+	if got.Phone != "301-555-0000" || got.EmergencyName != "Lee Rider" || got.EmergencyPhone != "240-555-0100" || got.Level != "racer" {
 		t.Errorf("details not saved: %+v", got)
 	}
 

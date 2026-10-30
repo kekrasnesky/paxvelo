@@ -45,7 +45,6 @@ func joinDetails(r *http.Request, all bool) (memberDetails, string) {
 		EmergencyPhone: cleanPhone(r.FormValue("emergency_phone")),
 		Level:          cleanLevel(r.FormValue("level")),
 	}
-	d.Rides = cleanRides(r.Form["rides"])
 	email, ok := cleanEmail(r.FormValue("email"))
 	d.Email = email
 	badPhone := func(field, clean string) bool {
@@ -133,7 +132,7 @@ func (a *App) join(w http.ResponseWriter, r *http.Request) {
 	typed := memberDetails{
 		Name: r.FormValue("name"), Email: r.FormValue("email"), Phone: r.FormValue("phone"),
 		EmergencyName: r.FormValue("emergency_name"), EmergencyPhone: r.FormValue("emergency_phone"),
-		Level: r.FormValue("level"), Rides: r.Form["rides"],
+		Level: r.FormValue("level"),
 	}
 	reply := func(status int, d joinData) {
 		if strings.Contains(r.Header.Get("Accept"), "application/json") {

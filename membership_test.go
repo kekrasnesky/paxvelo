@@ -250,35 +250,57 @@ func TestBackupPresidentOnly(t *testing.T) {
 	}
 }
 
-// The join form asks how experienced someone is (required) and which rides
-// interest them (optional), saves both, and the welcome email's {ride_tips}
-// turns them into advice. Without answers, {ride_tips} leaves no gap.
+// The join form asks one question, how experienced someone is (required), and
+// the welcome email's {ride_tips} gives exactly the advice for that answer.
+// Without an answer, {ride_tips} leaves no gap.
 func TestJoinRidingAnswers(t *testing.T) {
 	a, h, _ := testApp(t)
 	form := url.Values{"plan": {"individual"}, "first": {"Kim"}, "last": {"Rider"}, "email": {"kim@example.com"},
-		"phone": {"301-555-0123"}, "emergency_name": {"Sam Rider"}, "emergency_phone": {"240-555-0199"},
-		"rides": {"thursday", "made-up", "tnr-b"}}
+		"phone": {"301-555-0123"}, "emergency_name": {"Sam Rider"}, "emergency_phone": {"240-555-0199"}}
 	ct, body := joinForm(a, form)
 	if w := do(t, h, nil, "POST", "/join", ct, body); w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "sounds most like you") {
 		t.Fatalf("the experience question is required: %d", w.Code)
+	}
+	if page := do(t, h, nil, "GET", "/join", "", nil).Body.String(); strings.Contains(page, `name="rides"`) {
+		t.Error("the join form shouldn't ask which rides any more")
 	}
 	form.Set("level", "new")
 	ct, body = joinForm(a, form)
 	do(t, h, nil, "POST", "/join", ct, body)
 	m := a.store.Members()[0]
-	if m.Level != "new" || strings.Join(m.Rides, ",") != "tnr-b,thursday" {
-		t.Fatalf("saved level %q rides %v", m.Level, m.Rides)
-	}
-	if m.LevelName() != "New" || m.RideNames() != "Tue B, Thu" {
-		t.Errorf("admin labels: %q %q", m.LevelName(), m.RideNames())
+	if m.Level != "new" || m.LevelName() != "New" {
+		t.Fatalf("saved level %q (%q)", m.Level, m.LevelName())
 	}
 	tips := a.mailer.personalize("Hi\n\n{ride_tips}\n\nBye", m)
-	for _, want := range []string{"Old Line Cycles shop ride", "**Tuesday Night Ride, B group:**", "**Thursday Night Ride:**", "/rides"} {
-		if !strings.Contains(tips, want) {
-			t.Errorf("tips missing %q:\n%s", want, tips)
-		}
+	if want := "Hi\n\n" + levelAdvice["new"] + "\n\nTimes, start spots, and this week’s routes are on Strava and at " + a.cfg.SiteURL + "/rides\n\nBye"; tips != want {
+		t.Errorf("tips:\n%s\nwant:\n%s", tips, want)
 	}
 	if got := a.mailer.personalize("Hi\n\n{ride_tips}\n\nBye", Member{Name: "Lee"}); got != "Hi\n\nBye" {
-		t.Errorf("no answers should leave no gap: %q", got)
+		t.Errorf("no answer should leave no gap: %q", got)
+	}
+}
+
+// Admins can rewrite the advice for each answer on the Email tab. Advice left
+// as the built-in text, or cleared, stays the built-in advice.
+func TestWelcomeTipsEditable(t *testing.T) {
+	a, h, admin := testApp(t)
+	page := do(t, h, admin, "GET", "/admin/email", "", nil).Body.String()
+	for _, c := range riderLevels {
+		if !strings.Contains(page, `name="tips_`+c.Value+`"`) {
+			t.Errorf("the Email tab should have a box for %q", c.Value)
+		}
+	}
+	ct, body := form(url.Values{"enabled": {"on"}, "subject": {"Welcome"}, "body": {"Hi\n\n{ride_tips}"},
+		"tips_new": {"Come to the shop ride.\r\n\r\nSee you there."}, "tips_some": {levelAdvice["some"]}, "tips_racer": {"  "}})
+	do(t, h, admin, "POST", "/admin/welcome", ct, body)
+	w := a.store.Welcome()
+	if len(w.Tips) != 1 || w.Tip("new") != "Come to the shop ride.\n\nSee you there." {
+		t.Fatalf("saved tips %q", w.Tips)
+	}
+	if w.Tip("some") != levelAdvice["some"] || w.Tip("racer") != levelAdvice["racer"] {
+		t.Error("unchanged or cleared advice should be the built-in advice")
+	}
+	if got := a.mailer.personalize("{ride_tips}", Member{Name: "Kim", Level: "new"}); !strings.HasPrefix(got, "Come to the shop ride.\n\nSee you there.\n\nTimes") {
+		t.Errorf("the welcome email should use the admin's advice: %q", got)
 	}
 }

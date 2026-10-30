@@ -32,8 +32,9 @@ type Member struct {
 	// Who to call if something happens on a ride.
 	EmergencyName  string `json:"emergency_name,omitempty"`
 	EmergencyPhone string `json:"emergency_phone,omitempty"`
-	// From the join form: their experience (riderLevels) and the rides they
-	// want to try (clubRides), which shape the welcome email.
+	// From the join form: their experience (riderLevels), which picks the
+	// welcome email's ride advice. Rides are what members who joined before
+	// the form was simplified picked (clubRides); nothing sets them now.
 	Level string   `json:"level,omitempty"`
 	Rides []string `json:"rides,omitempty"`
 }
@@ -41,7 +42,6 @@ type Member struct {
 // memberDetails is what someone fills in to join.
 type memberDetails struct {
 	Name, Email, Plan, Phone, EmergencyName, EmergencyPhone, Level string
-	Rides                                                          []string
 }
 
 // update fills in the contact details someone gave, keeping what's already
@@ -60,9 +60,6 @@ func (m *Member) update(d memberDetails) {
 	if d.Level != "" {
 		m.Level = d.Level
 	}
-	if len(d.Rides) > 0 {
-		m.Rides = d.Rides
-	}
 }
 
 // fill adds the contact details someone gave where the member has none yet,
@@ -80,9 +77,6 @@ func (m *Member) fill(d memberDetails) {
 	}
 	if m.Level == "" {
 		m.Level = d.Level
-	}
-	if len(m.Rides) == 0 {
-		m.Rides = d.Rides
 	}
 }
 
@@ -131,6 +125,8 @@ type WelcomeEmail struct {
 	Enabled bool   `json:"enabled"`
 	Subject string `json:"subject"`
 	Body    string `json:"body"`
+	// Tips is the admin's own {ride_tips} for each riderLevels answer.
+	Tips map[string]string `json:"tips,omitempty"`
 }
 
 type storeData struct {

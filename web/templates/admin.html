@@ -335,10 +335,16 @@ initBlock(document);
     <div class="mail-write">
       {{template "mail-bar"}}
       <label>Message <textarea name="body" rows="14" required>{{.Welcome.Body}}</textarea></label>
-      <p class="muted small">The same buttons and marks work here. {first_name} becomes the new member’s first name, {pay_link} their PayPal link, {year} the current year, {site} the website address, and {ride_tips} where to start riding, from their answers on the join form.</p>
+      <p class="muted small">The same buttons and marks work here. {first_name} becomes the new member’s first name, {pay_link} their PayPal link, {year} the current year, {site} the website address, and {ride_tips} where to start riding, from their answer on the join form (below). The preview shows the advice for “Some group rides” as last saved.</p>
     </div>
     {{template "mail-preview"}}
   </div>
+  <fieldset class="tips">
+    <legend>Where to start riding: what {ride_tips} says for each answer</legend>
+    <p class="muted small">Each new member gets exactly one of these, from how they answered “Which sounds like you?” A line pointing to Strava and the Rides page follows it. Members you add yourself get none. Clear a box to go back to the built-in advice.</p>
+    {{range riderLevels}}<label>{{.Label}} <textarea name="tips_{{.Value}}" rows="6">{{$.Welcome.Tip .Value}}</textarea></label>
+    {{end}}
+  </fieldset>
   <button>{{icon "save"}}Save welcome email</button>
 </form>
 <script>

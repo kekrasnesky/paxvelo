@@ -105,7 +105,7 @@ func (m *Mailer) personalize(s string, mem Member) string {
 		"{pay_link}", pay,
 		"{dues}", "$"+strconv.Itoa(m.cfg.Dues(mem.Plan)),
 		"{year}", strconv.Itoa(m.cfg.ThisYear()),
-		"{ride_tips}", rideTips(mem, m.cfg.SiteURL),
+		"{ride_tips}", rideTips(m.store.Welcome(), mem, m.cfg.SiteURL),
 		"{my_link}", m.cfg.membershipURL(mem.Token),
 	).Replace(s)
 	return extraBlankLines.ReplaceAllString(s, "\n\n") // where {ride_tips} came out empty

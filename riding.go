@@ -5,19 +5,21 @@ import (
 	"strings"
 )
 
-// What new members tell us about their riding on the join form, and the
-// welcome email advice that follows from it. The paces match content/rides.md;
-// change both together.
+// What new members tell us about their riding on the join form: one answer,
+// which picks the welcome email's ride advice. The paces match
+// content/rides.md; change both together.
 
 type choice struct{ Value, Label, Short string }
 
 var riderLevels = []choice{
 	{"new", "New to group rides", "New"},
-	{"some", "I’ve done a few group rides", "Some group rides"},
-	{"experienced", "Experienced on group rides", "Experienced"},
+	{"some", "I’ve done some group rides (around 19–21 mph)", "Some group rides"},
+	{"experienced", "Experienced on fast group rides (22+ mph)", "Experienced"},
 	{"racer", "I race", "Racer"},
 }
 
+// clubRides were checkboxes on the old join form. They're no longer asked,
+// but members who joined then still have their picks, shown in the admin.
 var clubRides = []choice{
 	{"tnr-a", "Tuesday Night Ride, A group (race pace)", "Tue A"},
 	{"tnr-b", "Tuesday Night Ride, B group", "Tue B"},
@@ -25,20 +27,13 @@ var clubRides = []choice{
 	{"weekend", "Weekend rides", "Weekend"},
 }
 
-// levelAdvice opens {ride_tips}: where to start, given their experience.
+// levelAdvice is the built-in {ride_tips} for each answer, used until an
+// admin writes their own on the Email tab.
 var levelAdvice = map[string]string{
-	"new":         "Since you’re new to group rides, start with the Old Line Cycles shop ride. It’s made for people getting into the sport and has several regroup stops (ask the shop when the next one is). When you’re ready for more, the Thursday Night Ride is fast but doesn’t drop anyone.",
-	"some":        "A good first club ride is the Thursday Night Ride: about 22 mph, and nobody gets left behind. The Tuesday B group, about 19–21 mph, is a good next step.",
-	"experienced": "You’ll fit right in on the Thursday Night Ride (about 22 mph) and the Tuesday B group (about 19–21 mph). When you want a harder night, try the Tuesday A group.",
-	"racer":       "Come race-pace training with the Tuesday Night Ride A group, about 23–25 mph. The Thursday ride to Point Lookout makes a good tempo day.",
-}
-
-// rideNotes lists the rides they picked.
-var rideNotes = map[string]string{
-	"tnr-a":    "**Tuesday Night Ride, A group:** race pace, about 23–25 mph, mid-March through October.",
-	"tnr-b":    "**Tuesday Night Ride, B group:** about 19–21 mph. Hard, but not a race.",
-	"thursday": "**Thursday Night Ride:** about 22 mph to Point Lookout and back, and nobody gets left behind.",
-	"weekend":  "**Weekend rides:** whenever a member hosts one, usually a café ride on Sundays.",
+	"new":         "Since you’re new to group rides, start with the Old Line Cycles shop ride. It’s made for people getting into the sport and has several regroup stops (ask the shop when the next one is). Weekend café rides, when a member hosts one, are another easy way to meet people.\n\nWhen you’re ready for more, try the Thursday Night Ride: about 22 mph to Point Lookout and back, and nobody gets left behind.",
+	"some":        "Start with the Thursday Night Ride: about 22 mph to Point Lookout and back, roughly 40 miles, and nobody gets left behind.\n\nWhen that feels good, try the Tuesday Night Ride’s B group, about 19–21 mph. It’s hard, but not a race.",
+	"experienced": "You’ll fit right in on the Thursday Night Ride (about 22 mph, and nobody gets left behind) and the Tuesday Night Ride’s B group (about 19–21 mph).\n\nWhen you want a harder night, try the Tuesday A group. It’s race pace, about 23–25 mph, and if you come off the back you’re on your own.",
+	"racer":       "Come race-pace training with the Tuesday Night Ride A group, about 23–25 mph, mid-March through October.\n\nThe Thursday ride to Point Lookout makes a good tempo day, and it doesn’t drop anyone.",
 }
 
 func cleanLevel(s string) string {
@@ -50,20 +45,6 @@ func cleanLevel(s string) string {
 	return ""
 }
 
-// cleanRides keeps the known rides picked, once each, in the form's order.
-func cleanRides(picked []string) []string {
-	var out []string
-	for _, c := range clubRides {
-		if slices.Contains(picked, c.Value) {
-			out = append(out, c.Value)
-		}
-	}
-	return out
-}
-
-// Picked reports whether a ride was ticked, to show the form again after a mistake.
-func (d memberDetails) Picked(ride string) bool { return slices.Contains(d.Rides, ride) }
-
 // LevelName is how the member describes their riding, for the admin.
 func (m Member) LevelName() string {
 	for _, c := range riderLevels {
@@ -74,7 +55,7 @@ func (m Member) LevelName() string {
 	return ""
 }
 
-// RideNames lists the rides they're interested in, briefly, for the admin.
+// RideNames lists the rides they picked on the old join form, briefly, for the admin.
 func (m Member) RideNames() string {
 	var names []string
 	for _, c := range clubRides {
@@ -85,24 +66,21 @@ func (m Member) RideNames() string {
 	return strings.Join(names, ", ")
 }
 
-// rideTips is what {ride_tips} becomes in the welcome email: advice for their
-// experience, then the rides they picked. It's empty for members added by
-// an admin, who didn't answer.
-func rideTips(m Member, site string) string {
-	var parts []string
-	if a := levelAdvice[m.Level]; a != "" {
-		parts = append(parts, a)
+// Tip is the ride advice the welcome email gives for one answer: the admin's
+// own, or the built-in advice where they haven't written any.
+func (w WelcomeEmail) Tip(level string) string {
+	if t := strings.TrimSpace(w.Tips[level]); t != "" {
+		return t
 	}
-	if len(m.Rides) > 0 {
-		var b strings.Builder
-		b.WriteString("The rides you picked:")
-		for _, r := range m.Rides {
-			b.WriteString("\n- " + rideNotes[r])
-		}
-		parts = append(parts, b.String())
+	return levelAdvice[level]
+}
+
+// rideTips is what {ride_tips} becomes in the welcome email: the advice for
+// their answer, then where to find the details. It's empty for members added
+// by an admin, who didn't answer.
+func rideTips(w WelcomeEmail, m Member, site string) string {
+	if cleanLevel(m.Level) == "" {
+		return ""
 	}
-	if len(parts) > 0 {
-		parts = append(parts, "Times, start spots, and this week’s routes are on Strava and at "+site+"/rides")
-	}
-	return strings.Join(parts, "\n\n")
+	return w.Tip(m.Level) + "\n\nTimes, start spots, and this week’s routes are on Strava and at " + site + "/rides"
 }
