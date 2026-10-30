@@ -37,6 +37,10 @@ type Member struct {
 	// the form was simplified picked (clubRides); nothing sets them now.
 	Level string   `json:"level,omitempty"`
 	Rides []string `json:"rides,omitempty"`
+	// WelcomePending is set for someone who joined on the website, until an
+	// admin marks their dues paid, which sends their welcome email. Members
+	// added by an admin or imported never get one.
+	WelcomePending bool `json:"welcome_pending,omitempty"`
 }
 
 // memberDetails is what someone fills in to join.
@@ -186,6 +190,27 @@ func (s *Store) Version() uint64 {
 
 const defaultWelcomeBody = `Hi {first_name},
 
+Welcome to PaxVelo! Your {year} dues are in, and we're glad you're here.
+
+{ride_tips}
+
+Before your first club ride, take a couple of minutes to read Bike Safety 101:
+{site}/bike-safety
+
+Every ride is posted on Strava, so join the club there too:
+https://www.strava.com/clubs/10197
+
+Want to ride in club colors? Our kit is in the team store:
+{site}/kit
+
+See you on the road!
+PaxVelo`
+
+// oldWelcomeBody is the default from when the welcome email went out at
+// signup, before payment. A welcome email nobody changed from it becomes the
+// new default, since asking a paid member to pay makes no sense.
+const oldWelcomeBody = `Hi {first_name},
+
 Welcome to PaxVelo! We're glad you're here.
 
 {ride_tips}
@@ -223,6 +248,9 @@ func openStore(dir string) (*Store, error) {
 	}
 	if s.d.Secret == "" {
 		s.d.Secret = randHex(32)
+	}
+	if s.d.Welcome.Body == oldWelcomeBody {
+		s.d.Welcome.Body = defaultWelcomeBody
 	}
 	if s.d.NextMember == 0 {
 		s.d.NextMember = 1
@@ -375,6 +403,7 @@ func (s *Store) join(d memberDetails, year int, admin bool) (Member, JoinResult,
 	}
 	m := s.newMember(d.Name, d.Email, d.Plan)
 	m.update(d)
+	m.WelcomePending = !admin
 	return *m, Joined, s.save()
 }
 
@@ -397,6 +426,20 @@ func (s *Store) SetPaid(id, year int, paid bool) error {
 	}
 	m.PaidYears = years
 	return s.save()
+}
+
+// TakeWelcome reports whether a member's welcome email is still to be sent,
+// and if so marks it as sent, so it goes out once however often they're
+// marked paid.
+func (s *Store) TakeWelcome(id int) (Member, bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	m := s.byID(id)
+	if m == nil || !m.WelcomePending {
+		return Member{}, false, nil
+	}
+	m.WelcomePending = false
+	return *m, true, s.save()
 }
 
 // Import adds members in bulk, skipping emails already on the list.

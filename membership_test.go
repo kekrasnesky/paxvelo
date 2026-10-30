@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -302,5 +304,103 @@ func TestWelcomeTipsEditable(t *testing.T) {
 	}
 	if got := a.mailer.personalize("{ride_tips}", Member{Name: "Kim", Level: "new"}); !strings.HasPrefix(got, "Come to the shop ride.\n\nSee you there.\n\nTimes") {
 		t.Errorf("the welcome email should use the admin's advice: %q", got)
+	}
+}
+
+// Joining on the website tells the admins and sends nothing to the new
+// member. Marking them paid sends their welcome email, once: undoing and
+// marking again, or marking a member an admin added, sends nothing.
+func TestWelcomeAfterPaid(t *testing.T) {
+	a, h, admin := testApp(t)
+	a.store.AddAdmin("Barry Treasurer", "barry@example.com", "test")
+	type sent struct{ to, subject, body string }
+	mail := make(chan sent, 10)
+	a.mailer.onSend = func(to, subject, body string) { mail <- sent{to, subject, body} }
+	next := func() (sent, bool) {
+		select {
+		case s := <-mail:
+			return s, true
+		case <-time.After(2 * time.Second):
+			return sent{}, false
+		}
+	}
+	none := func(when string) {
+		select {
+		case s := <-mail:
+			t.Errorf("%s: unexpected email to %s: %q", when, s.to, s.subject)
+		case <-time.After(200 * time.Millisecond):
+		}
+	}
+
+	ct, body := joinForm(a, url.Values{"plan": {"family"}, "first": {"Kim"}, "last": {"Rider"}, "email": {"kim@example.com"},
+		"phone": {"301-555-0123"}, "emergency_name": {"Sam Rider"}, "emergency_phone": {"240-555-0199"}, "level": {"some"}})
+	do(t, h, nil, "POST", "/join", ct, body)
+	s, ok := next()
+	if !ok || s.to != "barry@example.com" || s.subject != "New member: Kim Rider (Family)" {
+		t.Fatalf("admins should hear about the signup: %+v", s)
+	}
+	for _, want := range []string{"**Plan:** Family, $45", "**Riding:** Some group rides", "Mark paid", "/admin/members?q=kim%40example.com"} {
+		if !strings.Contains(s.body, want) {
+			t.Errorf("signup notice missing %q:\n%s", want, s.body)
+		}
+	}
+	none("after joining")
+
+	m := a.store.Members()[0]
+	if !m.WelcomePending {
+		t.Fatal("a website signup should be waiting for its welcome email")
+	}
+	if page := do(t, h, admin, "GET", "/admin/members", "", nil).Body.String(); !strings.Contains(page, "Sends their welcome email") {
+		t.Error("the Members page should say marking them paid sends the welcome email")
+	}
+	paid := func(v string) string {
+		ct, body := form(url.Values{"paid": {v}})
+		return do(t, h, admin, "POST", "/admin/members/"+strconv.Itoa(m.ID)+"/paid", ct, body).Header().Get("Location")
+	}
+	if loc := paid("1"); !strings.Contains(loc, "ok=paid-welcome") {
+		t.Errorf("marking paid should say the welcome is on its way: %s", loc)
+	}
+	s, ok = next()
+	if !ok || s.to != "kim@example.com" || !strings.Contains(s.subject, "Welcome to PaxVelo, Kim") ||
+		!strings.Contains(s.body, "dues are in") || strings.Contains(s.body, "finish up") ||
+		!strings.Contains(s.body, levelAdvice["some"]) {
+		t.Fatalf("welcome email: %+v", s)
+	}
+	paid("0")
+	if loc := paid("1"); !strings.Contains(loc, "ok=paid") || strings.Contains(loc, "welcome") {
+		t.Errorf("a second mark paid shouldn't welcome again: %s", loc)
+	}
+	none("marking paid again")
+
+	ct2, body2 := form(url.Values{"name": {"Lee Added"}, "email": {"lee@example.com"}, "plan": {"individual"}})
+	do(t, h, admin, "POST", "/admin/members", ct2, body2)
+	var lee Member
+	for _, x := range a.store.Members() {
+		if x.Email == "lee@example.com" {
+			lee = x
+		}
+	}
+	if lee.ID == 0 || lee.WelcomePending {
+		t.Fatalf("admin-added member: %+v", lee)
+	}
+	ct2, body2 = form(url.Values{"paid": {"1"}})
+	do(t, h, admin, "POST", "/admin/members/"+strconv.Itoa(lee.ID)+"/paid", ct2, body2)
+	none("marking an admin-added member paid")
+}
+
+// A welcome email nobody changed from the old default (which asked people to
+// pay) becomes the new default; one an admin wrote is kept.
+func TestOldWelcomeBodyUpdated(t *testing.T) {
+	for _, c := range []struct{ saved, want string }{{oldWelcomeBody, defaultWelcomeBody}, {"Hi {first_name}", "Hi {first_name}"}} {
+		dir := t.TempDir()
+		b, _ := json.Marshal(map[string]any{"welcome_email": map[string]any{"enabled": true, "subject": "Hi", "body": c.saved}})
+		os.WriteFile(filepath.Join(dir, "paxvelo.json"), b, 0o600)
+		s, err := openStore(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := s.Welcome().Body; got != c.want {
+			t.Errorf("saved %.20q: got %.40q", c.saved, got)
+		}
 	}
 }

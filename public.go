@@ -189,7 +189,7 @@ func (a *App) join(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if result == Joined {
-		go a.mailer.SendWelcome(m)
+		go a.mailer.NotifySignup(m) // their welcome email waits until an admin marks them paid
 	}
 
 	d := joinData{OK: true}

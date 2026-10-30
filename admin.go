@@ -216,6 +216,7 @@ var flashText = map[string]string{
 	"resumed":           "Sending resumed.",
 	"welcome":           "Welcome email saved.",
 	"paid":              "Marked as paid.",
+	"paid-welcome":      "Marked as paid, and their welcome email is on its way.",
 	"unpaid":            "Marked as not paid.",
 	"loggedin":          "",
 	"discarded":         "Draft discarded.",
@@ -390,6 +391,12 @@ func (a *App) markPaid(w http.ResponseWriter, r *http.Request) {
 	to := "/admin/members?ok=unpaid"
 	if paid {
 		to = "/admin/members?ok=paid"
+		if a.store.Welcome().Enabled {
+			if m, due, err := a.store.TakeWelcome(id); err == nil && due {
+				go a.mailer.SendWelcome(m)
+				to = "/admin/members?ok=paid-welcome"
+			}
+		}
 	}
 	// Keep the admin's search and filter in place.
 	if ret := r.FormValue("return"); ret != "" {

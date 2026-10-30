@@ -27,6 +27,7 @@ type Mailer struct {
 	wake  chan struct{}
 
 	onNotify func(to, subject, body string) // lets tests see notices
+	onSend   func(to, subject, body string) // lets tests see every email
 }
 
 func newMailer(cfg Config, store *Store, site *Site) *Mailer {
@@ -141,6 +142,37 @@ func (m *Mailer) SendDirect(toName, toEmail, subject, body string) error {
 	return m.send(toName, toEmail, subject, body, memberLinks{})
 }
 
+// NotifySignup tells every admin that someone joined on the website, so the
+// treasurer can look for their PayPal payment and mark them paid, which sends
+// their welcome email. With no admin accounts yet it goes to ADMIN_EMAIL.
+func (m *Mailer) NotifySignup(mem Member) {
+	var to []AdminUser
+	for _, u := range m.store.Admins() {
+		if u.Email != "" {
+			to = append(to, u)
+		}
+	}
+	if len(to) == 0 && m.cfg.AdminEmail != "" {
+		to = []AdminUser{{Name: m.cfg.FromName, Email: m.cfg.AdminEmail}}
+	}
+	year := m.cfg.ThisYear()
+	riding := or(mem.LevelName(), "not answered")
+	phone := or(mem.Phone, "not given")
+	subject := "New member: " + mem.Name + " (" + mem.PlanName() + ")"
+	body := "**" + mem.Name + "** just joined on the website.\n\n" +
+		"- **Plan:** " + mem.PlanName() + ", $" + strconv.Itoa(m.cfg.Dues(mem.Plan)) + " for " + strconv.Itoa(year) + "\n" +
+		"- **Email:** " + mem.Email + "\n" +
+		"- **Phone:** " + phone + "\n" +
+		"- **Riding:** " + riding + "\n\n" +
+		"When their PayPal payment comes in, find them on the Members page and press **Mark paid**. That sends their welcome email.\n\n" +
+		"[Open the Members page](" + m.cfg.SiteURL + "/admin/members?q=" + url.QueryEscape(mem.Email) + ")"
+	for _, u := range to {
+		m.SendDirect(u.Name, u.Email, subject, body) // a failure is logged by send
+	}
+}
+
+// SendWelcome sends the welcome email, with the ride advice for their answer
+// on the join form. It goes out when an admin first marks them paid.
 func (m *Mailer) SendWelcome(mem Member) {
 	w := m.store.Welcome()
 	if !w.Enabled {
@@ -168,6 +200,9 @@ func (m *Mailer) send(toName, toEmail, subject, text string, links memberLinks) 
 	htmlBody, err := m.site.renderEmail(subject, text, links, m.cfg.SiteURL)
 	if err != nil {
 		return err
+	}
+	if m.onSend != nil {
+		m.onSend(toEmail, subject, text)
 	}
 	plain := emailText(text, m.cfg.SiteURL) + "\n\n--\nPaxVelo, " + m.cfg.SiteURL + "\n"
 	if links.Unsub != "" {

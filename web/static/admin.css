@@ -175,6 +175,7 @@ details.more[open]{display:grid;gap:.6rem;padding-bottom:.8rem}
 
 /* Email: formatting buttons above the message, and the live preview beside it */
 .mail-edit{display:grid;gap:1.25rem;align-items:start}
+.welcome-note{display:block;margin-top:.25rem}
 .tips{display:grid;gap:1rem;margin:0;padding:1rem 0 0;border:0;border-top:1px solid var(--line);min-width:0}
 .tips legend{float:left;width:100%;padding:0;font-weight:600}
 .tips legend+p{margin:0}

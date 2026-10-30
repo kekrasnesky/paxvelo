@@ -236,7 +236,7 @@ initBlock(document);
     <td class="nowrap" data-label="{{$.Year}} dues"><form method="post" action="/admin/members/{{.ID}}/paid" class="inline">
       <input type="hidden" name="return" value="/admin/members?q={{$.Q}}&dues={{$.Dues}}">
       {{if $paid}}<span class="paid">Paid</span> <input type="hidden" name="paid" value="0"><button class="link small">{{icon "undo"}}Undo</button>
-      {{else}}<input type="hidden" name="paid" value="1"><button class="mini">{{icon "check"}}Mark paid</button>{{end}}
+      {{else}}<input type="hidden" name="paid" value="1"><button class="mini">{{icon "check"}}Mark paid</button>{{if .WelcomePending}}<span class="muted small welcome-note">Sends their welcome email</span>{{end}}{{end}}
     </form></td>
     <td class="nowrap" data-label="Joined">{{date .Joined}}</td>
     {{if $.CanManage}}<td class="right cell-act"><form method="post" action="/admin/members/{{.ID}}/delete" onsubmit="return confirm('Delete {{.Email}}? This can’t be undone.')"><button class="link danger">{{icon "trash"}}Delete</button></form></td>{{end}}
@@ -245,7 +245,7 @@ initBlock(document);
   {{end}}
   </tbody>
 </table></div>
-<p class="muted small">When PayPal emails the club about a payment, find the member here and press <strong>Mark paid</strong>. Everyone shows as not paid again on January 1. {{if not .CanManage}}Only the president can delete members. {{end}}Members who joined before the phone and emergency contact fields existed show a dash: if they fill in the join form again with the same email, their details are added.</p>
+<p class="muted small">Admins get an email when someone joins on the website. When PayPal emails the club about their payment, find them here and press <strong>Mark paid</strong>: the first time, that sends their welcome email. Everyone shows as not paid again on January 1. {{if not .CanManage}}Only the president can delete members. {{end}}Members who joined before the phone and emergency contact fields existed show a dash: if they fill in the join form again with the same email, their details are added.</p>
 <div class="grid2">
   <form class="card" method="post" action="/admin/members">
     <h2>Add a member</h2>
@@ -329,7 +329,7 @@ initBlock(document);
 
 <h2 class="section" id="welcome">Welcome email</h2>
 <form class="card" method="post" action="/admin/welcome">
-  <label class="check"><input type="checkbox" name="enabled"{{if .Welcome.Enabled}} checked{{end}}> Send automatically when someone joins</label>
+  <label class="check"><input type="checkbox" name="enabled"{{if .Welcome.Enabled}} checked{{end}}> Send automatically when someone who joined on the website is marked paid</label>
   <label>Subject <input name="subject" required maxlength="200" value="{{.Welcome.Subject}}"></label>
   <div class="mail-edit">
     <div class="mail-write">
