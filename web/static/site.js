@@ -1,10 +1,23 @@
 (function(){
   var d=document,root=d.documentElement;
 
-  // Phone menu
-  var burger=d.querySelector('.burger');
-  function setMenu(open){root.classList.toggle('menu-open',open);if(burger){burger.setAttribute('aria-expanded',open);burger.setAttribute('aria-label',open?'Close menu':'Open menu')}}
-  if(burger)burger.addEventListener('click',function(){setMenu(!root.classList.contains('menu-open'))});
+  // Phone menu. It covers the page, so while it's open everything behind it is
+  // inert (keyboard and screen readers stay in the menu) and focus starts on
+  // its first link.
+  var burger=d.querySelector('.burger'),nav=d.getElementById('nav');
+  var behind=[d.querySelector('.skip'),d.querySelector('.hdr .logo'),d.getElementById('main'),d.querySelector('.ftr')];
+  function setMenu(open){
+    root.classList.toggle('menu-open',open);
+    behind.forEach(function(el){if(el)el.inert=open});
+    if(burger){burger.setAttribute('aria-expanded',open);burger.setAttribute('aria-label',open?'Close menu':'Open menu')}
+  }
+  if(burger)burger.addEventListener('click',function(){
+    var open=!root.classList.contains('menu-open');
+    setMenu(open);
+    if(open&&nav)nav.querySelector('a,button').focus();
+  });
+  // Widening the window past phone size hides the burger, so close the menu with it
+  if(window.matchMedia)matchMedia('(min-width:768px)').addEventListener('change',function(m){if(m.matches)setMenu(false)});
 
   // Info dropdown
   var dd=d.querySelector('.dd'),ddBtn=dd&&dd.querySelector('.dd-btn');
@@ -13,7 +26,14 @@
     ddBtn.addEventListener('click',function(e){e.stopPropagation();setDD(!dd.classList.contains('open'))});
     d.addEventListener('click',function(e){if(!dd.contains(e.target))setDD(false)});
   }
-  d.addEventListener('keydown',function(e){if(e.key==='Escape'){setMenu(false);setDD(false)}});
+  d.addEventListener('keydown',function(e){
+    if(e.key!=='Escape')return;
+    if(root.classList.contains('menu-open')){setMenu(false);if(burger)burger.focus()}
+    setDD(false);
+  });
+  // A page brought back by the Back button is restored exactly as it was left,
+  // which would be with the menu still open after tapping one of its links
+  addEventListener('pageshow',function(e){if(e.persisted){setMenu(false);setDD(false)}});
 
   // Instagram posts the site doesn't draw itself: load Instagram's script only
   // when they're about to scroll into view
