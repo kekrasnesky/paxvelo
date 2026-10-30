@@ -35,6 +35,15 @@
         <label>Phone <input type="tel" name="emergency_phone" required maxlength="20" autocomplete="off" placeholder="301-555-0123" pattern="\d{3}-\d{3}-\d{4}" title="10 digits, like 301-555-0123" value="{{.Data.Form.EmergencyPhone}}"></label>
       </div>
     </fieldset>
+    <fieldset class="emergency household">
+      <legend>Other adults who ride</legend>
+      <p>The club’s insurance needs every adult who rides on a family membership to sign the waiver themselves. List them here, and we’ll email each one a link to sign theirs. Just you? Leave these blank.</p>
+      {{range .Data.Adults}}<div class="pair adult-row">
+        <label>Name <input name="adult_name" maxlength="100" autocomplete="off" placeholder="First and last name" value="{{.Name}}"></label>
+        <label>Email <input type="email" name="adult_email" maxlength="254" autocomplete="off" value="{{.Email}}"></label>
+      </div>
+      {{end}}
+    </fieldset>
     <p class="hint">Only the club’s board sees these details.</p>
     <fieldset class="terms">
       <legend>Club terms</legend>
@@ -53,10 +62,24 @@
         {{waiverText}}
       </div>
       <label class="check-row"><input type="checkbox" name="waiver" value="yes" required{{if .Data.Form.Waiver}} checked{{end}}> I have read and agree to the waiver.</label>
+      <details class="minor-sign join-minors"{{if .Data.SigningMinors}} open{{end}}>
+        <summary class="btn btn-quiet">Signing for riders under 18?</summary>
+        <div class="join-minors-body">
+          <p>Riders under 18 can’t sign the waiver themselves. If you’re their parent or legal guardian, list them here, and your signature below signs for them too.</p>
+          {{range .Data.Riders}}<div class="rider-row">
+            <label>Rider’s first and last name <input name="rider_name" maxlength="100" autocomplete="off" value="{{.Name}}"></label>
+            <label class="age">Age <input type="number" name="rider_age" min="1" max="17" inputmode="numeric" value="{{.Age}}"></label>
+          </div>
+          {{end}}<p class="hint">More riders? Sign for them on your membership page once you’ve joined.</p>
+          <div class="waiver-text" tabindex="0" role="region" aria-label="Release for parents and guardians">
+            {{guardianText}}
+          </div>
+          <label class="check-row"><input type="checkbox" name="guardian" value="yes"{{if .Data.Guardian}} checked{{end}}> I’m the parent or legal guardian of the riders listed. I have read and agree to the waiver and to the release for parents and guardians, for them.</label>
+        </div>
+      </details>
       <label>Print your full name <input name="signature" required maxlength="100" autocomplete="off" placeholder="Type your first and last name" value="{{.Data.Form.Signature}}"></label>
       {{template "signature-pad" "join"}}
       <p class="hint">Date signed: {{.Data.Today}}.</p>
-      <p class="hint">Signing up riders under 18 in your household? Join yourself first, then sign for each of them as their parent or legal guardian. Riders under 18 can’t join on their own.</p>
     </fieldset>
     <button class="btn" type="submit">Continue to payment</button>
     <p class="msg{{if .Data.Failed}} err{{end}}" role="status" aria-live="polite">{{if .Data.Failed}}{{.Data.Message}}{{end}}</p>
@@ -68,7 +91,7 @@
     <p>While you’re here, read <a href="/bike-safety" target="_blank" rel="noopener noreferrer">Bike Safety 101<span class="sr"> (opens in a new tab)</span></a> and <a href="{{.Club.StravaURL}}" target="_blank" rel="noopener noreferrer">find a ride on Strava<span class="sr"> (opens in a new tab)</span></a>.</p>
     <form class="joined-minors" method="post" action="/membership/link" target="_blank">
       <input type="hidden" name="email" value="{{.Data.Form.Email}}">
-      <p>Riders under 18 in your household need you to sign the waiver for them, as their parent or guardian. You do that on your membership page.</p>
+      <p>Need to sign for a rider under 18 later? You can do it on your membership page.</p>
       <button class="btn btn-quiet" type="submit">Email me my membership page link<span class="sr"> (opens in a new tab)</span></button>
     </form>
   </div>

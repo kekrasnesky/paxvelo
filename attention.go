@@ -104,17 +104,18 @@ func (a *App) attention() []attentionItem {
 		})
 	}
 
-	// Members riding on this year's dues need this year's waiver for the insurance.
+	// Members riding on this year's dues, and the adults on their Family
+	// plans, need this year's waiver for the insurance.
 	year := a.cfg.ThisYear()
 	unsigned := 0
-	for _, m := range a.store.Members() {
-		if _, ok := a.store.WaiverFor(m.ID, year); m.Active() && m.PaidFor(year) && !ok {
+	for _, u := range a.unsignedRiders(year) {
+		if u.Member.PaidFor(year) {
 			unsigned++
 		}
 	}
 	if unsigned > 0 {
 		out = append(out, attentionItem{
-			Text: fmt.Sprintf("%d %s paid for %d but %s signed this year’s insurance waiver.", unsigned, plural(unsigned, "member", "members"), year, plural(unsigned, "hasn’t", "haven’t")),
+			Text: fmt.Sprintf("%d %s on paid %d memberships %s signed this year’s insurance waiver.", unsigned, plural(unsigned, "rider", "riders"), year, plural(unsigned, "hasn’t", "haven’t")),
 			Href: "/admin/waivers?show=unsigned", Link: "See who",
 		})
 	}

@@ -37,9 +37,10 @@ type adminView struct {
 	Active, Unsub int
 	Paid, Unpaid  int // active members paid / not paid for Year
 	Allowance     emailAllowance
-	// Waivers tab: Year's signed waivers, and active members without one
+	// Waivers tab: Year's signed waivers, and who hasn't signed: active
+	// members and the adults on their Family plans
 	Waivers     []Waiver
-	Unsigned    []Member
+	Unsigned    []unsignedRider
 	WaiverYears []int
 	Show        string // "", "signed", "unsigned"
 	Waiver      *Waiver

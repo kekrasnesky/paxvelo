@@ -231,7 +231,7 @@ initBlock(document);
     <td class="nowrap" data-label="Phone">{{with .Phone}}<a href="tel:{{.}}">{{.}}</a>{{else}}<span class="muted">—</span>{{end}}</td>
     <td data-label="Emergency contact">{{or .EmergencyName "—"}}</td>
     <td class="nowrap" data-label="Emergency phone">{{with .EmergencyPhone}}<a href="tel:{{.}}">{{.}}</a>{{else}}<span class="muted">—</span>{{end}}</td>
-    <td data-label="Plan">{{.PlanName}}</td>
+    <td data-label="Plan">{{.PlanName}}{{with .Household}}<br><span class="muted small">With {{range $i, $h := .}}{{if $i}}, {{end}}{{$h.Name}}{{end}}</span>{{end}}</td>
     <td data-label="Riding">{{with .LevelName}}{{.}}{{else}}<span class="muted">—</span>{{end}}{{with .RideNames}}<br><span class="muted small">{{.}}</span>{{end}}</td>
     <td class="nowrap" data-label="{{$.Year}} dues"><form method="post" action="/admin/members/{{.ID}}/paid" class="inline">
       <input type="hidden" name="return" value="/admin/members?q={{$.Q}}&dues={{$.Dues}}">
@@ -278,7 +278,7 @@ initBlock(document);
 {{define "waivers"}}{{template "head" .}}
 <div class="title-row">
   <h1>Waivers</h1>
-  <p class="muted">{{len .Waivers}} signed for {{.Year}}, {{len .Unsigned}} active {{if eq (len .Unsigned) 1}}member hasn’t{{else}}members haven’t{{end}}</p>
+  <p class="muted">{{len .Waivers}} signed for {{.Year}}, {{len .Unsigned}} {{if eq (len .Unsigned) 1}}rider hasn’t{{else}}riders haven’t{{end}}</p>
 </div>
 <div class="tools">
   <nav class="filter year-pick" aria-label="Year">{{range .WaiverYears}}<a href="/admin/waivers?year={{.}}{{with $.Show}}&show={{.}}{{end}}"{{if eq . $.Year}} aria-current="page"{{end}}>{{.}}</a>{{end}}</nav>
@@ -292,13 +292,13 @@ initBlock(document);
   <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>{{.Year}} dues</th><th>Joined</th></tr></thead>
   <tbody>
   {{range .Unsigned}}<tr>
-    <td data-label="Name">{{.Name}}</td>
+    <td data-label="Name">{{.Name}}{{if .Household}}<br><span class="muted small">On {{.Member.Name}}’s family membership</span>{{end}}</td>
     <td class="email" data-label="Email"><a href="mailto:{{.Email}}">{{.Email}}</a></td>
-    <td class="nowrap" data-label="Phone">{{with .Phone}}<a href="tel:{{.}}">{{.}}</a>{{else}}<span class="muted">—</span>{{end}}</td>
-    <td data-label="{{$.Year}} dues">{{if .PaidFor $.Year}}<span class="paid">Paid</span>{{else}}<span class="muted">Not paid</span>{{end}}</td>
-    <td class="nowrap" data-label="Joined">{{date .Joined}}</td>
+    <td class="nowrap" data-label="Phone">{{if .Household}}<span class="muted">—</span>{{else}}{{with .Member.Phone}}<a href="tel:{{.}}">{{.}}</a>{{else}}<span class="muted">—</span>{{end}}{{end}}</td>
+    <td data-label="{{$.Year}} dues">{{if .Member.PaidFor $.Year}}<span class="paid">Paid</span>{{else}}<span class="muted">Not paid</span>{{end}}</td>
+    <td class="nowrap" data-label="Joined">{{date .Member.Joined}}</td>
   </tr>
-  {{else}}<tr><td colspan="5" class="empty">Every active member has signed a {{.Year}} waiver.</td></tr>
+  {{else}}<tr><td colspan="5" class="empty">Every active member, and every adult on their family plans, has signed a {{.Year}} waiver.</td></tr>
   {{end}}
   </tbody>
 </table></div>
@@ -306,8 +306,8 @@ initBlock(document);
   <thead><tr><th>Rider</th><th>Email</th><th>Signed as</th><th>Signed</th><th>Where</th><th><span class="sr">Signed copy</span></th></tr></thead>
   <tbody>
   {{range .Waivers}}<tr>
-    <td data-label="Rider">{{.RiderName}}{{if .Minor}} <span class="tag">Under 18, age {{.RiderAge}}</span><br><span class="muted small">Signed by {{.Name}}, parent or guardian</span>{{end}}</td>
-    <td class="email" data-label="Email"><a href="mailto:{{.Email}}">{{.Email}}</a></td>
+    <td data-label="Rider">{{.RiderName}}{{if .Minor}} <span class="tag">Under 18, age {{.RiderAge}}</span><br><span class="muted small">Signed by {{.Name}}, parent or guardian</span>{{else if .Household}}<br><span class="muted small">On {{.Name}}’s family membership</span>{{end}}</td>
+    <td class="email" data-label="Email">{{$e := .Email}}{{if .Household}}{{$e = .RiderEmail}}{{end}}<a href="mailto:{{$e}}">{{$e}}</a></td>
     <td data-label="Signed as">{{if .Drawing}}<img class="sig-thumb" src="/admin/waivers/{{.ID}}/signature.png" alt="Signature drawn by {{.Signature}}" loading="lazy"><br>{{end}}{{.Signature}}{{if not .Drawing}} <span class="muted small">(typed)</span>{{end}}</td>
     <td class="nowrap" data-label="Signed">{{datetime .Signed}}</td>
     <td data-label="Where">{{.Where}}</td>
@@ -317,7 +317,7 @@ initBlock(document);
   {{end}}
   </tbody>
 </table></div>{{end}}
-<p class="muted small">The club’s insurance needs every member to sign the League of American Bicyclists waiver each year. A waiver covers January to December, so everyone shows as not signed again on January 1. New members sign on the join form. Everyone else signs on their own membership page, from the “My membership” link in every club email, and parents or guardians sign there for each rider under 18 in their household. In January, send an email from the Email tab asking members to sign this year’s waiver. “Not signed” lists members only: the site can’t know about riders under 18 until someone signs for them. Signed waivers are kept for good, even if a member is deleted. Open one to print it or save it as a PDF.</p>
+<p class="muted small">The club’s insurance needs every member to sign the League of American Bicyclists waiver each year. A waiver covers January to December, so everyone shows as not signed again on January 1. New members sign on the join form. Everyone else signs on their own membership page, from the “My membership” link in every club email, and parents or guardians sign there for each rider under 18 in their household. In January, send an email from the Email tab asking members to sign this year’s waiver. Adults on a family membership sign their own, from a link emailed to them when they’re added on the join form or the member’s page. “Not signed” lists members and those adults: the site can’t know about riders under 18 until someone signs for them. Signed waivers are kept for good, even if a member is deleted. Open one to print it or save it as a PDF.</p>
 {{template "foot" .}}{{end}}
 
 {{define "waiver"}}{{template "head" .}}{{with .Waiver}}
@@ -326,6 +326,8 @@ initBlock(document);
 <dl class="waiver-meta">
   {{if .Minor}}<dt>Rider</dt><dd>{{.Rider}}, age {{.RiderAge}} (under 18)</dd>
   <dt>Parent or guardian</dt><dd>{{.Name}}, {{.Email}}, {{.GuardianPhone}}</dd>
+  {{else if .Household}}<dt>Rider</dt><dd>{{.Rider}}, {{.RiderEmail}}</dd>
+  <dt>Family membership of</dt><dd>{{.Name}}, {{.Email}}</dd>
   {{else}}<dt>Member</dt><dd>{{.Name}}, {{.Email}}</dd>{{end}}
   <dt>Printed name</dt><dd>{{.Signature}}</dd>
   <dt>Signature</dt><dd>{{if .Drawing}}Drawn with a finger, stylus or mouse (below){{else}}Typed name only{{end}}</dd>
@@ -1402,7 +1404,7 @@ var t=document.getElementById('page-text'),p=t.selectionStart;t.value=t.value.sl
     <p class="muted small">Members you add yourself or import never get the welcome email, and renewals don’t get it again.</p></div>
   <div class="card"><h3>Members</h3><ul>
     <li>Every club email has their private membership link: dues status, a PayPal button, this year’s waiver to sign, their details, and emails on or off.</li>
-    <li>The insurance waiver is signed once a year, and parents or guardians sign for each rider under 18 there too. The <a href="/admin/waivers">Waivers</a> tab keeps every signed copy and shows who hasn’t signed.</li>
+    <li>The insurance waiver is signed once a year, and parents or guardians sign for each rider under 18 there too. Other adults on a Family membership each get an emailed link to sign their own. The <a href="/admin/waivers">Waivers</a> tab keeps every signed copy and shows who hasn’t signed.</li>
     <li>Every member email has an unsubscribe link.</li></ul></div>
   <div class="card"><h3>Riders and ride leaders</h3><ul>
     <li>Open a ride, type a name, press <b>I’ll lead</b>. The club inbox is told. Leaders can step down themselves.</li>

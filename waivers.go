@@ -88,15 +88,32 @@ type Waiver struct {
 	// can't draw one.
 	Drawing []byte `json:"drawing,omitempty"`
 	// Who it covers: the member themselves, or a rider under 18 they signed
-	// for as parent or guardian, with the rider's age and the guardian's phone.
+	// for as parent or guardian, with the rider's age and the guardian's phone,
+	// or another adult on their Family plan, who signed it themselves with
+	// their own link.
 	Rider         string `json:"rider,omitempty"`
 	Minor         bool   `json:"minor,omitempty"`
 	RiderAge      int    `json:"rider_age,omitempty"`
 	GuardianPhone string `json:"guardian_phone,omitempty"`
+	Household     bool   `json:"household,omitempty"`
+	RiderEmail    string `json:"rider_email,omitempty"` // the adult's email, on a household waiver
 }
 
 // RiderName is who the waiver covers.
 func (w Waiver) RiderName() string { return or(w.Rider, w.Name) }
+
+// sameRider says whether two waivers on one membership cover the same rider.
+func (w Waiver) sameRider(o Waiver) bool {
+	switch {
+	case w.Minor != o.Minor || w.Household != o.Household:
+		return false
+	case w.Minor:
+		return strings.EqualFold(w.Rider, o.Rider)
+	case w.Household:
+		return w.RiderEmail == o.RiderEmail
+	}
+	return true
+}
 
 // ---- Drawn signatures ----
 
@@ -171,11 +188,11 @@ func (s *Store) SignWaiver(w Waiver, text waiverText) (Waiver, bool, error) {
 	if m == nil {
 		return Waiver{}, false, fmt.Errorf("no member %d", w.MemberID)
 	}
-	if !w.Minor {
+	if !w.Minor && !w.Household {
 		w.Rider = m.Name
 	}
 	for _, old := range s.d.Waivers {
-		if old.MemberID == w.MemberID && old.Year == w.Year && old.Minor == w.Minor && (!w.Minor || strings.EqualFold(old.Rider, w.Rider)) {
+		if old.MemberID == w.MemberID && old.Year == w.Year && old.sameRider(w) {
 			return *old, false, nil
 		}
 	}
@@ -224,7 +241,7 @@ func (s *Store) WaiverFor(memberID, year int) (Waiver, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, w := range s.d.Waivers {
-		if w.MemberID == memberID && w.Year == year && !w.Minor {
+		if w.MemberID == memberID && w.Year == year && !w.Minor && !w.Household {
 			return *w, true
 		}
 	}
@@ -258,31 +275,32 @@ func (s *Store) SignedWaiver(id int) (Waiver, template.HTML, bool) {
 
 // ---- Membership page ----
 
-// signWaiver signs this year's waiver from a member's own page. They sign
-// with the name the club has for them.
+// signWaiver signs this year's waiver from a member's own page, or the page
+// of an adult on their Family plan. They sign with the name the club has for
+// them.
 func (a *App) signWaiver(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, maxSignatureForm)
 	r.ParseForm()
 	t := r.PostFormValue("t")
-	m, ok := a.store.MemberByToken(t)
+	signed, name, v, ok := a.waiverSigner(t)
 	if !ok {
 		a.renderMembership(w, http.StatusOK, membershipData{State: "invalid"})
 		return
 	}
 	signature := cleanName(r.PostFormValue("signature"))
 	drawing, drawn := drawnSignature(r)
-	v := a.membershipView(m, t)
 	switch {
 	case v.Waiver != nil:
 	case r.PostFormValue("waiver") == "":
 		v.WaiverMessage = joinProblems["waiver"]
-	case !strings.EqualFold(signature, m.Name):
-		v.WaiverMessage = fmt.Sprintf("To sign, type your name as the club has it: %s.", m.Name)
+	case !strings.EqualFold(signature, name):
+		v.WaiverMessage = fmt.Sprintf("To sign, type your name as the club has it: %s.", name)
 	case !drawn:
 		v.WaiverMessage = joinProblems["drawing"]
 	default:
-		if _, _, err := a.store.SignWaiver(Waiver{MemberID: m.ID, Year: v.Year, Signature: signature, Drawing: drawing, Where: "Membership page", IP: clientIP(r)}, a.site.waiver); err != nil {
-			log.Printf("sign waiver %s: %v", m.Email, err)
+		signed.Year, signed.Signature, signed.Drawing, signed.Where, signed.IP = v.Year, signature, drawing, "Membership page", clientIP(r)
+		if _, _, err := a.store.SignWaiver(signed, a.site.waiver); err != nil {
+			log.Printf("sign waiver %s: %v", name, err)
 			v.WaiverMessage = "Something went wrong on our end. Try again in a minute."
 		}
 	}
@@ -355,6 +373,79 @@ func (a *App) signMinorWaiver(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/membership?t="+url.QueryEscape(t)+"&minor=1#minors", http.StatusSeeOther)
 }
 
+// ---- Join form ----
+
+// maxJoinRiders is how many riders under 18 the join form has room for. More
+// can be signed for on the membership page.
+const maxJoinRiders = 3
+
+// joinRider is a rider under 18 their parent or guardian signs for on the
+// join form, and riderRow is the same, as typed.
+type joinRider struct {
+	Name string
+	Age  int
+}
+
+type riderRow struct{ Name, Age string }
+
+// SigningMinors says whether the join form's riders under 18 section should
+// open: they typed a rider or ticked the box.
+func (d joinData) SigningMinors() bool {
+	for _, k := range d.Riders {
+		if k.Name != "" || k.Age != "" {
+			return true
+		}
+	}
+	return d.Guardian
+}
+
+// riderRows pairs typed rider names and ages, for the join form's rows.
+func riderRows(names, ages []string) []riderRow {
+	rows := make([]riderRow, maxJoinRiders)
+	for i := range rows {
+		if i < len(names) {
+			rows[i].Name = names[i]
+		}
+		if i < len(ages) {
+			rows[i].Age = ages[i]
+		}
+	}
+	return rows
+}
+
+// joinRiders reads the riders under 18 listed on the join form. Rows left
+// empty are skipped; a listed rider needs a first and last name, an age
+// under 18, and the box ticked to sign for them.
+func joinRiders(r *http.Request) ([]joinRider, string) {
+	var out []joinRider
+	for _, row := range riderRows(r.PostForm["rider_name"], r.PostForm["rider_age"]) {
+		name, age := cleanName(row.Name), strings.TrimSpace(row.Age)
+		if name == "" && age == "" {
+			continue
+		}
+		if len(strings.Fields(name)) < 2 {
+			return nil, "rider-name"
+		}
+		n, err := strconv.Atoi(age)
+		if err != nil || n < 1 || n > 17 {
+			return nil, "rider-age"
+		}
+		out = append(out, joinRider{Name: name, Age: n})
+	}
+	if len(out) > 0 && r.PostFormValue("guardian") == "" {
+		return nil, "guardian"
+	}
+	return out, ""
+}
+
+// andList writes names as "Sam", "Sam and Alex" or "Sam, Alex and Jo".
+func andList(names []string) string {
+	if len(names) < 2 {
+		return strings.Join(names, "")
+	}
+	return strings.Join(names[:len(names)-1], ", ") + " and " + names[len(names)-1]
+}
+
 // ---- Admin ----
 
 // waiversPage is the club's record of signed waivers, a year at a time, and
@@ -373,18 +464,34 @@ func (a *App) waiversPage(w http.ResponseWriter, r *http.Request) {
 	if !slices.Contains(v.WaiverYears, year) {
 		v.WaiverYears = append(v.WaiverYears, year)
 	}
-	signed := map[int]bool{}
-	for _, w := range v.Waivers {
-		if !w.Minor {
-			signed[w.MemberID] = true
-		}
-	}
-	for _, m := range a.store.Members() {
-		if m.Active() && !signed[m.ID] {
-			v.Unsigned = append(v.Unsigned, m)
-		}
-	}
+	v.Unsigned = a.unsignedRiders(year)
 	a.renderAdmin(w, r, http.StatusOK, "waivers", v)
+}
+
+// unsignedRider is someone who hasn't signed a year's waiver: an active
+// member, or an adult on their Family plan.
+type unsignedRider struct {
+	Member      Member
+	Name, Email string
+	Household   bool
+}
+
+func (a *App) unsignedRiders(year int) []unsignedRider {
+	var out []unsignedRider
+	for _, m := range a.store.Members() {
+		if !m.Active() {
+			continue
+		}
+		if _, ok := a.store.WaiverFor(m.ID, year); !ok {
+			out = append(out, unsignedRider{Member: m, Name: m.Name, Email: m.Email})
+		}
+		for _, h := range m.Household {
+			if _, ok := a.store.HouseholdWaiver(m.ID, year, h.Email); !ok {
+				out = append(out, unsignedRider{Member: m, Name: h.Name, Email: h.Email, Household: true})
+			}
+		}
+	}
+	return out
 }
 
 // waiverPage shows one signed waiver, ready to print or save as a PDF.
@@ -407,16 +514,19 @@ func (a *App) exportWaivers(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="paxvelo-waivers-%d.csv"`, year))
 	cw := csv.NewWriter(w)
-	cw.Write([]string{"Year", "Rider", "Under 18", "Age", "Member", "Email", "Guardian phone", "Signed as", "Drawn signature", "Signed", "Where", "IP address", "Waiver version", "Link"})
+	cw.Write([]string{"Year", "Rider", "Rider email", "Under 18", "Age", "Member", "Email", "Guardian phone", "Signed as", "Drawn signature", "Signed", "Where", "IP address", "Waiver version", "Link"})
 	for _, s := range a.store.Waivers(year) {
-		minor, age, drawn := "No", "", "No"
+		minor, age, drawn, riderEmail := "No", "", "No", s.RiderEmail
+		if !s.Minor && !s.Household {
+			riderEmail = s.Email
+		}
 		if len(s.Drawing) > 0 {
 			drawn = "Yes"
 		}
 		if s.Minor {
 			minor, age = "Yes", strconv.Itoa(s.RiderAge)
 		}
-		cw.Write([]string{strconv.Itoa(s.Year), s.RiderName(), minor, age, s.Name, s.Email, s.GuardianPhone, s.Signature, drawn, s.Signed.In(a.cfg.Location).Format("2006-01-02 15:04 MST"),
+		cw.Write([]string{strconv.Itoa(s.Year), s.RiderName(), riderEmail, minor, age, s.Name, s.Email, s.GuardianPhone, s.Signature, drawn, s.Signed.In(a.cfg.Location).Format("2006-01-02 15:04 MST"),
 			s.Where, s.IP, s.Version, fmt.Sprintf("%s/admin/waivers/%d", a.cfg.SiteURL, s.ID)})
 	}
 	cw.Flush()

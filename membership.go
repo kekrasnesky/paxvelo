@@ -41,6 +41,14 @@ type membershipData struct {
 	MinorForm    minorForm
 	MinorSigned  bool   // just signed one
 	MinorMessage string // a problem signing it
+	// Other adults on their Family plan (household.go), with their waivers;
+	// and for one of those adults, opening their own link, who they are.
+	Household        []householdStatus
+	HouseholdRoom    bool   // room to add another
+	HouseholdDone    string // just added, sent or removed
+	HouseholdMessage string // a problem with that
+	HouseholdForm    adultRow
+	Adult            *HouseholdAdult
 }
 
 // membershipURL is a member's private link to their page.
@@ -62,6 +70,8 @@ func (a *App) membershipView(m Member, token string) membershipData {
 	}
 	d.Minors = a.store.MinorWaivers(m.ID, year)
 	d.MinorForm.Phone = m.Phone
+	d.Household = a.householdStatus(m, year)
+	d.HouseholdRoom = m.Plan == "family" && len(m.Household) < maxHousehold
 	return d
 }
 
@@ -75,14 +85,14 @@ func (a *App) membershipPage(w http.ResponseWriter, r *http.Request) {
 		a.renderMembership(w, http.StatusOK, membershipData{State: "find"})
 		return
 	}
-	m, ok := a.store.MemberByToken(t)
+	_, _, v, ok := a.waiverSigner(t) // a member, or an adult on their Family plan
 	if !ok {
 		a.renderMembership(w, http.StatusOK, membershipData{State: "invalid"})
 		return
 	}
-	v := a.membershipView(m, t)
 	v.WaiverSigned = v.Waiver != nil && r.URL.Query().Get("signed") != ""
 	v.MinorSigned = len(v.Minors) > 0 && r.URL.Query().Get("minor") != ""
+	v.HouseholdDone = r.URL.Query().Get("household")
 	a.renderMembership(w, http.StatusOK, v)
 }
 
@@ -172,6 +182,11 @@ func (a *App) sendMembershipLink(w http.ResponseWriter, r *http.Request) {
 			body := fmt.Sprintf("Hi %s,\n\nHere's the link to your PaxVelo membership page. Check your %d dues, and update your phone and emergency contact:\n\n[[My membership](%s)]\n\nKeep this email: the link is just for you, and it doesn't expire.",
 				or(m.FirstName(), "there"), a.cfg.ThisYear(), a.cfg.membershipURL(m.Token))
 			if err := a.mailer.SendDirect(m.Name, m.Email, "Your PaxVelo membership link", body); err != nil {
+				d.Message = "The email didn’t send. Try again later."
+				break
+			}
+		} else if m, h, found := a.store.HouseholdByEmail(email); found {
+			if err := a.sendHouseholdLink(m, h); err != nil {
 				d.Message = "The email didn’t send. Try again later."
 				break
 			}

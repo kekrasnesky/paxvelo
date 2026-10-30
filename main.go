@@ -164,6 +164,7 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("POST /membership/link", a.sendMembershipLink)
 	mux.HandleFunc("POST /membership/waiver", a.signWaiver)
 	mux.HandleFunc("POST /membership/waiver/minor", a.signMinorWaiver)
+	mux.HandleFunc("POST /membership/household", a.saveHousehold)
 
 	// Admin portal.
 	mux.HandleFunc("GET /admin/login", a.loginPage)

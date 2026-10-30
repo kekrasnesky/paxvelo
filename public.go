@@ -26,6 +26,9 @@ type joinData struct {
 	Detail           string        // the sentence under the headline
 	PayURL, PayLabel string        // PayPal button, when dues are owed
 	Today            string        // the date beside the waiver signature
+	Adults           []adultRow    // other adults on a Family plan, as typed
+	Riders           []riderRow    // riders under 18 the parent or guardian signs for, as typed
+	Guardian         bool          // they ticked the box to sign for them
 	OK, Failed       bool
 }
 
@@ -106,6 +109,12 @@ var joinProblems = map[string]string{
 	"waiver":          "Tick the box to agree to the insurance waiver.",
 	"signature":       "To sign the waiver, type your first and last name just as you entered them above.",
 	"drawing":         "Sign in the box with your finger, a stylus or your mouse.",
+	"adult-name":      "Enter the first and last name of each adult on your family membership.",
+	"adult-email":     "Enter each adult’s email address, so we can send them their waiver to sign.",
+	"adult-self":      "List the other adults with their own email addresses. You sign your own waiver below.",
+	"rider-name":      "Enter each rider’s first and last name.",
+	"rider-age":       "Enter each rider’s age, under 18. Riders 18 and over join and sign for themselves.",
+	"guardian":        "To sign for the riders under 18 you listed, tick the box to say you’re their parent or legal guardian.",
 }
 
 // phoneDigits keeps just the digits of a phone number.
@@ -140,7 +149,7 @@ func cleanPhone(s string) string {
 }
 
 func (a *App) joinPage(w http.ResponseWriter, r *http.Request) {
-	d := joinData{Token: a.formToken(), Plan: cleanPlan(r.URL.Query().Get("plan")), Today: a.signedDate()}
+	d := joinData{Token: a.formToken(), Plan: cleanPlan(r.URL.Query().Get("plan")), Today: a.signedDate(), Adults: adultRows(nil, nil), Riders: riderRows(nil, nil)}
 	a.site.render(w, http.StatusOK, "join", "/join", "Become a Member — "+siteName, d)
 }
 
@@ -171,6 +180,8 @@ func (a *App) join(w http.ResponseWriter, r *http.Request) {
 		if !d.OK {
 			d.Failed, d.Form = true, typed
 			d.First, d.Last = r.FormValue("first"), r.FormValue("last")
+			d.Adults = adultRows(r.PostForm["adult_name"], r.PostForm["adult_email"])
+			d.Riders, d.Guardian = riderRows(r.PostForm["rider_name"], r.PostForm["rider_age"]), r.PostFormValue("guardian") != ""
 		}
 		a.site.render(w, status, "join", "/join", "Become a Member — "+siteName, d)
 	}
@@ -188,6 +199,14 @@ func (a *App) join(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	details, problem := joinDetails(r, true)
+	var adults []HouseholdAdult
+	if problem == "" && details.Plan == "family" { // an Individual plan ignores the adults' boxes, hidden for it
+		adults, problem = readHousehold(adultRows(r.PostForm["adult_name"], r.PostForm["adult_email"]), details.Email)
+	}
+	var riders []joinRider
+	if problem == "" {
+		riders, problem = joinRiders(r)
+	}
 	if problem != "" {
 		fail(http.StatusBadRequest, joinProblems[problem])
 		return
@@ -220,6 +239,30 @@ func (a *App) join(w http.ResponseWriter, r *http.Request) {
 	if _, _, err := a.store.SignWaiver(Waiver{MemberID: m.ID, Year: year, Signature: details.Signature, Drawing: details.Drawing, Where: "Join form", IP: clientIP(r)}, a.site.waiver); err != nil {
 		log.Printf("join %s: waiver: %v", details.Email, err)
 	}
+	// And the riders under 18 they signed for, as parent or guardian.
+	var signedFor []string
+	for _, k := range riders {
+		signed := Waiver{MemberID: m.ID, Year: year, Signature: details.Signature, Drawing: details.Drawing, Where: "Join form", IP: clientIP(r),
+			Rider: k.Name, Minor: true, RiderAge: k.Age, GuardianPhone: details.Phone}
+		if _, _, err := a.store.SignWaiver(signed, a.site.waiver.forMinor()); err != nil {
+			log.Printf("join %s: minor waiver: %v", details.Email, err)
+			continue
+		}
+		signedFor = append(signedFor, k.Name)
+	}
+	// The other adults on a Family plan sign their own waivers, with the link
+	// emailed to them. Someone already on the list who has adults keeps them.
+	var emailed []string
+	if m.Plan == "family" && len(adults) > 0 {
+		added, err := a.store.AddHousehold(m.ID, adults, result != Joined)
+		if err != nil {
+			log.Printf("join %s: household: %v", details.Email, err)
+		}
+		for _, h := range added {
+			go a.sendHouseholdLink(m, h) // a failure is logged by send
+			emailed = append(emailed, h.FirstName())
+		}
+	}
 
 	d := joinData{OK: true, Form: memberDetails{Email: m.Email}} // the email, for "Email me my membership page link"
 	first := m.FirstName()
@@ -242,6 +285,12 @@ func (a *App) join(w http.ResponseWriter, r *http.Request) {
 		} else {
 			d.Detail += " We’ll email you how to pay."
 		}
+	}
+	if len(signedFor) > 0 {
+		d.Detail += " You signed the waiver for " + andList(signedFor) + " too."
+	}
+	if len(emailed) > 0 {
+		d.Detail += " We emailed " + andList(emailed) + " a link to sign their own waiver."
 	}
 	reply(http.StatusOK, d)
 }

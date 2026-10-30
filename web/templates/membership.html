@@ -1,20 +1,10 @@
 {{define "head"}}<meta name="robots" content="noindex">{{end}}
-{{define "content"}}{{with .Data}}
-<article class="page">
-{{if eq .State "page"}}{{$m := .Member}}
-  <h1>My Membership</h1>
-  <p class="lead">Hi {{or $m.FirstName "there"}}. This page is just for you, at {{$m.Email}}.</p>
-
-  <h2 class="my-h">Dues</h2>
-  {{if .Paid}}<p class="dues-paid">{{.Year}} dues: paid ✓</p>
-  {{else}}<p>Your {{.Year}} {{.PlanName}} dues aren’t paid yet.</p>
-  {{with .PayURL}}<p><a class="btn" href="{{.}}">{{$.Data.PayLabel}}</a></p>{{else}}<p>Email <a href="mailto:PaxVeloClub@gmail.com">PaxVeloClub@gmail.com</a> and we’ll tell you how to pay.</p>{{end}}
-  <p class="muted-note">Just paid? It shows here once the treasurer marks it, usually within a few days.</p>{{end}}
-
-  <h2 class="my-h" id="waiver">Insurance waiver</h2>
+{{/* This year's waiver, signed or the form to sign it, on a member's page or
+the page of an adult on their Family plan. */}}
+{{define "my-waiver"}}<h2 class="my-h" id="waiver">Insurance waiver</h2>
   {{with .Waiver}}<p class="dues-paid">{{.Year}} waiver: signed ✓</p>
-  <p class="muted-note">{{if $.Data.WaiverSigned}}Thanks! {{end}}You signed it as {{.Signature}} on {{date .Signed}}. You’ll sign a new one each year, from January.</p>
-  {{else}}<p>The club’s insurance needs every member to sign this waiver once a year. Your {{.Year}} waiver isn’t signed yet.</p>
+  <p class="muted-note">{{if $.WaiverSigned}}Thanks! {{end}}You signed it as {{.Signature}} on {{date .Signed}}. You’ll sign a new one each year, from January.</p>
+  {{else}}<p>The club’s insurance needs every {{if .Adult}}adult who rides{{else}}member{{end}} to sign this waiver once a year. Your {{.Year}} waiver isn’t signed yet.</p>
   <form class="join" method="post" action="/membership/waiver#waiver">
     <input type="hidden" name="t" value="{{.Token}}">
     <fieldset class="terms waiver">
@@ -29,7 +19,20 @@
     </fieldset>
     <button class="btn" type="submit">Sign the waiver</button>
     <p class="msg{{if .WaiverMessage}} err{{end}}" role="status">{{.WaiverMessage}}</p>
-  </form>{{end}}
+  </form>{{end}}{{end}}
+{{define "content"}}{{with .Data}}
+<article class="page">
+{{if eq .State "page"}}{{$m := .Member}}
+  <h1>My Membership</h1>
+  <p class="lead">Hi {{or $m.FirstName "there"}}. This page is just for you, at {{$m.Email}}.</p>
+
+  <h2 class="my-h">Dues</h2>
+  {{if .Paid}}<p class="dues-paid">{{.Year}} dues: paid ✓</p>
+  {{else}}<p>Your {{.Year}} {{.PlanName}} dues aren’t paid yet.</p>
+  {{with .PayURL}}<p><a class="btn" href="{{.}}">{{$.Data.PayLabel}}</a></p>{{else}}<p>Email <a href="mailto:PaxVeloClub@gmail.com">PaxVeloClub@gmail.com</a> and we’ll tell you how to pay.</p>{{end}}
+  <p class="muted-note">Just paid? It shows here once the treasurer marks it, usually within a few days.</p>{{end}}
+
+  {{template "my-waiver" .}}
 
   <h3 class="my-h3" id="minors">Riders under 18</h3>
   <p>Riders under 18 can’t sign the waiver themselves. As their parent or legal guardian, sign for each one here, every year.</p>
@@ -63,6 +66,28 @@
     </form>
   </details>
 
+  {{if or .HouseholdRoom .Household}}<h3 class="my-h3" id="household">Other adults on your membership</h3>
+  <p>Every adult who rides on your family membership signs their own waiver, each year. We email each one a link to sign theirs.</p>
+  {{with .HouseholdDone}}<p class="muted-note" role="status">{{if eq . "added"}}Added. We emailed them a link to sign their waiver.{{else if eq . "sent"}}Sent. Their link is on its way.{{else if eq . "removed"}}Removed. Waivers they signed stay on the club’s record.{{end}}</p>{{end}}
+  {{with .Household}}<ul class="household-list">{{range .}}<li>
+    <span><strong>{{.Adult.Name}}</strong>, {{.Adult.Email}}<br>{{if .Waiver}}<span class="dues-paid">{{.Waiver.Year}} waiver signed {{date .Waiver.Signed}} ✓</span>{{else}}{{$.Data.Year}} waiver not signed yet{{end}}</span>
+    <span class="household-tools">{{if not .Waiver}}<form method="post" action="/membership/household#household"><input type="hidden" name="t" value="{{$.Data.Token}}"><input type="hidden" name="do" value="send"><input type="hidden" name="email" value="{{.Adult.Email}}"><button class="link-button" type="submit">Email their link again</button></form>{{end}}
+      <form method="post" action="/membership/household#household"><input type="hidden" name="t" value="{{$.Data.Token}}"><input type="hidden" name="do" value="remove"><input type="hidden" name="email" value="{{.Adult.Email}}"><button class="link-button" type="submit">Remove<span class="sr"> {{.Adult.Name}}</span></button></form></span>
+  </li>{{end}}</ul>{{end}}
+  {{if .HouseholdRoom}}<details class="minor-sign"{{if .HouseholdMessage}} open{{end}}>
+    <summary class="btn btn-quiet">Add an adult</summary>
+    <form class="join" method="post" action="/membership/household#household">
+      <input type="hidden" name="t" value="{{.Token}}"><input type="hidden" name="do" value="add">
+      <div class="pair">
+        <label>Name <input name="adult_name" required maxlength="100" autocomplete="off" placeholder="First and last name" value="{{.HouseholdForm.Name}}"></label>
+        <label>Email <input type="email" name="adult_email" required maxlength="254" autocomplete="off" value="{{.HouseholdForm.Email}}"></label>
+      </div>
+      <button class="btn" type="submit">Add and email their link</button>
+      <p class="msg{{if .HouseholdMessage}} err{{end}}" role="status">{{.HouseholdMessage}}</p>
+    </form>
+  </details>
+  {{else if .HouseholdMessage}}<p class="msg err" role="status">{{.HouseholdMessage}}</p>{{end}}{{end}}
+
   <h2 class="my-h">Your details</h2>
   <form class="join" method="post" action="/membership">
     <input type="hidden" name="t" value="{{.Token}}">
@@ -90,6 +115,11 @@
   {{else}}<p>{{if .EmailsBack}}Club emails are back on. Welcome back!{{else}}You’re unsubscribed from club emails.{{end}}</p>
   <form method="post" action="/membership/emails"><input type="hidden" name="t" value="{{.Token}}"><button class="btn btn-quiet" type="submit">Turn club emails back on</button></form>{{end}}
   <p class="muted-note">Keep the email this link came in. It’s your way back here.</p>
+{{else if eq .State "adult"}}
+  <h1>My Waiver</h1>
+  <p class="lead">Hi {{or .Adult.FirstName "there"}}. You ride on {{.Member.Name}}’s PaxVelo family membership. This page is just for you, at {{.Adult.Email}}.</p>
+  {{template "my-waiver" .}}
+  <p class="muted-note">Keep the email this link came in. It’s where you’ll sign each new year’s waiver.</p>
 {{else if eq .State "sent"}}
   <h1>Check your email</h1>
   <p class="lead">If {{.Email}} is on our member list, your link is on its way.</p>

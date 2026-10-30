@@ -43,6 +43,9 @@ type Member struct {
 	WelcomePending bool `json:"welcome_pending,omitempty"`
 	// When they ticked "I agree to the club terms" on the join form.
 	TermsAgreed *time.Time `json:"terms_agreed,omitempty"`
+	// Other adults who ride on their Family plan, each signing their own
+	// waiver (household.go).
+	Household []HouseholdAdult `json:"household,omitempty"`
 }
 
 // memberDetails is what someone fills in to join.

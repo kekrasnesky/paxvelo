@@ -113,7 +113,7 @@
 
   // Waiver signatures: drawn with a finger, stylus or mouse (pointer events
   // cover all three). The strokes are kept as fractions of the box, so they
-  // redraw sharply when the box changes size, and saved as a 600×200 PNG.
+  // redraw sharply when the box changes size, and saved as a 600×300 PNG.
   // A form sent with "drawn" needs a drawing: "Can't draw?" takes it away,
   // leaving the typed name as the signature, as it is without JavaScript.
   d.querySelectorAll('.sig').forEach(function(box){
@@ -138,8 +138,8 @@
     }
     function save(){
       if(!strokes.length){out.value='';return}
-      var o=d.createElement('canvas');o.width=600;o.height=200;
-      paint(o.getContext('2d'),600,200,3.5);out.value=o.toDataURL('image/png');
+      var o=d.createElement('canvas');o.width=600;o.height=300;
+      paint(o.getContext('2d'),600,300,3.5);out.value=o.toDataURL('image/png');
       msg.textContent='';
     }
     function at(e){var r=c.getBoundingClientRect();return[Math.min(1,Math.max(0,(e.clientX-r.left)/r.width)),Math.min(1,Math.max(0,(e.clientY-r.top)/r.height))]}

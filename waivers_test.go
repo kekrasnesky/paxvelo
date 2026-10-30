@@ -3,10 +3,12 @@ package main
 import (
 	"bytes"
 	"encoding/base64"
+	"html/template"
 	"image"
 	"image/color"
 	"image/png"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strconv"
 	"strings"
@@ -71,7 +73,7 @@ func TestWaiverEachYear(t *testing.T) {
 			t.Errorf("the signed copy should show %q", want)
 		}
 	}
-	if csv := do(t, h, admin, "GET", "/admin/waivers.csv?year="+strconv.Itoa(year), "", nil).Body.String(); !strings.Contains(csv, ",Pat Rider,No,,Pat Rider,pat@example.com,,pat rider,") {
+	if csv := do(t, h, admin, "GET", "/admin/waivers.csv?year="+strconv.Itoa(year), "", nil).Body.String(); !strings.Contains(csv, ",Pat Rider,pat@example.com,No,,Pat Rider,pat@example.com,,pat rider,") {
 		t.Errorf("waivers CSV: %s", csv)
 	}
 	if w := do(t, h, nil, "GET", "/admin/waivers/"+strconv.Itoa(ws[0].ID), "", nil); w.Code != http.StatusSeeOther {
@@ -139,6 +141,56 @@ func TestMinorWaivers(t *testing.T) {
 	}
 }
 
+// A parent or guardian can sign for riders under 18 on the join form too:
+// one signature signs their own waiver and one for each rider listed.
+func TestJoinMinors(t *testing.T) {
+	a, h, _ := testApp(t)
+	year := a.cfg.ThisYear()
+	if page := do(t, h, nil, "GET", "/join", "", nil).Body.String(); !strings.Contains(page, "Signing for riders under 18?") || strings.Count(page, `name="rider_name"`) != maxJoinRiders {
+		t.Error("the join form should offer to sign for riders under 18")
+	}
+	join := func(riders map[string][]string) *httptest.ResponseRecorder {
+		v := url.Values{"plan": {"family"}, "first": {"Pat"}, "last": {"Rider"}, "email": {"pat@example.com"},
+			"phone": {"301-555-0123"}, "emergency_name": {"Lee Rider"}, "emergency_phone": {"240-555-0199"}, "level": {"some"}}
+		for k, vs := range riders {
+			v[k] = vs
+		}
+		ct, body := joinForm(a, v)
+		return do(t, h, nil, "POST", "/join", ct, body)
+	}
+	for problem, riders := range map[string]map[string][]string{
+		"rider-name": {"rider_name": {"Sam"}, "rider_age": {"12"}, "guardian": {"yes"}},
+		"rider-age":  {"rider_name": {"Sam Rider"}, "rider_age": {"18"}, "guardian": {"yes"}},
+		"guardian":   {"rider_name": {"Sam Rider"}, "rider_age": {"12"}},
+	} {
+		w := join(riders)
+		if body := w.Body.String(); w.Code != http.StatusBadRequest || !strings.Contains(body, template.HTMLEscapeString(joinProblems[problem])) || !strings.Contains(body, `class="minor-sign join-minors" open`) {
+			t.Errorf("%s: should be refused with the section open: %d", problem, w.Code)
+		}
+	}
+	if len(a.store.Waivers(year)) != 0 {
+		t.Fatal("a refused form signs nothing")
+	}
+
+	w := join(map[string][]string{"rider_name": {"Sam Rider", "", "Jo Rider"}, "rider_age": {"12", "", "9"}, "guardian": {"yes"}})
+	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "You signed the waiver for Sam Rider and Jo Rider too.") {
+		t.Fatalf("joining with riders: %d", w.Code)
+	}
+	ws := a.store.Waivers(year)
+	if len(ws) != 3 {
+		t.Fatalf("waivers %+v", ws)
+	}
+	m, _ := a.store.MemberByEmail("pat@example.com")
+	if _, ok := a.store.WaiverFor(m.ID, year); !ok {
+		t.Error("the parent's own waiver should be signed")
+	}
+	minors := a.store.MinorWaivers(m.ID, year)
+	if len(minors) != 2 || minors[0].Rider != "Sam Rider" || minors[0].RiderAge != 12 || minors[1].Rider != "Jo Rider" ||
+		minors[0].GuardianPhone != "301-555-0123" || minors[0].Where != "Join form" || minors[0].Version != a.site.waiver.forMinor().Version {
+		t.Errorf("minor waivers %+v", minors)
+	}
+}
+
 // needsWaivers reports whether Needs attention lists members without a waiver.
 func needsWaivers(a *App) bool {
 	for _, it := range a.attention() {
@@ -149,10 +201,10 @@ func needsWaivers(a *App) bool {
 	return false
 }
 
-// testSignature is a drawn signature as the page sends it: a 600×200 PNG
+// testSignature is a drawn signature as the page sends it: a 600×300 PNG
 // data URL with a line drawn across it, or nothing drawn when blank.
 func testSignature(blank bool) string {
-	img := image.NewNRGBA(image.Rect(0, 0, 600, 200))
+	img := image.NewNRGBA(image.Rect(0, 0, 600, 300))
 	if !blank {
 		for x := 100; x < 500; x++ {
 			for y := 140; y < 144; y++ {

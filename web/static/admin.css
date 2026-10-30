@@ -290,7 +290,7 @@ button:has(>.ic),.btn:has(>.ic){display:inline-flex;align-items:center;justify-c
 .waiver-copy{padding:1rem 1.2rem;border:1px solid var(--line);background:#fff;font-size:.85rem;line-height:1.55}
 .waiver-copy p{margin:0 0 .8rem}
 .waiver-copy p:last-child{margin:0}
-.sig-thumb{display:block;width:120px;height:40px;margin-bottom:.2rem;border-bottom:1px solid var(--line)}
+.sig-thumb{display:block;width:120px;height:auto;margin-bottom:.2rem;border-bottom:1px solid var(--line)}
 .sig-block{display:grid;grid-template-columns:2fr 1.4fr 1fr;gap:1.2rem;align-items:end;margin:1.2rem 0;padding:1rem 1.2rem;border:1px solid var(--line);background:#fff}
 .sig-block > div{display:grid;gap:.2rem}
 .sig-line{display:flex;align-items:flex-end;min-height:2.2rem;border-bottom:1px solid var(--ink);overflow-wrap:anywhere}
