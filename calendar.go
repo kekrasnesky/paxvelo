@@ -33,7 +33,6 @@ type calView struct {
 	StravaReady            bool
 	Flash, Error           string
 	ClubURL                string
-	ClubMembers            int    // riders in the Strava club
 	Member                 bool   // signed in with Strava (a club member) or an admin: sees private ride details
 	Token                  string // form token, for spam checks
 
@@ -85,7 +84,6 @@ func (a *App) calBase(r *http.Request) calView {
 		v.Rider = &rd
 	}
 	v.Member = v.Rider != nil || a.loggedIn(r)
-	v.ClubMembers = a.store.StravaClub().Members
 	return v
 }
 
@@ -141,8 +139,7 @@ func (a *App) month(m string) calMonth {
 	switch {
 	case first.Before(today) && !thisMonth:
 		cm.NoDays = "No rides this month."
-	case thisMonth:
-		cm.NoDays = "No more rides this month."
+	case thisMonth: // the upcoming rides above already show what's next
 	default:
 		cm.NoDays = "No rides on the calendar this month yet."
 	}

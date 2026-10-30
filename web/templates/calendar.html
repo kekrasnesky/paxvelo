@@ -11,6 +11,7 @@
     <h2>Upcoming rides</h2>
     {{if .Upcoming}}<ul class="cal-up-list">
       {{range .Upcoming}}<li><a class="cal-ride {{.Status}}" href="/calendar/ride/{{.Key}}">
+        {{with .Route}}{{if and .Shown .Map}}<img class="cal-up-map" src="{{.Map}}" alt="" loading="lazy">{{end}}{{end}}
         <span class="cal-up-date">{{.ShortDate}}</span>
         <span class="cal-time">{{.TimeLabel}}</span> {{.Name}}
         <span class="cal-lead">{{.LeaderSummary}}</span>
@@ -52,9 +53,8 @@
         {{with .Meta}}<span class="cal-meta">{{.}}</span>{{end}}
       </a>{{end}}
     </li>
-    {{else}}<li class="cal-none">{{$.Data.NoDays}}</li>
+    {{else}}{{with $.Data.NoDays}}<li class="cal-none">{{.}}</li>{{end}}
     {{end}}
   </ol>
-  <p class="cal-strava">Every ride is also posted on <a href="{{.ClubURL}}" target="_blank" rel="noopener">our Strava club</a>{{with .ClubMembers}}, {{.}} riders strong{{end}}, with the route and any last-minute changes. Curious where we ride? See the <a href="/routes">club’s routes</a>.</p>
 </article>
 {{end}}{{end}}

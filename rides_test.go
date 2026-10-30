@@ -686,7 +686,8 @@ func TestUpcomingSkipsRidesAlreadyGone(t *testing.T) {
 	}
 }
 
-// On phones, an empty month says what fits: gone, all done, or nothing yet.
+// On phones, an empty month says what fits: gone or nothing yet. The rest of
+// this month says nothing, since the upcoming rides show what's next.
 func TestCalendarEmptyMonthNote(t *testing.T) {
 	a, _, _ := rideApp(t)
 	for _, s := range a.store.AllSeries() {
@@ -695,7 +696,7 @@ func TestCalendarEmptyMonthNote(t *testing.T) {
 	now := a.today()
 	for m, want := range map[string]string{
 		now.AddDate(0, -2, 0).Format("2006-01"): "No rides this month.",
-		now.Format("2006-01"):                   "No more rides this month.",
+		now.Format("2006-01"):                   "",
 		now.AddDate(0, 2, 0).Format("2006-01"):  "No rides on the calendar this month yet.",
 	} {
 		if got := a.month(m).NoDays; got != want {
@@ -797,6 +798,11 @@ func TestStravaDetails(t *testing.T) {
 	if !strings.Contains(page, "St Mary&#39;s Cafe Loop") || !strings.Contains(page, "Ridden 2 times") || !strings.Contains(page, "148 riders") ||
 		!strings.Contains(page, "/calendar/ride/"+cafe.Key) || strings.Contains(page, "Secret Loop") {
 		t.Errorf("routes page:\n%s", page)
+	}
+	// The calendar's upcoming rides show the route's map, but not a private one.
+	page = do(t, h, nil, "GET", "/calendar", "", nil).Body.String()
+	if !strings.Contains(page, `class="cal-up-map" src="https://maps.example/a@2x"`) || strings.Count(page, `class="cal-up-map"`) != 1 {
+		t.Errorf("calendar route maps:\n%s", page)
 	}
 	// A route ridden only once stays off it.
 	a.store.saveRoute(Route{ID: "99", Name: "One-Off Loop", Distance: 1000, Checked: time.Now()})
