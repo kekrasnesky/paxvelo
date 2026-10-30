@@ -278,6 +278,11 @@ initBlock(document);
 {{define "email"}}{{template "head" .}}
 {{if not .Live}}<p class="flash warn">Test mode: emails are written to the server log instead of being sent. Add the SMTP settings to paxvelo.conf to send for real.</p>{{end}}
 <h1>Email members</h1>
+{{if and .Live (gt .Allowance.Limit 0)}}{{with .Allowance}}<div class="card allowance">
+  <p><strong>{{.Left}} emails left today</strong> <span class="muted">· {{.Sent}} of {{.Limit}} sent, starts over {{.Resets}}</span></p>
+  <div class="meter{{if ge .Percent 80}} high{{end}}" role="img" aria-label="{{.Sent}} of {{.Limit}} emails sent today"><span style="width:{{.Percent}}%"></span></div>
+  <p class="muted small">Counts every email the site sends (newsletters, welcome emails, membership links, ride notices, tests) since midnight UTC. A send to more people than are left pauses at the limit and picks up again with Resume after it starts over.</p>
+</div>{{end}}{{end}}
 <form class="card compose" method="post">
   <label>Subject <input name="subject" maxlength="200" value="{{.Draft.Subject}}"></label>
   <div class="mail-edit">

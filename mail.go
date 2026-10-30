@@ -184,6 +184,7 @@ func (m *Mailer) send(toName, toEmail, subject, text string, links memberLinks) 
 		log.Printf("email to %s failed (%q): %v", toEmail, subject, err)
 		return err
 	}
+	m.store.CountEmail()
 	return nil
 }
 

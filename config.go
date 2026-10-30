@@ -25,6 +25,7 @@ type Config struct {
 	FromName      string
 	FromEmail     string
 	SendDelay     time.Duration
+	EmailLimit    int // emails the provider allows a day
 	Location      *time.Location
 
 	// Club links and dues
@@ -153,6 +154,9 @@ func loadConfig() (Config, error) {
 
 	if c.SMTPPort, err = strconv.Atoi(get("SMTP_PORT", "587")); err != nil {
 		return c, fmt.Errorf("SMTP_PORT must be a number: %w", err)
+	}
+	if c.EmailLimit, err = strconv.Atoi(get("EMAIL_DAILY_LIMIT", "300")); err != nil {
+		return c, fmt.Errorf("EMAIL_DAILY_LIMIT must be a number: %w", err)
 	}
 	if c.SendDelay, err = time.ParseDuration(get("SEND_DELAY", "2s")); err != nil {
 		return c, fmt.Errorf("SEND_DELAY must look like 2s or 500ms: %w", err)

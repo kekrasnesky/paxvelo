@@ -55,6 +55,8 @@ FROM_EMAIL=news@paxvelo.cc
 
 # Pause between emails when sending to everyone. Brevo's free plan allows 300 a day.
 SEND_DELAY=2s
+# The emails a day your provider allows; the Email tab shows how many are left.
+EMAIL_DAILY_LIMIT=300
 
 # ---- Server (defaults are right for the standard setup) ----
 LISTEN=127.0.0.1:8080

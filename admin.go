@@ -35,6 +35,7 @@ type adminView struct {
 	Members       []Member
 	Active, Unsub int
 	Paid, Unpaid  int // active members paid / not paid for Year
+	Allowance     emailAllowance
 	// CanManage: the logged-in admin may delete members and remove admins
 	// (the president, or whoever has the server's setup password).
 	CanManage bool
@@ -659,6 +660,7 @@ func (a *App) emailView(r *http.Request) adminView {
 	v := adminView{
 		Title: "Email", Tab: "email", Campaigns: a.store.Campaigns(), Draft: a.store.Draft(),
 		Welcome: a.store.Welcome(), TestTo: a.cfg.AdminEmail, Live: a.mailer.live(), Year: a.cfg.ThisYear(),
+		Allowance: emailAllowance{Sent: a.store.EmailsToday(), Limit: a.cfg.EmailLimit},
 	}
 	for _, m := range a.store.Members() {
 		if !m.Active() {

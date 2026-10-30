@@ -228,3 +228,5 @@ button:has(>.ic),.btn:has(>.ic){display:inline-flex;align-items:center;justify-c
 .glance-h{margin:2rem 0 .5rem;font-size:1.05rem;font-weight:500}
 .glance{margin:0;padding-left:1.2rem}
 @media (max-width:700px){.todo li{padding:.75rem .85rem}.todo .btn{padding:.6rem .85rem}}
+.allowance{gap:.6rem;margin-bottom:1.25rem}.allowance p{margin:0}
+.meter{height:.5rem;background:var(--paper);border:1px solid var(--line);overflow:hidden}.meter span{display:block;height:100%;background:#4a7a4f}.meter.high span{background:var(--red)}

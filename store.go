@@ -148,6 +148,7 @@ type storeData struct {
 	Instagram     []string       `json:"instagram,omitempty"` // posts picked for the home page
 	InstagramLink *InstagramLink `json:"instagram_link,omitempty"`
 	InstaFeed     []InstaPost    `json:"instagram_feed,omitempty"` // the latest posts, from Instagram
+	EmailsSent    map[string]int `json:"emails_sent,omitempty"`    // emails sent today, by day (UTC)
 	NextAdmin     int            `json:"next_admin_id,omitempty"`
 	Admins        []*AdminUser   `json:"admins,omitempty"`
 
