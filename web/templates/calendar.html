@@ -9,11 +9,13 @@
 
   <section class="cal-up" aria-label="Upcoming rides">
     <h2>Upcoming rides</h2>
+    <p class="lvl-key">{{range rideLevels}}<span><span class="lvl lvl-{{.Key}}">{{.Name}}</span> {{.MPH}}</span>{{end}}</p>
     {{if .Upcoming}}<ul class="cal-up-list">
       {{range .Upcoming}}<li><a class="cal-ride {{.Status}}" href="/calendar/ride/{{.Key}}">
         {{with .Route}}{{if and .Shown .Map}}<img class="cal-up-map" src="{{.Map}}" alt="" loading="lazy">{{end}}{{end}}
         <span class="cal-up-date">{{.ShortDate}}</span>
         <span class="cal-time">{{.TimeLabel}}</span> {{.Name}}
+        <span class="lvls">{{range .Levels}}<span class="lvl lvl-{{.Key}}">{{.Name}}</span>{{end}}</span>
         <span class="cal-lead">{{.LeaderSummary}}</span>
         {{with .Meta}}<span class="cal-meta">{{.}}</span>{{end}}
       </a></li>{{end}}
@@ -37,6 +39,7 @@
         <div class="cal-day"><span>{{.Day}}</span>{{if and .InMonth (not .Past)}}<a class="cal-add" href="/calendar/new?date={{.Date}}" aria-label="Add a ride on {{.Date}}">+</a>{{end}}</div>
         {{range .Rides}}<a class="cal-ride {{.Status}}" href="/calendar/ride/{{.Key}}">
           <span class="cal-time">{{.TimeLabel}}</span> {{.Name}}
+          <span class="lvl-dots">{{range .Levels}}<span class="lvl-dot lvl-{{.Key}}" title="{{.Name}}, {{.MPH}}"></span>{{end}}</span>
           <span class="cal-lead">{{.LeaderSummary}}</span>
         </a>{{end}}
       </td>{{end}}
@@ -49,6 +52,7 @@
       <h3>{{(index .Rides 0).DateLabel}}</h3>
       {{range .Rides}}<a class="cal-ride {{.Status}}" href="/calendar/ride/{{.Key}}">
         <span class="cal-time">{{.TimeLabel}}</span> {{.Name}}
+        <span class="lvls">{{range .Levels}}<span class="lvl lvl-{{.Key}}">{{.Name}}</span>{{end}}</span>
         <span class="cal-lead">{{if eq .Status "led"}}Led by {{end}}{{.LeaderSummary}}</span>
         {{with .Meta}}<span class="cal-meta">{{.}}</span>{{end}}
       </a>{{end}}

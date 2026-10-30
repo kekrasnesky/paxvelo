@@ -15,7 +15,7 @@
     {{with $r.PlaceFor $d.Member}}<div><dt>Start</dt><dd>{{.}}{{with $r.DirectionsFor $d.Member}} · <a href="{{.}}" target="_blank" rel="noopener">Directions</a>{{end}}</dd></div>
     {{else}}{{if $r.Place}}<div><dt>Start</dt><dd>Shared with club members on the Strava event</dd></div>{{end}}{{end}}
     {{with $r.Route}}{{if .Shown}}<div><dt>Route</dt><dd><a href="{{.URL}}" target="_blank" rel="noopener">{{.Name}}</a>, {{.Stats}}{{with .TimeLabel}}, about {{.}} of riding{{end}}</dd></div>{{end}}{{end}}
-    {{with $r.Strava}}{{with .PaceLabel}}<div><dt>Pace</dt><dd>{{.}}</dd></div>{{end}}{{end}}
+    <div><dt>Level</dt><dd><span class="lvls">{{range $i, $l := $r.Levels}}{{if $i}} or {{end}}<span class="lvl lvl-{{$l.Key}}">{{$l.Name}}</span> {{$l.MPH}}{{end}}</span>{{if gt (len $r.Levels) 1}}, depending on who turns out{{end}}</dd></div>
     {{with $r.Details}}<div><dt>Details</dt><dd>{{.}}</dd></div>{{end}}
     <div><dt>Strava</dt><dd>{{with $r.StravaURL}}<a href="{{.}}" target="_blank" rel="noopener">See the event on Strava</a>{{with $r.Strava}}{{if .Going}} · {{.Going}} going{{end}}{{with .Organizer}} · posted by {{.}}{{end}}{{end}}{{else}}Not posted yet. <a href="{{$d.ClubURL}}" target="_blank" rel="noopener">Check the club page</a>{{end}}</dd></div>
     <div><dt>Ride type</dt><dd>{{if .Series}}Weekly club ride{{else}}One-off ride{{with $r.AddedBy}}, added by {{.}}{{end}}{{end}}</dd></div>

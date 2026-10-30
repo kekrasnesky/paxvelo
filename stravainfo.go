@@ -157,9 +157,6 @@ func (o RideOcc) Meta() string {
 	if o.Route.Shown() {
 		parts = append(parts, o.Route.Miles())
 	}
-	if p := o.Strava.PaceLabel(); p != "" {
-		parts = append(parts, p)
-	}
 	if o.Strava != nil && o.Strava.Going > 0 && !o.Cancelled {
 		parts = append(parts, fmt.Sprintf("%d going", o.Strava.Going))
 	}

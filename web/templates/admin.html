@@ -786,6 +786,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   </div>
   <label>Details (optional) <input name="details" value="{{.Details}}" maxlength="100" placeholder="Casual · all levels · 25 mi"></label>
   {{template "pace-select" .Groups}}
+  {{template "level-select" .Level}}
   <label>Strava link (optional) <input type="url" name="strava_url" value="{{.StravaURL}}" placeholder="https://www.strava.com/clubs/10197/…"></label>
   <div class="pair">
     <label>Season starts (optional) <input type="date" name="season_start" value="{{.From}}"></label>
@@ -795,6 +796,9 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
 
 {{define "pace-select"}}{{$pace := paceOf .}}<label>Pace groups <select name="pace">{{range paceChoices}}<option value="{{.Value}}"{{if eq .Value $pace}} selected{{end}}>{{.Label}}</option>{{end}}{{if eq $pace "keep"}}<option value="keep" selected>Keep: {{join . ", "}}</option>{{end}}</select></label>
   <p class="muted small">Each group gets its own leader. Put the paces in the details, like “A 24–28 mph, B 20–22 mph”.</p>{{end}}
+
+{{define "level-select"}}{{$level := .}}<label>Level <select name="level">{{range levelChoices}}<option value="{{.Value}}"{{if eq .Value $level}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>
+  <p class="muted small">Shown as a colored tag so new riders know how fast it goes: Social 16–18 mph, Intermediate 18–20 mph, Elite 20+ mph. Automatic goes by the ride’s name (like ThNR or SuMR), then the pace on its Strava event, and otherwise Intermediate.</p>{{end}}
 
 {{define "series"}}{{template "head" .}}{{$f := .SeriesForm}}
 <p class="crumb"><a href="/admin/rides">← Rides</a></p>
@@ -856,6 +860,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   </div>
   <label>Details (optional) <input name="details" value="{{$f.Details}}" maxlength="100" placeholder="Casual · all levels · 25 mi"></label>
   {{$pace := $f.Pace}}<label>Pace groups <select name="pace" data-leaders>{{range paceChoices}}<option value="{{.Value}}"{{if eq .Value $pace}} selected{{end}}>{{.Label}}</option>{{end}}{{if eq $pace "keep"}}<option value="keep" selected>Keep: {{join $f.Groups ", "}}</option>{{end}}</select></label>
+  {{template "level-select" $f.Level}}
   <fieldset class="leaders">
     <legend>Ride leaders</legend>
     {{range $f.Leaders}}<label class="leader-row" data-group="{{.Group}}"{{if and (ne .Group "") (ne .Group "A group") (ne .Group "B group") (ne .Group "C group")}} data-keep="1"{{end}}>{{or .Group "Leader"}}

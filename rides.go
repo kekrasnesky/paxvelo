@@ -31,6 +31,9 @@ type RideSeries struct {
 	// Pace groups, each led by its own leader: "A group", "B group", and so on
 	// (see paceGroups). None means the ride has one leader.
 	Groups []string `json:"groups,omitempty"`
+	// Level is how fast it goes ("social", "intermediate", "elite", or two of
+	// them), when an admin picked one. Empty means automatic (see Levels).
+	Level string `json:"level,omitempty"`
 	// The part of each year it runs, as month-day ("03-01" to "10-10").
 	// Empty means all year.
 	SeasonStart string `json:"season_start,omitempty"`
@@ -91,6 +94,7 @@ type CalRide struct {
 	Details   string    `json:"details,omitempty"`
 	StravaURL string    `json:"strava_url,omitempty"`
 	Groups    []string  `json:"groups,omitempty"`
+	Level     string    `json:"level,omitempty"` // like RideSeries.Level
 	Leaders   []Leader  `json:"leaders,omitempty"`
 	External  string    `json:"external,omitempty"` // "strava:<event>:<date>", or an ID sent through the calendar API
 	Cancelled bool      `json:"cancelled,omitempty"`
@@ -365,7 +369,7 @@ func (s *Store) Rides(from, to time.Time) []RideOcc {
 			date := d.Format("2006-01-02")
 			if key := seriesKey(se.ID, date); !stored[key] {
 				out = append(out, RideOcc{Key: key, CalRide: CalRide{SeriesID: se.ID, Date: date, Time: se.Time,
-					Name: se.Name, Place: se.Place, Details: se.Details, StravaURL: se.StravaURL, Groups: append([]string(nil), se.Groups...)}})
+					Name: se.Name, Place: se.Place, Details: se.Details, StravaURL: se.StravaURL, Groups: append([]string(nil), se.Groups...), Level: se.Level}})
 			}
 		}
 	}
@@ -422,7 +426,7 @@ func (s *Store) ride(key string, create bool) (*CalRide, error) {
 		return nil, errNoRide
 	}
 	r := &CalRide{SeriesID: id, Date: date, Time: se.Time, Name: se.Name, Place: se.Place, Details: se.Details, StravaURL: se.StravaURL,
-		Groups: append([]string(nil), se.Groups...), Added: time.Now().UTC()}
+		Groups: append([]string(nil), se.Groups...), Level: se.Level, Added: time.Now().UTC()}
 	if create {
 		s.d.NextRide = max(s.d.NextRide, 1)
 		r.ID = s.d.NextRide
@@ -545,6 +549,7 @@ func (s *Store) UpdateSeries(se RideSeries, from string) error {
 				follow(&r.Place, old.Place, se.Place)
 				follow(&r.Details, old.Details, se.Details)
 				follow(&r.StravaURL, old.StravaURL, se.StravaURL)
+				follow(&r.Level, old.Level, se.Level)
 				if slices.Equal(r.Groups, old.Groups) {
 					r.Groups = append([]string(nil), se.Groups...)
 					r.fitLeaders()

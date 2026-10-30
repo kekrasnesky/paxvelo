@@ -118,6 +118,7 @@ func readRide(r *http.Request, c *CalRide, dateEditable bool) string {
 	c.Place, c.Details = cleanName(r.FormValue("place")), cleanName(r.FormValue("details"))
 	c.StravaURL = strings.TrimSpace(r.FormValue("strava_url"))
 	c.Groups = groupsFor(r.FormValue("pace"), c.Groups)
+	c.Level = levelFor(r.FormValue("level"))
 	if dateEditable {
 		c.Date = strings.TrimSpace(r.FormValue("date"))
 	}
@@ -319,6 +320,7 @@ func readSeries(r *http.Request, se *RideSeries) string {
 	se.Place, se.Details = cleanName(r.FormValue("place")), cleanName(r.FormValue("details"))
 	se.StravaURL = strings.TrimSpace(r.FormValue("strava_url"))
 	se.Groups = groupsFor(r.FormValue("pace"), se.Groups)
+	se.Level = levelFor(r.FormValue("level"))
 	se.SeasonStart, se.SeasonEnd = "", ""
 	if from, until := r.FormValue("season_start"), r.FormValue("season_end"); from != "" || until != "" {
 		f, err1 := time.Parse("2006-01-02", from)

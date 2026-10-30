@@ -380,12 +380,16 @@ func TestRidesAdmin(t *testing.T) {
 	satKey := seriesKey(3, sat)
 	ct, body = form(url.Values{"name": {"Saturday Coffee Ride"}, "time": {"08:00"}, "place": {"Gate 2 lot"}, "pace": {"3"}, "leader:A group": {"Gus R."}})
 	do(t, h, admin, "POST", "/admin/rides/"+satKey, ct, body)
-	ct, body = form(url.Values{"name": {"Saturday Social"}, "weekday": {"6"}, "time": {"08:30"}, "pace": {"2"}})
+	ct, body = form(url.Values{"name": {"Saturday Social"}, "weekday": {"6"}, "time": {"08:30"}, "pace": {"2"}, "level": {"elite"}})
 	if w := do(t, h, admin, "POST", "/admin/weekly/3", ct, body); !strings.Contains(w.Header().Get("Location"), "ok=series-saved") {
 		t.Fatalf("save weekly ride: %s", w.Header().Get("Location"))
 	}
-	// The date follows the new name, time, and groups (Gus keeps the A group), but keeps its own start.
-	if o, _ := a.store.Ride(satKey); o.Name != "Saturday Social" || o.Time != "08:30" || len(o.Groups) != 2 || o.Place != "Gate 2 lot" || o.leaderFor("A group") == nil {
+	if w := do(t, h, admin, "GET", "/admin/weekly/3", "", nil); !strings.Contains(w.Body.String(), `<option value="elite" selected>`) {
+		t.Error("the weekly ride's page should show its level")
+	}
+	// The date follows the new name, time, level, and groups (Gus keeps the A group), but keeps its own start.
+	if o, _ := a.store.Ride(satKey); o.Name != "Saturday Social" || o.Time != "08:30" || len(o.Groups) != 2 || o.Place != "Gate 2 lot" || o.leaderFor("A group") == nil ||
+		len(o.Levels()) != 1 || o.Levels()[0].Key != "elite" {
 		t.Errorf("weekly ride date after the edit: %+v", o.CalRide)
 	}
 	// Removing a weekly ride keeps dates that have a leader.
@@ -766,7 +770,7 @@ func TestStravaDetails(t *testing.T) {
 	if cafe.LeaderSummary() != "Gabriel M." {
 		t.Errorf("the organizer should lead: %q", cafe.LeaderSummary())
 	}
-	if cafe.Meta() != "21 mi · Tempo · 3 going" {
+	if cafe.Meta() != "21 mi · 3 going" {
 		t.Errorf("meta: %q", cafe.Meta())
 	}
 	if home.Route.Shown() || home.PublicPlace() != "" || home.DirectionsFor(false) != "" || home.NotesFor(false) != "" {
@@ -775,7 +779,7 @@ func TestStravaDetails(t *testing.T) {
 
 	// The public ride page shows the route but not a private event's notes or address.
 	page := do(t, h, nil, "GET", "/calendar/ride/"+cafe.Key, "", nil).Body.String()
-	for _, want := range []string{"Coffee at the end.", "St Mary&#39;s Cafe Loop", "21 mi · 400 ft of climbing", "Tempo", "3 going", "posted by Gabriel M.", "google.com/maps/dir", "maps.example/a@2x"} {
+	for _, want := range []string{"Coffee at the end.", "St Mary&#39;s Cafe Loop", "21 mi · 400 ft of climbing", `class="lvl lvl-intermediate">Intermediate</span> 18–20 mph`, "3 going", "posted by Gabriel M.", "google.com/maps/dir", "maps.example/a@2x"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("cafe ride page is missing %q", want)
 		}

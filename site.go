@@ -156,6 +156,8 @@ func newSite(cfg Config) (*Site, error) {
 		"join":         strings.Join,
 		"paceChoices":  func() []paceChoice { return paceChoices },
 		"paceOf":       paceOf,
+		"levelChoices": func() []paceChoice { return levelChoices },
+		"rideLevels":   func() []rideLevel { return rideLevels },
 		"weekdays":     func() []monthOption { return weekdays },
 		"seriesBlank":  func() seriesForm { return seriesForm{} },
 		"maxGallery":   func() int { return maxGallery },
