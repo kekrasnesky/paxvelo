@@ -19,7 +19,7 @@ type adminGroup struct {
 }
 
 var adminGroups = []adminGroup{
-	{"Home", "/admin", []adminSection{{"attention", "Needs attention", "/admin"}}},
+	{"Home", "/admin", []adminSection{{"attention", "Needs attention", "/admin"}, {"guide", "How the site works", "/admin/guide"}}},
 	{"Members", "/admin/members", []adminSection{{"members", "Members", "/admin/members"}}},
 	{"Email", "/admin/email", []adminSection{{"email", "Email members", "/admin/email"}, {"newsletter", "Newsletter", "/admin/newsletter"}}},
 	{"Rides", "/admin/calendar", []adminSection{{"calendar", "Calendar", "/admin/calendar"}, {"rides", "Weekly rides", "/admin/rides"}, {"history", "History", "/admin/history"}}},
@@ -66,6 +66,23 @@ func adminNavFor(tab string, attention int) adminNav {
 		nav.Groups = append(nav.Groups, ng)
 	}
 	return nav
+}
+
+// ---- How the site works ----
+
+// guideView is what the How the site works page fills in from the settings,
+// so its sketches show the club's real dues and inbox.
+type guideView struct {
+	DuesIndividual, DuesFamily int
+	RidesEmail                 string
+}
+
+// guidePage explains the whole site to admins: who uses it, the signup
+// flow, every email it sends, and where rides come from. Its text lives in
+// the "guide" template, so change it there when the site changes.
+func (a *App) guidePage(w http.ResponseWriter, r *http.Request) {
+	g := guideView{DuesIndividual: a.cfg.DuesIndividual, DuesFamily: a.cfg.DuesFamily, RidesEmail: a.cfg.RidesEmail}
+	a.renderAdmin(w, r, http.StatusOK, "guide", adminView{Title: "How the site works", Tab: "guide", Guide: &g})
 }
 
 // ---- Needs attention ----

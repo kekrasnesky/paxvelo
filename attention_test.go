@@ -1,6 +1,8 @@
 package main
 
 import (
+	"net/http"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -51,5 +53,31 @@ func TestNeedsAttention(t *testing.T) {
 	cal := do(t, h, admin, "GET", "/admin/calendar", "", nil).Body.String()
 	if !strings.Contains(cal, `<nav class="sub"`) || !strings.Contains(cal, `href="/admin/rides">Weekly rides</a>`) {
 		t.Error("the Rides group should list its screens under the bar")
+	}
+}
+
+// How the site works is under Home, shows the four sketches with the club's
+// own dues and inbox, and needs an admin login.
+func TestGuidePage(t *testing.T) {
+	a, h, admin := testApp(t)
+	if w := do(t, h, nil, "GET", "/admin/guide", "", nil); w.Code == http.StatusOK {
+		t.Error("the guide should need a login")
+	}
+	page := do(t, h, admin, "GET", "/admin/guide", "", nil).Body.String()
+	for _, want := range []string{
+		`href="/admin/guide" aria-current="page">How the site works`,
+		"A new member signs up", "Every email the site sends", "Where the rides come from",
+		"pays $" + strconv.Itoa(a.cfg.DuesIndividual) + " or $" + strconv.Itoa(a.cfg.DuesFamily),
+		"Club inbox (" + a.cfg.RidesEmail + ")",
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("guide missing %q", want)
+		}
+	}
+	if got := strings.Count(page, `<figure class="board">`); got != 4 {
+		t.Errorf("want 4 sketches, got %d", got)
+	}
+	if !strings.Contains(do(t, h, admin, "GET", "/admin", "", nil).Body.String(), `href="/admin/guide"`) {
+		t.Error("Needs attention should link to the guide under Home")
 	}
 }

@@ -1048,3 +1048,307 @@ var t=document.getElementById('page-text'),p=t.selectionStart;t.value=t.value.sl
   <div class="save-bar"><button>{{icon "save"}}Save</button><span class="muted small">Photos show as circles: click a photo to keep their face in view.</span></div>
 </form>
 {{template "foot" .}}{{end}}
+
+{{define "guide"}}{{template "head" .}}
+<div class="guide">
+<div class="title-row"><h1>How the site works</h1></div>
+<p class="guide-lede">Who uses the website, what they do there, which emails go out, and where the rides come from. Share it with new board members: it’s the same for every admin.</p>
+<nav class="guide-toc" aria-label="On this page"><a href="#g-map">The big picture</a><a href="#g-signup">A new member signs up</a><a href="#g-emails">Emails</a><a href="#g-rides">Rides</a><a href="#g-people">Who does what</a></nav>
+<div class="guide-key"><span><i></i>something happens on the site</span><span><i class="r"></i>an email goes out</span><span><i class="n"></i>what the site remembers</span></div>
+
+<h2 class="section" id="g-map">The big picture</h2>
+<figure class="board">
+      <div class="surface">
+        <svg viewBox="0 0 960 490" role="img" aria-label="Five kinds of people use five parts of paxvelo.cc. The site links out to PayPal, sends all email through Brevo, imports rides from Strava, reads Instagram through Behold, and is published from GitHub.">
+          <defs>
+            <filter id="wD" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="2" seed="4"/><feDisplacementMap in="SourceGraphic" scale="2.6"/></filter>
+            <marker id="hD" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M1,1 L9,5 L1,9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></marker>
+            <marker id="hDr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path class="r" d="M1,1 L9,5 L1,9" fill="none" stroke-width="1.6" stroke-linecap="round"/></marker>
+          </defs>
+          <g filter="url(#wD)">
+            <!-- people -->
+            <rect class="bx" x="20" y="53" width="180" height="54" rx="8"/>
+            <rect class="bx" x="20" y="143" width="180" height="54" rx="8"/>
+            <rect class="bx" x="20" y="233" width="180" height="54" rx="8"/>
+            <rect class="bx" x="20" y="323" width="180" height="54" rx="8"/>
+            <rect class="bx" x="20" y="413" width="180" height="54" rx="8"/>
+            <!-- site -->
+            <rect class="hub" x="290" y="10" width="360" height="470" rx="18"/>
+            <rect class="bx" x="320" y="53" width="300" height="54" rx="6"/>
+            <rect class="bx" x="320" y="143" width="300" height="54" rx="6"/>
+            <rect class="bx" x="320" y="233" width="300" height="54" rx="6"/>
+            <rect class="bx" x="320" y="323" width="300" height="54" rx="6"/>
+            <rect class="bx" x="320" y="413" width="300" height="54" rx="6"/>
+            <!-- services -->
+            <rect class="bx" x="780" y="53" width="160" height="54" rx="8"/>
+            <rect class="bx" x="780" y="143" width="160" height="54" rx="8"/>
+            <rect class="bx" x="780" y="233" width="160" height="54" rx="8"/>
+            <rect class="bx" x="780" y="323" width="160" height="54" rx="8"/>
+            <rect class="bx" x="780" y="413" width="160" height="54" rx="8"/>
+            <!-- people → site -->
+            <line class="ln" x1="200" y1="80" x2="314" y2="80" marker-end="url(#hD)"/>
+            <line class="ln" x1="200" y1="170" x2="314" y2="170" marker-end="url(#hD)"/>
+            <line class="ln" x1="200" y1="260" x2="314" y2="260" marker-end="url(#hD)"/>
+            <line class="ln" x1="200" y1="350" x2="314" y2="350" marker-end="url(#hD)"/>
+            <line class="ln" x1="200" y1="440" x2="314" y2="440" marker-end="url(#hD)"/>
+            <!-- site ↔ services -->
+            <line class="ln" x1="780" y1="80" x2="656" y2="80" marker-end="url(#hD)"/>
+            <line class="ln" x1="650" y1="170" x2="774" y2="170" marker-end="url(#hD)"/>
+            <line class="ln r" x1="650" y1="260" x2="774" y2="260" marker-end="url(#hDr)"/>
+            <line class="ln" x1="780" y1="350" x2="656" y2="350" marker-end="url(#hD)"/>
+            <line class="ln" x1="780" y1="440" x2="656" y2="440" marker-end="url(#hD)"/>
+          </g>
+          <text class="t hd" x="470" y="38" text-anchor="middle">paxvelo.cc</text>
+          <!-- people labels -->
+          <text class="t" x="110" y="85" text-anchor="middle">Visitors</text>
+          <text class="t" x="110" y="175" text-anchor="middle">New members</text>
+          <text class="t" x="110" y="265" text-anchor="middle">Members</text>
+          <text class="t" x="110" y="355" text-anchor="middle">Riders &amp; leaders</text>
+          <text class="t" x="110" y="445" text-anchor="middle">Board admins</text>
+          <!-- site parts -->
+          <text class="t" x="470" y="85" text-anchor="middle">Home, Our Rides, newsletter, minutes</text>
+          <text class="t" x="470" y="175" text-anchor="middle">/join · plan, details, one riding question</text>
+          <text class="t" x="470" y="265" text-anchor="middle">/membership · details, dues, emails on/off</text>
+          <text class="t" x="470" y="355" text-anchor="middle">/calendar · see rides, lead one, add one</text>
+          <text class="t" x="470" y="445" text-anchor="middle">/admin · members, email, rides, pages</text>
+          <!-- people arrow labels -->
+          <text class="t s mt" x="257" y="72" text-anchor="middle">read</text>
+          <text class="t s mt" x="257" y="162" text-anchor="middle">sign up</text>
+          <text class="t s mt" x="257" y="252" text-anchor="middle">update</text>
+          <text class="t s mt" x="257" y="342" text-anchor="middle">lead · add</text>
+          <text class="t s mt" x="257" y="432" text-anchor="middle">run the club</text>
+          <!-- services -->
+          <text class="t" x="860" y="78" text-anchor="middle">Behold</text><text class="t s mt" x="860" y="96" text-anchor="middle">Instagram</text>
+          <text class="t" x="860" y="175" text-anchor="middle">PayPal</text>
+          <text class="t" x="860" y="258" text-anchor="middle">Brevo</text><text class="t s mt" x="860" y="276" text-anchor="middle">email sending</text>
+          <text class="t" x="860" y="355" text-anchor="middle">Strava club</text>
+          <text class="t" x="860" y="445" text-anchor="middle">GitHub</text>
+          <text class="t s mt" x="715" y="72" text-anchor="middle">posts every 3 h</text>
+          <text class="t s mt" x="715" y="162" text-anchor="middle">sends them to pay</text>
+          <text class="t s rt" x="715" y="252" text-anchor="middle">every email</text>
+          <text class="t s mt" x="715" y="342" text-anchor="middle">rides every hour</text>
+          <text class="t s mt" x="715" y="432" text-anchor="middle">publishes changes</text>
+        </svg>
+      </div>
+      <figcaption>Everyone uses one site with five front doors. The site never touches money or sends mail itself: PayPal takes dues, Brevo delivers every email, Strava supplies the club rides, and Behold supplies the Instagram posts. Members, rides and newsletters live in one data file on the server.</figcaption>
+    </figure>
+
+<h2 class="section" id="g-signup">A new member signs up</h2>
+<figure class="board">
+      <div class="surface">
+        <svg viewBox="0 0 960 600" role="img" aria-label="Signup flow: the rider submits the join form, the site saves them as not paid and emails every admin, sends the rider to PayPal, PayPal emails the club when they pay, Barry presses Mark paid, and the site sends the welcome email with riding advice for their answer.">
+          <defs>
+            <filter id="wA" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="2" seed="7"/><feDisplacementMap in="SourceGraphic" scale="2.6"/></filter>
+            <marker id="hA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M1,1 L9,5 L1,9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></marker>
+            <marker id="hAr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path class="r" d="M1,1 L9,5 L1,9" fill="none" stroke-width="1.6" stroke-linecap="round"/></marker>
+          </defs>
+          <g filter="url(#wA)">
+            <rect class="bx" x="30" y="14" width="180" height="46" rx="8"/>
+            <rect class="hub" x="270" y="14" width="180" height="46" rx="8"/>
+            <rect class="bx" x="510" y="14" width="180" height="46" rx="8"/>
+            <rect class="bx" x="750" y="14" width="180" height="46" rx="8"/>
+            <line class="lane" x1="120" y1="64" x2="120" y2="590"/>
+            <line class="lane" x1="360" y1="64" x2="360" y2="590"/>
+            <line class="lane" x1="600" y1="64" x2="600" y2="590"/>
+            <line class="lane" x1="840" y1="64" x2="840" y2="590"/>
+            <rect class="note" x="272" y="128" width="176" height="56" rx="3"/>
+            <rect class="note" x="752" y="366" width="176" height="56" rx="3"/>
+            <rect class="note" x="272" y="530" width="176" height="52" rx="3"/>
+            <line class="ln" x1="120" y1="104" x2="354" y2="104" marker-end="url(#hA)"/>
+            <line class="ln r" x1="360" y1="216" x2="834" y2="216" marker-end="url(#hAr)"/>
+            <line class="ln" x1="360" y1="262" x2="126" y2="262" marker-end="url(#hA)"/>
+            <line class="ln" x1="120" y1="306" x2="594" y2="306" marker-end="url(#hA)"/>
+            <line class="ln r" x1="600" y1="346" x2="834" y2="346" marker-end="url(#hAr)"/>
+            <line class="ln" x1="840" y1="450" x2="366" y2="450" marker-end="url(#hA)"/>
+            <line class="ln r" x1="360" y1="494" x2="126" y2="494" marker-end="url(#hAr)"/>
+          </g>
+          <text class="t hd" x="120" y="43" text-anchor="middle">New rider</text>
+          <text class="t hd" x="360" y="43" text-anchor="middle">paxvelo.cc</text>
+          <text class="t hd" x="600" y="43" text-anchor="middle">PayPal</text>
+          <text class="t hd" x="840" y="43" text-anchor="middle">Admins · Barry</text>
+
+          <text class="t" x="237" y="96" text-anchor="middle">1 · submits the join form</text>
+          <text class="t s" x="360" y="152" text-anchor="middle">saves them: not paid,</text>
+          <text class="t s" x="360" y="172" text-anchor="middle">welcome email waiting</text>
+          <text class="t rt" x="597" y="208" text-anchor="middle">2 · “New member” email to every admin</text>
+          <text class="t" x="240" y="254" text-anchor="middle">3 · off to their plan’s PayPal link</text>
+          <text class="t" x="360" y="298" text-anchor="middle">4 · pays ${{.Guide.DuesIndividual}} or ${{.Guide.DuesFamily}}</text>
+          <text class="t rt" x="717" y="338" text-anchor="middle">5 · PayPal’s receipt</text>
+          <text class="t s" x="840" y="390" text-anchor="middle">Barry finds them on</text>
+          <text class="t s" x="840" y="410" text-anchor="middle">Members → Mark paid</text>
+          <text class="t" x="603" y="442" text-anchor="middle">6 · Mark paid</text>
+          <text class="t rt" x="240" y="486" text-anchor="middle">7 · welcome email</text>
+          <text class="t s rt" x="240" y="514" text-anchor="middle">riding advice for their answer</text>
+          <text class="t s" x="360" y="552" text-anchor="middle">first Mark paid only,</text>
+          <text class="t s" x="360" y="571" text-anchor="middle">never on renewals</text>
+        </svg>
+      </div>
+      <figcaption>Read top to bottom. Nothing reaches the new rider from the club until Barry confirms the payment in step 6. The yellow notes are what the site keeps track of: a website signup is flagged as waiting for its welcome, and the first Mark paid clears that flag, so the welcome goes out exactly once. Members you add yourself or import never get it.</figcaption>
+    </figure>
+
+<h2 class="section" id="g-emails">Every email the site sends</h2>
+<figure class="board">
+      <div class="surface">
+        <svg viewBox="0 0 960 470" role="img" aria-label="Six things trigger email, all sent through Brevo: a signup emails every admin, the first Mark paid emails the welcome, admins email members, ride changes email the club inbox, admin password links, and members' own membership links.">
+          <defs>
+            <filter id="wB" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="2" seed="11"/><feDisplacementMap in="SourceGraphic" scale="2.6"/></filter>
+            <marker id="hBr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path class="r" d="M1,1 L9,5 L1,9" fill="none" stroke-width="1.6" stroke-linecap="round"/></marker>
+          </defs>
+          <g filter="url(#wB)">
+            <rect class="hub" x="300" y="40" width="40" height="414" rx="8"/>
+            <rect class="bx" x="20" y="44" width="262" height="56" rx="8"/>
+            <rect class="bx" x="20" y="114" width="262" height="56" rx="8"/>
+            <rect class="bx" x="20" y="184" width="262" height="56" rx="8"/>
+            <rect class="bx" x="20" y="254" width="262" height="56" rx="8"/>
+            <rect class="bx" x="20" y="324" width="262" height="56" rx="8"/>
+            <rect class="bx" x="20" y="394" width="262" height="56" rx="8"/>
+            <rect class="bx" x="660" y="44" width="280" height="56" rx="8"/>
+            <rect class="bx" x="660" y="114" width="280" height="56" rx="8"/>
+            <rect class="bx" x="660" y="184" width="280" height="56" rx="8"/>
+            <rect class="bx" x="660" y="254" width="280" height="56" rx="8"/>
+            <rect class="bx" x="660" y="324" width="280" height="56" rx="8"/>
+            <rect class="bx" x="660" y="394" width="280" height="56" rx="8"/>
+            <line class="ln" x1="282" y1="72" x2="300" y2="72"/>
+            <line class="ln" x1="282" y1="142" x2="300" y2="142"/>
+            <line class="ln" x1="282" y1="212" x2="300" y2="212"/>
+            <line class="ln" x1="282" y1="282" x2="300" y2="282"/>
+            <line class="ln" x1="282" y1="352" x2="300" y2="352"/>
+            <line class="ln" x1="282" y1="422" x2="300" y2="422"/>
+            <line class="ln r" x1="340" y1="72" x2="654" y2="72" marker-end="url(#hBr)"/>
+            <line class="ln r" x1="340" y1="142" x2="654" y2="142" marker-end="url(#hBr)"/>
+            <line class="ln r" x1="340" y1="212" x2="654" y2="212" marker-end="url(#hBr)"/>
+            <line class="ln r" x1="340" y1="282" x2="654" y2="282" marker-end="url(#hBr)"/>
+            <line class="ln r" x1="340" y1="352" x2="654" y2="352" marker-end="url(#hBr)"/>
+            <line class="ln r" x1="340" y1="422" x2="654" y2="422" marker-end="url(#hBr)"/>
+            <rect class="note" x="214" y="34" width="54" height="22" rx="3"/>
+            <rect class="note" x="214" y="104" width="54" height="22" rx="3"/>
+          </g>
+          <text class="t s mt" x="20" y="26">When this happens</text>
+          <text class="t s mt" x="497" y="26" text-anchor="middle">the site emails</text>
+          <text class="t s mt" x="660" y="26">Who gets it</text>
+          <text class="t s" x="320" y="247" text-anchor="middle" transform="rotate(-90 320 247)">sent through Brevo</text>
+          <text class="t s" x="241" y="50" text-anchor="middle">new</text>
+          <text class="t s" x="241" y="120" text-anchor="middle">new</text>
+
+          <text class="t" x="34" y="77">Someone joins on the website</text>
+          <text class="t" x="34" y="147">Barry first presses Mark paid</text>
+          <text class="t" x="34" y="217">An admin sends from the Email tab</text>
+          <text class="t" x="34" y="278">A leader signs up or steps down,</text>
+          <text class="t" x="34" y="298">a ride is added or cancelled</text>
+          <text class="t" x="34" y="348">An admin is added, or forgets</text>
+          <text class="t" x="34" y="368">their password</text>
+          <text class="t" x="34" y="427">A member asks on /membership</text>
+
+          <text class="t rt" x="497" y="64" text-anchor="middle">“New member: Kim Rider (Family)”</text>
+          <text class="t rt" x="497" y="134" text-anchor="middle">Welcome + riding advice</text>
+          <text class="t rt" x="497" y="204" text-anchor="middle">club email, dues reminder, newsletter</text>
+          <text class="t rt" x="497" y="274" text-anchor="middle">ride notice with current leaders</text>
+          <text class="t rt" x="497" y="344" text-anchor="middle">link to choose a password</text>
+          <text class="t rt" x="497" y="414" text-anchor="middle">their private membership link</text>
+
+          <text class="t" x="674" y="77">Every admin</text>
+          <text class="t" x="674" y="147">The new member</text>
+          <text class="t" x="674" y="217">Members: everyone, or just not paid</text>
+          <text class="t" x="674" y="287">Club inbox ({{.Guide.RidesEmail}})</text>
+          <text class="t" x="674" y="357">That admin</text>
+          <text class="t" x="674" y="427">That member</text>
+        </svg>
+      </div>
+      <figcaption>Every email goes through Brevo. Member emails carry an unsubscribe link and the member's own membership link. Ride notices and password links don't, because they aren't to the member list. Admins can test any club email on themselves first.</figcaption>
+    </figure>
+
+<h2 class="section" id="g-rides">Where the rides come from</h2>
+<figure class="board">
+      <div class="surface">
+        <svg viewBox="0 0 960 400" role="img" aria-label="Rides reach the calendar three ways: Strava club events imported hourly, weekly Tuesday and Thursday rides set up by admins, and rides riders add on the website, which wait for approval unless the rider signed in with Strava. The calendar feeds the calendar page, the newsletter and the Club Routes page.">
+          <defs>
+            <filter id="wC" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="2" seed="2"/><feDisplacementMap in="SourceGraphic" scale="2.6"/></filter>
+            <marker id="hC" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M1,1 L9,5 L1,9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></marker>
+            <marker id="hCr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path class="r" d="M1,1 L9,5 L1,9" fill="none" stroke-width="1.6" stroke-linecap="round"/></marker>
+          </defs>
+          <g filter="url(#wC)">
+            <rect class="bx" x="20" y="30" width="240" height="60" rx="8"/>
+            <rect class="bx" x="20" y="150" width="240" height="60" rx="8"/>
+            <rect class="bx" x="20" y="290" width="240" height="60" rx="8"/>
+            <polygon class="bx" points="320,320 400,284 480,320 400,356"/>
+            <rect class="hub" x="540" y="130" width="180" height="100" rx="12"/>
+            <rect class="bx" x="540" y="290" width="180" height="60" rx="8"/>
+            <rect class="note" x="570" y="186" width="120" height="30" rx="3"/>
+            <rect class="bx" x="790" y="20" width="160" height="60" rx="8"/>
+            <rect class="bx" x="790" y="100" width="160" height="60" rx="8"/>
+            <rect class="bx" x="790" y="180" width="160" height="60" rx="8"/>
+            <rect class="bx" x="790" y="290" width="160" height="60" rx="8"/>
+            <polyline class="ln" points="260,60 630,60 630,124" marker-end="url(#hC)"/>
+            <line class="ln" x1="260" y1="180" x2="534" y2="180" marker-end="url(#hC)"/>
+            <line class="ln" x1="260" y1="320" x2="314" y2="320" marker-end="url(#hC)"/>
+            <polyline class="ln" points="400,284 400,214 534,214" marker-end="url(#hC)"/>
+            <line class="ln" x1="480" y1="320" x2="534" y2="320" marker-end="url(#hC)"/>
+            <line class="ln" x1="630" y1="290" x2="630" y2="236" marker-end="url(#hC)"/>
+            <line class="ln r" x1="720" y1="320" x2="784" y2="320" marker-end="url(#hCr)"/>
+            <polyline class="ln" points="720,170 754,170 754,50 784,50" marker-end="url(#hC)"/>
+            <polyline class="ln" points="754,130 784,130" marker-end="url(#hC)"/>
+            <polyline class="ln" points="754,170 754,210 784,210" marker-end="url(#hC)"/>
+          </g>
+          <text class="t" x="140" y="56" text-anchor="middle">Strava club events</text>
+          <text class="t s mt" x="140" y="76" text-anchor="middle">riders RSVP here</text>
+          <text class="t" x="140" y="176" text-anchor="middle">Weekly rides (Tue &amp; Thu)</text>
+          <text class="t s mt" x="140" y="196" text-anchor="middle">set up by admins</text>
+          <text class="t" x="140" y="316" text-anchor="middle">A rider adds a ride</text>
+          <text class="t s mt" x="140" y="336" text-anchor="middle">on the website</text>
+          <text class="t s" x="400" y="317" text-anchor="middle">signed in</text>
+          <text class="t s" x="400" y="334" text-anchor="middle">with Strava?</text>
+          <text class="t s mt" x="420" y="52" text-anchor="middle">imported every hour</text>
+          <text class="t s mt" x="397" y="172" text-anchor="middle">each week, in season</text>
+          <text class="t s mt" x="408" y="255">yes</text>
+          <text class="t s mt" x="507" y="312" text-anchor="middle">no</text>
+          <text class="t s mt" x="638" y="268">approved</text>
+          <text class="t hd" x="630" y="166" text-anchor="middle">Ride calendar</text>
+          <text class="t s" x="630" y="206" text-anchor="middle">leaders · levels</text>
+          <text class="t" x="630" y="316" text-anchor="middle">waits for an admin</text>
+          <text class="t s mt" x="630" y="336" text-anchor="middle">Calendar tab · Approve</text>
+          <text class="t" x="870" y="46" text-anchor="middle">/calendar</text>
+          <text class="t s mt" x="870" y="66" text-anchor="middle">see, lead, step down</text>
+          <text class="t" x="870" y="126" text-anchor="middle">Newsletter</text>
+          <text class="t s mt" x="870" y="146" text-anchor="middle">rides block, live</text>
+          <text class="t" x="870" y="206" text-anchor="middle">Club Routes</text>
+          <text class="t s mt" x="870" y="226" text-anchor="middle">maps from Strava</text>
+          <text class="t" x="870" y="316" text-anchor="middle">Club inbox</text>
+          <text class="t s mt" x="870" y="336" text-anchor="middle">“ride waiting”</text>
+        </svg>
+      </div>
+      <figcaption>Strava is where riders RSVP. The website is where rides get leaders. Three things feed the one calendar, and everything public reads from it: the calendar page, the newsletter's rides block, and Club Routes. Taking, changing or giving up a leader spot also emails the club inbox.</figcaption>
+    </figure>
+
+<h2 class="section" id="g-people">Who does what</h2>
+<div class="guide-flows">
+  <div class="card"><h3>Visitors</h3><ul>
+    <li>Read the home page, Our Rides, Bike Safety 101, the board, the newsletter and meeting minutes.</li>
+    <li>Find rides on <a href="/calendar" target="_blank" rel="noopener">/calendar</a>, tagged Social, Intermediate or Elite, with route maps from Strava.</li>
+    <li>RSVP on Strava. The website doesn’t take RSVPs.</li></ul></div>
+  <div class="card"><h3>New members</h3><ol>
+    <li>Pick Individual (${{.Guide.DuesIndividual}}) or Family (${{.Guide.DuesFamily}}) and fill in the <a href="/join" target="_blank" rel="noopener">join form</a>, with one riding question.</li>
+    <li>Every admin gets a “New member” email. The member goes on to PayPal.</li>
+    <li>The first time an admin presses <b>Mark paid</b>, they get the welcome email with the riding advice for their answer.</li></ol>
+    <p class="muted small">Members you add yourself or import never get the welcome email, and renewals don’t get it again.</p></div>
+  <div class="card"><h3>Members</h3><ul>
+    <li>Every club email has their private membership link: dues status, a PayPal button, their details, and emails on or off.</li>
+    <li>Every member email has an unsubscribe link.</li></ul></div>
+  <div class="card"><h3>Riders and ride leaders</h3><ul>
+    <li>Open a ride, type a name, press <b>I’ll lead</b>. The club inbox is told. Leaders can step down themselves.</li>
+    <li>Anyone can add a ride. It waits for approval on the <a href="/admin/calendar">Calendar</a> tab unless they signed in with Strava.</li></ul></div>
+  <div class="card"><h3>Treasurer</h3><ol>
+    <li>A “New member” email arrives, then PayPal’s receipt.</li>
+    <li>Open the link in the first email and press <b>Mark paid</b>. The first time, that sends their welcome email.</li>
+    <li>On January 1 everyone shows as not paid. Filter <a href="/admin/members?dues=unpaid">Not paid</a> and send a reminder with <code>{pay_link}</code>.</li></ol></div>
+  <div class="card"><h3>Admins</h3><ul>
+    <li><a href="/admin">Needs attention</a> lists rides waiting for approval, rides this week with no leader, stuck email sends, and unpublished newsletter drafts.</li>
+    <li><a href="/admin/email">Email</a>: club emails, and the welcome email with its four riding-advice boxes.</li>
+    <li>Newsletter, Rides, Pages, Home photos, Board, Instagram and Minutes go live as soon as you save.</li>
+    <li>Only the president can remove admins, delete members or download a full backup.</li></ul></div>
+  <div class="card"><h3>What runs by itself</h3><ul>
+    <li>Strava club events import every hour. Instagram posts refresh every 3 hours.</li>
+    <li>Email sends carry on in the background and pick up after a restart.</li>
+    <li>A change saved to GitHub publishes the site, and the old version comes back if the new one won’t start.</li></ul></div>
+</div>
+</div>
+{{template "foot" .}}{{end}}

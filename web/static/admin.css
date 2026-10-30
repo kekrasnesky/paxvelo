@@ -1,5 +1,6 @@
 @font-face{font-family:Poppins;font-weight:300;font-display:swap;src:url(/static/fonts/poppins-300.woff2?v=__V__) format("woff2")}
 @font-face{font-family:Poppins;font-weight:500;font-display:swap;src:url(/static/fonts/poppins-500.woff2?v=__V__) format("woff2")}
+@font-face{font-family:"Patrick Hand";font-display:swap;src:url(/static/fonts/patrick-hand.woff2?v=__V__) format("woff2")}
 :root{--ink:#2d2d2d;--paper:#f5f2ec;--red:#9a2b29;--line:#e4dcd3;--muted:#6f6863;--font:Poppins,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
 *,*::before,*::after{box-sizing:border-box}
 body{margin:0;background:var(--paper);color:var(--ink);font:300 15px/1.6 var(--font);-webkit-font-smoothing:antialiased}
@@ -247,3 +248,36 @@ button:has(>.ic),.btn:has(>.ic){display:inline-flex;align-items:center;justify-c
 .drag-handle{padding:.2rem .55rem;border:1px solid var(--line);background:var(--paper);color:var(--muted);font-size:1.15rem;line-height:1;cursor:grab;touch-action:none;user-select:none}
 .drag-handle:active{cursor:grabbing}
 .home-photo.dragging{box-shadow:0 10px 30px rgba(0,0,0,.18);border-color:var(--red);position:relative;z-index:2}
+
+/* How the site works: whiteboard sketches */
+.guide{display:grid;gap:1rem}
+.guide h2.section{margin:2rem 0 0}
+.guide-lede{margin:0;max-width:70ch;color:var(--muted)}
+.guide-toc{display:flex;flex-wrap:wrap;gap:.4rem}
+.guide-toc a{padding:.25rem .75rem;border:1px solid var(--line);border-radius:2rem;background:#fff;font-size:.85rem;text-decoration:none}
+.guide-toc a:hover{border-color:var(--red)}
+.guide-key{display:flex;flex-wrap:wrap;gap:.4rem 1.25rem;font-size:.85rem;color:var(--muted)}
+.guide-key span{display:inline-flex;align-items:center;gap:.5rem}
+.guide-key i{display:inline-block;width:28px;border-top:2px solid var(--ink)}
+.guide-key i.r{border-color:var(--red)}
+.guide-key i.n{width:18px;height:12px;border:0;background:#fbefb4}
+.guide .board{margin:0;display:grid;gap:.6rem}
+.guide .surface{overflow-x:auto;padding:14px;border:1px solid var(--line);border-radius:12px;color:var(--ink);background:#fdfcf9 radial-gradient(#e4ddd2 1.2px,transparent 1.3px) 0 0/22px 22px}
+.guide .board svg{display:block;width:100%;min-width:680px;height:auto}
+.guide figcaption{max-width:80ch;font-size:.88rem;color:var(--muted)}
+.guide .bx{fill:#fdfcf9;stroke:currentColor;stroke-width:1.8}
+.guide .hub{fill:#fdfcf9;stroke:currentColor;stroke-width:2.6}
+.guide .note{fill:#fbefb4;stroke:none}
+.guide .ln{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.guide .r{stroke:var(--red)}
+.guide .lane{fill:none;stroke:var(--muted);stroke-width:1.2;stroke-dasharray:3 7}
+.guide .t{font-family:"Patrick Hand","Segoe Print","Comic Sans MS",cursive;font-size:16px;fill:currentColor}
+.guide .s{font-size:14.5px}
+.guide .hd{font-size:19px}
+.guide .rt{fill:var(--red)}
+.guide .mt{fill:var(--muted)}
+.guide-flows{display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.guide-flows h3{margin:0;font-size:1rem;font-weight:500}
+.guide-flows ul,.guide-flows ol{margin:0;padding-left:1.2rem;display:grid;gap:.45rem;font-size:.92rem}
+.guide-flows p{margin:0}
+.guide-flows a{color:var(--red)}

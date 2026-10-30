@@ -28,6 +28,7 @@ type adminView struct {
 	Me                                string // the logged-in admin's name
 	Nav                               adminNav
 	Attention                         *attentionView // the Needs attention page
+	Guide                             *guideView     // the How the site works page
 	CSS                               template.CSS
 	Year                              int
 	// Members tab
