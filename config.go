@@ -44,6 +44,13 @@ type Config struct {
 	StravaAPI          string // https://www.strava.com; tests point it elsewhere
 	RidesEmail         string // where ride leader notices go
 	CalendarAPIKey     string // lets scripts change the calendar through /api
+
+	// The club's Instagram feed on the home page (an Instagram app's ID and secret)
+	InstagramAppID     string
+	InstagramAppSecret string
+	InstagramAuth      string // https://www.instagram.com; tests point these elsewhere
+	InstagramTokenAPI  string // https://api.instagram.com
+	InstagramAPI       string // https://graph.instagram.com
 }
 
 const defaultKitURL = "https://jakroo.com/store-front?storeId=rJgx0naZoge&titleProp=paxvelo&bannerProp=https://jakroo.storage.googleapis.com/team_stores_banner/ryYi5fMige-8e8f3f54b2b9f-blob"
@@ -136,6 +143,12 @@ func loadConfig() (Config, error) {
 		StravaClientSecret: get("STRAVA_CLIENT_SECRET", ""),
 		StravaAPI:          strings.TrimRight(get("STRAVA_API", "https://www.strava.com"), "/"),
 		CalendarAPIKey:     get("CALENDAR_API_KEY", ""),
+
+		InstagramAppID:     get("INSTAGRAM_APP_ID", ""),
+		InstagramAppSecret: get("INSTAGRAM_APP_SECRET", ""),
+		InstagramAuth:      strings.TrimRight(get("INSTAGRAM_AUTH", "https://www.instagram.com"), "/"),
+		InstagramTokenAPI:  strings.TrimRight(get("INSTAGRAM_TOKEN_API", "https://api.instagram.com"), "/"),
+		InstagramAPI:       strings.TrimRight(get("INSTAGRAM_API", "https://graph.instagram.com"), "/"),
 	}
 	c.FromEmail = get("FROM_EMAIL", c.SMTPUser)
 	c.AdminEmail = get("ADMIN_EMAIL", c.FromEmail)

@@ -15,8 +15,9 @@
   }
   d.addEventListener('keydown',function(e){if(e.key==='Escape'){setMenu(false);setDD(false)}});
 
-  // Instagram posts: load Instagram's script only when they're about to scroll into view
-  var insta=d.querySelectorAll('.insta');
+  // Instagram posts the site doesn't draw itself: load Instagram's script only
+  // when they're about to scroll into view
+  var insta=d.querySelectorAll('.insta-embeds');
   function loadInsta(){
     if(window.instgrm){window.instgrm.Embeds.process();return}
     if(d.getElementById('insta-js'))return;

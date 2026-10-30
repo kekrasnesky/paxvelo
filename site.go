@@ -46,7 +46,8 @@ type Site struct {
 	admin       *template.Template
 	static      fs.FS
 	photos      fs.FS
-	infoLinks   atomic.Pointer[[]navLink] // the Info menu, rebuilt with the pages
+	infoLinks   atomic.Pointer[[]navLink]   // the Info menu, rebuilt with the pages
+	instaFeed   atomic.Pointer[[]InstaPost] // the club's latest Instagram posts, for newsletters
 	md          *mdRenderer
 	newsMu      sync.RWMutex
 	newsRefresh sync.Mutex
@@ -85,6 +86,7 @@ func init() {
 
 func newSite(cfg Config) (*Site, error) {
 	s := &Site{cfg: cfg, dynamic: map[string]*template.Template{}}
+	s.instaFeed.Store(new([]InstaPost))
 	static, err := fs.Sub(webFS, "web/static")
 	if err != nil {
 		return nil, err
@@ -149,7 +151,7 @@ func newSite(cfg Config) (*Site, error) {
 		"framer":       framer,
 		"inc":          func(i int) int { return i + 1 },
 		"sub":          func(a, b int) int { return a - b },
-		"instagram":    instagramEmbeds,
+		"instagram":    func(posts []string) template.HTML { return instagramRow(posts, *s.instaFeed.Load(), 0) },
 		"timeLabel":    timeLabel,
 		"join":         strings.Join,
 		"paceChoices":  func() []paceChoice { return paceChoices },
@@ -202,7 +204,7 @@ func newSite(cfg Config) (*Site, error) {
 		}
 		md.widgets[w] = template.HTML(buf.String())
 	}
-	md.widgets["instagram"] = instagramWidget(nil)
+	md.widgets["instagram"] = instagramWidget(nil, nil)
 	md.widgets["board"] = boardWidget(nil)
 	md.widgets["home-photos"] = homePhotosWidget(defaultHomePhotos())
 	s.md, s.content = md, content
@@ -250,7 +252,7 @@ func (s *Site) renderer(d contentData) *mdRenderer {
 	for k, v := range s.md.widgets {
 		md.widgets[k] = v
 	}
-	md.widgets["instagram"] = instagramWidget(d.Instagram)
+	md.widgets["instagram"] = instagramWidget(d.Instagram, d.InstaFeed)
 	md.widgets["board"] = boardWidget(d.Board)
 	md.widgets["home-photos"] = homePhotosWidget(d.HomePhotos)
 	return &md
@@ -281,6 +283,8 @@ func (s *Site) renderContent(d contentData) error {
 	}
 	links = append(links, navLink{"/routes", "Club Routes"}, navLink{"/minutes", "Meeting Minutes"})
 	s.infoLinks.Store(&links)
+	feed := d.InstaFeed
+	s.instaFeed.Store(&feed)
 	s.pageList.Store(&list)
 	pages := map[string]*Page{}
 	for _, p := range list {

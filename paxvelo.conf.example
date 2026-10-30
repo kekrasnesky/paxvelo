@@ -41,6 +41,14 @@ RIDES_EMAIL=
 # Leave empty to turn the API's write access off.
 CALENDAR_API_KEY=
 
+# ---- Instagram ----
+# The club's latest Instagram posts on the home page, drawn by the site with
+# videos that play on the page. From the Meta app's Instagram product (README.md,
+# "Instagram"); then press Connect Instagram in the admin. Leave empty to use
+# Instagram's embed for posts picked by hand.
+INSTAGRAM_APP_ID=
+INSTAGRAM_APP_SECRET=
+
 # ---- Email ----
 # Sends through Brevo (README.md, "Email setup"). In Brevo, verify your domain,
 # then under SMTP & API copy the SMTP login (it ends in @smtp-brevo.com, and is

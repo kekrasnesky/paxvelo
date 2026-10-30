@@ -60,6 +60,7 @@ func main() {
 	defer stop()
 	go app.mailer.run(ctx)
 	go app.stravaSyncLoop(ctx)
+	go app.instagramSyncLoop(ctx)
 
 	srv := &http.Server{
 		Addr:              cfg.Listen,
@@ -131,6 +132,7 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("GET /newsletter", a.newsletterPage)
 	mux.HandleFunc("GET /newsletter/{slug}", a.newsletterPage)
 	mux.Handle("GET /media/", a.site.staticFiles("/media/", os.DirFS(a.mediaDir())))
+	mux.Handle("GET /instagram/", a.site.staticFiles("/instagram/", os.DirFS(a.instaDir())))
 
 	// Meeting minutes, and the files uploaded for them in the admin.
 	mux.HandleFunc("GET /minutes", a.minutesPage)
@@ -238,6 +240,10 @@ func (a *App) routes() http.Handler {
 	mux.Handle("POST /admin/home-photos", a.auth(a.saveHomePhotos))
 	mux.Handle("GET /admin/instagram", a.auth(a.instagramAdmin))
 	mux.Handle("POST /admin/instagram", a.auth(a.saveInstagram))
+	mux.Handle("POST /admin/instagram/connect", a.auth(a.instagramConnect))
+	mux.Handle("GET /admin/instagram/callback", a.auth(a.instagramCallback))
+	mux.Handle("POST /admin/instagram/disconnect", a.auth(a.instagramDisconnect))
+	mux.Handle("POST /admin/instagram/sync", a.auth(a.instagramSyncNow))
 	mux.Handle("GET /admin/minutes", a.auth(a.minutesAdmin))
 	mux.Handle("POST /admin/minutes", a.auth(a.addMinutes))
 	mux.Handle("POST /admin/minutes/{id}/publish", a.auth(a.publishMinutes))

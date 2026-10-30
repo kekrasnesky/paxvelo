@@ -150,9 +150,22 @@ Ride fields: `date` (required, `2026-11-07`), `name` (required), `time` (24-hour
 
 ## Instagram
 
-The home page has an "On Instagram" section. Pick which posts it shows in the admin portal under **Instagram**: paste up to 6 post links (on Instagram: ⋯ → Copy link). Each newsletter issue can also show up to 3 posts. Posts are shown with Instagram's own embed, so photos, carousels, and reels look as they do on Instagram, and they link back to the club's page. That embed loads a script from Instagram, which Instagram may use to track visitors who are logged in. To keep pages fast, the script loads only when the posts are about to scroll into view, so visitors who never scroll that far never load it.
+The home page has an "On Instagram" section, set up in the admin portal under **Instagram**. Each newsletter issue can also show up to 3 posts.
 
-Showing the newest posts automatically would mean switching the account to a Business account linked to a Facebook Page and setting up a Meta developer app, with a key to renew every 60 days. Picking posts by hand needs none of that.
+**With the club's Instagram connected** (below), the site reads the latest posts every hour and draws them itself: all the same size, with videos that play right on the page, a line of the caption, and a link to the post. With no posts picked, the home page shows the 3 latest, so it changes on its own as the club posts. Paste up to 6 post links to pick them instead (the admin tab lists the latest posts to copy from). The site keeps its own copy of each post it shows in `data/instagram` (a cache, left out of backups), since Instagram's links to the files expire. A reel that uses music from Instagram's library comes without its video (Instagram's rule), so it shows its cover and plays on Instagram.
+
+**Without it**, picked posts use Instagram's own embed. Instagram's player usually won't start inside other websites, so videos play only on Instagram, and posts come out different heights. That embed also loads a script from Instagram, which Instagram may use to track visitors who are logged in; it loads only when the posts are about to scroll into view. A picked post that's older than the latest 30 uses the embed too.
+
+**Connecting Instagram** (once):
+
+1. In the Instagram app, make @paxvelo a **Business** or **Creator** account (Settings → Account type and tools → Switch to professional account). It's free and the account stays public. No Facebook Page is needed.
+2. At https://developers.facebook.com/apps, create an app: type **Business**, then add the **Instagram** product and choose **API setup with Instagram login**.
+3. Under **Add account** (or App roles → Roles → Instagram testers), add @paxvelo, then accept the invitation in Instagram (Settings → Website permissions → Apps and websites → Tester invites).
+4. Under **Set up Instagram business login → Business login settings**, add the OAuth redirect URI `https://www.paxvelo.cc/admin/instagram/callback` (change it to paxvelo.club when the site moves).
+5. Copy the **Instagram app ID** and **Instagram app secret** (on the same page, not the Meta app's own ID) into `paxvelo.conf` on the server as `INSTAGRAM_APP_ID` and `INSTAGRAM_APP_SECRET`, then restart the site.
+6. In the admin, open **Instagram**, press **Connect Instagram**, and log in as @paxvelo.
+
+The app only reads the club's own posts, so it doesn't need Meta's app review. Instagram's key lasts 60 days; the site renews it on its own two weeks before it runs out. If the Instagram tab shows the key ran out (say the site was down for weeks), press Connect Instagram again.
 
 ## Meeting minutes
 

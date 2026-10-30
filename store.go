@@ -134,20 +134,22 @@ type WelcomeEmail struct {
 }
 
 type storeData struct {
-	Secret       string       `json:"secret"`
-	NextMember   int          `json:"next_member_id"`
-	NextCampaign int          `json:"next_campaign_id"`
-	Members      []*Member    `json:"members"`
-	Campaigns    []*Campaign  `json:"campaigns"`
-	Welcome      WelcomeEmail `json:"welcome_email"`
-	Draft        EmailDraft   `json:"draft"`
-	NextIssue    int          `json:"next_issue_id,omitempty"`
-	Issues       []*Issue     `json:"newsletter,omitempty"`
-	NextMinutes  int          `json:"next_minutes_id,omitempty"`
-	Minutes      []*Minutes   `json:"minutes,omitempty"`
-	Instagram    []string     `json:"instagram,omitempty"` // posts shown on the home page
-	NextAdmin    int          `json:"next_admin_id,omitempty"`
-	Admins       []*AdminUser `json:"admins,omitempty"`
+	Secret        string         `json:"secret"`
+	NextMember    int            `json:"next_member_id"`
+	NextCampaign  int            `json:"next_campaign_id"`
+	Members       []*Member      `json:"members"`
+	Campaigns     []*Campaign    `json:"campaigns"`
+	Welcome       WelcomeEmail   `json:"welcome_email"`
+	Draft         EmailDraft     `json:"draft"`
+	NextIssue     int            `json:"next_issue_id,omitempty"`
+	Issues        []*Issue       `json:"newsletter,omitempty"`
+	NextMinutes   int            `json:"next_minutes_id,omitempty"`
+	Minutes       []*Minutes     `json:"minutes,omitempty"`
+	Instagram     []string       `json:"instagram,omitempty"` // posts picked for the home page
+	InstagramLink *InstagramLink `json:"instagram_link,omitempty"`
+	InstaFeed     []InstaPost    `json:"instagram_feed,omitempty"` // the latest posts, from Instagram
+	NextAdmin     int            `json:"next_admin_id,omitempty"`
+	Admins        []*AdminUser   `json:"admins,omitempty"`
 
 	// Ride calendar
 	NextRide            int                  `json:"next_ride_id,omitempty"`

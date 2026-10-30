@@ -616,14 +616,47 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
 {{define "instagram"}}{{template "head" .}}
 <div class="title-row">
   <h1>Instagram on the home page</h1>
-  <p class="muted">Pick up to 6 posts to show on the home page, under “On Instagram”.</p>
+  <p class="muted">The posts under “On Instagram” on the home page.</p>
 </div>
+
+<h2 class="section">The club’s Instagram account</h2>
+{{with .InstagramLink}}
+<div class="card">
+  <p>Connected as <strong>@{{.Username}}</strong>. Every hour the site reads the latest posts and keeps its own copy of the ones it shows, so they appear in the site’s layout, all the same size, with videos that play on the page.</p>
+  <p class="small">{{with .LastSync}}Last checked {{datetime .}}.{{end}} {{with .LastResult}}{{.}}.{{end}} The connection renews itself; it’s good until {{date .Expires}} and is renewed well before then.</p>
+  {{with .LastError}}<p class="flash err">The last check didn’t work: {{.}}</p>{{end}}
+  <div class="send-row">
+    <form method="post" action="/admin/instagram/sync"><button>Check now</button></form>
+    <form method="post" action="/admin/instagram/disconnect" onsubmit="return confirm('Disconnect Instagram? The home page goes back to Instagram’s embed for picked posts.')"><button class="link danger">Disconnect</button></form>
+  </div>
+</div>
+{{else}}
+<div class="card">
+  <p>Connect the club’s Instagram account and the home page shows its latest posts automatically, drawn by the site: all the same size, with videos that play right on the page. Without it, picked posts use Instagram’s embed, whose videos usually only play on Instagram.</p>
+  {{if .InstagramReady}}<form method="post" action="/admin/instagram/connect"><button>Connect Instagram</button></form>
+  <p class="muted small">Log in to Instagram as the club’s account when asked. It must be a Business or Creator account (Instagram app → Settings → Account type and tools).</p>
+  {{else}}<p class="muted small">First add the Instagram app’s settings to paxvelo.conf (README.md, “Instagram”).</p>{{end}}
+</div>
+{{end}}
+
+<h2 class="section">Which posts</h2>
 <form class="card new-issue" method="post" action="/admin/instagram">
   <label>Post links, one per line <textarea name="posts" rows="7" placeholder="https://www.instagram.com/p/…">{{.InstagramText}}</textarea></label>
-  <p class="muted small">On Instagram, open a post, tap ⋯ → Copy link (on a computer, copy the address from the browser), and paste it here. Photos, carousels, and reels all work. Leave it empty to show just the “Follow @paxvelo” button. Each newsletter issue has its own Instagram section too.</p>
+  <p class="muted small">{{if .InstagramLink}}Leave it empty to show the 3 latest posts, which change on their own as the club posts. Or paste up to 6 links to pick them yourself: copy them from the list below, or on Instagram tap ⋯ → Copy link.{{else}}Pick up to 6 posts. On Instagram, open a post, tap ⋯ → Copy link (on a computer, copy the address from the browser), and paste it here. Leave it empty to show just the “Follow @paxvelo” button.{{end}} Each newsletter issue has its own Instagram section too.</p>
   <button>{{icon "save"}}Save</button>
 </form>
-{{if .Instagram}}<h2 class="section">On the home page now</h2>
+
+{{if .InstaFeed}}<h2 class="section">Latest posts</h2>
+<div class="table-wrap"><table class="tight">
+  <thead><tr><th>Posted</th><th>Post</th><th>Kind</th><th>On the site</th></tr></thead>
+  <tbody>{{range .InstaFeed}}<tr>
+    <td class="nowrap">{{.DateLabel}}</td>
+    <td><a href="{{.Link}}" target="_blank" rel="noopener">{{or .CaptionLine "(no caption)"}}</a><br><span class="muted small">{{.Link}}</span></td>
+    <td class="nowrap">{{if eq .Kind "CAROUSEL_ALBUM"}}{{.Count}} photos{{else if .IsVideo}}Video{{else}}Photo{{end}}</td>
+    <td class="small">{{if .Video}}Shown, plays here{{else if and .IsVideo .Cover}}Shown; plays on Instagram (its music can’t be shared){{else if .Cover}}Shown{{else}}<span class="muted">–</span>{{end}}</td>
+  </tr>{{end}}</tbody>
+</table></div>
+{{else if .Instagram}}<h2 class="section">On the home page now</h2>
 <ul class="small">{{range .Instagram}}<li><a href="{{.}}" target="_blank" rel="noopener">{{.}}</a></li>{{end}}</ul>{{end}}
 {{template "foot" .}}{{end}}
 

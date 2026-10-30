@@ -1,23 +1,23 @@
 package main
 
 import (
+	"context"
 	"fmt"
-	"html"
 	"html/template"
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 )
 
-// Instagram posts are shown with Instagram's own embed: an admin pastes a
-// post's link, and Instagram's script turns it into the full post (photo or
-// video, caption, likes). Without the script (blocked, or slow to load) it
-// stays a plain link to the post. The home page shows the posts picked on the
-// admin's Instagram tab; each newsletter issue can show up to three of its own.
+// Instagram posts on the home page and in newsletters. The home page shows the
+// posts picked on the admin's Instagram tab, or with Instagram connected and
+// none picked, the latest few; each newsletter issue can show up to three.
 //
-// Showing the latest posts automatically would need Instagram's Graph API (a
-// Business account, a Facebook Page, and a Meta developer app); picking posts
-// by hand needs none of that.
+// With Instagram connected (instafeed.go), the site draws the posts itself
+// from its own copies: all the same size, with videos that play on the page.
+// A post it has no copy of falls back to Instagram's embed, where Instagram's
+// script turns a link into the post (or it stays a plain link without it).
 
 const instagramProfile = "https://www.instagram.com/paxvelo/"
 
@@ -51,49 +51,76 @@ func parseInstagramPosts(text string, limit int) ([]string, error) {
 	return out, nil
 }
 
-// instagramEmbeds is the markup for a row of embedded posts.
-func instagramEmbeds(posts []string) template.HTML {
-	if len(posts) == 0 {
+// instaRowTpl draws a row of posts. Instagram's script (and a frame per post)
+// is far heavier than the rest of the page, so site.js loads it, only for a
+// row with embeds, when the row is about to scroll into view.
+var instaRowTpl = template.Must(template.New("").Parse(`<div class="insta{{if .Embeds}} insta-embeds{{end}}">
+{{- range .Cards}}{{with .Post}}<figure class="ig">
+  <div class="ig-media">{{if .Video}}<video controls playsinline preload="none" poster="/instagram/{{.Cover}}" src="/instagram/{{.Video}}" aria-label="Video from Instagram{{with .CaptionLine}}: {{.}}{{end}}"></video>
+  {{- else}}<a href="{{.Link}}" target="_blank" rel="noopener"><img src="/instagram/{{.Cover}}" alt="{{with .CaptionLine}}{{.}}{{else}}Post from Instagram{{end}}" loading="lazy" decoding="async">{{if .IsVideo}}<span class="ig-play" aria-hidden="true"></span>{{end}}</a>{{end}}
+  {{- if gt .Count 1}}<span class="ig-count">1 / {{.Count}}</span>{{end}}</div>
+  <figcaption>{{with .CaptionLine}}<p>{{.}}</p>{{end}}<a href="{{.Link}}" target="_blank" rel="noopener">{{if and .IsVideo (not .Video)}}Watch on Instagram{{else}}View on Instagram{{end}}</a>{{with .DateLabel}} · {{.}}{{end}}</figcaption>
+</figure>{{else}}<blockquote class="instagram-media" data-instgrm-permalink="{{.Link}}" data-instgrm-version="14"><a href="{{.Link}}" target="_blank" rel="noopener">View this post on Instagram</a></blockquote>{{end}}
+{{- end}}</div>`))
+
+// instagramRow is the markup for a row of posts: the picked ones, or the
+// latest few from the feed when none are picked.
+func instagramRow(picked []string, feed []InstaPost, latest int) template.HTML {
+	cards := shownPosts(picked, feed, latest)
+	if len(cards) == 0 {
 		return ""
 	}
 	var b strings.Builder
-	b.WriteString(`<div class="insta">`)
-	for _, u := range posts {
-		e := html.EscapeString(u)
-		fmt.Fprintf(&b, `<blockquote class="instagram-media" data-instgrm-permalink="%s" data-instgrm-version="14"><a href="%s" target="_blank" rel="noopener">View this post on Instagram</a></blockquote>`, e, e)
+	if err := instaRowTpl.Execute(&b, struct {
+		Cards  []instaCard
+		Embeds bool
+	}{cards, usedEmbed(cards)}); err != nil {
+		return ""
 	}
-	// Instagram's script (and a frame per post) is far heavier than the rest of
-	// the page, so site.js loads it only when the posts are about to scroll into view.
-	b.WriteString(`</div>`)
 	return template.HTML(b.String())
 }
 
-// instagramWidget is what {instagram} becomes on a page: the chosen posts and
-// a link to follow the club.
-func instagramWidget(posts []string) template.HTML {
-	return instagramEmbeds(posts) + template.HTML(`<p><a class="btn" href="`+instagramProfile+`" target="_blank" rel="noopener">Follow @paxvelo on Instagram</a></p>`)
+// instagramWidget is what {instagram} becomes on a page: the posts and a link
+// to follow the club.
+func instagramWidget(posts []string, feed []InstaPost) template.HTML {
+	return instagramRow(posts, feed, instaLatest) + template.HTML(`<p><a class="btn" href="`+instagramProfile+`" target="_blank" rel="noopener">Follow @paxvelo on Instagram</a></p>`)
 }
 
 // ---- Admin ----
 
 func (a *App) instagramAdmin(w http.ResponseWriter, r *http.Request) {
-	v := adminView{Title: "Instagram", Tab: "instagram", Instagram: a.store.Instagram()}
+	v := a.instagramView()
 	v.InstagramText = strings.Join(v.Instagram, "\n")
 	v.Flash, v.Error = flashFrom(r)
 	a.renderAdmin(w, r, http.StatusOK, "instagram", v)
+}
+
+func (a *App) instagramView() adminView {
+	v := adminView{Title: "Instagram", Tab: "instagram", Instagram: a.store.Instagram(), InstagramReady: a.instagramReady(), InstaFeed: a.store.InstaFeed()}
+	if l, ok := a.store.InstagramLink(); ok {
+		v.InstagramLink = &l
+	}
+	return v
 }
 
 func (a *App) saveInstagram(w http.ResponseWriter, r *http.Request) {
 	text := r.FormValue("posts")
 	posts, err := parseInstagramPosts(text, maxHomeInstagram)
 	if err != nil {
-		v := adminView{Title: "Instagram", Tab: "instagram", Instagram: a.store.Instagram(), InstagramText: text, Error: "Not saved: " + err.Error() + "."}
+		v := a.instagramView()
+		v.InstagramText, v.Error = text, "Not saved: "+err.Error()+"."
 		a.renderAdmin(w, r, http.StatusOK, "instagram", v)
 		return
 	}
 	if err := a.store.SetInstagram(posts); err != nil {
 		back(w, r, "/admin/instagram?err=save")
 		return
+	}
+	if _, ok := a.store.InstagramLink(); ok {
+		// Download the newly picked posts before the pages are rebuilt.
+		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Minute)
+		a.syncInstagram(ctx)
+		cancel()
 	}
 	if err := a.rebuildContent(); err != nil {
 		back(w, r, "/admin/instagram?err=save")

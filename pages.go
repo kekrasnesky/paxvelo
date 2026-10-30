@@ -38,13 +38,14 @@ type BoardMember struct {
 // contentData is what admins change that the content pages show.
 type contentData struct {
 	Instagram  []string
+	InstaFeed  []InstaPost
 	Board      []BoardMember
 	HomePhotos []HomePhoto
 	Pages      map[string]string // file name → text edited in the admin
 }
 
 func (a *App) contentData() contentData {
-	d := contentData{Instagram: a.store.Instagram(), Board: a.store.Board(), HomePhotos: a.store.HomePhotos(), Pages: map[string]string{}}
+	d := contentData{Instagram: a.store.Instagram(), InstaFeed: a.store.InstaFeed(), Board: a.store.Board(), HomePhotos: a.store.HomePhotos(), Pages: map[string]string{}}
 	for file, e := range a.store.PageEdits() {
 		d.Pages[file] = e.Text
 	}
