@@ -43,11 +43,13 @@ CALENDAR_API_KEY=
 
 # ---- Instagram ----
 # The club's latest Instagram posts on the home page, drawn by the site with
-# videos that play on the page. From the Meta app's Instagram product (README.md,
-# "Instagram"); then press Connect Instagram in the admin. Leave empty to use
-# Instagram's embed for posts picked by hand.
+# videos that play on the page. The Meta app's ID and secret, and the ID of its
+# Instagram login configuration (README.md, "Instagram"); then press Connect
+# Instagram in the admin. Leave empty to use Instagram's embed for posts picked
+# by hand.
 INSTAGRAM_APP_ID=
 INSTAGRAM_APP_SECRET=
+INSTAGRAM_CONFIG_ID=
 
 # ---- Email ----
 # Sends through Brevo (README.md, "Email setup"). In Brevo, verify your domain,

@@ -623,7 +623,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
 {{with .InstagramLink}}
 <div class="card">
   <p>Connected as <strong>@{{.Username}}</strong>. Every hour the site reads the latest posts and keeps its own copy of the ones it shows, so they appear in the site’s layout, all the same size, with videos that play on the page.</p>
-  <p class="small">{{with .LastSync}}Last checked {{datetime .}}.{{end}} {{with .LastResult}}{{.}}.{{end}} The connection renews itself; it’s good until {{date .Expires}} and is renewed well before then.</p>
+  <p class="small">{{with .LastSync}}Last checked {{datetime .}}.{{end}} {{with .LastResult}}{{.}}.{{end}} {{if .Expires.IsZero}}The connection doesn’t run out.{{else}}The connection is good until {{date .Expires}}; connect again before then.{{end}}</p>
   {{with .LastError}}<p class="flash err">The last check didn’t work: {{.}}</p>{{end}}
   <div class="send-row">
     <form method="post" action="/admin/instagram/sync"><button>Check now</button></form>

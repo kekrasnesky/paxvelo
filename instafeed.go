@@ -20,22 +20,24 @@ import (
 )
 
 // The club's Instagram feed, through Instagram's API ("Instagram API with
-// Instagram Login"). An admin connects the @paxvelo account once (it must be a
-// Business or Creator account); every hour the site reads the latest posts and
-// downloads the ones it shows, so they appear in the site's own layout: all
-// the same size, with videos that play on the page. Instagram's own embed
-// can't do that, since its player won't start inside other websites.
+// Unified Login", the only setup Meta offers new apps). An admin connects the
+// @paxvelo account once (it must be a Business or Creator account) through
+// the Meta app's login configuration; every hour the site reads the latest
+// posts and downloads the ones it shows, so they appear in the site's own
+// layout: all the same size, with videos that play on the page. Instagram's
+// own embed can't do that, since its player won't start inside other websites.
 //
-// Instagram's key lasts 60 days, and the site renews it well before then.
-// Posts the site hasn't downloaded (older ones, or a reel whose music Instagram
-// won't hand out) fall back to Instagram's embed or a link.
+// The login gives a key for the club's business portfolio that doesn't run
+// out (the configuration's choice). Posts the site hasn't downloaded (older
+// ones, or a reel whose music Instagram won't hand out) fall back to
+// Instagram's embed or a link.
 
 // InstagramLink is the connected Instagram account.
 type InstagramLink struct {
 	Username   string     `json:"username"`
+	AccountID  string     `json:"account_id"`
 	Token      string     `json:"token"`
-	Expires    time.Time  `json:"expires"`
-	Renewed    time.Time  `json:"renewed"` // when the key was last issued; Instagram renews keys at least a day old
+	Expires    time.Time  `json:"expires,omitzero"` // zero: the key doesn't run out
 	LastSync   *time.Time `json:"last_sync,omitempty"`
 	LastError  string     `json:"last_error,omitempty"`
 	LastResult string     `json:"last_result,omitempty"`
@@ -78,7 +80,7 @@ func instaCode(link string) string {
 }
 
 func (a *App) instagramReady() bool {
-	return a.cfg.InstagramAppID != "" && a.cfg.InstagramAppSecret != ""
+	return a.cfg.InstagramAppID != "" && a.cfg.InstagramAppSecret != "" && a.cfg.InstagramConfigID != ""
 }
 
 func (a *App) instaDir() string { return filepath.Join(a.cfg.DataDir, "instagram") }
@@ -170,10 +172,10 @@ func (a *App) instagramConnect(w http.ResponseWriter, r *http.Request) {
 	}
 	ts := strconv.FormatInt(time.Now().Unix(), 10)
 	q := url.Values{
-		"client_id": {a.cfg.InstagramAppID}, "redirect_uri": {a.instagramRedirect()}, "response_type": {"code"},
-		"scope": {"instagram_business_basic"}, "state": {ts + "." + sign(a.riderKey(), "instagram|"+ts)},
+		"client_id": {a.cfg.InstagramAppID}, "config_id": {a.cfg.InstagramConfigID}, "redirect_uri": {a.instagramRedirect()},
+		"response_type": {"code"}, "override_default_response_type": {"true"}, "state": {ts + "." + sign(a.riderKey(), "instagram|"+ts)},
 	}
-	http.Redirect(w, r, a.cfg.InstagramAuth+"/oauth/authorize?"+q.Encode(), http.StatusSeeOther)
+	http.Redirect(w, r, a.cfg.InstagramAuth+"/dialog/oauth?"+q.Encode(), http.StatusSeeOther)
 }
 
 func (a *App) instagramRedirect() string { return a.cfg.SiteURL + "/admin/instagram/callback" }
@@ -210,60 +212,40 @@ func (a *App) instagramCallback(w http.ResponseWriter, r *http.Request) {
 	back(w, r, "/admin/instagram?ok=igconnected")
 }
 
-// instagramLogin trades the code from Instagram for a key that lasts 60 days.
+// instagramLogin trades the code from the login for the club's key, and
+// finds the Instagram account it was given.
 func (a *App) instagramLogin(ctx context.Context, code string) (*InstagramLink, error) {
-	form := url.Values{"client_id": {a.cfg.InstagramAppID}, "client_secret": {a.cfg.InstagramAppSecret},
-		"grant_type": {"authorization_code"}, "redirect_uri": {a.instagramRedirect()}, "code": {code}}
-	req, _ := http.NewRequestWithContext(ctx, "POST", a.cfg.InstagramTokenAPI+"/oauth/access_token", strings.NewReader(form.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	// Instagram's documentation shows this answer both inside "data" and not.
-	var short struct {
-		AccessToken string `json:"access_token"`
-		Data        []struct {
-			AccessToken string `json:"access_token"`
-		} `json:"data"`
-	}
-	if err := instaDo(req, &short); err != nil {
-		return nil, fmt.Errorf("code: %w", err)
-	}
-	tok := short.AccessToken
-	if tok == "" && len(short.Data) > 0 {
-		tok = short.Data[0].AccessToken
-	}
-	if tok == "" {
-		return nil, errors.New("Instagram sent no key")
-	}
-	link := &InstagramLink{}
-	if err := a.instaKey(ctx, "/access_token?"+url.Values{"grant_type": {"ig_exchange_token"}, "client_secret": {a.cfg.InstagramAppSecret}, "access_token": {tok}}.Encode(), link); err != nil {
-		return nil, fmt.Errorf("long-lived key: %w", err)
-	}
-	var me struct {
-		Username string `json:"username"`
-	}
-	if err := a.instaGet(ctx, link.Token, "/me?fields=username", &me); err != nil {
-		return nil, fmt.Errorf("account: %w", err)
-	}
-	link.Username = me.Username
-	return link, nil
-}
-
-// instaKey asks Instagram for a 60-day key (a new one, or a renewal) and
-// puts it in link.
-func (a *App) instaKey(ctx context.Context, path string, link *InstagramLink) error {
-	req, _ := http.NewRequestWithContext(ctx, "GET", a.cfg.InstagramAPI+path, nil)
+	q := url.Values{"client_id": {a.cfg.InstagramAppID}, "client_secret": {a.cfg.InstagramAppSecret},
+		"redirect_uri": {a.instagramRedirect()}, "code": {code}}
+	req, _ := http.NewRequestWithContext(ctx, "GET", a.cfg.InstagramAPI+instaVersion+"/oauth/access_token?"+q.Encode(), nil)
 	var k struct {
 		AccessToken string `json:"access_token"`
 		ExpiresIn   int64  `json:"expires_in"`
 	}
 	if err := instaDo(req, &k); err != nil {
-		return err
+		return nil, fmt.Errorf("code: %w", err)
 	}
 	if k.AccessToken == "" {
-		return errors.New("Instagram sent no key")
+		return nil, errors.New("Instagram sent no key")
 	}
-	now := time.Now().UTC()
-	link.Token, link.Renewed, link.Expires = k.AccessToken, now, now.Add(time.Duration(k.ExpiresIn)*time.Second)
-	return nil
+	link := &InstagramLink{Token: k.AccessToken}
+	if k.ExpiresIn > 0 {
+		link.Expires = time.Now().UTC().Add(time.Duration(k.ExpiresIn) * time.Second)
+	}
+	var accounts struct {
+		Data []struct {
+			ID       string `json:"id"`
+			Username string `json:"username"`
+		} `json:"data"`
+	}
+	if err := a.instaGet(ctx, link.Token, "/me/assigned_instagram_accounts?fields=id,username", &accounts); err != nil {
+		return nil, fmt.Errorf("account: %w", err)
+	}
+	if len(accounts.Data) == 0 {
+		return nil, errors.New("no Instagram account was shared")
+	}
+	link.AccountID, link.Username = accounts.Data[0].ID, accounts.Data[0].Username
+	return link, nil
 }
 
 func (a *App) instagramDisconnect(w http.ResponseWriter, r *http.Request) {
@@ -285,8 +267,8 @@ func (a *App) instagramSyncNow(w http.ResponseWriter, r *http.Request) {
 
 // ---- Reading the feed ----
 
-// instaVersion is the version of Instagram's API the site was written for.
-const instaVersion = "/v23.0"
+// instaVersion is the version of Meta's API the site was written for.
+const instaVersion = "/v26.0"
 
 func (a *App) instaGet(ctx context.Context, token, path string, out any) error {
 	sep := "?"
@@ -350,8 +332,7 @@ func (m instaMedia) post() InstaPost {
 	return p
 }
 
-// syncInstagram reads the latest posts, downloads the ones the site shows,
-// and renews Instagram's key when it's due.
+// syncInstagram reads the latest posts and downloads the ones the site shows.
 func (a *App) syncInstagram(ctx context.Context) error {
 	n, err := a.readInstagram(ctx)
 	now := time.Now().UTC()
@@ -372,23 +353,14 @@ func (a *App) readInstagram(ctx context.Context) (int, error) {
 	if !ok || !a.instagramReady() {
 		return 0, errors.New("Instagram isn’t connected")
 	}
-	// Renew the key two weeks before it runs out (Instagram renews keys at
-	// least a day old), so a few days of failures don't lose the connection.
-	if time.Until(link.Expires) < 14*24*time.Hour && time.Since(link.Renewed) > 25*time.Hour {
-		if err := a.instaKey(ctx, "/refresh_access_token?"+url.Values{"grant_type": {"ig_refresh_token"}, "access_token": {link.Token}}.Encode(), &link); err != nil {
-			if time.Now().After(link.Expires) {
-				return 0, errors.New("Instagram’s key ran out. Connect Instagram again")
-			}
-			log.Printf("instagram: renewing the key: %v", err)
-		} else {
-			a.store.updateInstagramLink(func(l *InstagramLink) { l.Token, l.Renewed, l.Expires = link.Token, link.Renewed, link.Expires })
-		}
+	if link.AccountID == "" || (!link.Expires.IsZero() && time.Now().After(link.Expires)) {
+		return 0, errors.New("Instagram’s key ran out. Connect Instagram again")
 	}
 	var page struct {
 		Data []instaMedia `json:"data"`
 	}
 	fields := "id,media_type,caption,media_url,thumbnail_url,permalink,timestamp,children{media_type,media_url,thumbnail_url}"
-	if err := a.instaGet(ctx, link.Token, "/me/media?limit="+strconv.Itoa(instaFeedSize)+"&fields="+url.QueryEscape(fields), &page); err != nil {
+	if err := a.instaGet(ctx, link.Token, "/"+link.AccountID+"/media?limit="+strconv.Itoa(instaFeedSize)+"&fields="+url.QueryEscape(fields), &page); err != nil {
 		return 0, fmt.Errorf("reading the posts: %w", err)
 	}
 	old := map[string]InstaPost{}

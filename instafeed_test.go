@@ -8,40 +8,27 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync/atomic"
 	"testing"
 	"time"
 )
 
 // fakeInstagram stands in for Instagram's login, API, and file servers.
-func fakeInstagram(t *testing.T, refreshed *atomic.Int32) *httptest.Server {
+func fakeInstagram(t *testing.T) *httptest.Server {
 	var srv *httptest.Server
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /oauth/access_token", func(w http.ResponseWriter, r *http.Request) {
-		r.ParseForm()
-		if r.FormValue("code") != "good-code" || r.FormValue("client_secret") != "ig-secret" || r.FormValue("grant_type") != "authorization_code" {
+	mux.HandleFunc("GET /v26.0/oauth/access_token", func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		if q.Get("code") != "good-code" || q.Get("client_secret") != "ig-secret" || q.Get("redirect_uri") == "" {
 			http.Error(w, `{"error":{"message":"bad code"}}`, http.StatusBadRequest)
 			return
 		}
-		// The shape Instagram's documentation shows: inside "data".
-		json.NewEncoder(w).Encode(map[string]any{"data": []map[string]any{{"access_token": "short", "user_id": "17841"}}})
+		json.NewEncoder(w).Encode(map[string]any{"access_token": "suat-1", "token_type": "bearer"})
 	})
-	mux.HandleFunc("GET /access_token", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Query().Get("access_token") != "short" || r.URL.Query().Get("grant_type") != "ig_exchange_token" {
-			http.Error(w, "bad", http.StatusBadRequest)
-			return
-		}
-		json.NewEncoder(w).Encode(map[string]any{"access_token": "long-1", "token_type": "bearer", "expires_in": 5184000})
+	mux.HandleFunc("GET /v26.0/me/assigned_instagram_accounts", func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string]any{"data": []map[string]any{{"id": "17841", "username": "paxvelo"}}})
 	})
-	mux.HandleFunc("GET /refresh_access_token", func(w http.ResponseWriter, r *http.Request) {
-		refreshed.Add(1)
-		json.NewEncoder(w).Encode(map[string]any{"access_token": "long-2", "token_type": "bearer", "expires_in": 5184000})
-	})
-	mux.HandleFunc("GET /v23.0/me", func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(map[string]any{"id": "17841", "username": "paxvelo"})
-	})
-	mux.HandleFunc("GET /v23.0/me/media", func(w http.ResponseWriter, r *http.Request) {
-		if tok := r.URL.Query().Get("access_token"); tok != "long-1" && tok != "long-2" {
+	mux.HandleFunc("GET /v26.0/17841/media", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("access_token") != "suat-1" {
 			http.Error(w, `{"error":{"message":"Invalid OAuth access token"}}`, http.StatusUnauthorized)
 			return
 		}
@@ -69,16 +56,15 @@ func fakeInstagram(t *testing.T, refreshed *atomic.Int32) *httptest.Server {
 
 func TestInstagramFeed(t *testing.T) {
 	a, _, admin := testApp(t)
-	var refreshed atomic.Int32
-	ig := fakeInstagram(t, &refreshed)
-	a.cfg.InstagramAppID, a.cfg.InstagramAppSecret = "ig-app", "ig-secret"
-	a.cfg.InstagramAuth, a.cfg.InstagramTokenAPI, a.cfg.InstagramAPI = ig.URL, ig.URL, ig.URL
+	ig := fakeInstagram(t)
+	a.cfg.InstagramAppID, a.cfg.InstagramAppSecret, a.cfg.InstagramConfigID = "ig-app", "ig-secret", "cfg-9"
+	a.cfg.InstagramAuth, a.cfg.InstagramAPI = ig.URL, ig.URL
 	h := a.routes()
 
 	// Connecting: the admin approves on Instagram, which sends them back here.
 	w := do(t, h, admin, "POST", "/admin/instagram/connect", "", nil)
 	u, _ := url.Parse(w.Header().Get("Location"))
-	if u.Query().Get("scope") != "instagram_business_basic" || u.Query().Get("client_id") != "ig-app" {
+	if u.Path != "/dialog/oauth" || u.Query().Get("config_id") != "cfg-9" || u.Query().Get("client_id") != "ig-app" {
 		t.Fatalf("authorize: %s", u)
 	}
 	w = do(t, h, admin, "GET", "/admin/instagram/callback?code=good-code%23_&state="+url.QueryEscape(u.Query().Get("state")), "", nil)
@@ -86,7 +72,7 @@ func TestInstagramFeed(t *testing.T) {
 		t.Fatalf("callback: %s", w.Header().Get("Location"))
 	}
 	link, _ := a.store.InstagramLink()
-	if link.Username != "paxvelo" || link.Token != "long-1" || time.Until(link.Expires) < 59*24*time.Hour || link.LastError != "" {
+	if link.Username != "paxvelo" || link.AccountID != "17841" || link.Token != "suat-1" || !link.Expires.IsZero() || link.LastError != "" {
 		t.Errorf("link: %+v", link)
 	}
 
@@ -126,15 +112,10 @@ func TestInstagramFeed(t *testing.T) {
 		t.Error("the admin tab should show the account and the latest posts")
 	}
 
-	// The key is renewed two weeks before it runs out.
-	a.store.updateInstagramLink(func(l *InstagramLink) {
-		l.Expires, l.Renewed = time.Now().Add(10*24*time.Hour), time.Now().Add(-50*24*time.Hour)
-	})
-	if err := a.syncInstagram(t.Context()); err != nil || refreshed.Load() != 1 {
-		t.Fatalf("sync: %v, refreshed %d times", err, refreshed.Load())
-	}
-	if l, _ := a.store.InstagramLink(); l.Token != "long-2" || time.Until(l.Expires) < 59*24*time.Hour {
-		t.Errorf("after renewing: %+v", l)
+	// A key that ran out asks for connecting again.
+	a.store.updateInstagramLink(func(l *InstagramLink) { l.Expires = time.Now().Add(-time.Hour) })
+	if err := a.syncInstagram(t.Context()); err == nil || !strings.Contains(err.Error(), "Connect Instagram again") {
+		t.Errorf("sync with a key that ran out: %v", err)
 	}
 
 	// Disconnecting goes back to Instagram's embed.

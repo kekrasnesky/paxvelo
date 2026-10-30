@@ -45,12 +45,13 @@ type Config struct {
 	RidesEmail         string // where ride leader notices go
 	CalendarAPIKey     string // lets scripts change the calendar through /api
 
-	// The club's Instagram feed on the home page (an Instagram app's ID and secret)
+	// The club's Instagram feed on the home page (a Meta app's ID and secret,
+	// and its Instagram login configuration)
 	InstagramAppID     string
 	InstagramAppSecret string
-	InstagramAuth      string // https://www.instagram.com; tests point these elsewhere
-	InstagramTokenAPI  string // https://api.instagram.com
-	InstagramAPI       string // https://graph.instagram.com
+	InstagramConfigID  string
+	InstagramAuth      string // https://www.facebook.com; tests point these elsewhere
+	InstagramAPI       string // https://graph.facebook.com
 }
 
 const defaultKitURL = "https://jakroo.com/store-front?storeId=rJgx0naZoge&titleProp=paxvelo&bannerProp=https://jakroo.storage.googleapis.com/team_stores_banner/ryYi5fMige-8e8f3f54b2b9f-blob"
@@ -146,9 +147,9 @@ func loadConfig() (Config, error) {
 
 		InstagramAppID:     get("INSTAGRAM_APP_ID", ""),
 		InstagramAppSecret: get("INSTAGRAM_APP_SECRET", ""),
-		InstagramAuth:      strings.TrimRight(get("INSTAGRAM_AUTH", "https://www.instagram.com"), "/"),
-		InstagramTokenAPI:  strings.TrimRight(get("INSTAGRAM_TOKEN_API", "https://api.instagram.com"), "/"),
-		InstagramAPI:       strings.TrimRight(get("INSTAGRAM_API", "https://graph.instagram.com"), "/"),
+		InstagramConfigID:  get("INSTAGRAM_CONFIG_ID", ""),
+		InstagramAuth:      strings.TrimRight(get("INSTAGRAM_AUTH", "https://www.facebook.com"), "/"),
+		InstagramAPI:       strings.TrimRight(get("INSTAGRAM_API", "https://graph.facebook.com"), "/"),
 	}
 	c.FromEmail = get("FROM_EMAIL", c.SMTPUser)
 	c.AdminEmail = get("ADMIN_EMAIL", c.FromEmail)

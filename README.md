@@ -159,13 +159,12 @@ The home page has an "On Instagram" section, set up in the admin portal under **
 **Connecting Instagram** (once):
 
 1. In the Instagram app, make @paxvelo a **Business** or **Creator** account (Settings → Account type and tools → Switch to professional account). It's free and the account stays public. No Facebook Page is needed.
-2. At https://developers.facebook.com/apps, create an app: type **Business**, then add the **Instagram** product and choose **API setup with Instagram login**.
-3. Under **Add account** (or App roles → Roles → Instagram testers), add @paxvelo, then accept the invitation in Instagram (Settings → Website permissions → Apps and websites → Tester invites).
-4. Under **Set up Instagram business login → Business login settings**, add the OAuth redirect URI `https://www.paxvelo.cc/admin/instagram/callback` (change it to paxvelo.club when the site moves).
-5. Copy the **Instagram app ID** and **Instagram app secret** (on the same page, not the Meta app's own ID) into `paxvelo.conf` on the server as `INSTAGRAM_APP_ID` and `INSTAGRAM_APP_SECRET`, then restart the site.
-6. In the admin, open **Instagram**, press **Connect Instagram**, and log in as @paxvelo.
+2. At https://developers.facebook.com/apps, create an app (use case **Other**, type **Business**) and add the **Instagram** product. Meta now gives new apps only **API setup with Unified login**, which needs the app connected to a business portfolio (a free Meta Business Suite account for the club; it doesn't need verifying, since the site only reads the club's own posts).
+3. On **Instagram → API setup with Unified login**, press **Create new configuration** (the default: a system-user key that never expires), and register the redirect URL `https://www.paxvelo.cc/admin/instagram/callback` (change it to paxvelo.club when the site moves).
+4. Put the app's **App ID** and **App secret** (App settings → Basic) and the **Configuration ID** into `paxvelo.conf` on the server as `INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET` and `INSTAGRAM_CONFIG_ID`, then restart the site.
+5. In the admin, open **Instagram**, press **Connect Instagram**, log in, and choose @paxvelo when asked which Instagram account to share. Whoever logs in needs a role on the Meta app while it's in Development mode.
 
-The app only reads the club's own posts, so it doesn't need Meta's app review. Instagram's key lasts 60 days; the site renews it on its own two weeks before it runs out. If the Instagram tab shows the key ran out (say the site was down for weeks), press Connect Instagram again.
+The app only reads the club's own posts, so it doesn't need Meta's app review, and its key doesn't run out. If the Instagram tab shows an error (say the app was removed from the business portfolio), press Connect Instagram again.
 
 ## Meeting minutes
 
