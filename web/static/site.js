@@ -49,6 +49,30 @@
     update();
   });
 
+  // With more than 6 photos the row is a slideshow: it moves on every 5
+  // seconds (a screenful on wider screens, one photo on phones) and starts
+  // over at the end. It waits while someone's pointing at it, touching it, or
+  // has it focused, and while it's off screen; not at all for people who
+  // prefer less motion.
+  d.querySelectorAll('.photo-strip.slides').forEach(function(strip){
+    if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+    var row=strip.querySelector('.photos'),hover=false,focus=false,seen=true,until=0;
+    function step(){
+      if(hover||focus||!seen||d.hidden||Date.now()<until)return;
+      var end=row.scrollWidth-row.clientWidth;if(end<=2)return;
+      if(row.scrollLeft>=end-2){row.scrollTo({left:0,behavior:'smooth'});return}
+      var by=innerWidth>=700?row.clientWidth+10:row.querySelector('img').getBoundingClientRect().width+10;
+      row.scrollBy({left:by,behavior:'smooth'});
+    }
+    strip.addEventListener('mouseenter',function(){hover=true});
+    strip.addEventListener('mouseleave',function(){hover=false});
+    strip.addEventListener('focusin',function(){focus=true});
+    strip.addEventListener('focusout',function(){focus=false});
+    strip.addEventListener('pointerdown',function(){until=Date.now()+15000});
+    if('IntersectionObserver' in window)new IntersectionObserver(function(es){seen=es[0].isIntersecting}).observe(strip);
+    setInterval(step,5000);
+  });
+
   // Join form: write phone numbers as 301-555-0123 while they're typed
   d.querySelectorAll('form.join input[type=tel][pattern]').forEach(function(el){
     function fmt(){

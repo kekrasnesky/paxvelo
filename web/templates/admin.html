@@ -880,16 +880,22 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
 </div>{{end}}
 
 {{define "home-photos"}}{{template "head" .}}
-<div class="title-row"><h1>Home photos</h1><p class="muted">The row of photos on the <a href="/" target="_blank" rel="noopener">home page</a>, up to {{.MaxHomePhotos}}. Phones swipe through them; computers show three at a time.</p></div>
+<div class="title-row"><h1>Home photos</h1><p class="muted">The row of photos on the <a href="/" target="_blank" rel="noopener">home page</a>, up to {{.MaxHomePhotos}}. Phones swipe through them; computers show three at a time. With more than 6, the row moves on by itself every few seconds. Drag a photo by ⠿ (or use the arrows) to change the order.</p></div>
 <form class="issue" id="home-photos" method="post" action="/admin/home-photos" enctype="multipart/form-data">
   <input type="hidden" name="count" value="{{len .HomePhotos}}">
   {{range $i, $p := .HomePhotos}}<section class="card home-photo">
+    <div class="photo-order">
+      <button type="button" class="drag-handle" aria-label="Drag to move this photo" title="Drag to move">⠿</button>
+      <span class="pos">Photo {{inc $i}} of {{len $.HomePhotos}}</span>
+      <button type="button" class="mini ghost" data-move="up" aria-label="Move up">↑</button>
+      <button type="button" class="mini ghost" data-move="down" aria-label="Move down">↓</button>
+    </div>
+    <input type="hidden" name="order{{$i}}" value="{{inc $i}}" class="order">
     <div class="photo-field">
       {{template "framer" (framer $p.Photo $p.Focus (printf "focus%d" $i))}}
       <input type="hidden" name="photo{{$i}}" value="{{$p.Photo}}">
       <div class="fields">
         <label>What’s in the photo <input name="alt{{$i}}" value="{{$p.Alt}}" maxlength="120" placeholder="Riders lined up at the start of the Thursday ride"></label>
-        <label>Position <input type="number" name="order{{$i}}" value="{{inc $i}}" min="1" max="{{$.MaxHomePhotos}}" class="year"></label>
         <label class="check"><input type="checkbox" name="remove{{$i}}" class="remove-photo"> Remove this photo</label>
         <p class="removing-note" hidden>This photo comes off the home page when you press Save.</p>
       </div>
@@ -911,13 +917,36 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
 var form=document.getElementById('home-photos'),add=document.getElementById('add-photos'),picked=document.getElementById('picked'),
   status=document.getElementById('save-status'),btn=document.getElementById('save-photos'),meter=document.getElementById('upload-meter'),hint=status.textContent;
 function n(k,one,many){return k+' '+(k===1?one:many)}
+function cards(){return [].slice.call(form.querySelectorAll('.home-photo'))}
+function order(){return cards().map(function(c){return c.querySelector('[name^=photo]').value}).join('|')}
+var startOrder=order();
 function pending(){
   var adding=add?add.files.length:0,removing=form.querySelectorAll('.remove-photo:checked').length,parts=[];
+  if(order()!==startOrder)parts.push('a new order');
   if(adding)parts.push(n(adding,'photo','photos')+' to add');
   if(removing)parts.push(n(removing,'photo','photos')+' to remove');
   status.textContent=parts.length?'Not saved yet: '+parts.join(', ')+'. Press Save.':hint;
   status.classList.toggle('pending',parts.length>0);
 }
+// Reordering: drag a card by its handle (mouse or finger), or use the arrows.
+function renumber(){var cs=cards();cs.forEach(function(c,i){c.querySelector('.order').value=i+1;c.querySelector('.pos').textContent='Photo '+(i+1)+' of '+cs.length});pending()}
+form.addEventListener('click',function(e){var b=e.target.closest('[data-move]');if(!b)return;var c=b.closest('.home-photo'),cs=cards(),i=cs.indexOf(c);
+  if(b.dataset.move==='up'&&i>0)form.insertBefore(c,cs[i-1]);
+  else if(b.dataset.move==='down'&&i<cs.length-1)form.insertBefore(c,cs[i+1].nextSibling);
+  else return;
+  renumber();b.focus();c.scrollIntoView({block:'nearest',behavior:'smooth'})});
+var drag=null,lastY=0,scroller=0;
+function moveTo(y){var cs=cards(),before=null;
+  for(var i=0;i<cs.length;i++){if(cs[i]===drag)continue;var r=cs[i].getBoundingClientRect();if(y<r.top+r.height/2){before=cs[i];break}}
+  if(before){if(drag.nextElementSibling!==before)form.insertBefore(drag,before)}
+  else{var last=cs[cs.length-1];if(last!==drag)form.insertBefore(drag,last.nextSibling)}}
+function edgeScroll(){if(!drag)return;var v=lastY<70?-12:lastY>innerHeight-110?12:0;if(v){scrollBy(0,v);moveTo(lastY)}scroller=requestAnimationFrame(edgeScroll)}
+form.querySelectorAll('.drag-handle').forEach(function(h){
+  h.addEventListener('pointerdown',function(e){e.preventDefault();drag=h.closest('.home-photo');drag.classList.add('dragging');lastY=e.clientY;h.setPointerCapture(e.pointerId);scroller=requestAnimationFrame(edgeScroll)});
+  h.addEventListener('pointermove',function(e){if(!drag)return;lastY=e.clientY;moveTo(e.clientY)});
+  function drop(){if(!drag)return;drag.classList.remove('dragging');cancelAnimationFrame(scroller);drag=null;renumber()}
+  h.addEventListener('pointerup',drop);h.addEventListener('pointercancel',drop);
+});
 form.querySelectorAll('.remove-photo').forEach(function(c){c.addEventListener('change',function(){
   var card=c.closest('.home-photo');card.classList.toggle('removing',c.checked);card.querySelector('.removing-note').hidden=!c.checked;pending()})});
 if(add)add.addEventListener('change',function(){

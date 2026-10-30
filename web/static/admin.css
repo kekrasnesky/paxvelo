@@ -238,3 +238,8 @@ button:has(>.ic),.btn:has(>.ic){display:inline-flex;align-items:center;justify-c
 .picked .over{opacity:.4}
 #save-status.pending{color:var(--red);font-weight:500}
 .upload-meter{position:sticky;bottom:0;margin-top:-1px}
+.photo-order{display:flex;align-items:center;gap:.5rem;margin:-.25rem 0 -.25rem}
+.photo-order .pos{flex:1;color:var(--muted);font-size:.85rem}
+.drag-handle{padding:.2rem .55rem;border:1px solid var(--line);background:var(--paper);color:var(--muted);font-size:1.15rem;line-height:1;cursor:grab;touch-action:none;user-select:none}
+.drag-handle:active{cursor:grabbing}
+.home-photo.dragging{box-shadow:0 10px 30px rgba(0,0,0,.18);border-color:var(--red);position:relative;z-index:2}

@@ -14,8 +14,12 @@ import (
 // The row of photos on the home page, which admins change on the Home photos
 // tab. It appears wherever a page says {home-photos}. Phones swipe through
 // it; wider screens show three at a time, with arrows when there are more.
+// With more than slideshowAfter photos it also moves on by itself.
 
-const maxHomePhotos = 15
+const (
+	maxHomePhotos  = 15
+	slideshowAfter = 6
+)
 
 type HomePhoto struct {
 	Photo string `json:"photo"`
@@ -31,7 +35,7 @@ func defaultHomePhotos() []HomePhoto {
 	}
 }
 
-var homePhotosTpl = template.Must(template.New("").Parse(`{{if .}}<div class="photo-strip{{if gt (len .) 3}} many{{end}}">
+var homePhotosTpl = template.Must(template.New("").Parse(`{{if .}}<div class="photo-strip{{if gt (len .) 3}} many{{end}}{{if gt (len .) ` + strconv.Itoa(slideshowAfter) + `}} slides{{end}}">
 <div class="photos" tabindex="0" aria-label="Club photos">{{range .}}<img src="{{.Photo}}" alt="{{or .Alt "A PaxVelo club ride"}}" width="900" height="675" loading="lazy" decoding="async"{{with .Focus}} style="object-position:{{.}}"{{end}}>{{end}}</div>
 {{if gt (len .) 3}}<button class="strip-btn prev" type="button" aria-label="Previous photos" hidden>‹</button><button class="strip-btn next" type="button" aria-label="More photos" hidden>›</button>{{end}}
 </div>
