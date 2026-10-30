@@ -43,5 +43,3 @@ As a nonprofit, PaxVelo exists to enrich the community we ride in. Each year we 
 Membership runs January through December and supports club rides, events, and our work in the community.
 
 {membership-plans}
-
-Want to ride in club colors? [Shop PaxVelo kit]({kit}) in our team store.
