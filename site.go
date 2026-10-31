@@ -292,7 +292,7 @@ func (s *Site) renderContent(d contentData) error {
 			links = append(links, navLink{p.Path, p.Menu})
 		}
 	}
-	links = append(links, navLink{"/routes", "Club Routes"}, navLink{"/minutes", "Meeting Minutes"})
+	links = append(links, navLink{"/routes", "Club Routes"}, navLink{"/minutes", "Meeting Minutes"}, navLink{"/share-photos", "Share Your Photos"})
 	s.infoLinks.Store(&links)
 	feed := d.InstaFeed
 	s.instaFeed.Store(&feed)
