@@ -188,8 +188,6 @@ strong{font-weight:500}
 .nl .btn{padding:0 0 2px;border:0;border-bottom:2px solid var(--red);border-radius:0;background:none;color:var(--red);font:500 .78rem/1.4 var(--font);letter-spacing:.1em;text-transform:uppercase}
 .nl .btn::after{content:" →"}
 .nl .btn:hover{background:none;color:#1f1a18;border-color:#1f1a18}
-.nl .btn.nl-btn-ghost{color:#1f1a18;border-color:#1f1a18}
-.nl .btn.nl-btn-ghost:hover{color:var(--red);border-color:var(--red)}
 
 /* The nameplate */
 .nl-mast{padding-bottom:.9rem;border-bottom:4px double #1f1a18;text-align:center}
@@ -266,11 +264,9 @@ strong{font-weight:500}
 .nl-share .nl-body{max-width:36rem;margin:0 auto}
 .nl-share p:last-child{margin:.8rem 0 0}
 
-/* The end: a closing line, buttons, and who publishes it */
-.nl-close{margin-top:clamp(22px,2.6vw,34px);padding:1.6rem 0 0;border-top:4px double #1f1a18;text-align:center}
-.nl-close .nl-h{font-style:italic;font-weight:400}
-.nl-close-links{display:flex;flex-wrap:wrap;justify-content:center;gap:.8rem 2rem;margin:1.2rem 0 0!important}
-.nl-colophon{margin:1.4rem 0 0!important;font-size:.74rem;letter-spacing:.14em;text-transform:uppercase;color:#625955}
+/* The end: who publishes it */
+.nl-close{margin-top:clamp(22px,2.6vw,34px);padding:1.2rem 0 0;border-top:4px double #1f1a18;text-align:center}
+.nl-colophon{margin:0!important;font-size:.74rem;letter-spacing:.14em;text-transform:uppercase;color:#625955}
 .nl-colophon a{color:inherit}
 .nl-archive{margin-top:1.4rem;padding-top:1rem;border-top:1px solid #cfc3b6;text-align:center}
 .nl-archive h2{margin:0;font-size:.72rem;font-weight:500;letter-spacing:.2em;text-transform:uppercase}
@@ -279,7 +275,7 @@ strong{font-weight:500}
 
 /* Printing gives just the newsletter, like a paper copy */
 @media print{
-  .hdr,.ftr,.nl-preview,.skip,.nl-close-links,.nl-lead{display:none!important}
+  .hdr,.ftr,.nl-preview,.skip,.nl-lead{display:none!important}
   body{background:#fff}
   .nl{max-width:none;margin:0;padding:0;border:0;box-shadow:none}
   .nl-sched{background:none}

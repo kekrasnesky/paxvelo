@@ -29,7 +29,7 @@ import (
 //
 // An issue is a cover, a list of blocks the admin adds, orders, and removes
 // (stories, banners, the rides from the calendar, photos, Instagram posts),
-// and a closing line.
+// and who publishes it.
 
 const newsName = "PaxVelo Newsletter"
 
@@ -98,7 +98,6 @@ type Issue struct {
 	CoverFocus   string     `json:"cover_focus,omitempty"`
 	CoverCaption string     `json:"cover_caption,omitempty"`
 	Blocks       []Block    `json:"blocks,omitempty"`
-	Closing      string     `json:"closing,omitempty"`
 	Published    *time.Time `json:"published,omitempty"`
 	Updated      time.Time  `json:"updated"`
 	oldIssue
@@ -448,8 +447,6 @@ type newsView struct {
 	CoverCaption   string
 	Contents       []tocItem // "In this issue", shown when there are at least two
 	Parts          []newsPart
-	Closing        string
-	StravaURL      string
 	Archive        []Issue
 	Current        string // path of the issue being shown, to mark it in the archive
 }
@@ -458,7 +455,7 @@ type newsView struct {
 func (s *Site) newsView(is Issue, archive []Issue, rides ridesView) (newsView, error) {
 	v := newsView{
 		ID: is.ID, Published: is.IsPublished(), Label: is.Label(), Tagline: is.Tagline, Cover: is.Cover, CoverFocus: is.CoverFocus,
-		CoverCaption: is.CoverCaption, Closing: is.Closing, StravaURL: s.cfg.StravaURL, Archive: archive, Current: is.Path(),
+		CoverCaption: is.CoverCaption, Archive: archive, Current: is.Path(),
 	}
 	story := func(b Block) (shownStory, error) {
 		out := shownStory{Story: b.Story, ID: "s-" + b.ID}
@@ -780,7 +777,7 @@ func (a *App) createIssue(w http.ResponseWriter, r *http.Request) {
 				break
 			}
 		}
-		is = Issue{Tagline: last.Tagline, Cover: last.Cover, CoverFocus: last.CoverFocus, Closing: last.Closing, Blocks: carryOver(last.Blocks)}
+		is = Issue{Tagline: last.Tagline, Cover: last.Cover, CoverFocus: last.CoverFocus, Blocks: carryOver(last.Blocks)}
 	}
 	me, _ := a.adminName(r)
 	is.Month, is.Year, is.CreatedBy, is.EditedBy = month, year, me, me
@@ -900,7 +897,7 @@ func (a *App) saveIssue(w http.ResponseWriter, r *http.Request) {
 		is.Month, is.Year = month, year
 	}
 	is.EditedBy, _ = a.adminName(r)
-	is.Tagline, is.Closing = val("tagline"), val("closing")
+	is.Tagline = val("tagline")
 	is.Cover = photo("cover.", old.Cover)
 	is.CoverFocus = focusFor("cover.")
 	is.CoverCaption = val("cover.caption")
@@ -1158,7 +1155,6 @@ func sampleIssue() Issue {
 			{ID: randHex(4), Kind: "gallery", Photos: []string{"/photos/hero.webp", "/photos/ride.webp", "/photos/giving.webp"}},
 			{ID: randHex(4), Kind: "share"},
 		},
-		Closing: "Your next ride starts here.",
 	}
 }
 

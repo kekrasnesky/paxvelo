@@ -581,12 +581,6 @@ document.querySelectorAll('.sent-photo input').forEach(function(c){c.addEventLis
     <ul class="kinds small muted">{{range blockKinds}}<li><strong>{{.Name}}:</strong> {{.Help}}</li>{{end}}</ul>
   </section>
 
-  <section class="card">
-    <h2>Closing line</h2>
-    <label>Big line at the very end <input name="closing" value="{{$is.Closing}}" maxlength="80" placeholder="Your next ride starts here."></label>
-    <p class="muted small">Shown with buttons to find a ride on Strava and to become a member.</p>
-  </section>
-
   <div class="save-bar">
     <button{{if $is.IsPublished}} class="ghost"{{end}}>{{icon "save"}}{{if $is.IsPublished}}Save and update live{{else}}Save draft{{end}}</button>
     <button class="ghost" formaction="/admin/newsletter/{{$is.ID}}?then=preview" formtarget="_blank">{{icon "eye"}}Save and preview</button>
