@@ -390,6 +390,8 @@ func (a *App) readHistory(get func(string, any) error) error {
 			Name string `json:"name"`
 		} `json:"route"`
 		Occurrences []string       `json:"upcoming_occurrences"` // for a past event, the day it was
+		Address     string         `json:"address"`
+		Private     bool           `json:"private"`
 		Organizer   *stravaAthlete `json:"organizing_athlete"`
 	}
 	var past []PastRide
@@ -407,7 +409,7 @@ func (a *App) readHistory(get func(string, any) error) error {
 				continue
 			}
 			seen[ev.ID.String()], fresh = true, fresh+1
-			if pr, ok := a.pastRide(ev.ID.String(), ev.Title, ev.RouteID.String(), ev.Occurrences, ev.Organizer); ok {
+			if pr, ok := a.pastRide(ev.ID.String(), ev.Title, ev.RouteID.String(), ev.Address, ev.Private, ev.Occurrences, ev.Organizer); ok {
 				past = append(past, pr)
 			}
 			id := ev.RouteID.String()
@@ -445,6 +447,7 @@ func (a *App) readHistory(get func(string, any) error) error {
 	}
 	a.store.SetRouteHistory(h)
 	a.store.SaveHistory(past)
+	a.importPastRides()
 	return nil
 }
 

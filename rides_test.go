@@ -878,3 +878,79 @@ func TestRideHistory(t *testing.T) {
 		t.Error("the history should be for admins only")
 	}
 }
+
+// This year's past club events from Strava go on the calendar, merged into a
+// weekly ride's date when they match it, and a weekly ride's past date with
+// no event drops off, so past months show the rides that happened.
+func TestPastRidesOnCalendar(t *testing.T) {
+	a, h, _ := rideApp(t)
+	today := a.today()
+	if today.YearDay() < 30 {
+		t.Skip("needs a few past weeks in this year")
+	}
+	back := func(days int, wd time.Weekday) time.Time {
+		d := today.AddDate(0, 0, -days)
+		for d.Weekday() != wd {
+			d = d.AddDate(0, 0, -1)
+		}
+		return d
+	}
+	at := func(d time.Time, hour int) string {
+		return time.Date(d.Year(), d.Month(), d.Day(), hour, 0, 0, 0, a.cfg.Location).UTC().Format(time.RFC3339)
+	}
+	tnr, skipped, coffee := back(14, time.Tuesday), back(7, time.Tuesday), back(10, time.Saturday)
+	lastYear := time.Date(today.Year()-1, 6, 2, 0, 0, 0, 0, time.UTC)
+	fakeEventsMu.Lock()
+	fakeEvents = []map[string]any{
+		{"id": 801, "title": "TNR", "upcoming_occurrences": []string{at(tnr, 18)}, "organizing_athlete": map[string]any{"id": 5, "firstname": "Patrick", "lastname": "O"}},
+		{"id": 802, "title": "Coffee Ride", "upcoming_occurrences": []string{at(coffee, 8)}, "address": "12 Tulagi Pl", "private": true,
+			"organizing_athlete": map[string]any{"id": 6, "firstname": "Michael", "lastname": "D"}},
+		{"id": 803, "title": "Old Ride", "upcoming_occurrences": []string{at(lastYear, 8)}},
+	}
+	fakeEventsMu.Unlock()
+	cookie := httptest.NewRecorder()
+	a.setSession(cookie, "Board Member", 3600)
+	admin := cookie.Result().Cookies()[0]
+	w := do(t, h, admin, "POST", "/admin/strava/connect", "", nil)
+	u, _ := url.Parse(w.Header().Get("Location"))
+	do(t, h, admin, "GET", "/admin/strava/callback?code=ann&state="+url.QueryEscape(u.Query().Get("state")), "", nil)
+
+	day := func(d time.Time) []RideOcc { return a.store.Rides(d, d) }
+	if got := day(tnr); len(got) != 1 || got[0].SeriesID != 1 || got[0].Name != "Tuesday Night Ride" || !strings.HasSuffix(got[0].StravaURL, "/group_events/801") ||
+		got[0].External != "strava:801:"+tnr.Format("2006-01-02") {
+		t.Errorf("the TNR event should be merged into the weekly ride's date: %+v", got)
+	}
+	got := day(coffee)
+	if len(got) != 1 || got[0].Name != "Coffee Ride" || got[0].Place != "12 Tulagi Pl" || got[0].Strava == nil || !got[0].Strava.Private ||
+		got[0].leaderFor("") == nil || got[0].leaderFor("").Name != "Michael D." {
+		t.Fatalf("the coffee ride should be on the calendar: %+v", got)
+	}
+	if page := do(t, h, nil, "GET", "/calendar/ride/"+got[0].Key, "", nil).Body.String(); !strings.Contains(page, "Coffee Ride") || strings.Contains(page, "Tulagi") {
+		t.Error("a past private ride's page shouldn't show the house")
+	}
+	if len(day(lastYear)) != 0 {
+		t.Error("last year's events stay off the calendar")
+	}
+
+	month := func(d time.Time) string {
+		return do(t, h, nil, "GET", "/calendar?m="+d.Format("2006-01"), "", nil).Body.String()
+	}
+	if page := month(tnr); !strings.Contains(page, "/calendar/ride/"+seriesKey(1, tnr.Format("2006-01-02"))) {
+		t.Error("the month should show the TNR that happened")
+	}
+	if page := month(skipped); strings.Contains(page, "/calendar/ride/"+seriesKey(1, skipped.Format("2006-01-02"))) {
+		t.Error("a past weekly date with no Strava event shouldn't show")
+	}
+	next := nextWeekday(a, time.Tuesday)
+	nextDay, _ := time.Parse("2006-01-02", next)
+	if page := month(nextDay); !strings.Contains(page, "/calendar/ride/"+seriesKey(1, next)) {
+		t.Error("upcoming weekly rides still show")
+	}
+
+	// Each day is imported once, so a past ride an admin deletes stays gone.
+	a.store.DeleteRide(got[0].Key)
+	a.importPastRides()
+	if len(day(coffee)) != 0 {
+		t.Error("a deleted past ride came back")
+	}
+}

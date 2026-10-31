@@ -194,7 +194,8 @@ type storeData struct {
 	Routes              map[string]*Route    `json:"strava_routes,omitempty"` // by Strava route ID
 	RoutesChecked       *time.Time           `json:"strava_routes_checked,omitempty"`
 	StravaClub          *StravaClub          `json:"strava_club,omitempty"`
-	History             map[string]*PastRide `json:"ride_history,omitempty"` // the club's Strava events, by event ID
+	History             map[string]*PastRide `json:"ride_history,omitempty"`          // the club's Strava events, by event ID
+	HistoryImported     string               `json:"ride_history_imported,omitempty"` // the last past day put on the calendar
 
 	// Pages and board members edited in the admin
 	PageEdits   map[string]PageEdit `json:"page_edits,omitempty"`

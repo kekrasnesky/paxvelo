@@ -129,8 +129,15 @@ func (a *App) month(m string) calMonth {
 	last := first.AddDate(0, 1, -1)
 	end := last.AddDate(0, 0, 6-int(last.Weekday()))
 
+	// Once the club's past Strava events are on the calendar, a weekly ride's
+	// past date only shows if it was on Strava or someone signed up for it or
+	// changed it, so past months show the rides that happened.
+	hidePast, todayS := a.store.HasHistory(), today.Format("2006-01-02")
 	byDate := map[string][]RideOcc{}
 	for _, o := range a.store.Rides(start, end) {
+		if hidePast && o.ID == 0 && o.SeriesID != 0 && o.Date < todayS {
+			continue
+		}
 		byDate[o.Date] = append(byDate[o.Date], o)
 	}
 	cm := calMonth{MonthLabel: first.Format("January 2006"),
