@@ -110,8 +110,13 @@ func rideApp(t *testing.T) (*App, http.Handler, *[]notice) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a := &App{cfg: cfg, store: store, site: site, limit: newLimiter()}
+	stats, err := openStats(cfg.DataDir, store.Secret(), cfg.Location)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := &App{cfg: cfg, store: store, site: site, limit: newLimiter(), stats: stats}
 	a.mailer = newMailer(cfg, store, site)
+	a.mailer.stats = stats
 	var mu sync.Mutex
 	var sent []notice
 	a.mailer.onNotify = func(to, subject, body string) {

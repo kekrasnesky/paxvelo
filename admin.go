@@ -29,6 +29,7 @@ type adminView struct {
 	Nav                               adminNav
 	Attention                         *attentionView // the Needs attention page
 	Guide                             *guideView     // the How the site works page
+	Stats                             *statsView     // the Stats page
 	CSS                               template.CSS
 	Year                              int
 	// Members tab

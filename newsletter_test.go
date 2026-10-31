@@ -28,8 +28,13 @@ func testApp(t *testing.T) (*App, http.Handler, *http.Cookie) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a := &App{cfg: cfg, store: store, site: site, limit: newLimiter()}
+	stats, err := openStats(cfg.DataDir, store.Secret(), cfg.Location)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := &App{cfg: cfg, store: store, site: site, limit: newLimiter(), stats: stats}
 	a.mailer = newMailer(cfg, store, site)
+	a.mailer.stats = stats
 	a.refreshNewsletter()
 	rec := httptest.NewRecorder()
 	a.setSession(rec, "Test Admin", 3600)

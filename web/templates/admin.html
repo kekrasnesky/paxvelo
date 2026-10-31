@@ -203,6 +203,71 @@ initBlock(document);
 {{end}}
 {{template "foot" .}}{{end}}
 
+{{define "stats"}}{{template "head" .}}{{with .Stats}}
+<div class="title-row"><h1>Stats</h1><p class="muted">Counts only: the site never records who looked at a page or which member opened an email.</p></div>
+
+<section class="card stats-chart">
+  <h2>Visitors each week</h2>
+  <div class="wk-chart">
+    {{range .Bars}}<a class="wk{{if .Shown}} on{{end}}{{if .ThisWeek}} now{{end}}" href="/admin/stats?week={{.Week}}" aria-label="Week of {{.Label}}: {{.Visitors}} visitors, {{.Views}} page views{{if .ThisWeek}} so far{{end}}"{{if .Shown}} aria-current="true"{{end}}>
+      <span class="wk-val">{{.Visitors}}</span>
+      <span class="wk-col"><span class="wk-bar" style="height:{{.Height}}%"></span></span>
+      <span class="wk-day">{{.Label}}</span>
+      <span class="wk-tip" aria-hidden="true">Week of {{.Label}}{{if .ThisWeek}}, so far{{end}}<br><strong>{{.Visitors}}</strong> visitors · {{.Views}} views</span>
+    </a>{{end}}
+  </div>
+  <p class="muted small">Each bar is a week, Monday to Sunday; the striped one is this week so far. Click a week to see its pages below. A visitor is one phone or computer, counted once in a week however many pages they look at. Admins who are logged in, and search engines, aren’t counted.</p>
+  <details><summary>Show as a table</summary>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Week of</th><th class="right">Visitors</th><th class="right">Page views</th></tr></thead>
+      <tbody>{{range .Bars}}<tr><td>{{.Label}}{{if .ThisWeek}} (so far){{end}}</td><td class="right">{{.Visitors}}</td><td class="right">{{.Views}}</td></tr>{{end}}</tbody>
+    </table></div>
+  </details>
+</section>
+
+<h2 class="section">{{.WeekLabel}}</h2>
+<ul class="tiles">
+  <li><strong>{{.Shown.Visitors}}</strong> {{if eq .Shown.Visitors 1}}visitor{{else}}visitors{{end}}</li>
+  <li><strong>{{.Shown.Views}}</strong> page {{if eq .Shown.Views 1}}view{{else}}views{{end}}</li>
+  <li><strong>{{.PhonePct}}%</strong> on a phone</li>
+</ul>
+<div class="stats-pair">
+  <div class="table-wrap"><table>
+    <thead><tr><th>Page</th><th class="right">Visitors</th><th class="right">Views</th></tr></thead>
+    <tbody>{{range .Pages}}<tr><td><a href="{{.Href}}" target="_blank" rel="noopener">{{.Label}}</a></td><td class="right">{{.Visitors}}</td><td class="right">{{.Views}}</td></tr>
+    {{else}}<tr><td colspan="3" class="empty">No visits counted this week yet.</td></tr>{{end}}</tbody>
+  </table></div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Came from</th><th class="right">Views</th></tr></thead>
+    <tbody>{{range .From}}<tr><td>{{.Label}}</td><td class="right">{{.Views}}</td></tr>
+    {{else}}<tr><td colspan="2" class="empty">Nobody followed a link from another site this week.</td></tr>{{end}}</tbody>
+  </table>
+  <p class="muted small pad">Views of people who followed a link on another site, like Instagram or Google. Links in emails and texts, bookmarks, and typed addresses don’t say where they came from, so they aren’t listed.</p></div>
+</div>
+
+<h2 class="section">Newsletter issues</h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Issue</th><th class="right">Visitors</th><th class="right">Views</th></tr></thead>
+  <tbody>{{range .Issues}}<tr><td><a href="{{.Href}}" target="_blank" rel="noopener">{{.Label}}</a></td><td class="right">{{.Visitors}}</td><td class="right">{{.Views}}</td></tr>
+  {{else}}<tr><td colspan="3" class="empty">No newsletter views counted yet.</td></tr>{{end}}</tbody>
+</table></div>
+<p class="muted small">Every week since each issue came out, added together. The newsletter’s main address counts as the issue it showed at the time. Someone who reads an issue in two different weeks counts as a visitor in both.</p>
+
+<h2 class="section">Emails to members</h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Date</th><th>Subject</th><th class="right">Sent</th><th class="right">Opened</th><th class="right">Clicked a link</th></tr></thead>
+  <tbody>{{range .Emails}}<tr>
+    <td class="nowrap">{{datetime .Created}}</td>
+    <td>{{.Subject}}{{with .Links}}<details class="small"><summary>Links clicked</summary><ul class="link-counts">{{range .}}<li><a href="{{.Href}}" target="_blank" rel="noopener">{{.Label}}</a> <span class="muted">{{.Visitors}} {{if eq .Visitors 1}}person{{else}}people{{end}}</span></li>{{end}}</ul></details>{{end}}</td>
+    <td class="right">{{.Sent}}</td>
+    <td class="right nowrap">{{.Opened}} <span class="muted">({{.OpenPct}}%)</span></td>
+    <td class="right nowrap">{{.Clicked}} <span class="muted">({{.ClickPct}}%)</span></td>
+  </tr>{{else}}<tr><td colspan="5" class="empty">No emails sent yet.</td></tr>{{end}}</tbody>
+</table></div>
+<p class="muted small">Opens are a rough guide: iPhones and iPads using Apple Mail load every email’s pictures on their own, so some show as opened without being read, and email apps that block pictures don’t count as opened until a link is clicked. Clicks are the dependable number. Emails sent before this was added, test emails, welcome emails and membership links aren’t counted.</p>
+{{end}}
+{{template "foot" .}}{{end}}
+
 {{define "members"}}{{template "head" .}}
 <div class="title-row">
   <h1>Members</h1>
@@ -383,7 +448,7 @@ initBlock(document);
   </div>
 </form>
 
-<h2 class="section">Sent emails</h2>
+<div class="title-row section-row"><h2>Sent emails</h2><a href="/admin/stats">How many opened and clicked</a></div>
 <div class="table-wrap"><table>
   <thead><tr><th>Date</th><th>Subject</th><th>Sent to</th><th>Progress</th><th>Status</th><th><span class="sr">Actions</span></th></tr></thead>
   <tbody>

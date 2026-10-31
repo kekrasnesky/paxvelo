@@ -433,9 +433,13 @@ func (s *Site) staticFiles(prefix string, dir fs.FS) http.Handler {
 // address for a real email, or "" for the admin's preview, so the preview's
 // logo and photos load from whichever server shows it.
 func (s *Site) renderEmail(subject, text string, links memberLinks, base string) (string, error) {
+	body := emailHTML(text, base)
+	if links.Track != nil {
+		body = links.Track.apply(body)
+	}
 	var b bytes.Buffer
 	err := s.email.ExecuteTemplate(&b, "email", map[string]any{
-		"Subject": subject, "Body": emailHTML(text, base), "SiteURL": base, "Links": links,
+		"Subject": subject, "Body": body, "SiteURL": base, "Links": links,
 	})
 	return b.String(), err
 }

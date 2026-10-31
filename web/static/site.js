@@ -291,4 +291,16 @@
     });
     if(links.length<2)[].forEach.call(view.querySelectorAll('.gal-view-prev,.gal-view-next'),function(b){b.hidden=true});
   })();
+
+  // Counts this page view for the admin's Stats screen (stats.go): which page,
+  // and which site the link that brought you here was on. No cookies, and
+  // nothing about who you are. Pages without a canonical address (like "page
+  // not found") don't count, and a page loaded ahead of a click counts only
+  // once it's shown.
+  (function(){
+    var c=d.querySelector('link[rel=canonical]');
+    if(!c||!navigator.sendBeacon)return;
+    function count(){navigator.sendBeacon('/admin/count',JSON.stringify({p:c.getAttribute('href'),r:d.referrer}))}
+    if(d.prerendering)d.addEventListener('prerenderingchange',count,{once:true});else count();
+  })();
 })();

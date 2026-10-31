@@ -33,6 +33,7 @@ type App struct {
 	site   *Site
 	mailer *Mailer
 	limit  *Limiter
+	stats  *Stats
 }
 
 func main() {
@@ -48,8 +49,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	app := &App{cfg: cfg, store: store, site: site, limit: newLimiter()}
+	stats, err := openStats(cfg.DataDir, store.Secret(), cfg.Location)
+	if err != nil {
+		log.Fatal(err)
+	}
+	app := &App{cfg: cfg, store: store, site: site, limit: newLimiter(), stats: stats}
 	app.mailer = newMailer(cfg, store, site)
+	app.mailer.stats = stats
 	app.refreshNewsletter()
 	app.refreshMinutes()
 	if err := app.rebuildContent(); err != nil {
@@ -61,6 +67,7 @@ func main() {
 	go app.mailer.run(ctx)
 	go app.stravaSyncLoop(ctx)
 	go app.instagramSyncLoop(ctx)
+	go app.stats.run(ctx)
 
 	srv := &http.Server{
 		Addr:              cfg.Listen,
@@ -79,6 +86,9 @@ func main() {
 	log.Printf("PaxVelo running at http://%s (email: %s)", cfg.Listen, app.mailer.mode())
 	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal(err)
+	}
+	if err := app.stats.Save(); err != nil { // the last minute's counts
+		log.Printf("saving stats: %v", err)
 	}
 }
 
@@ -101,7 +111,7 @@ func (a *App) routes() http.Handler {
 	mux.Handle("GET /favicon.ico", http.RedirectHandler("/static/img/favicon.svg", http.StatusMovedPermanently))
 	mux.HandleFunc("GET /robots.txt", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.Write([]byte("User-agent: *\nDisallow: /admin\nDisallow: /unsubscribe\nDisallow: /membership\nDisallow: /strava/\nDisallow: /calendar/new\nSitemap: " + a.cfg.SiteURL + "/sitemap.xml\n"))
+		w.Write([]byte("User-agent: *\nDisallow: /admin\nDisallow: /unsubscribe\nDisallow: /membership\nDisallow: /strava/\nDisallow: /calendar/new\nDisallow: /e/\nSitemap: " + a.cfg.SiteURL + "/sitemap.xml\n"))
 	})
 	mux.HandleFunc("GET /sitemap.xml", a.sitemap)
 	// Proves to Bing Webmaster Tools that the club owns the site.
@@ -134,6 +144,11 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("GET /newsletter/{slug}", a.newsletterPage)
 	mux.Handle("GET /media/", a.site.staticFiles("/media/", os.DirFS(a.mediaDir())))
 	mux.Handle("GET /instagram/", a.site.staticFiles("/instagram/", os.DirFS(a.instaDir())))
+
+	// Visit and email counts for the Stats screen (stats.go).
+	mux.HandleFunc("POST /admin/count", a.countView)
+	mux.HandleFunc("GET /e/o/{c}/{code}/{sig}", a.emailOpened)
+	mux.HandleFunc("GET /e/c/{c}/{code}/{sig}", a.emailClicked)
 
 	// Meeting minutes, and the files uploaded for them in the admin.
 	mux.HandleFunc("GET /minutes", a.minutesPage)
@@ -186,6 +201,7 @@ func (a *App) routes() http.Handler {
 	mux.Handle("GET /admin", a.auth(a.attentionPage))
 	mux.Handle("GET /admin/guide", a.auth(a.guidePage))
 	mux.Handle("GET /admin/members", a.auth(a.membersPage))
+	mux.Handle("GET /admin/stats", a.auth(a.statsAdmin))
 	mux.Handle("GET /admin/", http.RedirectHandler("/admin", http.StatusSeeOther))
 	mux.Handle("POST /admin/members", a.auth(a.addMember))
 	mux.Handle("POST /admin/members/{id}/delete", a.auth(a.deleteMember))

@@ -24,6 +24,7 @@ type Mailer struct {
 	cfg   Config
 	store *Store
 	site  *Site
+	stats *Stats // counts opens and clicks on emails to members; nil in some tests
 	wake  chan struct{}
 
 	onNotify func(to, subject, body string) // lets tests see notices
@@ -70,7 +71,7 @@ func (m *Mailer) run(ctx context.Context) {
 		if c.ID != streakCampaign {
 			streak, streakCampaign = nil, c.ID
 		}
-		err := m.SendTo(mem, c.Subject, c.Body)
+		err := m.sendCampaign(c.ID, mem, c.Subject, c.Body)
 		m.store.RecordSend(c.ID, mem.ID, err)
 		if err != nil {
 			streak = append(streak, mem.ID)
@@ -116,7 +117,21 @@ var extraBlankLines = regexp.MustCompile(`\n{3,}`)
 
 // SendTo sends one personalized email to a member.
 func (m *Mailer) SendTo(mem Member, subject, body string) error {
-	links := memberLinks{Mine: m.cfg.membershipURL(mem.Token), Unsub: m.cfg.SiteURL + "/unsubscribe?t=" + url.QueryEscape(mem.Token)}
+	return m.sendTo(mem, subject, body, nil)
+}
+
+// sendCampaign sends a member their copy of an email to members, marked so
+// its opens and clicks are counted without saying whose it is (stats.go).
+func (m *Mailer) sendCampaign(id int, mem Member, subject, body string) error {
+	var track *emailTrack
+	if m.stats != nil {
+		track = newEmailTrack(m.stats, m.cfg.SiteURL, id, mem)
+	}
+	return m.sendTo(mem, subject, body, track)
+}
+
+func (m *Mailer) sendTo(mem Member, subject, body string, track *emailTrack) error {
+	links := memberLinks{Mine: m.cfg.membershipURL(mem.Token), Unsub: m.cfg.SiteURL + "/unsubscribe?t=" + url.QueryEscape(mem.Token), Track: track}
 	return m.send(mem.Name, mem.Email, m.personalize(subject, mem), m.personalize(body, mem), links)
 }
 
@@ -190,8 +205,12 @@ func (m *Mailer) SendWelcome(mem Member) {
 }
 
 // memberLinks are the member's own links at the foot of a club email: their
-// membership page and unsubscribing.
-type memberLinks struct{ Mine, Unsub string }
+// membership page and unsubscribing. Track, on emails to members, marks the
+// email so its opens and clicks are counted.
+type memberLinks struct {
+	Mine, Unsub string
+	Track       *emailTrack
+}
 
 // send sends one email. links are empty for an email that isn't to the member
 // list (a password link, a ride notice), which then has no unsubscribe link or

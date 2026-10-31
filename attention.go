@@ -25,6 +25,7 @@ var adminGroups = []adminGroup{
 	{"Rides", "/admin/calendar", []adminSection{{"calendar", "Calendar", "/admin/calendar"}, {"rides", "Weekly rides", "/admin/rides"}, {"history", "History", "/admin/history"}}},
 	{"Website", "/admin/pages", []adminSection{{"pages", "Pages", "/admin/pages"}, {"home-photos", "Home photos", "/admin/home-photos"}, {"gallery", "Gallery", "/admin/gallery"},
 		{"board", "Board", "/admin/board"}, {"instagram", "Instagram", "/admin/instagram"}, {"minutes", "Minutes", "/admin/minutes"}}},
+	{"Stats", "/admin/stats", []adminSection{{"stats", "Stats", "/admin/stats"}}},
 }
 
 var adminsSection = adminSection{"admins", "Admins", "/admin/admins"}

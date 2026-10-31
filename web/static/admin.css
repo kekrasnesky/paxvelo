@@ -325,3 +325,30 @@ button:has(>.ic),.btn:has(>.ic){display:inline-flex;align-items:center;justify-c
   .waiver-meta,.waiver-copy,.sig-block{border:0;padding:0}
   .sig-line{border-bottom-color:#000}
 }
+/* Stats: the weekly visitors chart, the week's totals, and its tables */
+.section-row{margin:2.75rem 0 .9rem}
+.stats-chart{margin-top:1.25rem}
+.stats-chart p{margin:0}
+.wk-chart{display:grid;grid-template-columns:repeat(12,1fr);gap:2px;height:13rem}
+.wk{position:relative;display:grid;grid-template-rows:1.4rem 1fr auto;min-width:0;color:var(--muted);font-size:.75rem;text-align:center;text-decoration:none}
+.wk-val{visibility:hidden;color:var(--ink);font-weight:500}
+.wk-col{display:flex;align-items:flex-end;justify-content:center;border-bottom:1px solid var(--line)}
+.wk-bar{display:block;width:min(1.75rem,70%);background:var(--red);border-radius:4px 4px 0 0}
+.wk.now .wk-bar{background:repeating-linear-gradient(135deg,var(--red) 0 4px,#c4716f 4px 7px)}
+.wk-day{padding-top:.3rem;white-space:nowrap}
+.wk.on .wk-val{visibility:visible}
+.wk.on .wk-day{color:var(--ink);font-weight:500}
+.wk:hover .wk-bar,.wk:focus-visible .wk-bar{filter:brightness(.85)}
+.wk-tip{display:none;position:absolute;z-index:2;bottom:calc(100% - 1rem);left:50%;transform:translateX(-50%);padding:.45rem .65rem;border-radius:3px;background:var(--ink);color:var(--paper);font-size:.8rem;line-height:1.4;white-space:nowrap;pointer-events:none}
+.wk:first-child .wk-tip,.wk:nth-child(2) .wk-tip{left:0;transform:none}
+.wk:last-child .wk-tip,.wk:nth-last-child(2) .wk-tip{left:auto;right:0;transform:none}
+.wk:hover .wk-tip,.wk:focus-visible .wk-tip{display:block}
+@media (max-width:600px){.wk:nth-child(odd) .wk-day{visibility:hidden}}
+.stats-chart details .table-wrap{max-width:28rem}
+.tiles{display:flex;flex-wrap:wrap;gap:1rem;margin:0;padding:0;list-style:none}
+.tiles li{flex:1 1 9rem;padding:1rem 1.25rem;border:1px solid var(--line);background:#fff;color:var(--muted)}
+.tiles strong{display:block;color:var(--ink);font-size:1.75rem;font-weight:500;line-height:1.2}
+.stats-pair{display:grid;grid-template-columns:3fr 2fr;gap:0 1.25rem;align-items:start}
+.stats-pair .pad{margin:0;padding:.6rem .85rem}
+@media (max-width:800px){.stats-pair{grid-template-columns:1fr}}
+.link-counts{margin:.4rem 0 0;padding-left:1.1rem}

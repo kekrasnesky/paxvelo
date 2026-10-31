@@ -197,6 +197,20 @@ When someone joins, they pick a plan and land on the right PayPal link, and ever
 
 The site never handles card details or connects to PayPal directly, so there's nothing to maintain. To change the prices, update `DUES_INDIVIDUAL` and `DUES_FAMILY` and the PayPal links. For a separate donation option, add a PayPal donation link as `DONATE_URL` and a "Support the club" link appears on the homepage.
 
+## Stats
+
+The admin's **Stats** screen shows how the site is used. It only keeps counts: the site never records who looked at a page or which member opened an email.
+
+- **Visitors each week:** a chart of the last 12 weeks (Monday to Sunday, the striped bar is this week so far). Click a week to see its numbers: visitors, page views, how many were on a phone, each page's visitors and views, and which sites people followed a link from (Instagram, Google, Strava and so on).
+- **Newsletter issues:** each issue's visitors and views, every week since it came out added together. `paxvelo.club/newsletter` counts as the issue it showed at the time.
+- **Emails to members:** for each email sent from **Email members**, how many were opened, how many people clicked a link, and how many clicked each link.
+
+**How pages are counted.** A few lines at the end of `web/static/site.js` tell the site which page was viewed, after the page has loaded, so visitors never wait for it. Search engines and other robots don't run it, so they aren't counted, and neither are admins who are logged in. A visitor is one phone or computer, counted once a week: the site scrambles their internet address and browser together with the week into a code, keeps the codes only until the week ends, and never stores the address itself. No cookie is set, so the site needs no cookie banner. Ride pages on the calendar count together as one line.
+
+**How emails are counted.** Each member's copy of an email from **Email members** has a tiny invisible picture and links that pass through the site (`/e/…`) on the way to where they point, all marked with a random code made for that copy. The code is never saved with the member it went to, so the site can count that a copy was opened, but not whose it was. A click forwards straight on, and only to the link that was in the email. The member's own links (My membership, Unsubscribe) go direct. Opens are a rough guide: Apple Mail on iPhones and iPads loads every email's pictures on its own, so some emails count as opened without being read, and email apps that block pictures only count once a link is clicked. Clicks are the dependable number. Test emails, welcome emails, membership links and emails sent before this was added aren't counted, and the plain-text copy of an email (for the few email apps without pictures or formatting) has its links unchanged.
+
+The counts are kept in memory and saved once a minute to `data/stats.json`, apart from the club data. That file isn't part of the nightly backups or **Download a full backup**; losing it only loses the counts.
+
 ## Email setup (Brevo)
 
 The site sends email through [Brevo](https://www.brevo.com)'s SMTP service, from an address on the club's own domain (`news@paxvelo.cc`). That keeps club emails out of spam folders far better than sending from a Gmail address. Brevo's free plan allows 300 emails a day (check [their pricing page](https://www.brevo.com/pricing/) for the current limit), which is plenty for a club this size.
