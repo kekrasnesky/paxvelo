@@ -25,7 +25,7 @@ func TestNewsletterFlow(t *testing.T) {
 		t.Fatalf("create: %d %s", w.Code, w.Header().Get("Location"))
 	}
 	is, ok := a.store.Issue(1)
-	if !ok || len(is.Blocks) != 6 || is.Blocks[0].Kind != "big" || is.Blocks[4].Kind != "rides" {
+	if !ok || len(is.Blocks) != 7 || is.Blocks[0].Kind != "big" || is.Blocks[4].Kind != "rides" || is.Blocks[6].Kind != "share" {
 		t.Fatalf("sample issue: %+v", is.Blocks)
 	}
 	if is.CreatedBy != "Test Admin" || is.EditedBy != "Test Admin" {

@@ -253,6 +253,11 @@ strong{font-weight:500}
 
 .nl-gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin:clamp(22px,2.6vw,34px) 0}
 .nl-gallery img{width:100%;aspect-ratio:4/3;object-fit:cover}
+.nl-gallery + .nl-share{margin-top:-6px} /* sits right under its photo strip */
+.nl-share{margin:clamp(22px,2.6vw,34px) 0;padding:clamp(16px,2.2vw,26px);border:1px solid #cdbfb5;border-radius:10px;background:#fff;text-align:center}
+.nl-share .nl-h{margin:0 0 .4rem}
+.nl-share .nl-body{max-width:36rem;margin:0 auto}
+.nl-share p:last-child{margin:.8rem 0 0}
 
 /* The end: a closing line, buttons, and who publishes it */
 .nl-close{margin-top:clamp(22px,2.6vw,34px);padding:1.6rem 0 0;border-top:4px double #1f1a18;text-align:center}
@@ -477,6 +482,12 @@ td:hover .cal-add,.cal-add:focus-visible{opacity:1}
 .minor-sign[open] summary{margin-bottom:.4rem}
 .join .age input{max-width:7rem}
 .join-minors summary{font-size:.92rem}
+.join textarea{width:100%;padding:.65rem .85rem;border:1px solid #cdbfb5;border-radius:8px;background:#fff;color:var(--ink);font:300 1rem/1.4 var(--font);resize:vertical}
+.join textarea:focus{border-color:var(--red);outline:1px solid var(--red);outline-offset:0}
+.share-pick input[type=file]{padding:1.1rem .85rem;border-style:dashed;cursor:pointer}
+.share-count{font-weight:300}
+.join .share-agree{align-items:flex-start;font-size:.95rem;cursor:pointer}
+.join .share-agree input{flex:none;width:1.1rem!important;height:1.1rem;margin:.2rem 0 0;padding:0;accent-color:var(--red)}
 .household p{margin:0;font-size:.95rem}
 .adult-row + .adult-row{padding-top:.8rem;border-top:1px dashed #e0d6cc}
 .join:has(input[name=plan][value=individual]:checked) .household{display:none} /* a Family plan's; without :has it shows, and an Individual plan ignores it */

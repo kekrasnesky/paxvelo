@@ -21,7 +21,7 @@ type adminGroup struct {
 var adminGroups = []adminGroup{
 	{"Home", "/admin", []adminSection{{"attention", "Needs attention", "/admin"}, {"guide", "How the site works", "/admin/guide"}}},
 	{"Members", "/admin/members", []adminSection{{"members", "Members", "/admin/members"}, {"waivers", "Waivers", "/admin/waivers"}}},
-	{"Email", "/admin/email", []adminSection{{"email", "Email members", "/admin/email"}, {"newsletter", "Newsletter", "/admin/newsletter"}}},
+	{"Email", "/admin/email", []adminSection{{"email", "Email members", "/admin/email"}, {"newsletter", "Newsletter", "/admin/newsletter"}, {"submitted", "Sent-in photos", "/admin/submitted"}}},
 	{"Rides", "/admin/calendar", []adminSection{{"calendar", "Calendar", "/admin/calendar"}, {"rides", "Weekly rides", "/admin/rides"}, {"history", "History", "/admin/history"}}},
 	{"Website", "/admin/pages", []adminSection{{"pages", "Pages", "/admin/pages"}, {"home-photos", "Home photos", "/admin/home-photos"},
 		{"board", "Board", "/admin/board"}, {"instagram", "Instagram", "/admin/instagram"}, {"minutes", "Minutes", "/admin/minutes"}}},
@@ -101,6 +101,13 @@ func (a *App) attention() []attentionItem {
 		out = append(out, attentionItem{
 			Text: fmt.Sprintf("%d %s added on the website %s waiting for approval.", len(held), plural(len(held), "ride", "rides"), plural(len(held), "is", "are")),
 			Href: "/admin/calendar", Link: "Review",
+		})
+	}
+
+	if n := a.store.NewSubmitted(); n > 0 {
+		out = append(out, attentionItem{
+			Text: fmt.Sprintf("%d new %s sent in for the newsletter.", n, plural(n, "photo", "photos")),
+			Href: "/admin/submitted", Link: "Look at them",
 		})
 	}
 

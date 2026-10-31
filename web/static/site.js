@@ -215,4 +215,52 @@
       })
       .catch(function(){fail('Couldn’t reach the server. Check your connection and try again.')});
   });
+
+  // Share your photos: each photo is shrunk on the phone before it uploads
+  // (a 5 MB photo becomes about half a megabyte), then they're sent in the
+  // background with a progress count. A photo the browser can't read goes as
+  // it is; the server checks everything again.
+  var share=d.querySelector('form.share');
+  if(share&&window.FormData&&window.XMLHttpRequest)(function(){
+    var input=share.querySelector('input[type=file]'),btn=share.querySelector('button[type=submit]'),msg=share.querySelector('.msg'),
+      count=share.querySelector('.share-count'),hint=count.textContent,MAX=20,SIDE=2000;
+    function fail(text){msg.textContent=text;msg.classList.add('err');btn.disabled=false}
+    function shrink(file){
+      return new Promise(function(done){
+        if(!/^image\/(jpeg|png|webp)$/.test(file.type)||!window.createImageBitmap)return done(file);
+        createImageBitmap(file,{imageOrientation:'from-image'}).then(function(bmp){
+          var k=Math.min(1,SIDE/Math.max(bmp.width,bmp.height));
+          if(k===1&&file.size<1.5e6){if(bmp.close)bmp.close();return done(file)}
+          var c=d.createElement('canvas');c.width=Math.round(bmp.width*k);c.height=Math.round(bmp.height*k);
+          c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);if(bmp.close)bmp.close();
+          c.toBlob(function(b){done(b&&b.size<file.size?new File([b],file.name.replace(/\.\w+$/,'')+'.jpg',{type:'image/jpeg'}):file)},'image/jpeg',.85);
+        }).catch(function(){done(file)});
+      });
+    }
+    input.addEventListener('change',function(){var n=input.files.length;count.textContent=n?n+(n===1?' photo':' photos')+' chosen.'+(n>MAX?' That’s more than '+MAX+': send the rest next.':''):hint});
+    share.addEventListener('submit',function(e){
+      e.preventDefault();
+      var files=[].slice.call(input.files),out=[],i=0;
+      if(files.length>MAX)return fail('You can send up to '+MAX+' photos at a time.');
+      btn.disabled=true;msg.classList.remove('err');
+      (function next(){
+        if(i<files.length){msg.textContent='Getting your photos ready… '+(i+1)+' of '+files.length;shrink(files[i++]).then(function(f){out.push(f);next()});return}
+        send(out);
+      })();
+    });
+    function send(files){
+      var fd=new FormData(share);fd.delete('photos');files.forEach(function(f){fd.append('photos',f,f.name)});
+      var x=new XMLHttpRequest();x.open('POST',share.action);x.setRequestHeader('Accept','application/json');
+      x.upload.onprogress=function(e){if(e.lengthComputable)msg.textContent='Sending… '+Math.round(e.loaded/e.total*100)+'%'};
+      x.onload=function(){
+        var j=null;try{j=JSON.parse(x.responseText)}catch(err){}
+        if(!j)return fail(x.status===413?'Those photos are too big to send together. Try a few at a time.':'Something went wrong. Try again in a minute.');
+        if(!j.ok)return fail(j.message);
+        var done=d.querySelector('.share-done');done.querySelector('.joined-detail').textContent=j.detail||'';
+        share.hidden=true;done.hidden=false;done.focus();
+      };
+      x.onerror=function(){fail('Couldn’t reach the server. Check your connection and try again.')};
+      x.send(fd);
+    }
+  })();
 })();

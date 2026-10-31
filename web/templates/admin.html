@@ -482,6 +482,32 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
   <p class="muted small">As a member sees it, with {first_name} filled in for a sample member named Pat.</p>
 </div>{{end}}
 
+{{define "submitted"}}{{template "head" .}}
+<div class="title-row"><h1>Sent-in photos</h1></div>
+<p class="muted small">Photos people sent in from the <a href="/share-photos" target="_blank" rel="noopener">Share your photos</a> page, newest first. Only admins can see them here. Tick the ones you like, pick an issue, and add them to its photo strip, then open the issue to frame them. Delete the rest. The newsletter’s Share your photos block asks readers to send them.</p>
+{{if .Batches}}<form method="post" action="/admin/submitted" class="sent-in">
+  <div class="tools sent-tools">
+    {{if .Issues}}<div class="sent-add"><label>Add ticked photos to <select name="issue">{{range .Issues}}<option value="{{.ID}}">{{.Label}}{{if not .IsPublished}} (draft){{end}}</option>{{end}}</select></label>
+    <button name="do" value="add">{{icon "plus"}}Add to photo strip</button></div>
+    {{else}}<p class="muted small">To put photos in the newsletter, <a href="/admin/newsletter">start an issue</a> first.</p>{{end}}
+    <button class="ghost danger" name="do" value="delete" onclick="return confirm('Delete the ticked photos? This can’t be undone. Any already in a newsletter stay there.')">{{icon "trash"}}Delete ticked</button>
+  </div>
+  {{range .Batches}}<section class="card sent-batch">
+    <p class="sent-who"><strong>{{.Name}}</strong>{{with .Email}} · <a href="mailto:{{.}}">{{.}}</a>{{end}} · <span class="muted">{{datetime .Submitted}}</span>{{if .New}} <span class="tag">New</span>{{end}}</p>
+    {{with .Note}}<p class="sent-note">{{.}}</p>{{end}}
+    <div class="sent-grid">{{range .Photos}}<div class="sent-photo">
+      <label><img src="/admin/submitted/{{.ID}}/photo" alt="Photo sent in by {{.Name}}" loading="lazy">
+      <span><input type="checkbox" name="id" value="{{.ID}}"> {{if .Used}}In {{.UsedIn}}{{else}}Tick to pick{{end}}</span></label>
+      <a class="small" href="/admin/submitted/{{.ID}}/photo?download=1">Download</a>
+    </div>{{end}}</div>
+  </section>{{end}}
+</form>{{else}}<p class="empty">No photos sent in yet. The newsletter’s Share your photos block links to the page, or share <strong>{{.SiteURL}}/share-photos</strong> yourself.</p>{{end}}
+<script>
+// Ticking a photo by clicking it.
+document.querySelectorAll('.sent-photo input').forEach(function(c){c.addEventListener('change',function(){c.closest('.sent-photo').classList.toggle('on',c.checked)})});
+</script>
+{{template "foot" .}}{{end}}
+
 {{define "newsletter"}}{{template "head" .}}
 <div class="title-row">
   <h1>Newsletter</h1>
@@ -613,6 +639,13 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
     <div class="strip" data-p="{{$p}}" data-max="{{maxGallery}}">{{range $g := .Photos}}{{template "strip-item" (stripPhoto $p $g (index $.Focus $g))}}{{end}}</div>
     <label class="drop strip-add"><input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple hidden><strong>Add photos</strong> <span class="muted small">Click to choose, or drop them here. You can pick several at once.</span></label>
     <p class="muted small"><span class="strip-count"></span> <span class="photo-status" role="status"></span></p>
+  {{else if eq .Kind.Kind "share"}}
+    <p class="muted small">A box asking readers to send in their ride photos. Its button goes to the <a href="/share-photos" target="_blank" rel="noopener">Share your photos page</a>, and what people send shows on the <a href="/admin/submitted" target="_blank" rel="noopener">Sent-in photos</a> screen. Keep it under the photo strip.</p>
+    <div class="fields">
+      <label>Heading <input name="{{$p}}heading" value="{{.Heading}}" maxlength="120" placeholder="{{shareHeading}}"></label>
+      <label>Text <textarea name="{{$p}}body" rows="2" placeholder="Optional">{{.Body}}</textarea></label>
+      <label>Button words <input name="{{$p}}link_label" value="{{.LinkLabel}}" maxlength="60" placeholder="{{shareButton}}"></label>
+    </div>
   {{else if eq .Kind.Kind "instagram"}}
     <p class="muted small">Up to 3 posts. On Instagram, open the post, tap ⋯ → Copy link, and paste it here, one per line.</p>
     <label>Post links <textarea name="{{$p}}posts" rows="3" placeholder="https://www.instagram.com/p/…">{{lines .Posts}}</textarea></label>
@@ -1414,7 +1447,8 @@ var t=document.getElementById('page-text'),p=t.selectionStart;t.value=t.value.sl
     <li>Open the link in the first email and press <b>Mark paid</b>. The first time, that sends their welcome email.</li>
     <li>On January 1 everyone shows as not paid. Filter <a href="/admin/members?dues=unpaid">Not paid</a> and send a reminder with <code>{pay_link}</code>.</li></ol></div>
   <div class="card"><h3>Admins</h3><ul>
-    <li><a href="/admin">Needs attention</a> lists rides waiting for approval, rides this week with no leader, stuck email sends, and unpublished newsletter drafts.</li>
+    <li><a href="/admin">Needs attention</a> lists rides waiting for approval, rides this week with no leader, stuck email sends, unpublished newsletter drafts, and new photos members sent in.</li>
+    <li><a href="/admin/submitted">Sent-in photos</a>: photos members send from the <a href="/share-photos" target="_blank" rel="noopener">Share your photos</a> page. Add the good ones to an issue’s photo strip; they stay private until then.</li>
     <li><a href="/admin/email">Email</a>: club emails, and the welcome email with its four riding-advice boxes.</li>
     <li>Newsletter, Rides, Pages, Home photos, Board, Instagram and Minutes go live as soon as you save.</li>
     <li>Only the president can remove admins, delete members or download a full backup.</li></ul></div>

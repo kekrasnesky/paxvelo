@@ -45,6 +45,8 @@ type adminView struct {
 	Show        string // "", "signed", "unsigned"
 	Waiver      *Waiver
 	WaiverHTML  template.HTML // the text that Waiver's member signed
+	// Sent-in photos tab
+	Batches []submittedBatch
 	// CanManage: the logged-in admin may delete members and remove admins
 	// (the president, or whoever has the server's setup password).
 	CanManage bool
@@ -240,6 +242,7 @@ var flashText = map[string]string{
 	"page-deleted":       "Page deleted.",
 	"board":              "Saved. The board page is updated.",
 	"home-photos":        "Saved. The home page is updated.",
+	"submitted-deleted":  "Deleted.",
 	"connected":          "Strava is connected, and the club’s events are on the calendar.",
 	"connected-error":    "Strava is connected, but reading the club’s events didn’t work. See the error below.",
 	"disconnected":       "Strava disconnected. Events already imported stay on the calendar.",
@@ -278,6 +281,7 @@ var flashText = map[string]string{
 }
 
 var errorText = map[string]string{
+	"none-ticked":     "Tick the photos first.",
 	"name":            "Enter a name.",
 	"email":           "Enter a valid email address.",
 	"phone":           "Enter a phone number with its area code, like 301-555-0123.",
@@ -330,6 +334,8 @@ func flashFrom(r *http.Request) (flash, errMsg string) {
 		if b > 0 {
 			flash += fmt.Sprintf(" %d %s skipped (no valid email).", b, plural(b, "row", "rows"))
 		}
+	} else if code == "submitted-added" {
+		flash = submittedAdded(q)
 	} else if code == "home-photos" {
 		added, _ := strconv.Atoi(q.Get("added"))
 		removed, _ := strconv.Atoi(q.Get("removed"))

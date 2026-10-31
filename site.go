@@ -172,6 +172,8 @@ func newSite(cfg Config) (*Site, error) {
 		"stripPhoto":   stripPhoto,
 		"rideWeeks":    func() int { return rideWeeks },
 		"ridesHeading": func() string { return ridesHeading },
+		"shareHeading": func() string { return shareHeading },
+		"shareButton":  func() string { return shareButton },
 		"lines":        func(l []string) string { return strings.Join(l, "\n") },
 		"external":     func(u string) bool { return strings.HasPrefix(u, "http://") || strings.HasPrefix(u, "https://") },
 		"icon":         icon,
@@ -232,7 +234,7 @@ func newSite(cfg Config) (*Site, error) {
 	if err := s.renderContent(contentData{}); err != nil {
 		return nil, err
 	}
-	for _, name := range []string{"join", "unsubscribe", "membership", "notfound", "newsletter", "minutes", "calendar", "ride", "ride-new", "routes"} {
+	for _, name := range []string{"join", "unsubscribe", "membership", "notfound", "newsletter", "minutes", "calendar", "ride", "ride-new", "routes", "share-photos"} {
 		if s.dynamic[name], err = parse(name + ".html"); err != nil {
 			return nil, err
 		}

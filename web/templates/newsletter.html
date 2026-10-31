@@ -83,7 +83,13 @@
   <h2 class="nl-h">From our Instagram</h2>
   {{instagram .Posts}}
 </section>
-{{else if eq .Kind "gallery"}}
+{{else if eq .Kind "share"}}{{with .Story}}
+<section class="nl-share" id="{{.ID}}">
+  <h2 class="nl-h">{{or .Heading shareHeading}}</h2>
+  {{with .Body}}<div class="nl-body">{{.}}</div>{{end}}
+  <p><a class="btn" href="/share-photos">{{or .LinkLabel shareButton}}</a></p>
+</section>
+{{end}}{{else if eq .Kind "gallery"}}
 <div class="nl-gallery">
   {{range .Photos}}<img src="{{.URL}}" alt="" loading="lazy" decoding="async"{{with .Focus}} style="object-position:{{.}}"{{end}}>
   {{end}}

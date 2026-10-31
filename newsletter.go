@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -64,6 +65,7 @@ var blockKinds = []blockKind{
 	{"rides", "Rides from the calendar", "The club’s rides for the 5 weeks after the issue is published, filled in from the calendar. Rides that need leaders get a sign-up link."},
 	{"banner", "Banner", "A dark band across the page with a button. For one-off asks, like a kit order, a fundraiser, or volunteers."},
 	{"gallery", "Photo strip", "A row of up to 8 photos."},
+	{"share", "Share your photos", "A box asking readers to send in their ride photos, with a button to the upload page. It goes under the photo strip."},
 	{"instagram", "Instagram posts", "Up to 3 posts from the club’s Instagram."},
 }
 
@@ -497,6 +499,12 @@ func (s *Site) newsView(is Issue, archive []Issue, rides ridesView) (newsView, e
 			} else {
 				v.Parts = append(v.Parts, newsPart{Kind: "row", Row: []shownStory{st}})
 			}
+		case "share":
+			st, err := story(b)
+			if err != nil {
+				return v, err
+			}
+			v.Parts = append(v.Parts, newsPart{Kind: "share", Story: st})
 		case "rides":
 			p := newsPart{Kind: "rides", Story: shownStory{Story: b.Story, ID: "s-" + b.ID}, Rides: rides}
 			v.Parts = append(v.Parts, p)
@@ -630,29 +638,40 @@ func (a *App) savePhoto(r *http.Request, field string) (string, error) {
 	return a.savePhotoFile(r.MultipartForm.File[field][0])
 }
 
-// savePhotoFile stores one uploaded photo under a random name, shrunk to a
-// size that loads quickly (see shrinkPhoto).
-func (a *App) savePhotoFile(hdr *multipart.FileHeader) (string, error) {
+// readPhotoFile reads one uploaded photo, shrunk to a size that loads
+// quickly (see shrinkPhoto), with its file extension. It returns nil for an
+// empty file.
+func readPhotoFile(hdr *multipart.FileHeader) ([]byte, string, error) {
 	if hdr.Size == 0 {
-		return "", nil
+		return nil, "", nil
 	}
 	f, err := hdr.Open()
 	if err != nil {
-		return "", err
+		return nil, "", err
 	}
 	defer f.Close()
 	b, err := io.ReadAll(io.LimitReader(f, maxPhoto+1))
 	if err != nil {
-		return "", err
+		return nil, "", err
 	}
 	if len(b) > maxPhoto {
-		return "", fmt.Errorf("%s is over 8 MB. Make it smaller at squoosh.app and try again", hdr.Filename)
+		return nil, "", fmt.Errorf("%s is over 8 MB. Make it smaller at squoosh.app and try again", hdr.Filename)
 	}
 	ext, ok := photoTypes[http.DetectContentType(b)]
 	if !ok {
-		return "", fmt.Errorf("%s isn’t a photo this site can show. Use JPG, PNG, or WebP", hdr.Filename)
+		return nil, "", fmt.Errorf("%s isn’t a photo this site can show. Use JPG, PNG, or WebP", hdr.Filename)
 	}
 	b, ext = shrinkPhoto(b, ext)
+	return b, ext, nil
+}
+
+// savePhotoFile stores one uploaded photo under a random name, shrunk to a
+// size that loads quickly (see shrinkPhoto).
+func (a *App) savePhotoFile(hdr *multipart.FileHeader) (string, error) {
+	b, ext, err := readPhotoFile(hdr)
+	if err != nil || b == nil {
+		return "", err
+	}
 	if err := os.MkdirAll(a.mediaDir(), 0o755); err != nil {
 		return "", err
 	}
@@ -727,7 +746,17 @@ func carryOver(blocks []Block) []Block {
 		}
 		n := Block{ID: randHex(4), Kind: b.Kind}
 		n.Kicker, n.Heading, n.LinkLabel, n.LinkURL = b.Kicker, b.Heading, b.LinkLabel, b.LinkURL
+		if b.Kind == "share" {
+			n.Body = b.Body // its standing ask, not news
+		}
 		out = append(out, n)
+	}
+	// The box asking for photos goes under the photo strip, including in
+	// issues that follow one from before it existed.
+	if !slices.ContainsFunc(out, func(b Block) bool { return b.Kind == "share" }) {
+		if i := slices.IndexFunc(out, func(b Block) bool { return b.Kind == "gallery" }); i >= 0 {
+			out = slices.Insert(out, i+1, Block{ID: randHex(4), Kind: "share"})
+		}
 	}
 	return out
 }
@@ -895,6 +924,9 @@ func (a *App) saveIssue(w http.ResponseWriter, r *http.Request) {
 			b.Story = story(p, cur.Story)
 		case "rides":
 			b.Kicker, b.Heading = val(p+"kicker"), val(p+"heading")
+		case "share":
+			b.Heading, b.LinkLabel = val(p+"heading"), val(p+"link_label")
+			b.Body = strings.ReplaceAll(val(p+"body"), "\r\n", "\n")
 		case "gallery":
 			focus := r.Form[p+"focus"]
 			b.Focus = map[string]string{}
@@ -1049,12 +1081,13 @@ func (a *App) emailIssue(w http.ResponseWriter, r *http.Request) {
 	}
 	body := fmt.Sprintf("Hi {first_name},\n\nThe %s issue of the PaxVelo Newsletter is out:\n%s%s", is.Label(), a.cfg.SiteURL, is.Path())
 	var headings []string
-	hasRides := false
+	hasRides, asksPhotos := false, false
 	for _, b := range is.Blocks {
 		if (b.Kind == "big" || b.Kind == "story") && b.Heading != "" && len(headings) < 3 {
 			headings = append(headings, b.Heading)
 		}
 		hasRides = hasRides || b.Kind == "rides"
+		asksPhotos = asksPhotos || b.Kind == "share"
 	}
 	if len(headings) > 0 {
 		body += "\n\nIn this issue: " + strings.Join(headings, ", ")
@@ -1077,6 +1110,9 @@ func (a *App) emailIssue(w http.ResponseWriter, r *http.Request) {
 		if len(need) > 0 {
 			body += "\n\nThese rides still need a leader. Open one and type your name to lead it:\n" + strings.Join(need, "\n")
 		}
+	}
+	if asksPhotos {
+		body += "\n\nGot photos from a club ride? Send them in for the newsletter, straight from your phone:\n" + a.cfg.SiteURL + "/share-photos"
 	}
 	body += "\n\nSee you on the road!\nPaxVelo"
 	if d := a.store.Draft(); d.Subject != "" || d.Body != "" {
@@ -1120,6 +1156,7 @@ func sampleIssue() Issue {
 			}},
 			{ID: randHex(4), Kind: "rides", Story: Story{Heading: ridesHeading}},
 			{ID: randHex(4), Kind: "gallery", Photos: []string{"/photos/hero.webp", "/photos/ride.webp", "/photos/giving.webp"}},
+			{ID: randHex(4), Kind: "share"},
 		},
 		Closing: "Your next ride starts here.",
 	}

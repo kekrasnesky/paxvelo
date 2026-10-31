@@ -1,0 +1,27 @@
+{{define "content"}}{{with .Data}}
+<article class="page">
+  <h1>Share Your Photos</h1>
+  <p class="lead">Got a great shot from a club ride? Send it in, and it could end up in the newsletter.</p>
+  <form class="join share" method="post" action="/share-photos" enctype="multipart/form-data"{{if .Done}} hidden{{end}}>
+    <input type="hidden" name="ft" value="{{.Token}}">
+    <div class="hp" aria-hidden="true"><label>Leave this empty <input name="website" tabindex="-1" autocomplete="off"></label></div>
+    <label class="share-pick">Photos
+      <input type="file" name="photos" accept="image/*" multiple required>
+      <span class="hint share-count" aria-live="polite">Up to 20 at a time, straight from your phone. We’ll make them smaller for you.</span>
+    </label>
+    <div class="pair">
+      <label>Your name <input name="name" required maxlength="100" autocomplete="name" value="{{.Name}}"></label>
+      <label>Email (optional) <input type="email" name="email" maxlength="254" autocomplete="email" value="{{.Email}}"></label>
+    </div>
+    <label>About the photos (optional) <textarea name="note" rows="3" maxlength="500" placeholder="Which ride, who’s in them, anything we should know">{{.Note}}</textarea></label>
+    <label class="check-row share-agree"><input type="checkbox" name="agree" value="yes" required{{if .Agree}} checked{{end}}> I took these photos or have permission to share them, and PaxVelo can use them in the newsletter, on its website, and on social media.</label>
+    <button class="btn" type="submit">Send photos</button>
+    <p class="msg{{if .Failed}} err{{end}}" role="status" aria-live="polite">{{if .Failed}}{{.Message}}{{end}}</p>
+  </form>
+  <div class="joined share-done" tabindex="-1"{{if not .Done}} hidden{{end}}>
+    <p class="joined-title">Thanks! Your photos are in.</p>
+    <p class="joined-detail">{{.Detail}}</p>
+    <p><a href="/share-photos">Send more photos</a></p>
+  </div>
+</article>
+{{end}}{{end}}

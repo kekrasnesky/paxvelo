@@ -176,6 +176,9 @@ type storeData struct {
 	NextWaiver  int               `json:"next_waiver_id,omitempty"`
 	Waivers     []*Waiver         `json:"waivers,omitempty"`
 	WaiverTexts map[string]string `json:"waiver_texts,omitempty"`
+	// Photos members sent in for the newsletter (sharephotos.go).
+	NextSubmitted   int               `json:"next_submitted_id,omitempty"`
+	SubmittedPhotos []*SubmittedPhoto `json:"submitted_photos,omitempty"`
 
 	// Ride calendar
 	NextRide            int                  `json:"next_ride_id,omitempty"`
