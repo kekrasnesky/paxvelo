@@ -152,15 +152,25 @@ details.more[open]{display:grid;gap:.6rem;padding-bottom:.8rem}
 .sent-reviewed summary{margin-bottom:1rem;font-weight:500;cursor:pointer}
 /* Gallery: the album list, and an album's photos */
 .album-new{margin:1rem 0}
-/* Security → Club PIN & access */
-.sec-card{margin:1rem 0}
-.sec-card h2{margin:0}
-.sec-card .gal-tools{margin:0}
-.sec-list{width:100%;border-collapse:collapse;font-size:.92rem}
-.sec-list th,.sec-list td{padding:.6rem .4rem;border-top:1px solid var(--line);text-align:left;vertical-align:top}
-.sec-list tr:first-child th,.sec-list tr:first-child td{border-top:0}
-.sec-list th{width:11rem;font-weight:500}
-@media (max-width:600px){.sec-list th,.sec-list td{display:block;width:auto;padding:.2rem 0}.sec-list td{padding-bottom:.6rem}}
+/* Security → Club PIN & access: a status badge on each line, details a tap away */
+.sec-card{margin:1rem 0;gap:.6rem}
+.sec-card h2{display:flex;align-items:center;gap:.5rem;margin:0}
+.sec-card p{margin:0}
+.sec-on{padding:.1rem .5rem;border-radius:999px;background:#e5f1e7;color:#2f6b3a;font-size:.75rem;font-weight:500}
+.sec-on.off{background:#f1ece5;color:var(--muted)}
+.sec-pin{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center}
+.sec-pin input{flex:1 1 10rem;width:auto;min-width:0}
+.sec-more summary{font-size:.88rem;cursor:pointer}
+.sec-more p{margin-top:.4rem}
+.sec-list{margin:0;padding:0;list-style:none}
+.sec-list li{border-top:1px solid var(--line)}
+.sec-list li:first-child{border-top:0}
+.sec-list summary{display:flex;align-items:center;justify-content:space-between;gap:.6rem;padding:.65rem 0;font-weight:500;cursor:pointer;list-style:none}
+.sec-list summary::-webkit-details-marker{display:none}
+.sec-list summary::after{content:"›";color:var(--muted);font-size:1.2rem;line-height:1;transition:transform .15s}
+.sec-list summary span:first-child{flex:1}
+.sec-list details[open] summary::after{transform:rotate(90deg)}
+.sec-list details p{padding:0 0 .7rem}
 .album-new h2{margin:0}
 .album-new .gal-tools{margin:0}
 .album-list{display:grid;gap:.5rem;margin:1rem 0;padding:0;list-style:none}

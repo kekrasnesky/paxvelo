@@ -144,32 +144,38 @@ initBlock(document);
 {{template "foot" .}}{{end}}
 
 {{define "security"}}{{template "head" .}}
-<div class="title-row">
-  <h1>Club PIN &amp; access</h1>
-  <p class="muted">Every way into the site besides an admin login, in one place.</p>
-</div>
+<div class="title-row"><h1>Club PIN &amp; access</h1></div>
 <form method="post" action="/admin/security" class="card sec-card">
-  <h2>Club PIN</h2>
-  <p class="muted small">{{if .ClubPIN}}Members who type this PIN skip the review: on the <a href="/share-photos" target="_blank" rel="noopener">Share your photos</a> page their photos go straight into the album they pick (with no album picked they still wait on <a href="/admin/submitted">Sent-in photos</a>), and on <a href="/calendar/new" target="_blank" rel="noopener">Add a ride</a> their ride goes straight onto the calendar. Each connection gets 10 tries an hour. If the PIN gets around, change it here and tell members the new one.{{else}}Off: sent-in photos wait for review, and rides added without signing in with Strava wait for approval. Set a PIN and share it with members (in the newsletter or a club email) to let them post photos and rides straight to the site.{{end}}</p>
-  <div class="gal-tools">
-    <label>PIN <input name="pin" value="{{.ClubPIN}}" minlength="4" maxlength="40" autocomplete="off" placeholder="At least 4 characters"></label>
-    <div class="gal-tools-go"><button name="do" value="pin">{{icon "check"}}Save PIN</button>{{if .ClubPIN}}<button class="ghost" name="do" value="pin" formnovalidate onclick="this.form.off.value='1'">Turn off</button>{{end}}<input type="hidden" name="off" value=""></div>
+  <h2>Club PIN <span class="sec-on{{if not .ClubPIN}} off{{end}}">{{if .ClubPIN}}On{{else}}Off{{end}}</span></h2>
+  <p class="muted small">Members who type it post photos and rides without waiting for review.</p>
+  <div class="sec-pin">
+    <input name="pin" value="{{.ClubPIN}}" minlength="4" maxlength="40" autocomplete="off" placeholder="At least 4 characters" aria-label="Club PIN">
+    <button name="do" value="pin">{{icon "check"}}Save</button>{{if .ClubPIN}}<button class="ghost" name="do" value="pin" formnovalidate onclick="this.form.off.value='1'">Turn off</button>{{end}}<input type="hidden" name="off" value="">
   </div>
+  <details class="sec-more"><summary>How it works</summary>
+    <p class="muted small">On <a href="/share-photos" target="_blank" rel="noopener">Share your photos</a>, photos go straight into the album the member picks (with no album picked they still wait on <a href="/admin/submitted">Sent-in photos</a>). On <a href="/calendar/new" target="_blank" rel="noopener">Add a ride</a>, the ride goes straight onto the calendar. Capital letters don’t matter, and each connection gets 10 tries an hour. If the PIN gets around, change it here and tell members the new one.</p>
+  </details>
 </form>
 <div class="card sec-card">
   <h2>Other ways in</h2>
-  <table class="sec-list"><tbody>
-    <tr><th>Admin accounts</th><td>Each admin logs in with their email and own password. Add, reset or remove them on <a href="/admin/admins">Admins</a>.</td></tr>
-    <tr><th>Setup password</th><td>The <code>ADMIN_PASSWORD</code> in paxvelo.conf on the server logs in as any admin. It’s the emergency key for whoever runs the server; change it there if it might be known.</td></tr>
-    <tr><th>Sign in with Strava</th><td>{{if .StravaReady}}On.{{else}}Not set up.{{end}} Riders in the PaxVelo club on Strava can sign in on the calendar: their rides skip approval, and the club’s Strava admins can change leaders and cancel rides.</td></tr>
-    <tr><th>Calendar API key</th><td>{{if .APIOn}}On.{{else}}Off.{{end}} The <code>CALENDAR_API_KEY</code> in paxvelo.conf lets another program change rides. Anyone can read the calendar without it.</td></tr>
-    <tr><th>Members’ own links</th><td>Each member’s private membership link (in every club email) opens only their own details and dues.</td></tr>
-  </tbody></table>
+  <ul class="sec-list">
+    <li><details><summary><span>Admin accounts</span><span class="sec-on">On</span></summary>
+      <p class="muted small">Each admin logs in with their email and own password. Add, reset or remove them on <a href="/admin/admins">Admins</a>.</p></details></li>
+    <li><details><summary><span>Setup password</span><span class="sec-on">On</span></summary>
+      <p class="muted small"><code>ADMIN_PASSWORD</code> in paxvelo.conf logs in as any admin: the emergency key for whoever runs the server. Change it there if it might be known.</p></details></li>
+    <li><details><summary><span>Sign in with Strava</span><span class="sec-on{{if not .StravaReady}} off{{end}}">{{if .StravaReady}}On{{else}}Off{{end}}</span></summary>
+      <p class="muted small">Riders in the PaxVelo club on Strava sign in on the calendar. Their rides skip approval, and the club’s Strava admins can change leaders and cancel rides.</p></details></li>
+    <li><details><summary><span>Calendar API key</span><span class="sec-on{{if not .APIOn}} off{{end}}">{{if .APIOn}}On{{else}}Off{{end}}</span></summary>
+      <p class="muted small"><code>CALENDAR_API_KEY</code> in paxvelo.conf lets another program change rides. Anyone can read the calendar without it.</p></details></li>
+    <li><details><summary><span>Members’ own links</span><span class="sec-on">On</span></summary>
+      <p class="muted small">The private link in every club email opens only that member’s own details and dues.</p></details></li>
+  </ul>
 </div>
 <div class="card sec-card">
   <h2>Backup</h2>
-  {{if .CanManage}}<p class="muted small"><a href="/admin/backup">Download a full backup</a> of all club data: members, rides, newsletters and settings, as one file. Keep it somewhere private: it has members’ contact details.</p>
-  {{else}}<p class="muted small">Only the president can download a full backup of club data.</p>{{end}}
+  {{if .CanManage}}<p class="sec-pin"><a class="btn ghost" href="/admin/backup">{{icon "save"}}Download a full backup</a></p>
+  <p class="muted small">All club data in one file. It has members’ contact details: keep it private.</p>
+  {{else}}<p class="muted small">Only the president can download a full backup.</p>{{end}}
 </div>
 {{template "foot" .}}{{end}}
 
