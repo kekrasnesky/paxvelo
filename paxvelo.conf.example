@@ -61,4 +61,6 @@ EMAIL_DAILY_LIMIT=300
 # ---- Server (defaults are right for the standard setup) ----
 LISTEN=127.0.0.1:8080
 DATA_DIR=data
+# The nightly backups (deploy/setup.sh). Home warns admins when the newest is old.
+BACKUP_DIR=/opt/paxvelo/backups
 TIMEZONE=America/New_York

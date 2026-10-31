@@ -304,6 +304,29 @@ button:has(>.ic),.btn:has(>.ic){display:inline-flex;align-items:center;justify-c
 .glance-h{margin:2rem 0 .5rem;font-size:1.05rem;font-weight:500}
 .glance{margin:0;padding-left:1.2rem}
 @media (max-width:700px){.todo li{padding:.75rem .85rem}.todo .btn{padding:.6rem .85rem}}
+/* Home */
+.setup-warn{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin:0 0 1.5rem;padding:1rem 1.2rem;border:2px solid var(--red);background:#fbf3f2}
+.setup-warn p{margin:0;max-width:60ch}.setup-warn .btn{flex:none}
+.dash-title{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.8rem 1.5rem}
+.quick{display:flex;flex-wrap:wrap;gap:.5rem}.quick .btn{padding:.55rem .85rem}
+.intro{max-width:46rem;margin:1.5rem 0 0;border-left:3px solid var(--ink)}
+.intro p{margin:0}.intro-acts{display:flex;flex-wrap:wrap;gap:.6rem}.intro-acts form{margin:0}
+.todo.nudge li{border-left-color:#b7791f}
+.dash{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,22rem),1fr));gap:1rem;margin:2rem 0 0}
+.dash-card{gap:.9rem}.dash-card h3{margin:.3rem 0 0;font-size:.95rem;font-weight:500}
+.dash-head{display:flex;align-items:baseline;justify-content:space-between;gap:1rem}.dash-head a{font-size:.85rem}
+.nums{display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem;margin:0}
+.nums div{padding:.6rem .7rem;background:var(--paper)}
+.nums dt{color:var(--muted);font-size:.78rem;line-height:1.3}.nums dd{margin:0;font-size:1.5rem;font-weight:500;line-height:1.3}
+.nums dd a{color:var(--red);text-decoration:none}
+.plans{display:grid;gap:.25rem}.plans p{display:flex;align-items:baseline;gap:.6rem;margin:0}.plans p span:first-child{min-width:8.5rem}
+.signups,.week{display:grid;margin:0;padding:0;list-style:none}
+.signups li,.week li{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.55rem 0;border-top:1px solid var(--line)}
+.signups form{margin:0}.signups button{white-space:nowrap}
+.week li{justify-content:flex-start;align-items:flex-start}.week .when{flex:none;width:6.5rem;font-weight:500}
+.lead{font-size:.85rem;font-weight:500;color:#2f6b3a}.lead.open,.lead.partial{color:var(--red)}
+.cancelled{margin:0;color:var(--muted)}
+@media (max-width:700px){.setup-warn{flex-direction:column;align-items:flex-start}.nums{grid-template-columns:repeat(2,1fr)}}
 .allowance{gap:.6rem;margin-bottom:1.25rem}.allowance p{margin:0}
 .meter{height:.5rem;background:var(--paper);border:1px solid var(--line);overflow:hidden}.meter span{display:block;height:100%;background:#4a7a4f}.meter.high span{background:var(--red)}
 .home-photo.removing{opacity:.55;border-style:dashed}

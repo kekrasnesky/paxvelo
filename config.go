@@ -16,6 +16,7 @@ type Config struct {
 	SiteURL       string
 	Listen        string
 	DataDir       string
+	BackupDir     string // where the nightly backups go (deploy/setup.sh), to check they're recent
 	AdminPassword string
 	AdminEmail    string
 	SMTPHost      string
@@ -124,6 +125,7 @@ func loadConfig() (Config, error) {
 		SiteURL:       strings.TrimRight(get("SITE_URL", "http://localhost:8080"), "/"),
 		Listen:        get("LISTEN", "127.0.0.1:8080"),
 		DataDir:       get("DATA_DIR", "data"),
+		BackupDir:     get("BACKUP_DIR", "/opt/paxvelo/backups"),
 		AdminPassword: get("ADMIN_PASSWORD", ""),
 		SMTPHost:      get("SMTP_HOST", ""),
 		SMTPUser:      get("SMTP_USER", ""),

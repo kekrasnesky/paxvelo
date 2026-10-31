@@ -27,7 +27,7 @@ type adminView struct {
 	Title, Tab, Flash, Error, SiteURL string
 	Me                                string // the logged-in admin's name
 	Nav                               adminNav
-	Attention                         *attentionView // the Needs attention page
+	Dashboard                         *dashboardView // Home
 	Guide                             *guideView     // the How the site works page
 	Stats                             *statsView     // the Stats page
 	CSS                               template.CSS
@@ -447,8 +447,10 @@ func (a *App) markPaid(w http.ResponseWriter, r *http.Request) {
 			to += "-links"
 		}
 	}
-	// Keep the admin's search and filter in place.
-	if ret := r.FormValue("return"); ret != "" {
+	// Back to Home, or keep the admin's search and filter in place.
+	if ret := r.FormValue("return"); ret == "/admin" {
+		to = "/admin?ok=" + strings.TrimPrefix(to, "/admin/members?ok=")
+	} else if ret != "" {
 		if u, err := url.Parse(ret); err == nil {
 			q := u.Query()
 			q.Set("ok", strings.TrimPrefix(to, "/admin/members?ok="))
