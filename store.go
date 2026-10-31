@@ -179,6 +179,9 @@ type storeData struct {
 	// Photos members sent in for the newsletter (sharephotos.go).
 	NextSubmitted   int               `json:"next_submitted_id,omitempty"`
 	SubmittedPhotos []*SubmittedPhoto `json:"submitted_photos,omitempty"`
+	// The public photo gallery (gallery.go).
+	NextGallery int             `json:"next_gallery_id,omitempty"`
+	Gallery     []*GalleryPhoto `json:"gallery,omitempty"`
 
 	// Ride calendar
 	NextRide            int                  `json:"next_ride_id,omitempty"`

@@ -483,22 +483,52 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
   <p class="muted small">As a member sees it, with {first_name} filled in for a sample member named Pat.</p>
 </div>{{end}}
 
+{{define "gallery"}}{{template "head" .}}
+<div class="title-row"><h1>Gallery</h1><a class="btn ghost" href="/gallery" target="_blank" rel="noopener">View the gallery</a></div>
+<p class="muted small">The public <a href="/gallery" target="_blank" rel="noopener">photo gallery</a>, newest ride first. Photos get here from <a href="/admin/submitted">Sent-in photos</a>. Tick photos to change their ride, add or remove tags, or take them out of the gallery.</p>
+{{if .Gallery}}<form method="post" action="/admin/gallery" class="sent-in">
+  <div class="card gal-tools">
+    <label>Ride <select name="ride"><option value="keep">Don’t change</option><option value="">No ride</option>{{range .Rides}}<option value="{{.Key}}">{{.Name}}</option>{{end}}</select></label>
+    <label>Add tags <input name="add" placeholder="Point Lookout, Halloween"></label>
+    <label>Remove tags <input name="drop" placeholder="Separate with commas"></label>
+    <div class="gal-tools-go">
+      <button name="do" value="save">{{icon "check"}}Save ticked</button>
+      <button class="ghost danger" name="do" value="remove" onclick="return confirm('Take the ticked photos out of the gallery? You can add them again from Sent-in photos, if they’re still there.')">{{icon "trash"}}Take out of gallery</button>
+    </div>
+  </div>
+  <div class="sent-grid">{{range .Gallery}}<div class="sent-photo">
+    <label><img src="{{.Src}}" alt="Photo by {{.By}}" loading="lazy">
+    <span><input type="checkbox" name="id" value="{{.ID}}"> {{with .RideLabel}}<strong>{{.}}</strong>{{else}}<span class="muted">No ride</span>{{end}}{{with .DateLabel}} · {{.}}{{end}}</span></label>
+    <span class="small muted">By {{.By}}{{with .Tags}} · {{range $i, $t := .}}{{if $i}}, {{end}}#{{$t}}{{end}}{{end}}</span>
+  </div>{{end}}</div>
+</form>{{else}}<p class="empty">The gallery is empty. Add photos from <a href="/admin/submitted">Sent-in photos</a>.</p>{{end}}
+<script>
+document.querySelectorAll('.sent-photo input').forEach(function(c){c.addEventListener('change',function(){c.closest('.sent-photo').classList.toggle('on',c.checked)})});
+</script>
+{{template "foot" .}}{{end}}
+
 {{define "submitted"}}{{template "head" .}}
 <div class="title-row"><h1>Sent-in photos</h1></div>
-<p class="muted small">Photos people sent in from the <a href="/share-photos" target="_blank" rel="noopener">Share your photos</a> page, newest first. Only admins can see them here. Tick the ones you like, pick an issue, and add them to its photo strip, then open the issue to frame them. Delete the rest. The newsletter’s Share your photos block asks readers to send them.</p>
+<p class="muted small">Photos people sent in from the <a href="/share-photos" target="_blank" rel="noopener">Share your photos</a> page, newest first. Only admins can see them here. Tick the ones you like, then add them to an issue’s photo strip (open the issue afterward to frame them) or to the <a href="/gallery" target="_blank" rel="noopener">photo gallery</a>. Before adding to the gallery, check each batch’s ride, date and tags, and fix them if needed. Delete the rest. The newsletter’s Share your photos block asks readers to send them.</p>
 {{if .Batches}}<form method="post" action="/admin/submitted" class="sent-in">
   <div class="tools sent-tools">
     {{if .Issues}}<div class="sent-add"><label>Add ticked photos to <select name="issue">{{range .Issues}}<option value="{{.ID}}">{{.Label}}{{if not .IsPublished}} (draft){{end}}</option>{{end}}</select></label>
     <button name="do" value="add">{{icon "plus"}}Add to photo strip</button></div>
     {{else}}<p class="muted small">To put photos in the newsletter, <a href="/admin/newsletter">start an issue</a> first.</p>{{end}}
-    <button class="ghost danger" name="do" value="delete" onclick="return confirm('Delete the ticked photos? This can’t be undone. Any already in a newsletter stay there.')">{{icon "trash"}}Delete ticked</button>
+    <button name="do" value="gallery">{{icon "plus"}}Add to gallery</button>
+    <button class="ghost danger" name="do" value="delete" onclick="return confirm('Delete the ticked photos? This can’t be undone. Any already in a newsletter or the gallery stay there.')">{{icon "trash"}}Delete ticked</button>
   </div>
   {{range .Batches}}<section class="card sent-batch">
     <p class="sent-who"><strong>{{.Name}}</strong>{{with .Email}} · <a href="mailto:{{.}}">{{.}}</a>{{end}} · <span class="muted">{{datetime .Submitted}}</span>{{if .New}} <span class="tag">New</span>{{end}}</p>
     {{with .Note}}<p class="sent-note">{{.}}</p>{{end}}
+    <div class="sent-tags">{{$ride := .Ride}}
+      <label>Ride <select name="ride-{{.Batch}}"><option value="">Not sure</option>{{range $.Rides}}<option value="{{.Key}}"{{if eq .Key $ride}} selected{{end}}>{{.Name}}</option>{{end}}</select></label>
+      <label>Date <input type="date" name="date-{{.Batch}}" value="{{.Date}}"></label>
+      <label>Tags <input name="tags-{{.Batch}}" value="{{.Tags}}" placeholder="Separate with commas"></label>
+    </div>
     <div class="sent-grid">{{range .Photos}}<div class="sent-photo">
       <label><img src="/admin/submitted/{{.ID}}/photo" alt="Photo sent in by {{.Name}}" loading="lazy">
-      <span><input type="checkbox" name="id" value="{{.ID}}"> {{if .Used}}In {{.UsedIn}}{{else}}Tick to pick{{end}}</span></label>
+      <span><input type="checkbox" name="id" value="{{.ID}}"> {{if and .Used .Gallery}}In {{.UsedIn}} and the gallery{{else if .Used}}In {{.UsedIn}}{{else if .Gallery}}In the gallery{{else}}Tick to pick{{end}}</span></label>
       <a class="small" href="/admin/submitted/{{.ID}}/photo?download=1">Download</a>
     </div>{{end}}</div>
   </section>{{end}}
@@ -1443,7 +1473,7 @@ var t=document.getElementById('page-text'),p=t.selectionStart;t.value=t.value.sl
     <li>On January 1 everyone shows as not paid. Filter <a href="/admin/members?dues=unpaid">Not paid</a> and send a reminder with <code>{pay_link}</code>.</li></ol></div>
   <div class="card"><h3>Admins</h3><ul>
     <li><a href="/admin">Needs attention</a> lists rides waiting for approval, rides this week with no leader, stuck email sends, unpublished newsletter drafts, and new photos members sent in.</li>
-    <li><a href="/admin/submitted">Sent-in photos</a>: photos members send from the <a href="/share-photos" target="_blank" rel="noopener">Share your photos</a> page. Add the good ones to an issue’s photo strip; they stay private until then.</li>
+    <li><a href="/admin/submitted">Sent-in photos</a>: photos members send from the <a href="/share-photos" target="_blank" rel="noopener">Share your photos</a> page, tagged with the ride they’re from. Add the good ones to an issue’s photo strip or the <a href="/admin/gallery">gallery</a>; they stay private until then.</li>
     <li><a href="/admin/email">Email</a>: club emails, and the welcome email with its four riding-advice boxes.</li>
     <li>Newsletter, Rides, Pages, Home photos, Board, Instagram and Minutes go live as soon as you save.</li>
     <li>Only the president can remove admins, delete members or download a full backup.</li></ul></div>

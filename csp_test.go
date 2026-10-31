@@ -17,7 +17,7 @@ func TestContentSecurityPolicy(t *testing.T) {
 	ann, _ := signIn(t, h, "ann", "/calendar") // a club admin, who sees the ride page's cancel form
 	ride := "/calendar/ride/" + seriesKey(1, nextWeekday(a, time.Tuesday))
 
-	for _, path := range []string{"/", "/calendar", ride, "/calendar/new", "/join", "/kit", "/newsletter", "/membership", "/no-such-page"} {
+	for _, path := range []string{"/", "/calendar", ride, "/calendar/new", "/join", "/kit", "/newsletter", "/membership", "/gallery", "/share-photos", "/no-such-page"} {
 		w := do(t, h, ann, "GET", path, "", nil)
 		page, csp := w.Body.Bytes(), w.Header().Get("Content-Security-Policy")
 		if !strings.Contains(csp, "script-src 'self' 'sha256-") || strings.Contains(csp, "unsafe-inline' https://www.instagram") {

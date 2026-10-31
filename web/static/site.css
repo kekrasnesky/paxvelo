@@ -432,6 +432,8 @@ td:hover .cal-add,.cal-add:focus-visible{opacity:1}
 .join label{display:grid;gap:.25rem;font-size:.9rem;font-weight:500}
 .join input{width:100%;padding:.65rem .85rem;border:1px solid #cdbfb5;border-radius:8px;background:#fff;color:var(--ink);font:300 1rem/1.4 var(--font)}
 .join input:focus{border-color:var(--red);outline:1px solid var(--red);outline-offset:0}
+.join select{width:100%;padding:.65rem .85rem;border:1px solid #cdbfb5;border-radius:8px;background:#fff;color:var(--ink);font:300 1rem/1.4 var(--font)}
+.join select:focus{border-color:var(--red);outline:1px solid var(--red);outline-offset:0}
 .join .btn{justify-self:start;margin-top:.2rem}
 .pick{display:grid;gap:.5rem;margin:0;padding:0;border:0}
 .pick legend{margin-bottom:.4rem;padding:0;font-size:.95rem;font-weight:500}
@@ -489,6 +491,37 @@ td:hover .cal-add,.cal-add:focus-visible{opacity:1}
 .share-count{font-weight:300}
 .join .share-agree{align-items:flex-start;font-size:.95rem;cursor:pointer}
 .join .share-agree input{flex:none;width:1.1rem!important;height:1.1rem;margin:.2rem 0 0;padding:0;accent-color:var(--red)}
+/* Photo gallery: ride and tag buttons, a grid of photos, and a viewer */
+.gal-filters{display:flex;flex-wrap:wrap;gap:.45rem;margin:0 0 .7rem}
+.gal-filters a{padding:.3rem .8rem;border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--ink);font-size:.9rem;font-weight:500;text-decoration:none}
+.gal-filters a span{margin-left:.15rem;color:#6b625b;font-weight:300}
+.gal-filters a[aria-current]{border-color:var(--red);background:var(--red);color:var(--paper)}
+.gal-filters a[aria-current] span{color:inherit}
+@media (hover:hover){.gal-filters a:not([aria-current]):hover{border-color:var(--red);color:var(--red)}}
+.gal-tags a{padding:.15rem .65rem;font-size:.82rem;font-weight:300}
+.gal-showing{margin:.4rem 0 1rem!important;font-size:.95rem}
+.gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr));gap:1.2rem 1rem;margin:1.2rem 0 0;padding:0;list-style:none}
+.gal li{min-width:0}
+.gal img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px;background:#e9e2d8}
+.gal a:focus-visible img{outline:2px solid var(--red);outline-offset:2px}
+.gal-cap{margin:.4rem 0 0!important;font-size:.88rem;line-height:1.4;color:var(--ink)}
+.gal-cap strong{color:var(--red);font-weight:500}
+.gal-tagline{margin:.15rem 0 0!important;font-size:.82rem;line-height:1.4;overflow-wrap:anywhere}
+.gal-tagline a{color:#6b625b!important;text-decoration:none}
+.gal-tagline a:hover{text-decoration:underline}
+.gal-pages{display:flex;justify-content:space-between;gap:1rem;margin-top:1.8rem!important}
+.gal-pages a:only-child:last-child{margin-left:auto}
+.gal-view{width:100vw;max-width:none;height:100vh;max-height:none;margin:0;padding:0;border:0;background:rgba(20,17,16,.94);color:var(--paper)}
+.gal-view[open]{display:grid;place-items:center;grid-template-rows:1fr auto}
+.gal-view::backdrop{background:rgba(20,17,16,.94)}
+.gal-view img{max-width:calc(100vw - 2rem);max-height:calc(100vh - 5rem);margin-top:1rem;object-fit:contain}
+.gal-view-cap{margin:.6rem 1rem 1rem;font-size:.9rem;text-align:center}
+.gal-view button{position:absolute;width:2.8rem;height:2.8rem;border:0;border-radius:50%;background:rgba(0,0,0,.45);color:#fff;font:300 2rem/1 var(--font);cursor:pointer}
+.gal-view button:focus-visible{outline:2px solid #fff}
+.gal-view-x{top:.8rem;right:.8rem}
+.gal-view-prev{left:.8rem;top:calc(50% - 1.4rem)}
+.gal-view-next{right:.8rem;top:calc(50% - 1.4rem)}
+@media (hover:hover){.gal-view button:hover{background:var(--red)}}
 .household p{margin:0;font-size:.95rem}
 .adult-row + .adult-row{padding-top:.8rem;border-top:1px dashed #e0d6cc}
 .join:has(input[name=plan][value=individual]:checked) .household{display:none} /* a Family plan's; without :has it shows, and an Individual plan ignores it */

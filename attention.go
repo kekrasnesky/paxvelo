@@ -23,7 +23,7 @@ var adminGroups = []adminGroup{
 	{"Members", "/admin/members", []adminSection{{"members", "Members", "/admin/members"}, {"waivers", "Waivers", "/admin/waivers"}}},
 	{"Email", "/admin/email", []adminSection{{"email", "Email members", "/admin/email"}, {"newsletter", "Newsletter", "/admin/newsletter"}, {"submitted", "Sent-in photos", "/admin/submitted"}}},
 	{"Rides", "/admin/calendar", []adminSection{{"calendar", "Calendar", "/admin/calendar"}, {"rides", "Weekly rides", "/admin/rides"}, {"history", "History", "/admin/history"}}},
-	{"Website", "/admin/pages", []adminSection{{"pages", "Pages", "/admin/pages"}, {"home-photos", "Home photos", "/admin/home-photos"},
+	{"Website", "/admin/pages", []adminSection{{"pages", "Pages", "/admin/pages"}, {"home-photos", "Home photos", "/admin/home-photos"}, {"gallery", "Gallery", "/admin/gallery"},
 		{"board", "Board", "/admin/board"}, {"instagram", "Instagram", "/admin/instagram"}, {"minutes", "Minutes", "/admin/minutes"}}},
 }
 

@@ -127,6 +127,10 @@ details.more[open]{display:grid;gap:.6rem;padding-bottom:.8rem}
 .sent-batch{margin-bottom:1rem;gap:.6rem}
 .sent-who,.sent-note{margin:0}
 .sent-note{white-space:pre-line}
+.sent-tags{display:grid;grid-template-columns:repeat(auto-fit,minmax(11rem,1fr));gap:.6rem}
+.sent-tags label,.gal-tools label{display:grid;gap:.2rem;font-size:.85rem}
+.gal-tools{display:grid;grid-template-columns:repeat(auto-fit,minmax(12rem,1fr));gap:.6rem;align-items:end;margin:1rem 0}
+.gal-tools-go{display:flex;flex-wrap:wrap;gap:.5rem;grid-column:1/-1}
 .sent-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.8rem}
 .sent-photo{display:grid;gap:.3rem;padding:.3rem;border:2px solid transparent}
 .sent-photo.on{border-color:var(--red)}

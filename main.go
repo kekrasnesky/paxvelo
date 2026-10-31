@@ -167,6 +167,7 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("POST /membership/household", a.saveHousehold)
 	mux.HandleFunc("GET /share-photos", a.sharePhotosPage)
 	mux.HandleFunc("POST /share-photos", a.sharePhotos)
+	mux.HandleFunc("GET /gallery", a.galleryPage)
 
 	// Admin portal.
 	mux.HandleFunc("GET /admin/login", a.loginPage)
@@ -218,6 +219,8 @@ func (a *App) routes() http.Handler {
 	mux.Handle("GET /admin/submitted", a.auth(a.submittedPage))
 	mux.Handle("POST /admin/submitted", a.auth(a.submittedAction))
 	mux.Handle("GET /admin/submitted/{id}/photo", a.auth(a.submittedPhoto))
+	mux.Handle("GET /admin/gallery", a.auth(a.galleryAdminPage))
+	mux.Handle("POST /admin/gallery", a.auth(a.galleryAction))
 	mux.Handle("GET /admin/rides", a.auth(a.ridesAdmin))
 	mux.Handle("POST /admin/strava/connect", a.auth(a.stravaConnect))
 	mux.Handle("GET /admin/strava/callback", a.auth(a.stravaConnectCallback))

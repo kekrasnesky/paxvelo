@@ -234,7 +234,7 @@ func newSite(cfg Config) (*Site, error) {
 	if err := s.renderContent(contentData{}); err != nil {
 		return nil, err
 	}
-	for _, name := range []string{"join", "unsubscribe", "membership", "notfound", "newsletter", "minutes", "calendar", "ride", "ride-new", "routes", "share-photos"} {
+	for _, name := range []string{"join", "unsubscribe", "membership", "notfound", "newsletter", "minutes", "calendar", "ride", "ride-new", "routes", "share-photos", "gallery"} {
 		if s.dynamic[name], err = parse(name + ".html"); err != nil {
 			return nil, err
 		}
@@ -292,7 +292,7 @@ func (s *Site) renderContent(d contentData) error {
 			links = append(links, navLink{p.Path, p.Menu})
 		}
 	}
-	links = append(links, navLink{"/routes", "Club Routes"}, navLink{"/minutes", "Meeting Minutes"}, navLink{"/share-photos", "Share Your Photos"})
+	links = append(links, navLink{"/routes", "Club Routes"}, navLink{"/minutes", "Meeting Minutes"}, navLink{"/gallery", "Photo Gallery"}, navLink{"/share-photos", "Share Your Photos"})
 	s.infoLinks.Store(&links)
 	feed := d.InstaFeed
 	s.instaFeed.Store(&feed)

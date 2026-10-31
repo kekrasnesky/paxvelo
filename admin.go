@@ -45,8 +45,10 @@ type adminView struct {
 	Show        string // "", "signed", "unsigned"
 	Waiver      *Waiver
 	WaiverHTML  template.HTML // the text that Waiver's member signed
-	// Sent-in photos tab
+	// Sent-in photos and Gallery tabs
 	Batches []submittedBatch
+	Gallery []GalleryPhoto
+	Rides   []galleryRide
 	// CanManage: the logged-in admin may delete members and remove admins
 	// (the president, or whoever has the server's setup password).
 	CanManage bool
@@ -243,6 +245,8 @@ var flashText = map[string]string{
 	"board":              "Saved. The board page is updated.",
 	"home-photos":        "Saved. The home page is updated.",
 	"submitted-deleted":  "Deleted.",
+	"gallery-removed":    "Taken out of the gallery.",
+	"gallery-saved":      "Saved. The gallery is updated.",
 	"waiver-deleted":     "Waiver deleted.",
 	"connected":          "Strava is connected, and the club’s events are on the calendar.",
 	"connected-error":    "Strava is connected, but reading the club’s events didn’t work. See the error below.",
@@ -319,6 +323,8 @@ var errorText = map[string]string{
 	"bigfile":         "That file is too big. Minutes can be up to 20 MB.",
 	"bigphotos":       "Those photos are too big together. Add a few at a time.",
 	"gone":            "That issue was deleted.",
+	"gallery-date":    "One of the ride dates isn’t right. Fix it or clear it, then try again.",
+	"gallery-tags":    "Keep each photo to 6 tags, each under 30 characters.",
 	"draft":           "There’s already an unsent email here, so the newsletter announcement didn’t replace it. Send it, or press Discard draft, then try “Email members about it” again.",
 }
 
@@ -337,6 +343,8 @@ func flashFrom(r *http.Request) (flash, errMsg string) {
 		}
 	} else if code == "submitted-added" {
 		flash = submittedAdded(q)
+	} else if code == "gallery-added" {
+		flash = galleryAdded(q)
 	} else if code == "home-photos" {
 		added, _ := strconv.Atoi(q.Get("added"))
 		removed, _ := strconv.Atoi(q.Get("removed"))

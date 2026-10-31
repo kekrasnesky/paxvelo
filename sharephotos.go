@@ -16,14 +16,15 @@ import (
 	"unicode/utf8"
 )
 
-// Photos members send in for the newsletter, from the public Share your
-// photos page (/share-photos). Nobody needs an account or an app: they pick
+// Photos members send in for the newsletter and the gallery, from the public
+// Share your photos page (/share-photos). Nobody needs an account or an app: they pick
 // photos on their phone, which shrinks them before they upload (site.js), and
 // the server checks them and shrinks them again (shrinkPhoto), which also
 // drops the hidden location they were taken at. They're kept out of sight, in
 // the data folder's "submitted" folder, until an admin looks at them on the
 // Email → Sent-in photos screen and adds the good ones to an issue's photo
-// strip. The newsletter's "Share your photos" block links to the page.
+// strip or the gallery (gallery.go), which they can tag with the ride they
+// were taken on. The newsletter's "Share your photos" block links to the page.
 
 const (
 	maxSharePhotos   = 20       // photos in one go
@@ -43,11 +44,15 @@ type SubmittedPhoto struct {
 	Name      string    `json:"name"`
 	Email     string    `json:"email,omitempty"`
 	Note      string    `json:"note,omitempty"` // what they wrote about the photos
+	Ride      string    `json:"ride,omitempty"` // which club ride (galleryRides)
+	Date      string    `json:"date,omitempty"` // of the ride, 2026-10-28
+	Tags      []string  `json:"tags,omitempty"`
 	Submitted time.Time `json:"submitted"`
 	IP        string    `json:"ip,omitempty"`
 	Seen      bool      `json:"seen,omitempty"`    // an admin has opened Sent-in photos since it came in
 	Used      string    `json:"used,omitempty"`    // its address once added to a newsletter
 	UsedIn    string    `json:"used_in,omitempty"` // which issue, like "November 2026"
+	Gallery   int       `json:"gallery,omitempty"` // its gallery photo's ID, once added
 }
 
 func (a *App) submittedDir() string { return filepath.Join(a.cfg.DataDir, "submitted") }
@@ -57,14 +62,16 @@ func (a *App) submittedDir() string { return filepath.Join(a.cfg.DataDir, "submi
 type shareData struct {
 	Token             string
 	Name, Email, Note string // what was typed, to show again after a mistake
+	Ride, Date, Tags  string
 	Agree             bool
+	Rides             []galleryRide
 	Message           string // a problem
 	Detail            string // after sending: how many came through
 	Done, Failed      bool
 }
 
 func (a *App) sharePhotosPage(w http.ResponseWriter, r *http.Request) {
-	a.site.render(w, http.StatusOK, "share-photos", "/share-photos", "Share Your Photos — "+siteName, shareData{Token: a.formToken()})
+	a.site.render(w, http.StatusOK, "share-photos", "/share-photos", "Share Your Photos — "+siteName, shareData{Token: a.formToken(), Rides: galleryRides})
 }
 
 // sharePhotos receives photos from the share page. With JavaScript it
@@ -81,7 +88,7 @@ func (a *App) sharePhotos(w http.ResponseWriter, r *http.Request) {
 			json.NewEncoder(w).Encode(map[string]any{"ok": d.Done, "message": d.Message, "detail": d.Detail})
 			return
 		}
-		d.Token = a.formToken()
+		d.Token, d.Rides = a.formToken(), galleryRides
 		a.site.render(w, status, "share-photos", "/share-photos", "Share Your Photos — "+siteName, d)
 	}
 	fail := func(status int, msg string) {
@@ -94,6 +101,7 @@ func (a *App) sharePhotos(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.MultipartForm.RemoveAll()
 	d.Name, d.Email, d.Note, d.Agree = r.FormValue("name"), r.FormValue("email"), r.FormValue("note"), r.FormValue("agree") != ""
+	d.Ride, d.Date, d.Tags = cleanRide(r.FormValue("ride")), r.FormValue("date"), r.FormValue("tags")
 	if r.FormValue("website") != "" { // the box only bots fill in
 		d.Done = true
 		reply(http.StatusOK)
@@ -104,6 +112,8 @@ func (a *App) sharePhotos(w http.ResponseWriter, r *http.Request) {
 	if typed := strings.TrimSpace(d.Email); typed != "" {
 		email, emailOK = cleanEmail(typed)
 	}
+	date, dateErr := a.cleanRideDate(d.Date)
+	tags, tagsErr := parseTags(d.Tags)
 	files := r.MultipartForm.File["photos"]
 	switch {
 	case !a.validFormToken(r.FormValue("ft")):
@@ -116,6 +126,10 @@ func (a *App) sharePhotos(w http.ResponseWriter, r *http.Request) {
 		fail(http.StatusBadRequest, "Enter your name, so we know who took them.")
 	case !emailOK:
 		fail(http.StatusBadRequest, joinProblems["email"])
+	case dateErr != nil:
+		fail(http.StatusBadRequest, dateErr.Error())
+	case tagsErr != nil:
+		fail(http.StatusBadRequest, tagsErr.Error())
 	case utf8.RuneCountInString(note) > maxShareNote:
 		fail(http.StatusBadRequest, fmt.Sprintf("Keep the note under %d characters.", maxShareNote))
 	case !d.Agree:
@@ -142,7 +156,7 @@ func (a *App) sharePhotos(w http.ResponseWriter, r *http.Request) {
 		fail(http.StatusBadRequest, or(strings.Join(skipped, " "), "Choose at least one photo."))
 		return
 	}
-	if err := a.store.AddSubmitted(saved, SubmittedPhoto{Name: name, Email: email, Note: note, IP: clientIP(r)}); err != nil {
+	if err := a.store.AddSubmitted(saved, SubmittedPhoto{Name: name, Email: email, Note: note, Ride: d.Ride, Date: date, Tags: tags, IP: clientIP(r)}); err != nil {
 		log.Printf("share photos: %v", err)
 		for _, f := range saved {
 			os.Remove(filepath.Join(a.submittedDir(), f))
@@ -151,7 +165,7 @@ func (a *App) sharePhotos(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	d = shareData{Done: true, Name: name}
-	d.Detail = fmt.Sprintf("We got your %d %s. We look through them before each newsletter.", len(saved), plural(len(saved), "photo", "photos"))
+	d.Detail = fmt.Sprintf("We got your %d %s. We look through them and add our favorites to the newsletter and the photo gallery.", len(saved), plural(len(saved), "photo", "photos"))
 	if len(skipped) > 0 {
 		d.Detail += fmt.Sprintf(" %d couldn’t be used: %s", len(skipped), strings.Join(skipped, " "))
 	}
@@ -176,7 +190,9 @@ func (a *App) saveSubmittedFile(hdr *multipart.FileHeader) (string, error) {
 
 // submittedBatch is the photos one person sent together.
 type submittedBatch struct {
+	Batch             int
 	Name, Email, Note string
+	Ride, Date, Tags  string // what they said about them, for an admin to fix before adding them to the gallery
 	Submitted         time.Time
 	New               bool
 	Photos            []SubmittedPhoto
@@ -186,7 +202,8 @@ func batches(photos []SubmittedPhoto) []submittedBatch {
 	var out []submittedBatch
 	for i, p := range photos {
 		if i == 0 || photos[i-1].Batch != p.Batch {
-			out = append(out, submittedBatch{Name: p.Name, Email: p.Email, Note: p.Note, Submitted: p.Submitted})
+			out = append(out, submittedBatch{Batch: p.Batch, Name: p.Name, Email: p.Email, Note: p.Note,
+				Ride: p.Ride, Date: p.Date, Tags: strings.Join(p.Tags, ", "), Submitted: p.Submitted})
 		}
 		b := &out[len(out)-1]
 		b.New = b.New || !p.Seen
@@ -197,7 +214,7 @@ func batches(photos []SubmittedPhoto) []submittedBatch {
 
 func (a *App) submittedPage(w http.ResponseWriter, r *http.Request) {
 	photos := a.store.SubmittedPhotos()
-	v := adminView{Title: "Sent-in photos", Tab: "submitted", Batches: batches(photos), Issues: a.store.Issues()}
+	v := adminView{Title: "Sent-in photos", Tab: "submitted", Batches: batches(photos), Issues: a.store.Issues(), Rides: galleryRides}
 	v.Flash, v.Error = flashFrom(r)
 	a.renderAdmin(w, r, http.StatusOK, "submitted", v)
 	// Shown as new this once.
@@ -224,8 +241,8 @@ func (a *App) submittedPhoto(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, filepath.Join(a.submittedDir(), p.File))
 }
 
-// submittedAction adds the ticked photos to an issue's photo strip, or
-// deletes them.
+// submittedAction adds the ticked photos to an issue's photo strip or the
+// gallery, or deletes them.
 func (a *App) submittedAction(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	var ids []int
@@ -248,6 +265,10 @@ func (a *App) submittedAction(w http.ResponseWriter, r *http.Request) {
 			os.Remove(filepath.Join(a.submittedDir(), f))
 		}
 		back(w, r, "/admin/submitted?ok=submitted-deleted")
+		return
+	}
+	if r.FormValue("do") == "gallery" {
+		a.addToGallery(w, r, ids)
 		return
 	}
 
@@ -381,13 +402,14 @@ func (s *Store) Submitted(id int) (SubmittedPhoto, bool) {
 	return SubmittedPhoto{}, false
 }
 
-// WaitingPhotos counts the sent-in photos not yet used in a newsletter.
+// WaitingPhotos counts the sent-in photos not yet used in a newsletter or the
+// gallery.
 func (s *Store) WaitingPhotos() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	n := 0
 	for _, p := range s.d.SubmittedPhotos {
-		if p.Used == "" {
+		if p.Used == "" && p.Gallery == 0 {
 			n++
 		}
 	}
@@ -437,7 +459,8 @@ func (s *Store) MarkSubmittedUsed(used []SubmittedPhoto) error {
 }
 
 // DeleteSubmitted removes sent-in photos and returns their files, for the
-// caller to delete. A copy already added to a newsletter stays there.
+// caller to delete. A copy already added to a newsletter or the gallery stays
+// there.
 func (s *Store) DeleteSubmitted(ids []int) ([]string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

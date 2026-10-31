@@ -1,7 +1,7 @@
 {{define "content"}}{{with .Data}}
 <article class="page">
   <h1>Share Your Photos</h1>
-  <p class="lead">Got a great shot from a club ride? Send it in, and it could end up in the newsletter.</p>
+  <p class="lead">The best photos of this club come from our members. Got a great shot from a ride? Send it in, and we’ll feature our favorites in the newsletter and on the website.</p>
   <form class="join share" method="post" action="/share-photos" enctype="multipart/form-data"{{if .Done}} hidden{{end}}>
     <input type="hidden" name="ft" value="{{.Token}}">
     <div class="hp" aria-hidden="true"><label>Leave this empty <input name="website" tabindex="-1" autocomplete="off"></label></div>
@@ -13,7 +13,13 @@
       <label>Your name <input name="name" required maxlength="100" autocomplete="name" value="{{.Name}}"></label>
       <label>Email (optional) <input type="email" name="email" maxlength="254" autocomplete="email" value="{{.Email}}"></label>
     </div>
-    <label>About the photos (optional) <textarea name="note" rows="3" maxlength="500" placeholder="Which ride, who’s in them, anything we should know">{{.Note}}</textarea></label>
+    <div class="pair">
+      {{$ride := .Ride}}<label>Which ride? (optional) <select name="ride"><option value="">Pick a ride</option>{{range .Rides}}<option value="{{.Key}}"{{if eq .Key $ride}} selected{{end}}>{{.Name}}</option>{{end}}</select></label>
+      <label>Date of the ride (optional) <input type="date" name="date" value="{{.Date}}"></label>
+    </div>
+    <label>Tags (optional) <input name="tags" maxlength="200" placeholder="Point Lookout, Halloween ride" value="{{.Tags}}">
+      <span class="hint">Anything that helps find them later. Separate tags with commas.</span></label>
+    <label>About the photos (optional) <textarea name="note" rows="3" maxlength="500" placeholder="Who’s in them, anything we should know">{{.Note}}</textarea></label>
     <label class="check-row share-agree"><input type="checkbox" name="agree" value="yes" required{{if .Agree}} checked{{end}}> I took these photos or have permission to share them, and PaxVelo can use them in the newsletter, on its website, and on social media.</label>
     <button class="btn" type="submit">Send photos</button>
     <p class="msg{{if .Failed}} err{{end}}" role="status" aria-live="polite">{{if .Failed}}{{.Message}}{{end}}</p>
