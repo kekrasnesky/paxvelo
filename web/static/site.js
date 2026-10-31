@@ -222,15 +222,44 @@
       .catch(function(){fail('Couldn’t reach the server. Check your connection and try again.')});
   });
 
-  // Share your photos: each photo is shrunk on the phone before it uploads
-  // (a 5 MB photo becomes about half a megabyte), then they're sent in the
-  // background with a progress count. A photo the browser can't read goes as
-  // it is; the server checks everything again.
+  // Share your photos: photos can be picked (more than once) or dropped on the
+  // box, and show as tiles with a × and a caption box. Sending shrinks each
+  // one on the phone first (a 5 MB photo becomes about half a megabyte), then
+  // sends them together, filling each tile as its part goes up. A photo the
+  // browser can't read goes as it is; the server checks everything again.
   var share=d.querySelector('form.share');
-  if(share&&window.FormData&&window.XMLHttpRequest)(function(){
-    var input=share.querySelector('input[type=file]'),btn=share.querySelector('button[type=submit]'),msg=share.querySelector('.msg'),
-      count=share.querySelector('.share-count'),hint=count.textContent,MAX=20,SIDE=2000;
-    function fail(text){msg.textContent=text;msg.classList.add('err');btn.disabled=false}
+  if(share&&window.FormData&&window.XMLHttpRequest&&window.URL&&URL.createObjectURL)(function(){
+    var input=share.querySelector('input[type=file]'),drop=share.querySelector('.share-drop'),list=share.querySelector('.share-previews'),
+      btn=share.querySelector('button[type=submit]'),msg=share.querySelector('.msg'),count=share.querySelector('.share-count'),
+      bar=share.querySelector('.share-progress'),album=share.querySelector('.share-album'),named=share.querySelector('.share-new'),
+      hint=count.textContent,MAX=+input.getAttribute('data-max')||30,SIDE=2000,chosen=[],busy=false;
+    input.required=false;
+    function fail(text){msg.textContent=text;msg.classList.add('err');btn.disabled=busy=false;bar.hidden=true}
+    function counted(){
+      var n=chosen.length;list.hidden=!n;
+      count.textContent=n?n+(n===1?' photo':' photos')+' ready. Add more, or send them.'+(n>MAX?' That’s more than '+MAX+': take some out and send them next.':''):hint;
+    }
+    function add(files){
+      [].forEach.call(files,function(f){
+        if(!/^image\//.test(f.type)&&!/\.(jpe?g|png|webp|gif|heic)$/i.test(f.name))return;
+        var li=d.createElement('li'),img=d.createElement('img'),x=d.createElement('button'),cap=d.createElement('input'),fill=d.createElement('span'),
+          item={file:f,li:li,cap:cap,fill:fill};
+        img.alt='';img.src=URL.createObjectURL(f);img.onerror=function(){li.classList.add('noprev');li.setAttribute('data-name',f.name)};
+        x.type='button';x.className='share-x';x.textContent='×';x.setAttribute('aria-label','Take out '+f.name);
+        x.addEventListener('click',function(){if(busy)return;chosen.splice(chosen.indexOf(item),1);URL.revokeObjectURL(img.src);li.remove();counted()});
+        cap.type='text';cap.maxLength=200;cap.placeholder='Caption (optional)';cap.setAttribute('aria-label','Caption for '+f.name);
+        fill.className='share-fill';
+        li.appendChild(img);li.appendChild(x);li.appendChild(cap);li.appendChild(fill);list.appendChild(li);chosen.push(item);
+      });
+      counted();msg.textContent='';msg.classList.remove('err');
+    }
+    input.addEventListener('change',function(){add(input.files);input.value=''});
+    ['dragenter','dragover'].forEach(function(t){drop.addEventListener(t,function(e){e.preventDefault();drop.classList.add('over')})});
+    ['dragleave','drop'].forEach(function(t){drop.addEventListener(t,function(){drop.classList.remove('over')})});
+    drop.addEventListener('drop',function(e){e.preventDefault();if(!busy&&e.dataTransfer)add(e.dataTransfer.files)});
+    // "Something else…" asks for the new album's name
+    function showNew(){named.hidden=album.value!=='new'}
+    if(album&&named){album.addEventListener('change',function(){showNew();if(!named.hidden)named.querySelector('input').focus()});showNew()}
     function shrink(file){
       return new Promise(function(done){
         if(!/^image\/(jpeg|png|webp)$/.test(file.type)||!window.createImageBitmap)return done(file);
@@ -243,21 +272,30 @@
         }).catch(function(){done(file)});
       });
     }
-    input.addEventListener('change',function(){var n=input.files.length;count.textContent=n?n+(n===1?' photo':' photos')+' chosen.'+(n>MAX?' That’s more than '+MAX+': send the rest next.':''):hint});
     share.addEventListener('submit',function(e){
       e.preventDefault();
-      var files=[].slice.call(input.files),out=[],i=0;
-      if(files.length>MAX)return fail('You can send up to '+MAX+' photos at a time.');
-      btn.disabled=true;msg.classList.remove('err');
+      if(busy)return;
+      if(!chosen.length){fail('Add at least one photo.');input.focus();return}
+      if(chosen.length>MAX)return fail('You can send up to '+MAX+' photos at a time.');
+      busy=btn.disabled=true;msg.classList.remove('err');
+      var out=[],i=0;
       (function next(){
-        if(i<files.length){msg.textContent='Getting your photos ready… '+(i+1)+' of '+files.length;shrink(files[i++]).then(function(f){out.push(f);next()});return}
+        if(i<chosen.length){msg.textContent='Getting your photos ready… '+(i+1)+' of '+chosen.length;shrink(chosen[i].file).then(function(f){out.push(f);i++;next()});return}
         send(out);
       })();
     });
     function send(files){
-      var fd=new FormData(share);fd.delete('photos');files.forEach(function(f){fd.append('photos',f,f.name)});
+      var fd=new FormData(share),ends=[],sum=0;
+      fd.delete('photos');
+      files.forEach(function(f,k){fd.append('photos',f,f.name);fd.append('caption',chosen[k].cap.value);sum+=f.size;ends.push(sum)});
       var x=new XMLHttpRequest();x.open('POST',share.action);x.setRequestHeader('Accept','application/json');
-      x.upload.onprogress=function(e){if(e.lengthComputable)msg.textContent='Sending… '+Math.round(e.loaded/e.total*100)+'%'};
+      bar.hidden=false;
+      x.upload.onprogress=function(e){
+        if(!e.lengthComputable)return;
+        var k=e.loaded/e.total,at=k*sum;
+        bar.firstChild.style.width=Math.round(k*100)+'%';msg.textContent='Sending… '+Math.round(k*100)+'%';
+        chosen.forEach(function(it,j){var from=j?ends[j-1]:0;it.fill.style.width=Math.max(0,Math.min(1,(at-from)/(ends[j]-from)))*100+'%';it.li.classList.toggle('sent',at>=ends[j])});
+      };
       x.onload=function(){
         var j=null;try{j=JSON.parse(x.responseText)}catch(err){}
         if(!j)return fail(x.status===413?'Those photos are too big to send together. Try a few at a time.':'Something went wrong. Try again in a minute.');
@@ -270,33 +308,81 @@
     }
   })();
 
-  // Photo gallery: a photo opens large over the page, with arrows (and the
-  // arrow keys, or a swipe) to step through the others. Without JavaScript,
-  // or a browser without <dialog>, each photo opens on its own.
+  // Photo albums: "Load more" adds the next page of photos without leaving
+  // the page. A photo opens full screen over the page, with arrows (and the
+  // arrow keys, or a swipe) to step through the album, its caption and
+  // credit, and buttons to share a link to it or download it. While it's
+  // open the address bar shows the photo's own page, so that link works too.
+  // Without JavaScript, or a browser without <dialog>, each photo opens on
+  // its own page.
+  var grid=d.querySelector('.gal'),more=d.querySelector('.gal-more a');
+  function loadMore(){
+    if(!more||!window.fetch||!window.DOMParser)return Promise.resolve(false);
+    more.textContent='Loading…';
+    return fetch(more.href).then(function(r){return r.text()}).then(function(t){
+      var doc=new DOMParser().parseFromString(t,'text/html');
+      [].forEach.call(doc.querySelectorAll('.gal>li'),function(li){grid.appendChild(d.importNode(li,true))});
+      var nx=doc.querySelector('.gal-more a');
+      if(nx){more.href=nx.getAttribute('href');more.textContent='Load more photos'}else{more.parentNode.remove();more=null}
+      return true;
+    }).catch(function(){if(more)more.textContent='Load more photos';return false});
+  }
+  if(grid&&more&&window.fetch)more.addEventListener('click',function(e){e.preventDefault();loadMore()});
   var view=d.querySelector('.gal-view');
-  if(view&&view.showModal)(function(){
-    var links=[].slice.call(d.querySelectorAll('.gal li>a')),img=view.querySelector('img'),cap=view.querySelector('.gal-view-cap'),at=0,x0=null;
-    function show(i){
-      at=(i+links.length)%links.length;
-      img.src=links[at].getAttribute('href');img.alt=links[at].querySelector('img').alt;cap.textContent=links[at].getAttribute('data-caption');
+  if(grid&&view&&view.showModal)(function(){
+    var img=view.querySelector('img'),cap=view.querySelector('.gal-view-cap'),by=view.querySelector('.gal-view-by'),n=view.querySelector('.gal-view-n'),
+      dl=view.querySelector('.gal-view-dl'),shareBtn=view.querySelector('.gal-view-share'),total=+grid.getAttribute('data-total'),albumURL=location.href,at=0,x0=null,y0=null;
+    function links(){return [].slice.call(grid.querySelectorAll('li>a'))}
+    function load(el,a){
+      var ss=a.getAttribute('data-srcset');
+      el.removeAttribute('srcset');if(ss){el.sizes='100vw';el.srcset=ss}
+      el.src=a.getAttribute('data-full');
     }
-    links.forEach(function(a,i){a.addEventListener('click',function(e){
-      if(e.metaKey||e.ctrlKey||e.shiftKey)return;
-      e.preventDefault();show(i);view.showModal();
-    })});
-    view.querySelector('.gal-view-x').addEventListener('click',function(){view.close()});
-    view.querySelector('.gal-view-prev').addEventListener('click',function(){show(at-1)});
-    view.querySelector('.gal-view-next').addEventListener('click',function(){show(at+1)});
-    view.addEventListener('click',function(e){if(e.target===view)view.close()});
-    view.addEventListener('keydown',function(e){if(e.key==='ArrowLeft')show(at-1);else if(e.key==='ArrowRight')show(at+1)});
-    view.addEventListener('close',function(){links[at].focus()});
-    view.addEventListener('touchstart',function(e){x0=e.touches[0].clientX},{passive:true});
-    view.addEventListener('touchend',function(e){
-      if(x0===null)return;var dx=e.changedTouches[0].clientX-x0;x0=null;
-      if(Math.abs(dx)>50)show(dx<0?at+1:at-1);
+    function show(i){
+      var ls=links();at=(i+ls.length)%ls.length;var a=ls[at];
+      load(img,a);img.alt=a.querySelector('img').alt;
+      cap.textContent=a.getAttribute('data-caption');by.textContent='Photo by '+a.getAttribute('data-by');
+      n.textContent=(at+1)+' of '+total;
+      dl.href=a.getAttribute('data-full');dl.setAttribute('download',a.getAttribute('data-download'));
+      shareBtn.textContent='Share';
+      if(history.replaceState)history.replaceState(null,'',a.href);
+      var nx=ls[at+1];if(nx)load(new Image(),nx); // starts loading the next one, so stepping feels instant
+    }
+    function step(by){
+      var ls=links();
+      if(by>0&&at===ls.length-1&&more)loadMore().then(function(){show(at+1)});
+      else show(at+by);
+    }
+    grid.addEventListener('click',function(e){
+      var a=e.target.closest('li>a');
+      if(!a||e.metaKey||e.ctrlKey||e.shiftKey)return;
+      e.preventDefault();show(links().indexOf(a));view.showModal();
     });
-    if(links.length<2)[].forEach.call(view.querySelectorAll('.gal-view-prev,.gal-view-next'),function(b){b.hidden=true});
+    view.querySelector('.gal-view-x').addEventListener('click',function(){view.close()});
+    view.querySelector('.gal-view-prev').addEventListener('click',function(){step(-1)});
+    view.querySelector('.gal-view-next').addEventListener('click',function(){step(1)});
+    view.addEventListener('click',function(e){if(e.target===view||e.target.tagName==='FIGURE')view.close()});
+    view.addEventListener('keydown',function(e){if(e.key==='ArrowLeft')step(-1);else if(e.key==='ArrowRight')step(1)});
+    view.addEventListener('close',function(){if(history.replaceState)history.replaceState(null,'',albumURL);var a=links()[at];if(a)a.focus()});
+    view.addEventListener('touchstart',function(e){x0=e.touches[0].clientX;y0=e.touches[0].clientY},{passive:true});
+    view.addEventListener('touchend',function(e){
+      if(x0===null)return;var dx=e.changedTouches[0].clientX-x0,dy=e.changedTouches[0].clientY-y0;x0=null;
+      if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy))step(dx<0?1:-1);
+      else if(dy>90&&Math.abs(dy)>Math.abs(dx)*2)view.close(); // a swipe down closes it
+    });
+    shareBtn.addEventListener('click',function(){
+      var url=links()[at].href;
+      if(navigator.share)navigator.share({title:d.title,url:url}).catch(function(){});
+      else if(navigator.clipboard)navigator.clipboard.writeText(url).then(function(){shareBtn.textContent='Link copied'});
+      else prompt('Copy this link',url);
+    });
+    if(total<2)[].forEach.call(view.querySelectorAll('.gal-view-prev,.gal-view-next'),function(b){b.hidden=true});
   })();
+  // A photo's own page: the arrow keys step to the next and previous photos
+  if(d.querySelector('.photo-page'))d.addEventListener('keydown',function(e){
+    var a=d.querySelector(e.key==='ArrowLeft'?'.photo-nav [rel=prev]':e.key==='ArrowRight'?'.photo-nav [rel=next]':null);
+    if(a)location.href=a.href;
+  });
 
   // Counts this page view for the admin's Stats screen (stats.go): which page,
   // and which site the link that brought you here was on. No cookies, and

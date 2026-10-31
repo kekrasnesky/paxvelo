@@ -1,0 +1,30 @@
+{{define "content"}}{{with .Data}}{{$al := .Album}}
+<article class="page page-wide">
+  <p class="gal-crumb"><a href="/gallery">← All albums</a></p>
+  <div class="gal-head">
+    <h1>{{$al.Title}}</h1>
+    <a class="btn btn-quiet" href="/share-photos?album={{$al.ID}}">Add your photos</a>
+  </div>
+  <p class="gal-showing">{{with $al.DateLabel}}{{.}} · {{end}}{{.Total}} {{if eq .Total 1}}photo{{else}}photos{{end}}</p>
+  <ul class="gal" data-total="{{.Total}}">
+    {{range $i, $p := .Photos}}<li>
+      <a href="{{$al.Href}}/{{$p.ID}}" data-full="{{$p.Src}}" data-srcset="{{$p.Srcset}}" data-caption="{{$p.Caption}}" data-by="{{$p.By}}" data-download="{{$p.Download}}"><img src="{{$p.Thumb}}"{{with $p.Srcset}} srcset="{{.}}" sizes="(min-width:1100px) 260px, (min-width:700px) 25vw, 33vw"{{end}} alt="{{$p.Alt}}" loading="lazy" decoding="async"{{if $p.W}} width="{{$p.W}}" height="{{$p.H}}"{{end}}></a>
+    </li>{{end}}
+  </ul>
+  {{with .More}}<p class="gal-more"><a class="btn btn-quiet" href="{{.}}">Load more photos</a></p>{{end}}
+</article>
+<dialog class="gal-view" aria-label="Photo">
+  <figure>
+    <img alt="">
+    <figcaption><span class="gal-view-cap"></span> <span class="gal-view-by"></span></figcaption>
+  </figure>
+  <div class="gal-view-bar">
+    <span class="gal-view-n" aria-live="polite"></span>
+    <button type="button" class="gal-view-share">Share</button>
+    <a class="gal-view-dl" download>Download</a>
+  </div>
+  <button type="button" class="gal-view-x" aria-label="Close">×</button>
+  <button type="button" class="gal-view-prev" aria-label="Previous photo">‹</button>
+  <button type="button" class="gal-view-next" aria-label="Next photo">›</button>
+</dialog>
+{{end}}{{end}}

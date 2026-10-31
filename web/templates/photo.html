@@ -1,0 +1,15 @@
+{{define "content"}}{{with .Data}}{{$p := .Photo}}
+<article class="page page-wide photo-page">
+  <p class="gal-crumb"><a href="{{.AlbumAtPage}}">← {{.Album.Title}}</a></p>
+  <figure class="photo-one">
+    <img src="{{$p.Src}}"{{with $p.Srcset}} srcset="{{.}}" sizes="(min-width:1100px) 1040px, 100vw"{{end}} alt="{{$p.Alt}}"{{if $p.W}} width="{{$p.W}}" height="{{$p.H}}"{{end}}>
+    <figcaption>{{with $p.Caption}}<span>{{.}}</span> {{end}}<span class="gal-view-by">Photo by {{$p.By}}</span></figcaption>
+  </figure>
+  <p class="photo-nav">
+    {{with .Prev}}<a href="{{.}}" rel="prev">← Previous</a>{{end}}
+    <span>{{.N}} of {{.Total}}</span>
+    <a href="{{$p.Src}}" download="{{$p.Download}}">Download</a>
+    {{with .Next}}<a href="{{.}}" rel="next">Next →</a>{{end}}
+  </p>
+</article>
+{{end}}{{end}}

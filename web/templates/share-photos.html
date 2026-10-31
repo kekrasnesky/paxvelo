@@ -1,33 +1,38 @@
 {{define "content"}}{{with .Data}}
 <article class="page">
   <h1>Share Your Photos</h1>
-  <p class="lead">The best photos of this club come from our members. Got a great shot from a ride? Send it in, and we’ll feature our favorites in the newsletter and on the website.</p>
+  <p class="lead">Got a great shot from a ride? Send it in. An admin looks at every photo, then adds them to the <a href="/gallery">photo gallery</a> and the newsletter.</p>
   <form class="join share" method="post" action="/share-photos" enctype="multipart/form-data"{{if .Done}} hidden{{end}}>
     <input type="hidden" name="ft" value="{{.Token}}">
     <div class="hp" aria-hidden="true"><label>Leave this empty <input name="website" tabindex="-1" autocomplete="off"></label></div>
-    <label class="share-pick">Photos
-      <input type="file" name="photos" accept="image/*" multiple required>
-      <span class="hint share-count" aria-live="polite">Up to 20 at a time, straight from your phone. We’ll make them smaller for you.</span>
+    <label class="share-drop">
+      <input type="file" name="photos" accept="image/*" multiple required data-max="{{.Max}}">
+      <span class="share-drop-big">Add photos</span>
+      <span class="hint share-count" aria-live="polite">Pick them from your phone, or drag them here. Up to {{.Max}} at a time; we’ll make them smaller for you.</span>
     </label>
+    <ul class="share-previews" hidden></ul>
     <div class="pair">
-      <label>Your name <input name="name" required maxlength="100" autocomplete="name" value="{{.Name}}"></label>
-      <label>Email (optional) <input type="email" name="email" maxlength="254" autocomplete="email" value="{{.Email}}"></label>
+      <label>Your name <input name="name" required maxlength="100" autocomplete="name" value="{{.Name}}">
+        <span class="hint">Shown with your photos, like “Photo by Pat Rider”.</span></label>
+      <label>Email (optional) <input type="email" name="email" maxlength="254" autocomplete="email" value="{{.Email}}">
+        <span class="hint">Only if we have a question. Never shown.</span></label>
     </div>
-    <div class="pair">
-      {{$ride := .Ride}}<label>Which ride? (optional) <select name="ride"><option value="">Pick a ride</option>{{range .Rides}}<option value="{{.Key}}"{{if eq .Key $ride}} selected{{end}}>{{.Name}}</option>{{end}}</select></label>
-      <label>Date of the ride (optional) <input type="date" name="date" value="{{.Date}}"></label>
-    </div>
-    <label>Tags (optional) <input name="tags" maxlength="200" placeholder="Point Lookout, Halloween ride" value="{{.Tags}}">
-      <span class="hint">Anything that helps find them later. Separate tags with commas.</span></label>
-    <label>About the photos (optional) <textarea name="note" rows="3" maxlength="500" placeholder="Who’s in them, anything we should know">{{.Note}}</textarea></label>
+    {{$album := .Album}}<label>Which ride or event? (optional) <select name="album" class="share-album">
+      <option value="">Not sure</option>
+      {{range .Albums}}<option value="{{.ID}}"{{if eq (print .ID) $album}} selected{{end}}>{{.Title}}{{with .DateLabel}} ({{.}}){{end}}</option>{{end}}
+      <option value="new"{{if eq $album "new"}} selected{{end}}>Something else…</option>
+    </select></label>
+    <label class="share-new">Name it <input name="album_name" maxlength="80" placeholder="Saturday ride to Point Lookout, Oct 25" value="{{.AlbumName}}"></label>
+    <label>Anything else we should know? (optional) <textarea name="note" rows="2" maxlength="500" placeholder="Who’s in them, or anything else">{{.Note}}</textarea></label>
     <label class="check-row share-agree"><input type="checkbox" name="agree" value="yes" required{{if .Agree}} checked{{end}}> I took these photos or have permission to share them, and PaxVelo can use them in the newsletter, on its website, and on social media.</label>
     <button class="btn" type="submit">Send photos</button>
+    <div class="share-progress" hidden><span></span></div>
     <p class="msg{{if .Failed}} err{{end}}" role="status" aria-live="polite">{{if .Failed}}{{.Message}}{{end}}</p>
   </form>
   <div class="joined share-done" tabindex="-1"{{if not .Done}} hidden{{end}}>
     <p class="joined-title">Thanks! Your photos are in.</p>
     <p class="joined-detail">{{.Detail}}</p>
-    <p><a href="/share-photos">Send more photos</a></p>
+    <p><a href="/share-photos">Send more photos</a> · <a href="/gallery">See the gallery</a></p>
   </div>
 </article>
 {{end}}{{end}}

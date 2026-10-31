@@ -143,6 +143,37 @@ details.more[open]{display:grid;gap:.6rem;padding-bottom:.8rem}
 .sent-photo img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;background:#f1ece5}
 .sent-photo label span{display:flex;align-items:center;gap:.4rem}
 .sent-photo input[type=checkbox]{width:auto;margin:0}
+.sent-photo>input{padding:.35rem .5rem;font-size:.85rem}
+.sent-tags .sent-all{display:flex;align-items:center;gap:.4rem;align-self:end;font-size:.85rem;cursor:pointer}
+.sent-all input{width:auto;margin:0}
+.sent-album{display:grid;grid-template-columns:repeat(auto-fit,minmax(11rem,1fr));gap:.6rem;grid-column:span 2}
+.sent-album label{display:grid;gap:.2rem;font-size:.85rem}
+.sent-reviewed{margin-top:1.5rem}
+.sent-reviewed summary{margin-bottom:1rem;font-weight:500;cursor:pointer}
+/* Gallery: the album list, and an album's photos */
+.album-new{margin:1rem 0}
+.album-new h2{margin:0}
+.album-new .gal-tools{margin:0}
+.album-list{display:grid;gap:.5rem;margin:1rem 0;padding:0;list-style:none}
+.album-list li{display:grid;grid-template-columns:5.5rem 1fr auto;align-items:center;gap:1rem;padding:.6rem;border:1px solid var(--line);background:#fff}
+.album-list img,.album-empty{display:grid;place-items:center;width:5.5rem;aspect-ratio:3/2;object-fit:cover;background:#f1ece5;color:#8a8079;font-size:.75rem}
+.album-list a{text-decoration:none}
+.album-move{display:flex;gap:.3rem}
+.album-move button{padding:.45rem .7rem}
+.album-move button:disabled{opacity:.35;cursor:default}
+.album-edit{margin:1rem 0;gap:.6rem}
+.album-edit summary{font-weight:500;cursor:pointer}
+.album-edit .gal-tools{margin:.4rem 0 0}
+.album-tools{gap:.7rem;margin:1rem 0;padding:1rem 1.2rem}
+.album-tools .gal-tools-go{align-items:center}
+.album-tools button{padding:.55rem .85rem}
+.album-tools .send-row{gap:.4rem}
+.album-tools .send-row select,.album-tools .send-row input{width:auto;min-width:10rem;flex:none;padding:.5rem .6rem}
+.album-ticked{margin:.3rem 0 0;padding-top:.7rem;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:.8rem;align-items:center}
+.album-ticked .tick-all{display:inline-flex;align-items:center;gap:.3rem;font-weight:500;cursor:pointer}
+.tick-all input{width:auto;margin:0}
+.album-grid .sent-photo{cursor:grab;background:#fff}
+.album-grid .sent-photo.dragging{opacity:.4}
 .strip-item{display:grid;gap:.4rem;padding:.6rem;border:1px solid var(--line);background:#fff}
 .strip-item .framer-pick img{max-width:170px;max-height:130px}
 .pv-strip{width:96px;aspect-ratio:4/3;height:auto!important}

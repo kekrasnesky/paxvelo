@@ -179,7 +179,9 @@ type storeData struct {
 	// Photos members sent in for the newsletter (sharephotos.go).
 	NextSubmitted   int               `json:"next_submitted_id,omitempty"`
 	SubmittedPhotos []*SubmittedPhoto `json:"submitted_photos,omitempty"`
-	// The public photo gallery (gallery.go).
+	// The public photo gallery (gallery.go), album by album.
+	NextAlbum   int             `json:"next_album_id,omitempty"`
+	Albums      []*Album        `json:"albums,omitempty"`
 	NextGallery int             `json:"next_gallery_id,omitempty"`
 	Gallery     []*GalleryPhoto `json:"gallery,omitempty"`
 
@@ -297,6 +299,7 @@ func openStore(dir string) (*Store, error) {
 	}
 	s.tidyGroups()
 	s.upgradeIssues()
+	s.albumize()
 	return s, s.save()
 }
 

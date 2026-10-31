@@ -40,8 +40,8 @@ func publicCSP(hashes []string) string {
 	return strings.Join([]string{
 		"default-src 'self'",
 		"script-src 'self' " + strings.Join(hashes, " ") + " https://www.instagram.com",
-		"style-src 'self' 'unsafe-inline'", // the inlined site.css, and photo focus points in style=""
-		"img-src 'self' data: https:",      // route maps come from Strava's servers
+		"style-src 'self' 'unsafe-inline'",  // the inlined site.css, and photo focus points in style=""
+		"img-src 'self' data: blob: https:", // route maps come from Strava's servers; blob: for photos previewed before they're sent
 		"frame-src https://www.instagram.com",
 		"connect-src 'self'",
 		"object-src 'none'",

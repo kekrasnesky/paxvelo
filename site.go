@@ -70,6 +70,7 @@ type Site struct {
 // view is what every public template receives.
 type view struct {
 	Title, Desc, Path, SiteURL, V string
+	Image                         string // the photo shown when the page is shared, when not the club's
 	CSS                           template.CSS
 	JS                            template.JS
 	LD                            template.JS // structured data for search engines (seo.go)
@@ -179,6 +180,12 @@ func newSite(cfg Config) (*Site, error) {
 		"lines":        func(l []string) string { return strings.Join(l, "\n") },
 		"external":     func(u string) bool { return strings.HasPrefix(u, "http://") || strings.HasPrefix(u, "https://") },
 		"icon":         icon,
+		"sentBatch": func(b submittedBatch, albums []Album) any {
+			return struct {
+				Batch  submittedBatch
+				Albums []Album
+			}{b, albums}
+		},
 		"riderLevels":  func() []choice { return riderLevels },
 		"waiverText":   func() template.HTML { return s.waiver.HTML },
 		"guardianText": func() template.HTML { return s.waiver.Guardian },
@@ -239,7 +246,7 @@ func newSite(cfg Config) (*Site, error) {
 	if err := s.renderContent(contentData{}); err != nil {
 		return nil, err
 	}
-	for _, name := range []string{"join", "unsubscribe", "membership", "notfound", "newsletter", "calendar", "ride", "ride-new", "routes", "share-photos", "gallery"} {
+	for _, name := range []string{"join", "unsubscribe", "membership", "notfound", "newsletter", "calendar", "ride", "ride-new", "routes", "share-photos", "gallery", "album", "photo"} {
 		if s.dynamic[name], err = parse(name + ".html"); err != nil {
 			return nil, err
 		}
@@ -341,7 +348,12 @@ func (s *Site) serveContent(path string) http.Handler {
 }
 
 func (s *Site) view(path, title string, data any) view {
+	var img string
+	if o, ok := data.(interface{ OGImage() string }); ok {
+		img = o.OGImage()
+	}
 	return view{
+		Image: img,
 		Title: title, Desc: or(pageDescs[path], siteDescription), Path: path, SiteURL: s.cfg.SiteURL, V: s.version,
 		CSS: s.css, JS: s.js, Data: data,
 		Club: clubInfo{

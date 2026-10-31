@@ -15,8 +15,9 @@ import (
 // see-through parts stays a PNG). A busy photo (grass, gravel, crowds) can
 // still be large at that size, so it steps down to 1400, then 1200 pixels,
 // until it's within photoBudget. That's sharp across a laptop screen. Re-saving also drops the camera's hidden details,
-// like where the photo was taken. WebP and GIF photos are kept as they are:
-// Go can't write WebP, and a GIF may be animated.
+// like where the photo was taken. WebP and GIF photos keep their size: Go
+// can't write WebP, and a GIF may be animated. A WebP still loses its hidden
+// details; a GIF has none worth worrying about.
 const (
 	photoMaxSide   = 1600
 	photoBudget    = 350 << 10  // a photo over this steps down to a smaller size
@@ -31,26 +32,27 @@ var photoSides = []int{photoMaxSide, 1400, 1200}
 // shrinkPhoto returns a smaller copy of the photo b and its file extension,
 // or b and ext unchanged when it's already small or can't be shrunk.
 func shrinkPhoto(b []byte, ext string) ([]byte, string) {
-	if ext != ".jpg" && ext != ".png" {
+	switch ext {
+	case ".webp":
+		return stripWebPMetadata(b), ext
+	case ".jpg", ".png":
+	default:
 		return b, ext
 	}
 	cfg, _, err := image.DecodeConfig(bytes.NewReader(b))
 	if err != nil || cfg.Width <= 0 || cfg.Height <= 0 || cfg.Width*cfg.Height > photoMaxPixels {
-		return b, ext
+		return stripMetadata(b, ext), ext
 	}
 	turn := 1
 	if ext == ".jpg" {
 		turn = jpegOrientation(b)
 	}
 	if max(cfg.Width, cfg.Height) <= photoMaxSide && len(b) <= photoKeepBytes && turn == 1 {
-		if ext == ".jpg" {
-			return stripJPEGMetadata(b), ext // small enough to keep, but not with the camera's details
-		}
-		return b, ext
+		return stripMetadata(b, ext), ext // small enough to keep, but not with the camera's details
 	}
 	src, _, err := image.Decode(bytes.NewReader(b))
 	if err != nil {
-		return b, ext
+		return stripMetadata(b, ext), ext
 	}
 	var out bytes.Buffer
 	outExt := ".jpg"
@@ -66,16 +68,18 @@ func shrinkPhoto(b []byte, ext string) ([]byte, string) {
 			break
 		}
 	}
-	if err != nil {
-		return b, ext
-	}
-	if out.Len() >= len(b) && turn == 1 {
-		if ext == ".jpg" {
-			return stripJPEGMetadata(b), ext
-		}
-		return b, ext
+	if err != nil || out.Len() >= len(b) && turn == 1 {
+		return stripMetadata(b, ext), ext
 	}
 	return out.Bytes(), outExt
+}
+
+// stripMetadata drops a JPG's or PNG's hidden details (see below).
+func stripMetadata(b []byte, ext string) []byte {
+	if ext == ".png" {
+		return stripPNGMetadata(b)
+	}
+	return stripJPEGMetadata(b)
 }
 
 // downscale returns src as RGBA, shrunk (never enlarged) so its long side is
@@ -257,4 +261,87 @@ func orient(img *image.RGBA, o int) *image.RGBA {
 		}
 	}
 	return dst
+}
+
+// smallerCopies returns copies of a gallery photo (already shrunk by
+// shrinkPhoto) at each of galleryWidths that's narrower than the photo, keyed
+// by width, and its size. The grid loads the small ones and the viewer the
+// full one. A photo Go can't read (WebP, GIF) or one with see-through parts
+// gets none.
+func smallerCopies(b []byte) (copies map[int][]byte, w, h int) {
+	src, _, err := image.Decode(bytes.NewReader(b))
+	if err != nil {
+		return nil, 0, 0
+	}
+	w, h = src.Bounds().Dx(), src.Bounds().Dy()
+	full := downscale(src, max(w, h))
+	if !full.Opaque() {
+		return nil, w, h
+	}
+	copies = map[int][]byte{}
+	for _, side := range galleryWidths {
+		if side >= w {
+			continue
+		}
+		var out bytes.Buffer
+		if jpeg.Encode(&out, downscale(full, side*max(w, h)/w), &jpeg.Options{Quality: 78}) == nil {
+			copies[side] = out.Bytes()
+		}
+	}
+	return copies, w, h
+}
+
+// stripPNGMetadata drops a PNG's text and EXIF chunks, where a camera or
+// editor can leave where the photo was taken.
+func stripPNGMetadata(b []byte) []byte {
+	if len(b) < 8 || string(b[1:4]) != "PNG" {
+		return b
+	}
+	out := append(make([]byte, 0, len(b)), b[:8]...)
+	for p := 8; p+12 <= len(b); {
+		n := int(binary.BigEndian.Uint32(b[p:]))
+		if n < 0 || p+12+n > len(b) {
+			return b
+		}
+		switch string(b[p+4 : p+8]) {
+		case "eXIf", "tEXt", "zTXt", "iTXt":
+		default:
+			out = append(out, b[p:p+12+n]...)
+		}
+		p += 12 + n
+	}
+	return out
+}
+
+// stripWebPMetadata drops a WebP's EXIF and XMP chunks, and the flags saying
+// it has them.
+func stripWebPMetadata(b []byte) []byte {
+	if len(b) < 12 || string(b[:4]) != "RIFF" || string(b[8:12]) != "WEBP" {
+		return b
+	}
+	out := append(make([]byte, 0, len(b)), b[:12]...)
+	p, dropped := 12, false
+	for p+8 <= len(b) {
+		n := int(binary.LittleEndian.Uint32(b[p+4:]))
+		end := p + 8 + n + n%2 // chunks are padded to an even length
+		if n < 0 || end > len(b) {
+			return b
+		}
+		switch id := string(b[p : p+4]); id {
+		case "EXIF", "XMP ":
+			dropped = true
+		default:
+			c := append([]byte{}, b[p:end]...)
+			if id == "VP8X" && len(c) > 8 {
+				c[8] &^= 0x0C // the EXIF and XMP flags
+			}
+			out = append(out, c...)
+		}
+		p = end
+	}
+	if !dropped || p != len(b) {
+		return b
+	}
+	binary.LittleEndian.PutUint32(out[4:], uint32(len(out)-8))
+	return out
 }

@@ -3,12 +3,14 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"maps"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -27,9 +29,9 @@ func shareForm(a *App, fields url.Values, files map[string][]byte) (string, *byt
 			mw.WriteField(k, v)
 		}
 	}
-	for name, b := range files {
+	for _, name := range slices.Sorted(maps.Keys(files)) { // in name order, to match captions
 		fw, _ := mw.CreateFormFile("photos", name)
-		fw.Write(b)
+		fw.Write(files[name])
 	}
 	mw.Close()
 	return mw.FormDataContentType(), &buf
@@ -160,9 +162,9 @@ func TestSharePhotos(t *testing.T) {
 // The page stops taking photos once lots are waiting to be looked at.
 func TestSharePhotosWaitingCap(t *testing.T) {
 	a, h, _ := testApp(t)
-	files := make([]string, maxWaitingPhotos)
+	files := make([]SubmittedPhoto, maxWaitingPhotos)
 	for i := range files {
-		files[i] = "x.jpg"
+		files[i].File = "x.jpg"
 	}
 	a.store.AddSubmitted(files, SubmittedPhoto{Name: "Someone"})
 	w := sendPhotos(t, h, a, url.Values{"name": {"Pat Rider"}, "agree": {"yes"}}, map[string][]byte{"a.jpg": encodeJPEG(t, halves(120, 90, 255))})

@@ -550,36 +550,78 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
 
 {{define "gallery"}}{{template "head" .}}
 <div class="title-row"><h1>Gallery</h1><a class="btn ghost" href="/gallery" target="_blank" rel="noopener">View the gallery</a></div>
-<p class="muted small">The public <a href="/gallery" target="_blank" rel="noopener">photo gallery</a>, newest ride first, with undated photos last. Photos get here from <a href="/admin/submitted">Sent-in photos</a>, or upload a whole album below. Tick photos to change their ride, add or remove tags, or take them out of the gallery.</p>
-<form method="post" action="/admin/gallery/upload" enctype="multipart/form-data" class="card gal-upload">
-  <h2>Upload an album</h2>
-  <p class="muted small">Up to 200 photos at a time, all from the same ride. They go straight into the gallery, made smaller to load quickly.</p>
-  <label>Photos <input type="file" name="photos" accept="image/*" multiple required></label>
+<p class="muted small">The public <a href="/gallery" target="_blank" rel="noopener">photo gallery</a> is a set of albums, one for each ride or event, shown in this order. Open an album to upload photos, caption them, put them in order, pick its cover, or move photos to another album. Photos members send in wait on <a href="/admin/submitted">Sent-in photos</a> until you approve them into an album. An album shows on the website once it has photos.</p>
+<form method="post" action="/admin/gallery" class="card album-new">
+  <h2>Start an album</h2>
   <div class="gal-tools">
-    <label>Ride <select name="ride"><option value="">Not sure</option>{{range .Rides}}<option value="{{.Key}}">{{.Name}}</option>{{end}}</select></label>
-    <label>Date of the ride <input type="date" name="date"></label>
-    <label>Tags <input name="tags" placeholder="Leonardtown Crit, 2014"></label>
-    <label>Photos by <input name="by" required maxlength="100" placeholder="Who took them"></label>
+    <label>Name <input name="title" required maxlength="80" placeholder="Halloween ride 2026"></label>
+    <label>Date (optional) <input type="date" name="date"></label>
+    <div><button>{{icon "plus"}}Start album</button></div>
   </div>
-  <div class="gal-tools-go"><button type="submit">{{icon "plus"}}Upload to gallery</button></div>
+</form>
+{{if .AlbumCards}}<form method="post" action="/admin/gallery"><ul class="album-list">
+  {{range $i, $c := .AlbumCards}}<li>
+    <a href="/admin/gallery/{{.ID}}">{{if .Count}}<img src="{{.Cover.Thumb}}" alt="" loading="lazy">{{else}}<span class="album-empty">No photos</span>{{end}}</a>
+    <div><a href="/admin/gallery/{{.ID}}"><strong>{{.Title}}</strong></a><br><span class="muted small">{{with .DateLabel}}{{.}} · {{end}}{{.Count}} {{if eq .Count 1}}photo{{else}}photos{{end}}{{if not .Count}} · not on the website yet{{end}}</span></div>
+    <span class="album-move">
+      <button class="ghost" name="move" value="{{.ID}}:up" aria-label="Move {{.Title}} up"{{if eq $i 0}} disabled{{end}}>↑</button>
+      <button class="ghost" name="move" value="{{.ID}}:down" aria-label="Move {{.Title}} down"{{if eq (inc $i) (len $.AlbumCards)}} disabled{{end}}>↓</button>
+    </span>
+  </li>{{end}}
+</ul></form>{{else}}<p class="empty">No albums yet. Start one above.</p>{{end}}
+{{template "foot" .}}{{end}}
+
+{{define "album"}}{{template "head" .}}{{$al := .Album}}
+<p class="crumb"><a href="/admin/gallery">← All albums</a></p>
+<div class="title-row"><h1>{{$al.Title}}</h1>{{if $al.Photos}}<a class="btn ghost" href="{{$al.Href}}" target="_blank" rel="noopener">View on the website</a>{{end}}</div>
+<details class="card album-edit"{{if not $al.Photos}} open{{end}}>
+  <summary>Rename or delete this album</summary>
+  <form method="post" action="/admin/gallery/{{$al.ID}}" class="gal-tools">
+    <label>Name <input name="title" required maxlength="80" value="{{$al.Title}}"></label>
+    <label>Date (optional) <input type="date" name="date" value="{{$al.Date}}"></label>
+    <div><button name="do" value="rename">{{icon "check"}}Save</button></div>
+  </form>
+  <form method="post" action="/admin/gallery/{{$al.ID}}" class="gal-tools" onsubmit="return confirm('Delete this album? This can’t be undone.')">
+    <label>Its photos <select name="move_to">{{if $al.Photos}}<option value="0">Delete them too</option>{{range $.Albums}}<option value="{{.ID}}">Move them to “{{.Title}}”</option>{{end}}{{else}}<option value="0">(none)</option>{{end}}</select></label>
+    <div><button class="ghost danger" name="do" value="delete">{{icon "trash"}}Delete album</button></div>
+  </form>
+</details>
+<form method="post" action="/admin/gallery/upload?album={{$al.ID}}" enctype="multipart/form-data" class="card gal-upload">
+  <h2>Upload photos</h2>
+  <p class="muted small">Up to 200 at a time. They go straight into this album, at the end, made smaller to load quickly and without where they were taken.</p>
+  <div class="gal-tools">
+    <label>Photos <input type="file" name="photos" accept="image/*" multiple required></label>
+    <label>Photos by <input name="by" required maxlength="100" placeholder="Who took them"></label>
+    <div><button type="submit">{{icon "upload"}}Upload</button></div>
+  </div>
   <p class="gal-up-msg small" role="status" aria-live="polite"></p>
 </form>
-{{if .Gallery}}<form method="post" action="/admin/gallery" class="sent-in">
-  <div class="card gal-tools">
-    <label>Ride <select name="ride"><option value="keep">Don’t change</option><option value="">No ride</option>{{range .Rides}}<option value="{{.Key}}">{{.Name}}</option>{{end}}</select></label>
-    <label>Add tags <input name="add" placeholder="Point Lookout, Halloween"></label>
-    <label>Remove tags <input name="drop" placeholder="Separate with commas"></label>
+{{if $al.Photos}}<form method="post" action="/admin/gallery/{{$al.ID}}" class="album-photos">
+  <input type="hidden" name="order" value="">
+  <div class="card album-tools">
     <div class="gal-tools-go">
-      <button name="do" value="save">{{icon "check"}}Save ticked</button>
-      <button class="ghost danger" name="do" value="remove" onclick="return confirm('Take the ticked photos out of the gallery? You can add them again from Sent-in photos, if they’re still there.')">{{icon "trash"}}Take out of gallery</button>
+      <button name="do" value="save">{{icon "check"}}Save captions and order</button>
+      <span class="muted small">Drag photos to put them in order, or sort:</span>
+      <button class="ghost" name="do" value="sort-old">Oldest first</button>
+      <button class="ghost" name="do" value="sort-new">Newest first</button>
+      <button class="ghost" name="do" value="sort-by">By photographer</button>
+    </div>
+    <p class="muted small album-ticked">With the ticked photos: <label class="tick-all"><input type="checkbox"> Tick all</label></p>
+    <div class="gal-tools-go">
+      <button class="ghost" name="do" value="cover">Make cover</button>
+      <button class="ghost" name="do" value="first">Move to start</button>
+      <button class="ghost" name="do" value="last">Move to end</button>
+      {{if $.Albums}}<span class="send-row"><select name="to" aria-label="Album to move them to">{{range $.Albums}}<option value="{{.ID}}">{{.Title}}</option>{{end}}</select><button class="ghost" name="do" value="move">Move to album</button></span>{{end}}
+      <span class="send-row"><input name="by" maxlength="100" placeholder="Photographer’s name" aria-label="Photographer’s name"><button class="ghost" name="do" value="credit">Set credit</button></span>
+      <button class="ghost danger" name="do" value="remove" onclick="return confirm('Take the ticked photos out of the gallery? Sent-in photos can be approved again from Sent-in photos.')">{{icon "trash"}}Take out</button>
     </div>
   </div>
-  <div class="sent-grid">{{range .Gallery}}<div class="sent-photo">
-    <label><img src="{{.Src}}" alt="Photo by {{.By}}" loading="lazy">
-    <span><input type="checkbox" name="id" value="{{.ID}}"> {{with .RideLabel}}<strong>{{.}}</strong>{{else}}<span class="muted">No ride</span>{{end}}{{with .DateLabel}} · {{.}}{{end}}</span></label>
-    <span class="small muted">By {{.By}}{{with .Tags}} · {{range $i, $t := .}}{{if $i}}, {{end}}#{{$t}}{{end}}{{end}}</span>
+  <div class="sent-grid album-grid">{{range $al.Photos}}<div class="sent-photo" draggable="true" data-id="{{.ID}}">
+    <label><img src="{{.Thumb}}" alt="{{.Alt}}" loading="lazy">
+    <span><input type="checkbox" name="id" value="{{.ID}}"> {{if eq .ID $al.Cover}}<strong>Cover</strong> · {{end}}By {{.By}}</span></label>
+    <input name="caption-{{.ID}}" value="{{.Caption}}" maxlength="200" placeholder="Caption" aria-label="Caption">
   </div>{{end}}</div>
-</form>{{else}}<p class="empty">The gallery is empty. Upload an album above, or add photos from <a href="/admin/submitted">Sent-in photos</a>.</p>{{end}}
+</form>{{else}}<p class="empty">No photos in this album yet. Upload some above, or approve sent-in photos into it on <a href="/admin/submitted">Sent-in photos</a>.</p>{{end}}
 <script>
 // Bulk upload: each photo is made smaller in the browser first, then they go
 // up 10 at a time with a running count, so a big album doesn't time out.
@@ -601,14 +643,13 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
   }
   f.addEventListener('submit',function(e){
     e.preventDefault();
-    var files=[].slice.call(input.files),added=0,skipped=[],i=0;
+    var files=[].slice.call(input.files),added=0,skipped=[],i=0,here=location.pathname;
     if(!files.length)return;
     if(files.length>MAX){msg.textContent='Upload up to '+MAX+' photos at a time.';return}
     btn.disabled=true;
     (function next(){
       if(i>=files.length){
-        var q='?ok=gallery-uploaded&n='+added+(skipped.length?'&skipped='+encodeURIComponent(skipped.join(' ')):'');
-        location.href='/admin/gallery'+q;return;
+        location.href=here+'?ok=gallery-uploaded&n='+added+(skipped.length?'&skipped='+encodeURIComponent(skipped.join(' ')):'');return;
       }
       var part=files.slice(i,i+EACH);
       msg.textContent='Uploading '+(i+1)+'–'+(i+part.length)+' of '+files.length+'…';
@@ -623,41 +664,83 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
     })();
   });
 })();
-document.querySelectorAll('.sent-photo input').forEach(function(c){c.addEventListener('change',function(){c.closest('.sent-photo').classList.toggle('on',c.checked)})});
+// Ticking photos, and dragging them into order: the new order goes in the
+// form's "order" box and is saved with whichever button is pressed next.
+(function(){
+  var grid=document.querySelector('.album-grid');
+  if(!grid)return;
+  var order=document.querySelector('.album-photos input[name=order]'),dragged=null;
+  grid.querySelectorAll('.sent-photo input[type=checkbox]').forEach(function(c){c.addEventListener('change',function(){c.closest('.sent-photo').classList.toggle('on',c.checked)})});
+  document.querySelector('.tick-all input').addEventListener('change',function(e){
+    grid.querySelectorAll('.sent-photo input[type=checkbox]').forEach(function(c){c.checked=e.target.checked;c.closest('.sent-photo').classList.toggle('on',c.checked)});
+  });
+  grid.addEventListener('dragstart',function(e){dragged=e.target.closest('.sent-photo');if(dragged){dragged.classList.add('dragging');e.dataTransfer.effectAllowed='move'}});
+  grid.addEventListener('dragend',function(){if(dragged)dragged.classList.remove('dragging');dragged=null});
+  grid.addEventListener('dragover',function(e){
+    var over=e.target.closest('.sent-photo');
+    if(!dragged||!over||over===dragged)return;
+    e.preventDefault();
+    var r=over.getBoundingClientRect(),after=e.clientX>r.left+r.width/2;
+    grid.insertBefore(dragged,after?over.nextSibling:over);
+    order.value=[].map.call(grid.children,function(p){return p.getAttribute('data-id')}).join(',');
+  });
+  grid.addEventListener('drop',function(e){e.preventDefault()});
+})();
 </script>
 {{template "foot" .}}{{end}}
 
 {{define "submitted"}}{{template "head" .}}
 <div class="title-row"><h1>Sent-in photos</h1></div>
-<p class="muted small">Photos people sent in from the <a href="/share-photos" target="_blank" rel="noopener">Share your photos</a> page, newest first. Only admins can see them here. Tick the ones you like, then add them to an issue’s photo strip (open the issue afterward to frame them) or to the <a href="/gallery" target="_blank" rel="noopener">photo gallery</a>. Before adding to the gallery, check each batch’s ride, date and tags, and fix them if needed. Delete the rest. The newsletter’s Share your photos block asks readers to send them.</p>
-{{if .Batches}}<form method="post" action="/admin/submitted" class="sent-in">
+<p class="muted small">Photos people sent in from the <a href="/share-photos" target="_blank" rel="noopener">Share your photos</a> page. Nothing here is public until you approve it. Tick the good ones, check the album each person’s photos go in, and <strong>Approve</strong> them into the <a href="/admin/gallery">gallery</a>, or add them to an issue’s photo strip. <strong>Reject</strong> deletes the ticked photos.</p>
+{{if or .Batches .Reviewed}}<form method="post" action="/admin/submitted" class="sent-in">
   <div class="tools sent-tools">
-    {{if .Issues}}<div class="sent-add"><label>Add ticked photos to <select name="issue">{{range .Issues}}<option value="{{.ID}}">{{.Label}}{{if not .IsPublished}} (draft){{end}}</option>{{end}}</select></label>
-    <button name="do" value="add">{{icon "plus"}}Add to photo strip</button></div>
-    {{else}}<p class="muted small">To put photos in the newsletter, <a href="/admin/newsletter">start an issue</a> first.</p>{{end}}
-    <button name="do" value="gallery">{{icon "plus"}}Add to gallery</button>
-    <button class="ghost danger" name="do" value="delete" onclick="return confirm('Delete the ticked photos? This can’t be undone. Any already in a newsletter or the gallery stay there.')">{{icon "trash"}}Delete ticked</button>
-  </div>
-  {{range .Batches}}<section class="card sent-batch">
-    <p class="sent-who"><strong>{{.Name}}</strong>{{with .Email}} · <a href="mailto:{{.}}">{{.}}</a>{{end}} · <span class="muted">{{datetime .Submitted}}</span>{{if .New}} <span class="tag">New</span>{{end}}</p>
-    {{with .Note}}<p class="sent-note">{{.}}</p>{{end}}
-    <div class="sent-tags">{{$ride := .Ride}}
-      <label>Ride <select name="ride-{{.Batch}}"><option value="">Not sure</option>{{range $.Rides}}<option value="{{.Key}}"{{if eq .Key $ride}} selected{{end}}>{{.Name}}</option>{{end}}</select></label>
-      <label>Date <input type="date" name="date-{{.Batch}}" value="{{.Date}}"></label>
-      <label>Tags <input name="tags-{{.Batch}}" value="{{.Tags}}" placeholder="Separate with commas"></label>
+    <div class="sent-add">
+      <button name="do" value="approve">{{icon "check"}}Approve ticked</button>
+      <button class="ghost danger" name="do" value="delete" onclick="return confirm('Reject and delete the ticked photos? This can’t be undone. Any already in a newsletter or the gallery stay there.')">{{icon "trash"}}Reject ticked</button>
     </div>
-    <div class="sent-grid">{{range .Photos}}<div class="sent-photo">
-      <label><img src="/admin/submitted/{{.ID}}/photo" alt="Photo sent in by {{.Name}}" loading="lazy">
-      <span><input type="checkbox" name="id" value="{{.ID}}"> {{if and .Used .Gallery}}In {{.UsedIn}} and the gallery{{else if .Used}}In {{.UsedIn}}{{else if .Gallery}}In the gallery{{else}}Tick to pick{{end}}</span></label>
-      <a class="small" href="/admin/submitted/{{.ID}}/photo?download=1">Download</a>
-    </div>{{end}}</div>
-  </section>{{end}}
+    {{if .Issues}}<div class="sent-add"><label>Or add ticked photos to <select name="issue">{{range .Issues}}<option value="{{.ID}}">{{.Label}}{{if not .IsPublished}} (draft){{end}}</option>{{end}}</select></label>
+    <button class="ghost" name="do" value="add">{{icon "plus"}}Add to photo strip</button></div>{{end}}
+  </div>
+  {{range .Batches}}{{template "sent-batch" (sentBatch . $.Albums)}}{{else}}<p class="empty">Nothing waiting for review.</p>{{end}}
+  {{with .Reviewed}}<details class="sent-reviewed"><summary>Already reviewed ({{len .}})</summary>
+    {{range .}}{{template "sent-batch" (sentBatch . $.Albums)}}{{end}}
+  </details>{{end}}
 </form>{{else}}<p class="empty">No photos sent in yet. The newsletter’s Share your photos block links to the page, or share <strong>{{.SiteURL}}/share-photos</strong> yourself.</p>{{end}}
 <script>
-// Ticking a photo by clicking it.
+// Ticking a photo by clicking it, or all of one person's photos at once.
 document.querySelectorAll('.sent-photo input').forEach(function(c){c.addEventListener('change',function(){c.closest('.sent-photo').classList.toggle('on',c.checked)})});
+document.querySelectorAll('.sent-all input').forEach(function(all){all.addEventListener('change',function(){
+  all.closest('.sent-batch').querySelectorAll('.sent-photo input:not(:disabled)').forEach(function(c){c.checked=all.checked;c.closest('.sent-photo').classList.toggle('on',c.checked)});
+})});
+// The new album's name is only asked for when "New album" is picked.
+document.querySelectorAll('.sent-album select').forEach(function(s){
+  var name=s.closest('.sent-album').querySelector('.sent-album-name');
+  function show(){name.hidden=s.value!=='new'}
+  s.addEventListener('change',show);show();
+});
 </script>
 {{template "foot" .}}{{end}}
+
+{{define "sent-batch"}}{{$b := .Batch}}<section class="card sent-batch">
+  <p class="sent-who"><strong>{{$b.Name}}</strong>{{with $b.Email}} · <a href="mailto:{{.}}">{{.}}</a>{{end}} · <span class="muted">{{datetime $b.Submitted}}</span>{{if $b.New}} <span class="tag">New</span>{{end}}</p>
+  {{with $b.Note}}<p class="sent-note">{{.}}</p>{{end}}
+  <div class="sent-tags">
+    <label class="sent-all check"><input type="checkbox"> Tick all {{len $b.Photos}}</label>
+    <div class="sent-album">
+      <label>Approve into <select name="album-{{$b.Batch}}">
+        <option value="new"{{if not $b.Album}} selected{{end}}>New album…</option>
+        {{range .Albums}}<option value="{{.ID}}"{{if eq .ID $b.Album}} selected{{end}}>{{.Title}}</option>{{end}}
+      </select></label>
+      <label class="sent-album-name">New album’s name <input name="name-{{$b.Batch}}" maxlength="80" value="{{$b.AlbumName}}" placeholder="{{if $b.AlbumName}}{{$b.AlbumName}}{{else}}Name it{{end}}"></label>
+    </div>
+  </div>
+  <div class="sent-grid">{{range $b.Photos}}<div class="sent-photo">
+    <label><img src="/admin/submitted/{{.ID}}/photo" alt="Photo sent in by {{.Name}}" loading="lazy">
+    <span><input type="checkbox" name="id" value="{{.ID}}"> {{or .Status "Tick to pick"}}</span></label>
+    {{with .Caption}}<span class="small">“{{.}}”</span>{{end}}
+    <a class="small" href="/admin/submitted/{{.ID}}/photo?download=1">Download</a>
+  </div>{{end}}</div>
+</section>{{end}}
 
 {{define "newsletter"}}{{template "head" .}}
 <div class="title-row">

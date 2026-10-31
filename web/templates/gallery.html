@@ -1,34 +1,21 @@
 {{define "content"}}{{with .Data}}
 <article class="page page-wide">
-  <h1>Photo Gallery</h1>
-  <p class="lead">Photos from our rides, taken by members. Got a great shot? <a href="/share-photos">Share your photos</a> and we’ll add our favorites.</p>
-  {{if .All.Count}}
-  <nav class="gal-filters" aria-label="Show photos from">
-    <a href="{{.All.Href}}"{{if .All.On}} aria-current="page"{{end}}>All <span>{{.All.Count}}</span></a>
-    {{range .Rides}}<a href="{{.Href}}"{{if .On}} aria-current="page"{{end}}>{{.Label}} <span>{{.Count}}</span></a>{{end}}
-  </nav>
-  {{with .Tags}}<nav class="gal-filters gal-tags" aria-label="Tags">
-    {{range .}}<a href="{{.Href}}"{{if .On}} aria-current="page"{{end}}>#{{.Label}} <span>{{.Count}}</span></a>{{end}}
-  </nav>{{end}}
-  {{if or .Ride .Tag}}<p class="gal-showing">{{.Total}} {{if eq .Total 1}}photo{{else}}photos{{end}}{{with .Ride}} from the {{.}}{{end}}{{with .Tag}} tagged “{{.}}”{{end}} · <a href="/gallery">Show all</a></p>{{end}}
-  {{if .Photos}}<ul class="gal">
-    {{range .Photos}}<li>
-      <a href="{{.Src}}" data-caption="{{with .RideLabel}}{{.}} · {{end}}{{with .DateLabel}}{{.}} · {{end}}Photo by {{.By}}"><img src="{{.Src}}" alt="{{with .RideLabel}}{{.}} photo{{else}}Club ride photo{{end}} by {{.By}}" loading="lazy"></a>
-      <p class="gal-cap">{{with .RideLabel}}<strong>{{.}}</strong> · {{end}}{{with .DateLabel}}{{.}} · {{end}}{{.By}}</p>
-      {{with .Tags}}<p class="gal-tagline">{{range .}}<a href="/gallery?tag={{.}}">#{{.}}</a> {{end}}</p>{{end}}
+  <div class="gal-head">
+    <h1>Photo Gallery</h1>
+    <a class="btn" href="/share-photos">Share your photos</a>
+  </div>
+  <p class="lead">Photos from our rides and events, taken by members.</p>
+  {{if .Albums}}<ul class="albums">
+    {{range .Albums}}<li>
+      <a href="{{.Href}}">
+        <img src="{{.Cover.Thumb}}"{{with .Cover.Srcset}} srcset="{{.}}" sizes="(min-width:1100px) 340px, (min-width:600px) 45vw, 100vw"{{end}} alt="" loading="lazy" decoding="async"{{if .Cover.W}} width="{{.Cover.W}}" height="{{.Cover.H}}"{{end}}>
+        <span class="album-title">{{.Title}}</span>
+        <span class="album-meta">{{with .DateLabel}}{{.}} · {{end}}{{.Count}} {{if eq .Count 1}}photo{{else}}photos{{end}}</span>
+      </a>
     </li>{{end}}
   </ul>
-  {{else}}<p>No photos here yet. <a href="/gallery">See all photos</a>.</p>{{end}}
-  {{if or .Newer .Older}}<p class="gal-pages">{{with .Newer}}<a href="{{.}}">← Newer photos</a>{{end}}{{with .Older}}<a href="{{.}}">Older photos →</a>{{end}}</p>{{end}}
   {{else}}
   <p>The gallery is just getting started. <a href="/share-photos">Send in your ride photos</a> and they could be the first ones here.</p>
   {{end}}
 </article>
-<dialog class="gal-view" aria-label="Photo">
-  <img alt="">
-  <p class="gal-view-cap"></p>
-  <button type="button" class="gal-view-x" aria-label="Close">×</button>
-  <button type="button" class="gal-view-prev" aria-label="Previous photo">‹</button>
-  <button type="button" class="gal-view-next" aria-label="Next photo">›</button>
-</dialog>
 {{end}}{{end}}

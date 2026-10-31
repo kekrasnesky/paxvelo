@@ -47,9 +47,11 @@ type adminView struct {
 	Waiver      *Waiver
 	WaiverHTML  template.HTML // the text that Waiver's member signed
 	// Sent-in photos and Gallery tabs
-	Batches []submittedBatch
-	Gallery []GalleryPhoto
-	Rides   []galleryRide
+	Batches    []submittedBatch // with photos waiting for review
+	Reviewed   []submittedBatch
+	Albums     []Album
+	AlbumCards []albumCard
+	Album      *albumAdmin
 	// CanManage: the logged-in admin may delete members and remove admins
 	// (the president, or whoever has the server's setup password).
 	CanManage bool
@@ -247,7 +249,10 @@ var flashText = map[string]string{
 	"home-photos":        "Saved. The home page is updated.",
 	"submitted-deleted":  "Deleted.",
 	"gallery-removed":    "Taken out of the gallery.",
-	"gallery-saved":      "Saved. The gallery is updated.",
+	"album-new":          "Album started. Upload photos into it below, or approve sent-in photos into it.",
+	"album-saved":        "Saved.",
+	"album-deleted":      "Album deleted.",
+	"photos-moved":       "Moved to the other album.",
 	"waiver-deleted":     "Waiver deleted.",
 	"connected":          "Strava is connected, and the club’s events are on the calendar.",
 	"connected-error":    "Strava is connected, but reading the club’s events didn’t work. See the error below.",
@@ -322,8 +327,10 @@ var errorText = map[string]string{
 	"bigfile":         "That file is too big. Minutes can be up to 20 MB.",
 	"bigphotos":       "Those photos are too big together. Add a few at a time.",
 	"gone":            "That issue was deleted.",
-	"gallery-date":    "One of the ride dates isn’t right. Fix it or clear it, then try again.",
-	"gallery-tags":    "Keep each photo to 6 tags, each under 30 characters.",
+	"gallery-date":    "That date isn’t right. Fix it or clear it, then try again.",
+	"album-title":     "Give the album a name.",
+	"album-pick":      "Pick an album for the photos, or type a name for a new one.",
+	"album-gone":      "That album was deleted.",
 	"gallery-by":      "Say who took the photos.",
 	"none-chosen":     "Choose some photos first.",
 	"toomany":         "Upload up to 200 photos at a time.",
