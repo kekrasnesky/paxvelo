@@ -30,10 +30,10 @@ var clubRides = []choice{
 // levelAdvice is the built-in {ride_tips} for each answer, used until an
 // admin writes their own on the Email tab.
 var levelAdvice = map[string]string{
-	"new":         "Since you’re new to group rides, start with the Old Line Cycles shop ride. It’s made for people getting into the sport and has several regroup stops (ask the shop when the next one is). Weekend café rides, when a member hosts one, are another easy way to meet people.\n\nWhen you’re ready for more, try the Thursday Night Ride: about 22 mph to Point Lookout and back, and nobody gets left behind.",
-	"some":        "Start with the Thursday Night Ride: about 22 mph to Point Lookout and back, roughly 40 miles, and nobody gets left behind.\n\nWhen that feels good, try the Tuesday Night Ride’s B group, about 19–21 mph. It’s hard, but not a race.",
-	"experienced": "You’ll fit right in on the Thursday Night Ride (about 22 mph, and nobody gets left behind) and the Tuesday Night Ride’s B group (about 19–21 mph).\n\nWhen you want a harder night, try the Tuesday A group. It’s race pace, about 23–25 mph, and if you come off the back you’re on your own.",
-	"racer":       "Come race-pace training with the Tuesday Night Ride A group, about 23–25 mph, mid-March through October.\n\nThe Thursday ride to Point Lookout makes a good tempo day, and it doesn’t drop anyone.",
+	"new":         "Since you’re new to group rides, start with the Old Line Cycles shop ride, Wednesdays at 6:00 PM from the Wildewood Shopping Center. It’s about 20 miles at a social pace, with plenty of regroups. Weekend café rides, when a member hosts one, are another easy way to meet people.\n\nWhen you’re ready for more, try the Thursday Night Ride: a tempo ride to Point Lookout and back that keeps things tame when newer riders come, and nobody gets left behind.",
+	"some":        "Start with the Thursday Night Ride: a tempo ride to Point Lookout and back, roughly 40 miles. The pace suits who turns out, and nobody gets left behind.\n\nWhen that feels good, try the Tuesday Night Ride’s B group, about 19–21 mph. It’s hard, but not a race.",
+	"experienced": "You’ll fit right in on the Thursday Night Ride (tempo, and nobody gets left behind) and the Tuesday Night Ride’s B group (about 19–21 mph).\n\nWhen you want a harder night, try the Tuesday A group. It’s race pace, typically 22–28 mph for about 30 miles, and if you come off the back you’re on your own.",
+	"racer":       "Come race-pace training with the Tuesday Night Ride A group, typically 22–28 mph for about 30 miles, mid-March through October.\n\nThe Thursday ride to Point Lookout makes a good tempo day, and it doesn’t drop anyone.",
 }
 
 func cleanLevel(s string) string {

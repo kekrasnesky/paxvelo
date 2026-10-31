@@ -13,7 +13,16 @@ Club rides are posted on Strava, with the start time, route, and any last-minute
 
 ## New to Group Riding?
 
-Our weeknight rides are fast: even the easier groups average about 20 mph. If that sounds like a lot, start with the Old Line Cycles shop ride or a weekend morning ride. It's built for people getting into the sport, with several regroup stops along the way. Ask the shop for the next one, and join us when you're ready.
+Our Tuesday and Thursday rides are fast: even the easier groups average about 20 mph. If that sounds like a lot, start with the Wednesday shop ride or a weekend morning ride, and join us when you're ready.
+
+## Wednesday Shop Ride
+
+Hosted by Old Line Cycles, and the best place to start if you're new to group riding. It's a short, social ride on the "Jellyfish" route: a set of out-and-backs with plenty of regroups, so everyone stays together. Faster riders can stretch their legs to the end of each road, then wait for the group.
+
+- **When:** Wednesdays at 6:00 PM
+- **Start:** Wildewood Shopping Center
+- **Distance:** about 20 miles
+- **Pace:** social, with regroups at the end of every out-and-back
 
 ## Tuesday Night Ride
 
@@ -27,15 +36,15 @@ Our fastest ride of the week, and traditionally race pace. TNR has historically 
 
 ## Thursday Night Ride
 
-A tempo ride down to Point Lookout and back. The route changes a little from week to week, but we end up at the Point every Thursday.
+A tempo ride down toward Point Lookout and back, typically about 40 miles.
 
 - **Pace:** tempo, set by who turns out. If it's all fast riders, we hammer at a zone 3 effort down and back. If intermediate riders come along, we keep things tame, and the draft lets you sit in without getting gassed
-- **Big turnouts:** with room for two groups, we ride together down to the Point, then the faster riders pick it up and split off
+- **Big turnouts:** with room for two groups, we ride together toward the Point, then the faster riders pick it up and split off
 - **Drops:** it's not a drop ride. Nobody gets left behind
 - **Who:** members, and experienced riders who haven't joined yet
 - **When:** Thursdays at 6:00 PM, March to early October
 - **Start:** Park & Ride by NAS Pax Gate 2, southbound Rt. 235 near Great Mills
-- **Route:** to Point Lookout and back, about 40 miles
+- **Route:** usually to Point Lookout and back. Some weeks it shifts to take in other roads, and when daylight runs short we turn around before the Point
 
 ## Weekend Morning Rides
 
@@ -45,7 +54,7 @@ The Saturday and Sunday Morning Rides (SaMR and SuMR) are our social rides: a re
 
 ### Will I get dropped?
 
-On the Tuesday A group, quite possibly. Thursday waits for everyone, and the Tuesday B group is a step down. If you're newer, the Old Line Cycles shop ride is the place to start.
+On the Tuesday A group, quite possibly. Thursday waits for everyone, and the Tuesday B group is a step down. If you're newer, the Wednesday shop ride is the place to start.
 
 ### Is my bike good enough?
 
