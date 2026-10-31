@@ -23,7 +23,9 @@
       <option value="new"{{if eq $album "new"}} selected{{end}}>Something else…</option>
     </select></label>
     <label class="share-new">Name it <input name="album_name" maxlength="80" placeholder="Saturday ride to Point Lookout, Oct 25" value="{{.AlbumName}}"></label>
-    <label>Anything else we should know? (optional) <textarea name="note" rows="2" maxlength="500" placeholder="Who’s in them, or anything else">{{.Note}}</textarea></label>
+    {{if .PINOn}}<label>Club PIN (members) <input name="pin" maxlength="40" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <span class="hint">With the PIN, your photos go up right away. Without it, an admin looks first.</span></label>
+    {{end}}<label>Anything else we should know? (optional) <textarea name="note" rows="2" maxlength="500" placeholder="Who’s in them, or anything else">{{.Note}}</textarea></label>
     <label class="check-row share-agree"><input type="checkbox" name="agree" value="yes" required{{if .Agree}} checked{{end}}> I took these photos or have permission to share them, and PaxVelo can use them in the newsletter, on its website, and on social media.</label>
     <button class="btn" type="submit">Send photos</button>
     <div class="share-progress" hidden><span></span></div>
@@ -32,7 +34,7 @@
   <div class="joined share-done" tabindex="-1"{{if not .Done}} hidden{{end}}>
     <p class="joined-title">Thanks! Your photos are in.</p>
     <p class="joined-detail">{{.Detail}}</p>
-    <p><a href="/share-photos">Send more photos</a> · <a href="/gallery">See the gallery</a></p>
+    <p><a href="/share-photos">Send more photos</a> · <a class="share-see" href="{{or .Link "/gallery"}}">{{if .Link}}See them{{else}}See the gallery{{end}}</a></p>
   </div>
 </article>
 {{end}}{{end}}

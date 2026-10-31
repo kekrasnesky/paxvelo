@@ -180,6 +180,7 @@ type storeData struct {
 	NextSubmitted   int               `json:"next_submitted_id,omitempty"`
 	SubmittedPhotos []*SubmittedPhoto `json:"submitted_photos,omitempty"`
 	// The public photo gallery (gallery.go), album by album.
+	PhotoPIN    string          `json:"photo_pin,omitempty"` // lets members skip the review (galleryadmin.go)
 	NextAlbum   int             `json:"next_album_id,omitempty"`
 	Albums      []*Album        `json:"albums,omitempty"`
 	NextGallery int             `json:"next_gallery_id,omitempty"`

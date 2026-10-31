@@ -559,6 +559,14 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
     <div><button>{{icon "plus"}}Start album</button></div>
   </div>
 </form>
+<form method="post" action="/admin/gallery" class="card album-new">
+  <h2>Club photo PIN</h2>
+  <p class="muted small">{{if .PhotoPIN}}Members who type this PIN on the <a href="/share-photos" target="_blank" rel="noopener">Share your photos</a> page skip the review: their photos go straight into the album they pick. Photos with no album picked still wait on Sent-in photos. If the PIN gets around, change it here and tell members the new one.{{else}}Off: every sent-in photo waits for review. Set a PIN and share it with members (in the newsletter or a club email) to let them post straight to the gallery.{{end}}</p>
+  <div class="gal-tools">
+    <label>PIN <input name="pin" value="{{.PhotoPIN}}" minlength="4" maxlength="40" autocomplete="off" placeholder="At least 4 characters"></label>
+    <div class="gal-tools-go"><button name="do" value="pin">{{icon "check"}}Save PIN</button>{{if .PhotoPIN}}<button class="ghost" name="do" value="pin" formnovalidate onclick="this.form.off.value='1'">Turn off</button>{{end}}<input type="hidden" name="off" value=""></div>
+  </div>
+</form>
 {{if .AlbumCards}}<form method="post" action="/admin/gallery"><ul class="album-list">
   {{range $i, $c := .AlbumCards}}<li>
     <a href="/admin/gallery/{{.ID}}">{{if .Count}}<img src="{{.Cover.Thumb}}" alt="" loading="lazy">{{else}}<span class="album-empty">No photos</span>{{end}}</a>
@@ -722,7 +730,7 @@ document.querySelectorAll('.sent-album select').forEach(function(s){
 {{template "foot" .}}{{end}}
 
 {{define "sent-batch"}}{{$b := .Batch}}<section class="card sent-batch">
-  <p class="sent-who"><strong>{{$b.Name}}</strong>{{with $b.Email}} · <a href="mailto:{{.}}">{{.}}</a>{{end}} · <span class="muted">{{datetime $b.Submitted}}</span>{{if $b.New}} <span class="tag">New</span>{{end}}</p>
+  <p class="sent-who"><strong>{{$b.Name}}</strong>{{with $b.Email}} · <a href="mailto:{{.}}">{{.}}</a>{{end}} · <span class="muted">{{datetime $b.Submitted}}</span>{{if $b.New}} <span class="tag">New</span>{{end}}{{if $b.ViaPIN}} <span class="tag">Posted with the PIN</span>{{end}}</p>
   {{with $b.Note}}<p class="sent-note">{{.}}</p>{{end}}
   <div class="sent-tags">
     <label class="sent-all check"><input type="checkbox"> Tick all {{len $b.Photos}}</label>

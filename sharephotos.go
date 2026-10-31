@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -27,6 +28,11 @@ import (
 // approving puts them in an album of the gallery (gallery.go), rejecting
 // deletes them, and any can go in an issue's photo strip. The newsletter's
 // "Share your photos" block links to the page.
+//
+// Members who know the club photo PIN (set on Website → Gallery) skip the
+// review: with it, their photos go straight into the album they picked, or a
+// new one they named. Wrong guesses are limited, and admins can change the
+// PIN whenever it gets around.
 
 const (
 	maxSharePhotos   = 30       // photos in one go
@@ -58,6 +64,7 @@ type SubmittedPhoto struct {
 	Used      string    `json:"used,omitempty"`    // its address once added to a newsletter
 	UsedIn    string    `json:"used_in,omitempty"` // which issue, like "November 2026"
 	Gallery   int       `json:"gallery,omitempty"` // its gallery photo's ID, once added
+	ViaPIN    bool      `json:"pin,omitempty"`     // sent with the club photo PIN
 }
 
 func (a *App) submittedDir() string { return filepath.Join(a.cfg.DataDir, "submitted") }
@@ -71,15 +78,17 @@ type shareData struct {
 	Agree             bool
 	Albums            []Album // the latest ones, to pick from
 	Max               int
+	PINOn             bool   // the club photo PIN is set
 	Message           string // a problem
 	Detail            string // after sending: how many came through
+	Link              string // and the album they went into, when they skipped the review
 	Done, Failed      bool
 }
 
 const shareAlbums = 12 // albums to pick from on the share page
 
 func (a *App) shareData(d shareData) shareData {
-	d.Token, d.Max = a.formToken(), maxSharePhotos
+	d.Token, d.Max, d.PINOn = a.formToken(), maxSharePhotos, a.store.PhotoPIN() != ""
 	d.Albums = a.store.Albums()
 	d.Albums = d.Albums[:min(len(d.Albums), shareAlbums)]
 	return d
@@ -100,7 +109,7 @@ func (a *App) sharePhotos(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.Header().Set("Cache-Control", "no-store")
 			w.WriteHeader(status)
-			json.NewEncoder(w).Encode(map[string]any{"ok": d.Done, "message": d.Message, "detail": d.Detail})
+			json.NewEncoder(w).Encode(map[string]any{"ok": d.Done, "message": d.Message, "detail": d.Detail, "link": d.Link})
 			return
 		}
 		a.site.render(w, status, "share-photos", "/share-photos", "Share Your Photos — "+siteName, a.shareData(d))
@@ -135,6 +144,8 @@ func (a *App) sharePhotos(w http.ResponseWriter, r *http.Request) {
 	if from.Album == 0 {
 		from.AlbumName = cleanTitle(d.AlbumName, maxAlbumTitle)
 	}
+	pin, typedPIN := a.store.PhotoPIN(), strings.TrimSpace(r.FormValue("pin"))
+	from.ViaPIN = pin != "" && typedPIN != ""
 	files := r.MultipartForm.File["photos"]
 	captions := r.MultipartForm.Value["caption"] // one for each photo, in order, when the page sends them
 	switch {
@@ -152,6 +163,10 @@ func (a *App) sharePhotos(w http.ResponseWriter, r *http.Request) {
 		fail(http.StatusBadRequest, fmt.Sprintf("Keep the note under %d characters.", maxShareNote))
 	case !d.Agree:
 		fail(http.StatusBadRequest, "Tick the box to say you can share these photos with the club.")
+	case from.ViaPIN && !a.limit.Allow("pin:"+clientIP(r), 10, time.Hour): // every try counts, so it can't be guessed
+		fail(http.StatusTooManyRequests, "Too many PIN tries. Try again later, or leave the PIN empty and an admin will look at your photos.")
+	case from.ViaPIN && !samePIN(typedPIN, pin):
+		fail(http.StatusBadRequest, "That PIN isn’t right. Check it, or leave it empty and an admin will look at your photos.")
 	case a.store.WaitingPhotos()+len(files) > maxWaitingPhotos:
 		fail(http.StatusServiceUnavailable, "We have a lot of photos waiting to be looked at. Try again in a few days.")
 	case !a.limit.Allow("share:"+clientIP(r), 5, time.Hour): // counted once the form is right, so typos never lock anyone out
@@ -179,7 +194,8 @@ func (a *App) sharePhotos(w http.ResponseWriter, r *http.Request) {
 		fail(http.StatusBadRequest, or(strings.Join(skipped, " "), "Choose at least one photo."))
 		return
 	}
-	if err := a.store.AddSubmitted(saved, from); err != nil {
+	added, err := a.store.AddSubmitted(saved, from)
+	if err != nil {
 		log.Printf("share photos: %v", err)
 		for _, p := range saved {
 			os.Remove(filepath.Join(a.submittedDir(), p.File))
@@ -188,11 +204,55 @@ func (a *App) sharePhotos(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	d = shareData{Done: true, Name: name}
-	d.Detail = fmt.Sprintf("We got your %d %s. An admin looks at every photo before it goes in the gallery, usually within a few days.", len(saved), plural(len(saved), "photo", "photos"))
+	n, them := len(saved), plural(len(saved), "photo", "photos")
+	switch posted, al := a.postWithPIN(added, from); {
+	case posted == n:
+		d.Detail, d.Link = fmt.Sprintf("Your %d %s are in the gallery now, in “%s”.", n, them, al.Title), al.Href()
+		if n == 1 {
+			d.Detail = fmt.Sprintf("Your photo is in the gallery now, in “%s”.", al.Title)
+		}
+	case from.ViaPIN && from.Album == 0 && from.AlbumName == "":
+		d.Detail = fmt.Sprintf("We got your %d %s. You didn’t say which ride or event they’re from, so an admin will put them in an album.", n, them)
+	default:
+		d.Detail = fmt.Sprintf("We got your %d %s. An admin looks at every photo before it goes in the gallery, usually within a few days.", n, them)
+	}
 	if len(skipped) > 0 {
 		d.Detail += fmt.Sprintf(" %d couldn’t be used: %s", len(skipped), strings.Join(skipped, " "))
 	}
 	reply(http.StatusOK)
+}
+
+// samePIN compares a typed PIN with the club's, ignoring case.
+func samePIN(typed, pin string) bool {
+	return subtle.ConstantTimeCompare([]byte(strings.ToLower(typed)), []byte(strings.ToLower(pin))) == 1
+}
+
+// postWithPIN puts photos sent with the club photo PIN straight into the
+// album picked for them (starting it if they named a new one), and returns
+// how many went in and the album. Without an album they wait for review, as
+// does any photo that couldn't be added.
+func (a *App) postWithPIN(photos []SubmittedPhoto, from SubmittedPhoto) (int, Album) {
+	if !from.ViaPIN || from.Album == 0 && from.AlbumName == "" {
+		return 0, Album{}
+	}
+	id := from.Album
+	if id == 0 {
+		var err error
+		if id, err = a.albumNamed(from.AlbumName); err != nil {
+			log.Printf("photos with the PIN: %v", err)
+			return 0, Album{}
+		}
+	}
+	al, _ := a.store.Album(id)
+	posted := 0
+	for _, p := range photos {
+		if err := a.publishToAlbum(p, id); err != nil {
+			log.Printf("photo %d with the PIN: %v", p.ID, err)
+			continue
+		}
+		posted++
+	}
+	return posted, al
 }
 
 // saveSubmittedFile keeps one sent-in photo in the submitted folder, shrunk
@@ -219,7 +279,8 @@ type submittedBatch struct {
 	AlbumName         string // or the new one they named
 	Submitted         time.Time
 	New               bool
-	Waiting           int // photos not yet approved or used in a newsletter
+	Waiting           int  // photos not yet approved or used in a newsletter
+	ViaPIN            bool // sent with the club photo PIN
 	Photos            []SubmittedPhoto
 }
 
@@ -241,7 +302,7 @@ func batches(photos []SubmittedPhoto) []submittedBatch {
 	for i, p := range photos {
 		if i == 0 || photos[i-1].Batch != p.Batch {
 			out = append(out, submittedBatch{Batch: p.Batch, Name: p.Name, Email: p.Email, Note: p.Note,
-				Album: p.Album, AlbumName: p.AlbumName, Submitted: p.Submitted})
+				Album: p.Album, AlbumName: p.AlbumName, Submitted: p.Submitted, ViaPIN: p.ViaPIN})
 		}
 		b := &out[len(out)-1]
 		b.New = b.New || !p.Seen
@@ -414,12 +475,13 @@ func submittedAdded(q url.Values) string {
 // ---- Store ----
 
 // AddSubmitted records photos sent in together, given each one's file and
-// caption, and who sent them.
-func (s *Store) AddSubmitted(photos []SubmittedPhoto, from SubmittedPhoto) error {
+// caption, and who sent them, and returns them as recorded.
+func (s *Store) AddSubmitted(photos []SubmittedPhoto, from SubmittedPhoto) ([]SubmittedPhoto, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.d.NextSubmitted++
 	batch, now := s.d.NextSubmitted, time.Now().UTC()
+	var out []SubmittedPhoto
 	for i, f := range photos {
 		p := from
 		if i > 0 {
@@ -427,8 +489,9 @@ func (s *Store) AddSubmitted(photos []SubmittedPhoto, from SubmittedPhoto) error
 		}
 		p.ID, p.Batch, p.File, p.Caption, p.Submitted = s.d.NextSubmitted, batch, f.File, f.Caption, now
 		s.d.SubmittedPhotos = append(s.d.SubmittedPhotos, &p)
+		out = append(out, p)
 	}
-	return s.save()
+	return out, s.save()
 }
 
 // SubmittedPhotos lists the sent-in photos, newest first, keeping each

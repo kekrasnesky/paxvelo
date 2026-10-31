@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 // mediaFile says whether a file under /media/ is there.
@@ -493,4 +494,81 @@ func encodePNG(t *testing.T, img image.Image) []byte {
 		t.Fatal(err)
 	}
 	return b.Bytes()
+}
+
+// With the club photo PIN, a member's photos skip the review and go straight
+// into the album they picked. A wrong PIN is refused, guesses are limited,
+// and photos with no album picked still wait for review.
+func TestPhotoPIN(t *testing.T) {
+	a, h, admin := testApp(t)
+	al, _ := a.store.AddAlbum("Saturday ride", "")
+	photo := encodeJPEG(t, halves(800, 600, 255))
+	send := func(fields url.Values) *httptest.ResponseRecorder {
+		fields.Set("name", "Pat Rider")
+		fields.Set("agree", "yes")
+		return sendPhotos(t, h, a, fields, map[string][]byte{"a.jpg": photo, "b.jpg": photo})
+	}
+	if page := do(t, h, nil, "GET", "/share-photos", "", nil).Body.String(); strings.Contains(page, `name="pin"`) {
+		t.Error("with no PIN set, the share page shouldn't ask for one")
+	}
+	setPIN := func(v url.Values) string {
+		v.Set("do", "pin")
+		ct, body := form(v)
+		return do(t, h, admin, "POST", "/admin/gallery", ct, body).Header().Get("Location")
+	}
+	if to := setPIN(url.Values{"pin": {"abc"}}); !strings.Contains(to, "err=pin-short") {
+		t.Errorf("a short PIN: %s", to)
+	}
+	if to := setPIN(url.Values{"pin": {" Velo2026 "}}); !strings.Contains(to, "ok=pin-saved") || a.store.PhotoPIN() != "Velo2026" {
+		t.Fatalf("setting the PIN: %s %q", to, a.store.PhotoPIN())
+	}
+	if page := do(t, h, nil, "GET", "/share-photos", "", nil).Body.String(); !strings.Contains(page, `name="pin"`) {
+		t.Error("the share page should ask for the PIN")
+	}
+
+	if w := send(url.Values{"pin": {"nope"}, "album": {strconv.Itoa(al.ID)}}); w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "isn’t right") {
+		t.Errorf("a wrong PIN: %d %s", w.Code, w.Body)
+	}
+	w := send(url.Values{"pin": {"velo2026"}, "album": {strconv.Itoa(al.ID)}, "caption": {"Coffee stop", ""}})
+	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "in the gallery now") || !strings.Contains(w.Body.String(), al.Href()) {
+		t.Fatalf("the right PIN, any case: %d %s", w.Code, w.Body)
+	}
+	gal := a.store.AlbumPhotos(al.ID)
+	if len(gal) != 2 || gal[0].Caption != "Coffee stop" || gal[0].By != "Pat Rider" || !gal[0].Sized {
+		t.Fatalf("the photos should be in the album: %+v", gal)
+	}
+	if n := a.store.WaitingPhotos(); n != 0 {
+		t.Errorf("nothing should wait for review: %d", n)
+	}
+	if page := do(t, h, admin, "GET", "/admin/submitted", "", nil).Body.String(); !strings.Contains(page, "Posted with the PIN") {
+		t.Error("Sent-in photos should say they were posted with the PIN")
+	}
+
+	// A new album they name is started; with no album, they wait for review.
+	send(url.Values{"pin": {"Velo2026"}, "album": {"new"}, "album_name": {"Fall colors"}})
+	if albums := a.store.Albums(); len(albums) != 2 || albums[0].Title != "Fall colors" || len(a.store.AlbumPhotos(albums[0].ID)) != 2 {
+		t.Errorf("a new album with the PIN: %+v", albums)
+	}
+	if w := send(url.Values{"pin": {"Velo2026"}}); !strings.Contains(w.Body.String(), "an admin will put them in an album") || a.store.WaitingPhotos() != 2 {
+		t.Errorf("no album picked: %s, %d waiting", w.Body, a.store.WaitingPhotos())
+	}
+
+	// Turning it off: the box goes, and a PIN typed anyway isn't asked about.
+	if to := setPIN(url.Values{"pin": {"Velo2026"}, "off": {"1"}}); !strings.Contains(to, "ok=pin-off") || a.store.PhotoPIN() != "" {
+		t.Errorf("turning off: %s", to)
+	}
+}
+
+// Guessing the PIN stops after 10 tries an hour, right or wrong.
+func TestPhotoPINGuesses(t *testing.T) {
+	a, h, _ := testApp(t)
+	a.store.SetPhotoPIN("Velo2026")
+	al, _ := a.store.AddAlbum("Saturday ride", "")
+	for range 10 {
+		a.limit.Allow("pin:192.0.2.1", 10, time.Hour) // httptest's address
+	}
+	w := sendPhotos(t, h, a, url.Values{"name": {"Pat"}, "agree": {"yes"}, "pin": {"Velo2026"}, "album": {strconv.Itoa(al.ID)}}, map[string][]byte{"a.jpg": encodeJPEG(t, halves(120, 90, 255))})
+	if w.Code != http.StatusTooManyRequests {
+		t.Errorf("after 10 tries: %d %s", w.Code, w.Body)
+	}
 }

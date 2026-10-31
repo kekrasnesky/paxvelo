@@ -16,7 +16,10 @@ import (
 // Website → Gallery: admins start, rename, reorder and delete albums, and in
 // each album upload photos, caption them, put them in order (by dragging, or
 // by date or photographer), pick the cover, and move photos to other albums.
-// Sent-in photos are approved into albums on Email → Sent-in photos.
+// Sent-in photos are approved into albums on Email → Sent-in photos. The
+// club photo PIN, set here, lets members skip that review.
+
+const minPIN = 4 // characters in the club photo PIN
 
 func albumAdminHref(id int) string { return "/admin/gallery/" + strconv.Itoa(id) }
 
@@ -28,14 +31,32 @@ type albumAdmin struct {
 }
 
 func (a *App) galleryAdminPage(w http.ResponseWriter, r *http.Request) {
-	v := adminView{Title: "Gallery", Tab: "gallery", AlbumCards: a.store.AlbumCards(true)}
+	v := adminView{Title: "Gallery", Tab: "gallery", AlbumCards: a.store.AlbumCards(true), PhotoPIN: a.store.PhotoPIN()}
 	v.Flash, v.Error = flashFrom(r)
 	a.renderAdmin(w, r, http.StatusOK, "gallery", v)
 }
 
-// galleryAction starts an album, or moves one up or down the list.
+// galleryAction starts an album, moves one up or down the list, or sets the
+// club photo PIN.
 func (a *App) galleryAction(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
+	if r.FormValue("do") == "pin" {
+		pin := strings.TrimSpace(r.FormValue("pin"))
+		if r.FormValue("off") != "" {
+			pin = ""
+		}
+		switch {
+		case pin != "" && (len([]rune(pin)) < minPIN || len(pin) > 40):
+			back(w, r, "/admin/gallery?err=pin-short")
+		case a.store.SetPhotoPIN(pin) != nil:
+			back(w, r, "/admin/gallery?err=save")
+		case pin == "":
+			back(w, r, "/admin/gallery?ok=pin-off")
+		default:
+			back(w, r, "/admin/gallery?ok=pin-saved")
+		}
+		return
+	}
 	if m := r.FormValue("move"); m != "" { // like "12:up"
 		id, dir, _ := strings.Cut(m, ":")
 		n, _ := strconv.Atoi(id)
@@ -352,11 +373,7 @@ func (a *App) approvePhotos(w http.ResponseWriter, r *http.Request, ids []int) {
 			}
 			albums[p.Batch] = album
 		}
-		src, err := a.publishSubmitted(p)
-		if err == nil {
-			err = a.addGalleryFile(GalleryPhoto{Album: album, Src: src, Caption: p.Caption, By: p.Name, From: p.ID})
-		}
-		if err != nil {
+		if err := a.publishToAlbum(p, album); err != nil {
 			log.Printf("sent-in photo %d: %v", id, err)
 			back(w, r, "/admin/submitted?err=save")
 			return
@@ -376,7 +393,12 @@ func (a *App) albumFor(r *http.Request, batch int) (int, error) {
 			return id, nil
 		}
 	}
-	title := cleanTitle(r.FormValue("name-"+b), maxAlbumTitle)
+	return a.albumNamed(r.FormValue("name-" + b))
+}
+
+// albumNamed is the album with this name, started if there isn't one.
+func (a *App) albumNamed(name string) (int, error) {
+	title := cleanTitle(name, maxAlbumTitle)
 	if title == "" {
 		return 0, errNoAlbumName
 	}
@@ -387,6 +409,16 @@ func (a *App) albumFor(r *http.Request, batch int) (int, error) {
 	}
 	al, err := a.store.AddAlbum(title, "")
 	return al.ID, err
+}
+
+// publishToAlbum puts a copy of a sent-in photo in an album, with the
+// caption and name it was sent with.
+func (a *App) publishToAlbum(p SubmittedPhoto, album int) error {
+	src, err := a.publishSubmitted(p)
+	if err != nil {
+		return err
+	}
+	return a.addGalleryFile(GalleryPhoto{Album: album, Src: src, Caption: p.Caption, By: p.Name, From: p.ID})
 }
 
 // galleryAdded is the flash after approving sent-in photos.
@@ -400,4 +432,18 @@ func galleryAdded(q url.Values) string {
 		s += fmt.Sprintf(" %d %s already there.", already, plural(already, "was", "were"))
 	}
 	return s
+}
+
+// PhotoPIN is the club photo PIN, or "" when it's off.
+func (s *Store) PhotoPIN() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.d.PhotoPIN
+}
+
+func (s *Store) SetPhotoPIN(pin string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.d.PhotoPIN = pin
+	return s.save()
 }

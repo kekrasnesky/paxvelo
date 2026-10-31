@@ -300,7 +300,8 @@
         var j=null;try{j=JSON.parse(x.responseText)}catch(err){}
         if(!j)return fail(x.status===413?'Those photos are too big to send together. Try a few at a time.':'Something went wrong. Try again in a minute.');
         if(!j.ok)return fail(j.message);
-        var done=d.querySelector('.share-done');done.querySelector('.joined-detail').textContent=j.detail||'';
+        var done=d.querySelector('.share-done'),see=done.querySelector('.share-see');done.querySelector('.joined-detail').textContent=j.detail||'';
+        if(j.link){see.href=j.link;see.textContent='See them'}
         share.hidden=true;done.hidden=false;done.focus();
       };
       x.onerror=function(){fail('Couldn’t reach the server. Check your connection and try again.')};
