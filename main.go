@@ -200,6 +200,8 @@ func (a *App) routes() http.Handler {
 	mux.Handle("POST /admin/admins/{id}/remove", a.auth(a.removeAdmin))
 	mux.Handle("POST /admin/admins/{id}/president", a.auth(a.makePresident))
 	mux.Handle("POST /admin/admins/password", a.auth(a.changePassword))
+	mux.Handle("GET /admin/security", a.auth(a.securityPage))
+	mux.Handle("POST /admin/security", a.auth(a.securityAction))
 	mux.Handle("GET /admin", a.auth(a.attentionPage))
 	mux.Handle("GET /admin/guide", a.auth(a.guidePage))
 	mux.Handle("GET /admin/members", a.auth(a.membersPage))

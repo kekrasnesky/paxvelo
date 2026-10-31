@@ -16,8 +16,7 @@ import (
 // Website → Gallery: admins start, rename, reorder and delete albums, and in
 // each album upload photos, caption them, put them in order (by dragging, or
 // by date or photographer), pick the cover, and move photos to other albums.
-// Sent-in photos are approved into albums on Email → Sent-in photos. The
-// club PIN (clubpin.go) is set here too.
+// Sent-in photos are approved into albums on Email → Sent-in photos.
 
 func albumAdminHref(id int) string { return "/admin/gallery/" + strconv.Itoa(id) }
 
@@ -29,32 +28,14 @@ type albumAdmin struct {
 }
 
 func (a *App) galleryAdminPage(w http.ResponseWriter, r *http.Request) {
-	v := adminView{Title: "Gallery", Tab: "gallery", AlbumCards: a.store.AlbumCards(true), ClubPIN: a.store.ClubPIN()}
+	v := adminView{Title: "Gallery", Tab: "gallery", AlbumCards: a.store.AlbumCards(true)}
 	v.Flash, v.Error = flashFrom(r)
 	a.renderAdmin(w, r, http.StatusOK, "gallery", v)
 }
 
-// galleryAction starts an album, moves one up or down the list, or sets the
-// club PIN.
+// galleryAction starts an album, or moves one up or down the list.
 func (a *App) galleryAction(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
-	if r.FormValue("do") == "pin" {
-		pin := strings.TrimSpace(r.FormValue("pin"))
-		if r.FormValue("off") != "" {
-			pin = ""
-		}
-		switch {
-		case pin != "" && (len([]rune(pin)) < minPIN || len([]rune(pin)) > maxPIN):
-			back(w, r, "/admin/gallery?err=pin-short")
-		case a.store.SetClubPIN(pin) != nil:
-			back(w, r, "/admin/gallery?err=save")
-		case pin == "":
-			back(w, r, "/admin/gallery?ok=pin-off")
-		default:
-			back(w, r, "/admin/gallery?ok=pin-saved")
-		}
-		return
-	}
 	if m := r.FormValue("move"); m != "" { // like "12:up"
 		id, dir, _ := strings.Cut(m, ":")
 		n, _ := strconv.Atoi(id)

@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"testing"
@@ -47,8 +48,8 @@ func TestNeedsAttention(t *testing.T) {
 	if !strings.Contains(members, `action="/admin/members"`) {
 		t.Error("the members list should live at /admin/members")
 	}
-	if !strings.Contains(members, `class="corner" href="/admin/admins"`) {
-		t.Error("Admins should sit in the corner of the bar")
+	if !strings.Contains(members, `class="corner" href="/admin/admins" aria-label="Security"`) {
+		t.Error("Security should sit in the corner of the bar")
 	}
 	cal := do(t, h, admin, "GET", "/admin/calendar", "", nil).Body.String()
 	if !strings.Contains(cal, `<nav class="sub"`) || !strings.Contains(cal, `href="/admin/rides">Weekly rides</a>`) {
@@ -79,5 +80,33 @@ func TestGuidePage(t *testing.T) {
 	}
 	if !strings.Contains(do(t, h, admin, "GET", "/admin", "", nil).Body.String(), `href="/admin/guide"`) {
 		t.Error("Needs attention should link to the guide under Home")
+	}
+}
+
+// Security, in the corner of the bar, holds the Admins screen and Club PIN &
+// access: the club PIN, every other way in, and the backup.
+func TestSecurityTab(t *testing.T) {
+	a, h, admin := testApp(t)
+	if w := do(t, h, nil, "GET", "/admin/security", "", nil); w.Code == http.StatusOK {
+		t.Error("the Security screen should need a login")
+	}
+	page := do(t, h, admin, "GET", "/admin/security", "", nil).Body.String()
+	for _, want := range []string{
+		`href="/admin/admins" aria-current="page"`, `<nav class="sub"`, `href="/admin/security" aria-current="page">Club PIN &amp; access`,
+		`name="pin"`, "Sign in with Strava", "Calendar API key", "Setup password", `href="/admin/backup"`,
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("Club PIN & access missing %q", want)
+		}
+	}
+	if page := do(t, h, admin, "GET", "/admin/admins", "", nil).Body.String(); !strings.Contains(page, `href="/admin/security">Club PIN &amp; access`) {
+		t.Error("the Admins screen should link to Club PIN & access under the bar")
+	}
+	if page := do(t, h, admin, "GET", "/admin/gallery", "", nil).Body.String(); strings.Contains(page, `name="pin"`) {
+		t.Error("the PIN moved off the Gallery screen")
+	}
+	ct, body := form(url.Values{"pin": {"8356"}})
+	if to := do(t, h, admin, "POST", "/admin/security", ct, body).Header().Get("Location"); !strings.Contains(to, "/admin/security?ok=pin-saved") || a.store.ClubPIN() != "8356" {
+		t.Errorf("saving the PIN: %s", to)
 	}
 }

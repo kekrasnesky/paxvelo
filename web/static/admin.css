@@ -152,6 +152,15 @@ details.more[open]{display:grid;gap:.6rem;padding-bottom:.8rem}
 .sent-reviewed summary{margin-bottom:1rem;font-weight:500;cursor:pointer}
 /* Gallery: the album list, and an album's photos */
 .album-new{margin:1rem 0}
+/* Security → Club PIN & access */
+.sec-card{margin:1rem 0}
+.sec-card h2{margin:0}
+.sec-card .gal-tools{margin:0}
+.sec-list{width:100%;border-collapse:collapse;font-size:.92rem}
+.sec-list th,.sec-list td{padding:.6rem .4rem;border-top:1px solid var(--line);text-align:left;vertical-align:top}
+.sec-list tr:first-child th,.sec-list tr:first-child td{border-top:0}
+.sec-list th{width:11rem;font-weight:500}
+@media (max-width:600px){.sec-list th,.sec-list td{display:block;width:auto;padding:.2rem 0}.sec-list td{padding-bottom:.6rem}}
 .album-new h2{margin:0}
 .album-new .gal-tools{margin:0}
 .album-list{display:grid;gap:.5rem;margin:1rem 0;padding:0;list-style:none}

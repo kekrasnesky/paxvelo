@@ -512,9 +512,8 @@ func TestPhotoPIN(t *testing.T) {
 		t.Error("with no PIN set, the share page shouldn't ask for one")
 	}
 	setPIN := func(v url.Values) string {
-		v.Set("do", "pin")
 		ct, body := form(v)
-		return do(t, h, admin, "POST", "/admin/gallery", ct, body).Header().Get("Location")
+		return do(t, h, admin, "POST", "/admin/security", ct, body).Header().Get("Location")
 	}
 	if to := setPIN(url.Values{"pin": {"abc"}}); !strings.Contains(to, "err=pin-short") {
 		t.Errorf("a short PIN: %s", to)

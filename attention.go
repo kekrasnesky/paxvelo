@@ -28,12 +28,15 @@ var adminGroups = []adminGroup{
 	{"Stats", "/admin/stats", []adminSection{{"stats", "Stats", "/admin/stats"}}},
 }
 
-var adminsSection = adminSection{"admins", "Admins", "/admin/admins"}
+// securityGroup is who can get in and how: admin accounts, the club PIN and
+// backups. It sits in the corner of the bar rather than with the others.
+var securityGroup = adminGroup{"Security", "/admin/admins", []adminSection{
+	{"admins", "Admins", "/admin/admins"}, {"security", "Club PIN & access", "/admin/security"}}}
 
 type adminNav struct {
 	Groups   []navGroup
 	Sections []navSection // the current group's screens, when it has more than one
-	Admins   navSection   // the Admins screen, in the corner
+	Security navSection   // the Security group, in the corner
 }
 
 type navGroup struct {
@@ -48,8 +51,8 @@ type navSection struct {
 }
 
 func adminNavFor(tab string, attention int) adminNav {
-	nav := adminNav{Admins: navSection{adminsSection.Label, adminsSection.Href, tab == adminsSection.Tab}}
-	for _, g := range adminGroups {
+	nav := adminNav{Security: navSection{Label: securityGroup.Label, Href: securityGroup.Href}}
+	for _, g := range append(adminGroups, securityGroup) {
 		ng := navGroup{Label: g.Label, Href: g.Href}
 		if g.Label == "Home" {
 			ng.Badge = attention
@@ -63,6 +66,10 @@ func adminNavFor(tab string, attention int) adminNav {
 			for _, s := range g.Sections {
 				nav.Sections = append(nav.Sections, navSection{s.Label, s.Href, s.Tab == tab})
 			}
+		}
+		if g.Label == securityGroup.Label {
+			nav.Security.Current = ng.Current
+			continue
 		}
 		nav.Groups = append(nav.Groups, ng)
 	}

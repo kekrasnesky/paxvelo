@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// The club PIN: a code admins set on Website → Gallery and share with
+// The club PIN: a code admins set on Security → Club PIN & access and share with
 // members, so they can post without an account. With it, photos sent in go
 // straight into their album (sharephotos.go) and a ride added without
 // signing in with Strava goes straight onto the calendar (calendar.go),
@@ -24,6 +24,34 @@ const (
 	pinWrong = "That PIN isn’t right. Check it, or leave it empty and an admin will look first."
 	pinLimit = "Too many PIN tries. Try again later, or leave the PIN empty and an admin will look first."
 )
+
+// securityPage is Security → Club PIN & access: the club PIN, the other ways
+// in, and the backup.
+func (a *App) securityPage(w http.ResponseWriter, r *http.Request) {
+	v := adminView{Title: "Club PIN & access", Tab: "security", ClubPIN: a.store.ClubPIN(),
+		StravaReady: a.stravaReady(), APIOn: a.cfg.CalendarAPIKey != "", CanManage: a.canManage(r)}
+	v.Flash, v.Error = flashFrom(r)
+	a.renderAdmin(w, r, http.StatusOK, "security", v)
+}
+
+// securityAction sets the club PIN, or turns it off.
+func (a *App) securityAction(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	pin := strings.TrimSpace(r.FormValue("pin"))
+	if r.FormValue("off") != "" {
+		pin = ""
+	}
+	switch {
+	case pin != "" && (len([]rune(pin)) < minPIN || len([]rune(pin)) > maxPIN):
+		back(w, r, "/admin/security?err=pin-short")
+	case a.store.SetClubPIN(pin) != nil:
+		back(w, r, "/admin/security?err=save")
+	case pin == "":
+		back(w, r, "/admin/security?ok=pin-off")
+	default:
+		back(w, r, "/admin/security?ok=pin-saved")
+	}
+}
 
 // checkPIN reports whether a PIN was typed and, if so, whether it's the
 // club's: "" when it's right, or what to tell them. With no PIN set or none

@@ -52,6 +52,7 @@ type adminView struct {
 	Albums     []Album
 	AlbumCards []albumCard
 	ClubPIN    string
+	APIOn      bool // the calendar API key is set
 	Album      *albumAdmin
 	// CanManage: the logged-in admin may delete members and remove admins
 	// (the president, or whoever has the server's setup password).
@@ -700,7 +701,7 @@ func parseImport(r io.Reader) (rows []importRow, bad int, err error) {
 // details and the admins' password hashes, so only the president can.
 func (a *App) backup(w http.ResponseWriter, r *http.Request) {
 	if !a.canManage(r) {
-		back(w, r, "/admin/members?err=president-only")
+		back(w, r, "/admin/security?err=president-only")
 		return
 	}
 	b, err := a.store.Snapshot()
