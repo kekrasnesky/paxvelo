@@ -94,6 +94,22 @@
     setInterval(step,5000);
   });
 
+  // Ride calendar: on touch screens the first tap on a ride in the month grid
+  // opens its details card (hover does it elsewhere), and a second tap, or the
+  // card's link, goes to the ride. Tapping anywhere else closes it.
+  var popOpen=null;
+  function closePop(){if(popOpen){popOpen.classList.remove('pop-open');popOpen=null}}
+  if(d.querySelector('.cal-grid .cal-item')){
+    d.addEventListener('click',function(e){
+      var item=e.target.closest('.cal-grid .cal-item');
+      if(item!==popOpen)closePop();
+      if(!item||!matchMedia('(hover:none)').matches)return;
+      var ride=e.target.closest('.cal-ride');
+      if(ride&&!item.classList.contains('pop-open')){e.preventDefault();item.classList.add('pop-open');popOpen=item}
+    });
+    d.addEventListener('keydown',function(e){if(e.key==='Escape')closePop()});
+  }
+
   // Forms that ask first (take over, step down, cancel a ride): the question
   // is in data-confirm, since the page's security policy won't run onsubmit=""
   d.addEventListener('submit',function(e){

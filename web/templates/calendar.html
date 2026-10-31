@@ -16,7 +16,7 @@
         <span class="cal-up-date">{{.ShortDate}}</span>
         <span class="cal-time">{{.TimeLabel}}</span> {{.Name}}
         <span class="lvls">{{range .Levels}}<span class="lvl lvl-{{.Key}}">{{.Name}}</span>{{end}}</span>
-        <span class="cal-lead">{{.LeaderSummary}}</span>
+        {{template "cal-lead" .}}
         {{with .Meta}}<span class="cal-meta">{{.}}</span>{{end}}
       </a></li>{{end}}
     </ul>{{else}}<p class="cal-none">{{.UpcomingNote}}</p>{{end}}
@@ -28,7 +28,7 @@
       <h2>{{.MonthLabel}}</h2>
       <a href="/calendar?m={{.Next}}" aria-label="Next month">›</a>
     </nav>
-    <div class="cal-key"><span class="dot dot-led"></span> Has its leaders <span class="dot dot-partial"></span> Needs another leader <span class="dot dot-open"></span> Needs a leader</div>
+    <p class="cal-key"><span class="cal-hint-hover">Point at a ride for details.</span><span class="cal-hint-touch">Tap a ride for details.</span></p>
   </div>
 
   <table class="cal-grid">
@@ -37,11 +37,22 @@
     {{range .Weeks}}<tr>
       {{range .}}<td class="{{if not .InMonth}}out {{end}}{{if .Today}}today {{end}}{{if .Past}}past{{end}}">
         <div class="cal-day"><span>{{.Day}}</span>{{if and .InMonth (not .Past)}}<a class="cal-add" href="/calendar/new?date={{.Date}}" aria-label="Add a ride on {{.Date}}">+</a>{{end}}</div>
-        {{range .Rides}}<a class="cal-ride {{.Status}}" href="/calendar/ride/{{.Key}}">
-          <span class="cal-time">{{.TimeLabel}}</span> {{.Name}}
-          <span class="lvl-dots">{{range .Levels}}<span class="lvl-dot lvl-{{.Key}}" role="img" aria-label="{{.Name}}, {{.MPH}}" title="{{.Name}}, {{.MPH}}"></span>{{end}}</span>
-          <span class="cal-lead">{{.LeaderSummary}}</span>
-        </a>{{end}}
+        {{range .Rides}}<div class="cal-item">
+          <a class="cal-ride {{.Status}}" href="/calendar/ride/{{.Key}}" aria-describedby="pop-{{.Key}}">
+            <span class="cal-time">{{.TimeLabel}}</span> {{.Name}}
+            <span class="lvls">{{range .Levels}}<span class="lvl lvl-{{.Key}}">{{.Name}}</span>{{end}}</span>
+            {{template "cal-lead" .}}
+          </a>
+          <div class="cal-pop" id="pop-{{.Key}}" role="tooltip">
+            <strong class="cal-pop-name">{{.Name}}</strong>
+            <span class="cal-pop-when">{{.ShortDate}} · {{.TimeLabel}}</span>
+            {{with .PublicPlace}}<span class="cal-pop-where">{{.}}</span>{{end}}
+            {{with .Levels}}<span class="cal-pop-lvls">{{range .}}<span><span class="lvl lvl-{{.Key}}">{{.Name}}</span> {{.MPH}}</span>{{end}}</span>{{end}}
+            {{if .Cancelled}}<span class="cal-pop-off">This ride is cancelled.</span>{{else}}<ul class="cal-pop-slots">{{range .Slots}}<li>{{with .Group}}<span class="cal-pop-group">{{.}}</span> {{end}}{{with .Leader}}{{.Name}}{{else}}<span class="cal-need">Needs a leader</span>{{end}}</li>{{end}}</ul>{{end}}
+            {{with .Meta}}<span class="cal-meta">{{.}}</span>{{end}}
+            <a class="cal-pop-go" href="/calendar/ride/{{.Key}}">{{if or (eq .Status "open") (eq .Status "partial")}}View ride or sign up to lead{{else}}View ride{{end}} →</a>
+          </div>
+        </div>{{end}}
       </td>{{end}}
     </tr>{{end}}
     </tbody>
@@ -53,7 +64,7 @@
       {{range .Rides}}<a class="cal-ride {{.Status}}" href="/calendar/ride/{{.Key}}">
         <span class="cal-time">{{.TimeLabel}}</span> {{.Name}}
         <span class="lvls">{{range .Levels}}<span class="lvl lvl-{{.Key}}">{{.Name}}</span>{{end}}</span>
-        <span class="cal-lead">{{if eq .Status "led"}}Led by {{end}}{{.LeaderSummary}}</span>
+        {{template "cal-lead" .}}
         {{with .Meta}}<span class="cal-meta">{{.}}</span>{{end}}
       </a>{{end}}
     </li>
@@ -62,3 +73,6 @@
   </ol>
 </article>
 {{end}}{{end}}
+
+{{/* The leader line under a ride: who's leading it, or a badge asking for one */}}
+{{define "cal-lead"}}{{if or (eq .Status "open") (eq .Status "partial")}}<span class="cal-lead"><span class="cal-need">{{.LeaderSummary}}</span></span>{{else if eq .Status "led"}}<span class="cal-lead">Led by {{.LeaderSummary}}</span>{{else}}<span class="cal-lead">{{.LeaderSummary}}</span>{{end}}{{end}}
