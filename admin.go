@@ -325,6 +325,11 @@ var errorText = map[string]string{
 	"gone":            "That issue was deleted.",
 	"gallery-date":    "One of the ride dates isn’t right. Fix it or clear it, then try again.",
 	"gallery-tags":    "Keep each photo to 6 tags, each under 30 characters.",
+	"gallery-by":      "Say who took the photos.",
+	"none-chosen":     "Choose some photos first.",
+	"toomany":         "Upload up to 200 photos at a time.",
+	"bigupload":       "Those photos are too big to send together. Upload fewer at a time.",
+	"diskfull":        "The server is nearly out of space (under 2 GB free), so uploads are stopped. Delete some photos or ask whoever runs the server to add space.",
 	"draft":           "There’s already an unsent email here, so the newsletter announcement didn’t replace it. Send it, or press Discard draft, then try “Email members about it” again.",
 }
 
@@ -345,6 +350,8 @@ func flashFrom(r *http.Request) (flash, errMsg string) {
 		flash = submittedAdded(q)
 	} else if code == "gallery-added" {
 		flash = galleryAdded(q)
+	} else if code == "gallery-uploaded" {
+		flash = galleryUploaded(q)
 	} else if code == "home-photos" {
 		added, _ := strconv.Atoi(q.Get("added"))
 		removed, _ := strconv.Atoi(q.Get("removed"))

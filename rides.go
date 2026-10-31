@@ -631,14 +631,3 @@ func (s *Store) SetStravaAdmins(names []string) {
 	s.d.StravaAdmins, s.d.StravaAdminsChecked = names, &now
 	s.saveOrLog()
 }
-
-// defaultSeries is the club's regular weekly rides, added the first time the
-// site starts. Admins can change them on the Rides tab.
-func defaultSeries() []*RideSeries {
-	return []*RideSeries{
-		{ID: 1, Name: "Tuesday Night Ride", Weekday: 2, Time: "18:00", Place: "NAS Pax", Details: "Race pace, on base or off · about 23–25 mph",
-			Groups: []string{"A group", "B group"}},
-		{ID: 2, Name: "Thursday Night Ride", Weekday: 4, Time: "18:00", Place: "Park & Ride by NAS Pax Gate 2", Details: "Tempo to Point Lookout and back · about 22 mph, 40 miles",
-			SeasonStart: "03-01", SeasonEnd: "10-10"},
-	}
-}

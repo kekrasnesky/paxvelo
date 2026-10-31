@@ -221,6 +221,7 @@ func (a *App) routes() http.Handler {
 	mux.Handle("GET /admin/submitted/{id}/photo", a.auth(a.submittedPhoto))
 	mux.Handle("GET /admin/gallery", a.auth(a.galleryAdminPage))
 	mux.Handle("POST /admin/gallery", a.auth(a.galleryAction))
+	mux.Handle("POST /admin/gallery/upload", a.auth(a.galleryUpload))
 	mux.Handle("GET /admin/rides", a.auth(a.ridesAdmin))
 	mux.Handle("POST /admin/strava/connect", a.auth(a.stravaConnect))
 	mux.Handle("GET /admin/strava/callback", a.auth(a.stravaConnectCallback))

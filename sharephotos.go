@@ -32,7 +32,7 @@ const (
 	maxWaitingPhotos = 300      // sent in but not yet used or deleted; past this the page asks people to try later
 	maxShareNote     = 500      // characters
 
-	shareHeading = "Want to be featured in the newsletter?"
+	shareHeading = "Want to see your photos in the newsletter or gallery?"
 	shareButton  = "Upload your photos here"
 )
 

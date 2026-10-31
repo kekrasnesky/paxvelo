@@ -23,6 +23,7 @@ func testApp(t *testing.T) (*App, http.Handler, *http.Cookie) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	store.d.Series, store.d.NextSeries = testSeries(), 3
 	site, err := newSite(cfg)
 	if err != nil {
 		t.Fatal(err)

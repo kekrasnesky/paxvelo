@@ -186,7 +186,6 @@ type storeData struct {
 	// Ride calendar
 	NextRide            int                  `json:"next_ride_id,omitempty"`
 	NextSeries          int                  `json:"next_series_id,omitempty"`
-	SeriesSeeded        bool                 `json:"series_seeded,omitempty"`
 	Series              []*RideSeries        `json:"weekly_rides,omitempty"`
 	CalRides            []*CalRide           `json:"rides,omitempty"`
 	StravaAdmins        []string             `json:"strava_admins,omitempty"`
@@ -295,9 +294,6 @@ func openStore(dir string) (*Store, error) {
 	}
 	if !s.d.HomeSeeded {
 		s.d.HomePhotos, s.d.HomeSeeded = defaultHomePhotos(), true
-	}
-	if !s.d.SeriesSeeded {
-		s.d.Series, s.d.NextSeries, s.d.SeriesSeeded = defaultSeries(), 3, true
 	}
 	s.tidyGroups()
 	s.upgradeIssues()

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -19,13 +20,17 @@ import (
 // your photos page that an admin picked for it on Email → Sent-in photos.
 // Whoever sends photos says which club ride they're from and can add their
 // own tags ("Point Lookout", "Halloween"), and the gallery can be narrowed to
-// one ride or one tag. Admins can change a photo's ride and tags, or take it
-// out, on Website → Gallery.
+// one ride or one tag. On Website → Gallery admins can also upload a whole
+// album at once (bulk upload), change photos' ride and tags, or take them out.
 
 const (
 	galleryPage = 48 // photos a page
 	maxTags     = 6  // on one photo
 	maxTagLen   = 30 // characters
+
+	maxBulkPhotos = 200       // in one bulk upload
+	maxBulkForm   = 256 << 20 // one request; the page sends big albums a few photos at a time
+	minDiskFree   = 2 << 30   // bulk uploads stop while the server has less free
 )
 
 // galleryRide is a club ride a photo can be from.
@@ -119,12 +124,6 @@ func (p GalleryPhoto) DateLabel() string {
 		return ""
 	}
 	return d.Format("Jan 2, 2006")
-}
-
-// when is the photo's ride date, or when it was added if there's none, for
-// putting the newest first.
-func (p GalleryPhoto) when() string {
-	return or(p.Date, p.Added.Format("2006-01-02"))
 }
 
 func (p GalleryPhoto) hasTag(tag string) bool {
@@ -301,6 +300,97 @@ func (a *App) galleryAdminPage(w http.ResponseWriter, r *http.Request) {
 	a.renderAdmin(w, r, http.StatusOK, "gallery", v)
 }
 
+// galleryUpload is the bulk upload: an admin adds photos straight to the
+// gallery, all with the same ride, date, tags and photographer. Each is
+// checked and shrunk like any upload. With JavaScript the page shrinks the
+// photos first and sends them a few at a time, answering in JSON; without, it
+// sends them all at once.
+func (a *App) galleryUpload(w http.ResponseWriter, r *http.Request) {
+	rc := http.NewResponseController(w)
+	rc.SetReadDeadline(time.Now().Add(5 * time.Minute)) // an album can be big without JavaScript
+	rc.SetWriteDeadline(time.Now().Add(5 * time.Minute))
+	r.Body = http.MaxBytesReader(w, r.Body, maxBulkForm)
+	asJSON := strings.Contains(r.Header.Get("Accept"), "application/json")
+	reply := func(code string, added int, skipped []string) {
+		if asJSON {
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("Cache-Control", "no-store")
+			if code != "" {
+				w.WriteHeader(http.StatusBadRequest)
+			}
+			json.NewEncoder(w).Encode(map[string]any{"ok": code == "", "message": errorText[code], "added": added, "skipped": skipped})
+			return
+		}
+		if code != "" {
+			back(w, r, "/admin/gallery?err="+code)
+			return
+		}
+		q := url.Values{"ok": {"gallery-uploaded"}, "n": {strconv.Itoa(added)}, "skipped": {strings.Join(skipped, " ")}}
+		back(w, r, "/admin/gallery?"+q.Encode())
+	}
+	if err := r.ParseMultipartForm(32 << 20); err != nil {
+		reply("bigupload", 0, nil)
+		return
+	}
+	defer r.MultipartForm.RemoveAll()
+	files := r.MultipartForm.File["photos"]
+	ride := cleanRide(r.FormValue("ride"))
+	date, dateErr := a.cleanRideDate(r.FormValue("date"))
+	tags, tagsErr := parseTags(r.FormValue("tags"))
+	by := cleanName(r.FormValue("by"))
+	switch free := diskFree(a.cfg.DataDir); {
+	case len(files) == 0:
+		reply("none-chosen", 0, nil)
+		return
+	case len(files) > maxBulkPhotos:
+		reply("toomany", 0, nil)
+		return
+	case by == "":
+		reply("gallery-by", 0, nil)
+		return
+	case dateErr != nil:
+		reply("gallery-date", 0, nil)
+		return
+	case tagsErr != nil:
+		reply("gallery-tags", 0, nil)
+		return
+	case free >= 0 && free < minDiskFree:
+		log.Printf("gallery upload refused: %d MB free", free>>20)
+		reply("diskfull", 0, nil)
+		return
+	}
+	added := 0
+	var skipped []string
+	for _, fh := range files {
+		src, err := a.savePhotoFile(fh)
+		if err != nil {
+			skipped = append(skipped, err.Error()+".")
+			continue
+		}
+		if src == "" {
+			continue
+		}
+		if err := a.store.AddGallery(GalleryPhoto{Src: src, Ride: ride, Date: date, Tags: tags, By: by}); err != nil {
+			log.Printf("gallery upload: %v", err)
+			os.Remove(filepath.Join(a.mediaDir(), strings.TrimPrefix(src, "/media/")))
+			reply("save", added, skipped)
+			return
+		}
+		added++
+	}
+	reply("", added, skipped)
+}
+
+// galleryUploaded is the flash after a bulk upload.
+func galleryUploaded(q url.Values) string {
+	n, _ := strconv.Atoi(q.Get("n"))
+	s := fmt.Sprintf("Added %d %s to the gallery.", n, plural(n, "photo", "photos"))
+	if sk := q.Get("skipped"); sk != "" {
+		s += " Some couldn’t be used: " + sk
+	}
+	return s
+}
+
 // galleryAction changes the ticked photos' ride or tags, or takes them out
 // of the gallery.
 func (a *App) galleryAction(w http.ResponseWriter, r *http.Request) {
@@ -367,7 +457,8 @@ func (s *Store) AddGallery(p GalleryPhoto) error {
 	return s.save()
 }
 
-// GalleryPhotos lists the gallery, newest ride first.
+// GalleryPhotos lists the gallery, newest ride first. Photos with no ride
+// date (often old albums) come after the dated ones, newest added first.
 func (s *Store) GalleryPhotos() []GalleryPhoto {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -376,7 +467,13 @@ func (s *Store) GalleryPhotos() []GalleryPhoto {
 		out = append(out, *p)
 	}
 	slices.SortStableFunc(out, func(x, y GalleryPhoto) int {
-		if c := strings.Compare(y.when(), x.when()); c != 0 {
+		if (x.Date == "") != (y.Date == "") {
+			if x.Date == "" {
+				return 1
+			}
+			return -1
+		}
+		if c := strings.Compare(y.Date, x.Date); c != 0 {
 			return c
 		}
 		return y.ID - x.ID

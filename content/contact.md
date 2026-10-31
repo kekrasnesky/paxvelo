@@ -1,6 +1,6 @@
 ---
 menu: Contact Us
-order: 4
+order: 10
 description: How to reach PaxVelo Cycling Club in Southern Maryland: Discord for the fastest answer, email, and Strava for rides.
 ---
 
@@ -20,7 +20,7 @@ For membership, dues, or anything you'd rather not post in public, email [PaxVel
 
 ## Rides
 
-Every club ride is posted on [Strava]({strava}), with the start time, route, and any last-minute changes. Join the club there and RSVP to the rides you're coming to. Want to lead one? See the [ride calendar](/calendar).
+Club rides are posted on [Strava]({strava}), with the start time, route, and any last-minute changes, and on our [ride calendar](/calendar). Join the club on Strava and RSVP to the rides you're coming to. Want to lead one? Open it on the calendar.
 
 ## Elsewhere
 

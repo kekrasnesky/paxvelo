@@ -485,7 +485,20 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
 
 {{define "gallery"}}{{template "head" .}}
 <div class="title-row"><h1>Gallery</h1><a class="btn ghost" href="/gallery" target="_blank" rel="noopener">View the gallery</a></div>
-<p class="muted small">The public <a href="/gallery" target="_blank" rel="noopener">photo gallery</a>, newest ride first. Photos get here from <a href="/admin/submitted">Sent-in photos</a>. Tick photos to change their ride, add or remove tags, or take them out of the gallery.</p>
+<p class="muted small">The public <a href="/gallery" target="_blank" rel="noopener">photo gallery</a>, newest ride first, with undated photos last. Photos get here from <a href="/admin/submitted">Sent-in photos</a>, or upload a whole album below. Tick photos to change their ride, add or remove tags, or take them out of the gallery.</p>
+<form method="post" action="/admin/gallery/upload" enctype="multipart/form-data" class="card gal-upload">
+  <h2>Upload an album</h2>
+  <p class="muted small">Up to 200 photos at a time, all from the same ride. They go straight into the gallery, made smaller to load quickly.</p>
+  <label>Photos <input type="file" name="photos" accept="image/*" multiple required></label>
+  <div class="gal-tools">
+    <label>Ride <select name="ride"><option value="">Not sure</option>{{range .Rides}}<option value="{{.Key}}">{{.Name}}</option>{{end}}</select></label>
+    <label>Date of the ride <input type="date" name="date"></label>
+    <label>Tags <input name="tags" placeholder="Leonardtown Crit, 2014"></label>
+    <label>Photos by <input name="by" required maxlength="100" placeholder="Who took them"></label>
+  </div>
+  <div class="gal-tools-go"><button type="submit">{{icon "plus"}}Upload to gallery</button></div>
+  <p class="gal-up-msg small" role="status" aria-live="polite"></p>
+</form>
 {{if .Gallery}}<form method="post" action="/admin/gallery" class="sent-in">
   <div class="card gal-tools">
     <label>Ride <select name="ride"><option value="keep">Don’t change</option><option value="">No ride</option>{{range .Rides}}<option value="{{.Key}}">{{.Name}}</option>{{end}}</select></label>
@@ -501,8 +514,50 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
     <span><input type="checkbox" name="id" value="{{.ID}}"> {{with .RideLabel}}<strong>{{.}}</strong>{{else}}<span class="muted">No ride</span>{{end}}{{with .DateLabel}} · {{.}}{{end}}</span></label>
     <span class="small muted">By {{.By}}{{with .Tags}} · {{range $i, $t := .}}{{if $i}}, {{end}}#{{$t}}{{end}}{{end}}</span>
   </div>{{end}}</div>
-</form>{{else}}<p class="empty">The gallery is empty. Add photos from <a href="/admin/submitted">Sent-in photos</a>.</p>{{end}}
+</form>{{else}}<p class="empty">The gallery is empty. Upload an album above, or add photos from <a href="/admin/submitted">Sent-in photos</a>.</p>{{end}}
 <script>
+// Bulk upload: each photo is made smaller in the browser first, then they go
+// up 10 at a time with a running count, so a big album doesn't time out.
+(function(){
+  var f=document.querySelector('.gal-upload');
+  if(!f||!window.FormData||!window.fetch)return;
+  var input=f.querySelector('input[type=file]'),btn=f.querySelector('button'),msg=f.querySelector('.gal-up-msg'),MAX=200,SIDE=2000,EACH=10;
+  function shrink(file){
+    return new Promise(function(done){
+      if(!/^image\/(jpeg|png|webp)$/.test(file.type)||!window.createImageBitmap)return done(file);
+      createImageBitmap(file,{imageOrientation:'from-image'}).then(function(bmp){
+        var k=Math.min(1,SIDE/Math.max(bmp.width,bmp.height));
+        if(k===1&&file.size<1.5e6){if(bmp.close)bmp.close();return done(file)}
+        var c=document.createElement('canvas');c.width=Math.round(bmp.width*k);c.height=Math.round(bmp.height*k);
+        c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);if(bmp.close)bmp.close();
+        c.toBlob(function(b){done(b&&b.size<file.size?new File([b],file.name.replace(/\.\w+$/,'')+'.jpg',{type:'image/jpeg'}):file)},'image/jpeg',.85);
+      }).catch(function(){done(file)});
+    });
+  }
+  f.addEventListener('submit',function(e){
+    e.preventDefault();
+    var files=[].slice.call(input.files),added=0,skipped=[],i=0;
+    if(!files.length)return;
+    if(files.length>MAX){msg.textContent='Upload up to '+MAX+' photos at a time.';return}
+    btn.disabled=true;
+    (function next(){
+      if(i>=files.length){
+        var q='?ok=gallery-uploaded&n='+added+(skipped.length?'&skipped='+encodeURIComponent(skipped.join(' ')):'');
+        location.href='/admin/gallery'+q;return;
+      }
+      var part=files.slice(i,i+EACH);
+      msg.textContent='Uploading '+(i+1)+'–'+(i+part.length)+' of '+files.length+'…';
+      Promise.all(part.map(shrink)).then(function(small){
+        var fd=new FormData(f);fd.delete('photos');small.forEach(function(p){fd.append('photos',p,p.name)});
+        return fetch(f.action,{method:'POST',body:fd,headers:{Accept:'application/json'},credentials:'same-origin'});
+      }).then(function(r){return r.json().catch(function(){return {ok:false,message:'Something went wrong (the server answered '+r.status+').'}})}).then(function(j){
+        added+=j.added||0;skipped=skipped.concat(j.skipped||[]);
+        if(!j.ok){msg.textContent=(j.message||'Something went wrong.')+(added?' '+added+' were added before it stopped.':'');btn.disabled=false;return}
+        i+=EACH;next();
+      }).catch(function(){msg.textContent='Couldn’t reach the server. '+(added?added+' were added before it stopped. ':'')+'Check your connection and try again.';btn.disabled=false});
+    })();
+  });
+})();
 document.querySelectorAll('.sent-photo input').forEach(function(c){c.addEventListener('change',function(){c.closest('.sent-photo').classList.toggle('on',c.checked)})});
 </script>
 {{template "foot" .}}{{end}}

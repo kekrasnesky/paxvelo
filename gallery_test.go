@@ -1,7 +1,13 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"image"
+	"mime/multipart"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -159,6 +165,7 @@ func TestGalleryPages(t *testing.T) {
 		a.store.AddGallery(GalleryPhoto{Src: "/media/p" + strconv.Itoa(i) + ".jpg", Date: "2026-01-" + strconv.Itoa(10+i%20), By: "Pat"})
 	}
 	a.store.AddGallery(GalleryPhoto{Src: "/media/newest.jpg", Date: "2026-10-30", By: "Pat"})
+	a.store.AddGallery(GalleryPhoto{Src: "/media/undated.jpg", By: "Pat"}) // added last, but it has no date
 	page := do(t, h, nil, "GET", "/gallery", "", nil).Body.String()
 	if !strings.Contains(page, `href="/gallery?page=2">Older photos`) || strings.Count(page, `class="gal-cap"`) != galleryPage {
 		t.Error("the first page should hold a page of photos and link to the next")
@@ -166,10 +173,96 @@ func TestGalleryPages(t *testing.T) {
 	if i := strings.Index(page, "/media/newest.jpg"); i < 0 || i > strings.Index(page, "/media/p") {
 		t.Error("the newest ride should come first")
 	}
-	if page := do(t, h, nil, "GET", "/gallery?page=2", "", nil).Body.String(); strings.Count(page, `class="gal-cap"`) != 3 || !strings.Contains(page, "Newer photos") {
+	page = do(t, h, nil, "GET", "/gallery?page=2", "", nil).Body.String()
+	if strings.Count(page, `class="gal-cap"`) != 4 || !strings.Contains(page, "Newer photos") {
 		t.Error("the second page should hold the rest")
+	}
+	if !strings.Contains(page, "/media/undated.jpg") || strings.LastIndex(page, "/media/undated.jpg") < strings.LastIndex(page, "/media/p") {
+		t.Error("a photo with no date should come after the dated ones")
 	}
 	if w := do(t, h, nil, "GET", "/gallery?page=9", "", nil); w.Code != http.StatusSeeOther {
 		t.Errorf("a page past the end goes back to the first: %d", w.Code)
+	}
+}
+
+// bulkForm is the admin's bulk upload: the fields and n copies of a photo.
+func bulkForm(fields url.Values, photo []byte, n int) (string, *bytes.Buffer) {
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	for k, vs := range fields {
+		for _, v := range vs {
+			mw.WriteField(k, v)
+		}
+	}
+	for i := range n {
+		fw, _ := mw.CreateFormFile("photos", fmt.Sprintf("p%d.jpg", i))
+		fw.Write(photo)
+	}
+	mw.Close()
+	return mw.FormDataContentType(), &buf
+}
+
+// Admins upload a whole album straight into the gallery, with one ride,
+// date, tags and photographer for all of it.
+func TestGalleryBulkUpload(t *testing.T) {
+	a, h, admin := testApp(t)
+	photo := encodeJPEG(t, halves(1800, 1200, 255)) // bigger than the site keeps
+	upload := func(c *http.Cookie, fields url.Values, n int, asJSON bool) *httptest.ResponseRecorder {
+		ct, body := bulkForm(fields, photo, n)
+		r := httptest.NewRequest("POST", "/admin/gallery/upload", body)
+		r.Header.Set("Content-Type", ct)
+		if asJSON {
+			r.Header.Set("Accept", "application/json")
+		}
+		if c != nil {
+			r.AddCookie(c)
+		}
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		return w
+	}
+	album := url.Values{"ride": {"other"}, "date": {"2014-06-07"}, "tags": {"Leonardtown Crit, race"}, "by": {"Club photographer"}}
+
+	if page := do(t, h, admin, "GET", "/admin/gallery", "", nil).Body.String(); !strings.Contains(page, `action="/admin/gallery/upload"`) {
+		t.Fatal("Website → Gallery should have the upload form")
+	}
+	if w := upload(nil, album, 1, false); w.Code == http.StatusSeeOther && strings.Contains(w.Header().Get("Location"), "ok=") {
+		t.Fatal("only admins can upload")
+	}
+	noBy := url.Values{"ride": {"other"}}
+	if w := upload(admin, noBy, 1, true); w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "Say who took the photos.") {
+		t.Errorf("no photographer: %d %s", w.Code, w.Body)
+	}
+	if w := upload(admin, album, maxBulkPhotos+1, true); w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "up to 200") {
+		t.Errorf("too many: %d %s", w.Code, w.Body)
+	}
+
+	w := upload(admin, album, 3, true)
+	var j struct {
+		OK    bool
+		Added int
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &j); err != nil || !j.OK || j.Added != 3 {
+		t.Fatalf("upload: %d %s", w.Code, w.Body)
+	}
+	gal := a.store.GalleryPhotos()
+	if len(gal) != 3 || gal[0].Ride != "other" || gal[0].Date != "2014-06-07" || gal[0].By != "Club photographer" || !slices.Equal(gal[0].Tags, []string{"Leonardtown Crit", "race"}) {
+		t.Fatalf("gallery %+v", gal)
+	}
+	saved, err := os.ReadFile(filepath.Join(a.mediaDir(), strings.TrimPrefix(gal[0].Src, "/media/")))
+	if err != nil || len(saved) >= len(photo) {
+		t.Errorf("the photo should be saved smaller: %d bytes from %d (%v)", len(saved), len(photo), err)
+	}
+	if cfg, _, err := image.DecodeConfig(bytes.NewReader(saved)); err != nil || max(cfg.Width, cfg.Height) > photoMaxSide {
+		t.Errorf("the photo should be at most %d pixels: %+v %v", photoMaxSide, cfg, err)
+	}
+
+	// Without JavaScript the form posts and comes back with a message.
+	w = upload(admin, album, 1, false)
+	if to := w.Header().Get("Location"); !strings.Contains(to, "ok=gallery-uploaded") || !strings.Contains(to, "n=1") {
+		t.Errorf("plain upload: %s", to)
+	}
+	if page := do(t, h, admin, "GET", w.Header().Get("Location"), "", nil).Body.String(); !strings.Contains(page, "Added 1 photo to the gallery.") {
+		t.Error("the page should say how many were added")
 	}
 }

@@ -105,6 +105,7 @@ func rideApp(t *testing.T) (*App, http.Handler, *[]notice) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	store.d.Series, store.d.NextSeries = testSeries(), 3
 	site, err := newSite(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -952,5 +953,27 @@ func TestPastRidesOnCalendar(t *testing.T) {
 	a.importPastRides()
 	if len(day(coffee)) != 0 {
 		t.Error("a deleted past ride came back")
+	}
+}
+
+// testSeries are weekly rides for the tests. A new site starts with none:
+// admins add the club's on the Rides tab.
+func testSeries() []*RideSeries {
+	return []*RideSeries{
+		{ID: 1, Name: "Tuesday Night Ride", Weekday: 2, Time: "18:00", Place: "NAS Pax", Details: "Race pace, on base or off · about 23–25 mph",
+			Groups: []string{"A group", "B group"}},
+		{ID: 2, Name: "Thursday Night Ride", Weekday: 4, Time: "18:00", Place: "Park & Ride by NAS Pax Gate 2", Details: "Tempo to Point Lookout and back · about 22 mph, 40 miles",
+			SeasonStart: "03-01", SeasonEnd: "10-10"},
+	}
+}
+
+// A new site starts with no weekly rides: admins add the club's own.
+func TestNewSiteHasNoWeeklyRides(t *testing.T) {
+	s, err := openStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := s.AllSeries(); len(got) != 0 {
+		t.Errorf("weekly rides on a new site: %+v", got)
 	}
 }

@@ -53,8 +53,11 @@ func TestSharePhotos(t *testing.T) {
 	if page := do(t, h, nil, "GET", "/share-photos", "", nil).Body.String(); !strings.Contains(page, "Share Your Photos") || !strings.Contains(page, `name="photos"`) {
 		t.Fatal("the share page should have the form")
 	}
-	if home := do(t, h, nil, "GET", "/", "", nil).Body.String(); !strings.Contains(home, `<a href="/share-photos">Share Your Photos</a>`) {
-		t.Error("the Info menu should link to the share page")
+	if home := do(t, h, nil, "GET", "/", "", nil).Body.String(); strings.Contains(home, `<a href="/share-photos">Share Your Photos</a>`) {
+		t.Error("the Info menu links to the gallery, not the share page")
+	}
+	if gallery := do(t, h, nil, "GET", "/gallery", "", nil).Body.String(); !strings.Contains(gallery, `href="/share-photos"`) {
+		t.Error("the gallery should link to the share page")
 	}
 	photo := encodeJPEG(t, halves(120, 90, 255))
 	good := url.Values{"name": {"Pat Rider"}, "email": {"pat@example.com"}, "note": {"Sunday ride, Point Lookout"}, "agree": {"yes"}}

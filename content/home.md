@@ -7,7 +7,7 @@ description: PaxVelo is a nonprofit cycling club in St. Mary’s County, Marylan
 
 Southern Maryland’s Premier Cycling Club
 
-[See upcoming rides on Strava]({strava})
+[See upcoming rides](/calendar)
 
 {social-links}
 

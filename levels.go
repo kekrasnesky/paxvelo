@@ -40,7 +40,7 @@ var levelNames = []struct {
 	levels string
 }{
 	{regexp.MustCompile(`(?i)\btuesday night\b|\btnr\b`), "intermediate elite"},
-	{regexp.MustCompile(`(?i)\bthursday night\b|\bthnr\b`), "intermediate"},
+	{regexp.MustCompile(`(?i)\bthursday night\b|\bthnr\b`), "intermediate elite"}, // tempo, set by who turns out
 	{regexp.MustCompile(`(?i)\bsamr\b|\bsumr\b|\bsaturday morning\b|\bsunday morning\b|\bold ?line\b|\bshop ride\b`), "social"},
 }
 

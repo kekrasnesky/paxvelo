@@ -26,7 +26,7 @@ func TestRideLevels(t *testing.T) {
 	}{
 		{ride("Tuesday Night Ride", "", 0), "intermediate elite"},
 		{ride("TNR", "", 4), "intermediate elite"},
-		{ride("ThNR to Point Lookout", "", 4), "intermediate"},
+		{ride("ThNR to Point Lookout", "", 4), "intermediate elite"},
 		{ride("SuMR", "", 4), "social"},
 		{ride("Saturday Morning Ride", "", 0), "social"},
 		{ride("Old Line Cycles Shop Ride", "", 0), "social"},

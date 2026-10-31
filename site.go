@@ -22,6 +22,10 @@ import (
 
 type navLink struct{ Path, Label string }
 
+// menuLast is the order from which a content page goes after the site's own
+// pages at the end of the Info menu, like Contact Us.
+const menuLast = 10
+
 const siteDescription = "Southern Maryland’s Premier Cycling Club"
 
 // siteName is the club's name in page titles and link previews.
@@ -285,14 +289,20 @@ func (s *Site) renderContent(d contentData) error {
 	if err != nil {
 		return err
 	}
-	// The Info menu first, since every page shows it.
-	var links []navLink
+	// The Info menu first, since every page shows it: the content pages, then
+	// the site's own pages, then pages ordered menuLast or later (Contact Us).
+	var links, last []navLink
 	for _, p := range list {
-		if p.Menu != "" {
+		switch {
+		case p.Menu == "":
+		case p.Order >= menuLast:
+			last = append(last, navLink{p.Path, p.Menu})
+		default:
 			links = append(links, navLink{p.Path, p.Menu})
 		}
 	}
-	links = append(links, navLink{"/routes", "Club Routes"}, navLink{"/minutes", "Meeting Minutes"}, navLink{"/gallery", "Photo Gallery"}, navLink{"/share-photos", "Share Your Photos"})
+	links = append(links, navLink{"/routes", "Club Routes"}, navLink{"/minutes", "Meeting Minutes"}, navLink{"/gallery", "Photo Gallery"}) // the gallery links to Share Your Photos
+	links = append(links, last...)
 	s.infoLinks.Store(&links)
 	feed := d.InstaFeed
 	s.instaFeed.Store(&feed)

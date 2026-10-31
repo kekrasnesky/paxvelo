@@ -1109,7 +1109,7 @@ func (a *App) emailIssue(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if asksPhotos {
-		body += "\n\nGot photos from a club ride? Send them in for the newsletter, straight from your phone:\n" + a.cfg.SiteURL + "/share-photos"
+		body += "\n\nGot photos from a club ride? Send them in for the newsletter and the photo gallery, straight from your phone:\n" + a.cfg.SiteURL + "/share-photos"
 	}
 	body += "\n\nSee you on the road!\nPaxVelo"
 	if d := a.store.Draft(); d.Subject != "" || d.Body != "" {

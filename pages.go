@@ -191,11 +191,15 @@ func (a *App) createPage(w http.ResponseWriter, r *http.Request) {
 		back(w, r, "/admin/pages?err=page-taken")
 		return
 	}
-	// In the Info menu, it goes after the pages already there.
+	// In the Info menu, it goes after the pages already there, but before the
+	// site's own pages and Contact Us.
 	order := 1
 	for _, p := range *a.site.pageList.Load() {
-		order = max(order, p.Order+1)
+		if p.Order < menuLast {
+			order = max(order, p.Order+1)
+		}
 	}
+	order = min(order, menuLast-1)
 	text := newPageText(title, r.FormValue("menu") != "", order)
 	if err := a.site.checkPage(file, text); err != nil {
 		back(w, r, "/admin/pages?err=save")
