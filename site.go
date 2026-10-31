@@ -218,6 +218,9 @@ func newSite(cfg Config) (*Site, error) {
 		}
 		md.widgets[w] = template.HTML(buf.String())
 	}
+	for _, c := range levelChoices[1:] { // {level-social} … {level-intermediate-elite}
+		md.widgets["level-"+strings.ReplaceAll(c.Value, " ", "-")] = levelWidget(c.Value)
+	}
 	md.widgets["instagram"] = instagramWidget(nil, nil)
 	md.widgets["board"] = boardWidget(nil)
 	md.widgets["home-photos"] = homePhotosWidget(defaultHomePhotos())

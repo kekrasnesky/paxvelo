@@ -43,3 +43,16 @@ func TestRideLevels(t *testing.T) {
 		t.Error("the Level menu should take only its own choices")
 	}
 }
+
+// Our Rides shows each ride's level tags, the way the calendar does.
+func TestLevelTagsOnPages(t *testing.T) {
+	_, h, _ := testApp(t)
+	page := do(t, h, nil, "GET", "/rides", "", nil).Body.String()
+	both := `<span class="lvl lvl-intermediate">Intermediate</span> 18–20 mph or <span class="lvl lvl-elite">Elite</span> 20+ mph, depending on who turns out`
+	if strings.Count(page, both) != 2 || strings.Count(page, `<span class="lvl lvl-social">Social</span> 16–18 mph</p>`) != 2 {
+		t.Error("Our Rides should tag the Tuesday and Thursday rides Intermediate or Elite, and the shop and weekend rides Social")
+	}
+	if strings.Contains(page, "{level-") {
+		t.Error("a level tag wasn't filled in")
+	}
+}

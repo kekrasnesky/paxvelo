@@ -368,6 +368,7 @@ td:hover .cal-add,.cal-add:focus-visible{opacity:1}
 .lvl-dot{width:.55rem;height:.55rem;border-radius:50%;background:var(--lc)}
 .lvl-key{display:flex;flex-wrap:wrap;gap:.4rem 1.1rem;margin:0 0 .7rem!important;color:#6b625b;font-size:.85rem}
 .lvl-key .lvl{margin-right:.15rem}
+.page .page-lvls{margin:-.2rem 0 .8rem;font-size:.9rem;color:#6b625b}
 .facts .lvls{display:inline;margin:0}
 .ride-notes{margin:1rem 0 0;padding:.8rem 1rem;border-left:4px solid var(--rule);background:var(--card);white-space:pre-line}
 .ride-map{display:block;position:relative;margin:1rem 0 0;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}

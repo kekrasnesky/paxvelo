@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"html/template"
 	"regexp"
 	"strings"
 )
@@ -23,6 +25,24 @@ var rideLevels = []rideLevel{
 // depending on who turns out.
 var levelChoices = []paceChoice{{"", "Automatic"}, {"social", "Social"}, {"intermediate", "Intermediate"},
 	{"elite", "Elite"}, {"intermediate elite", "Intermediate or Elite"}}
+
+// levelWidget is a level's tags for a content page, the way a ride's page
+// shows them, like {level-intermediate-elite} on a line by itself.
+func levelWidget(keys string) template.HTML {
+	var parts []string
+	for _, k := range strings.Fields(keys) {
+		for _, l := range rideLevels {
+			if l.Key == k {
+				parts = append(parts, fmt.Sprintf(`<span class="lvl lvl-%s">%s</span> %s`, l.Key, l.Name, l.MPH))
+			}
+		}
+	}
+	s := strings.Join(parts, " or ")
+	if len(parts) > 1 {
+		s += ", depending on who turns out"
+	}
+	return template.HTML(`<p class="lvls page-lvls">` + s + "</p>")
+}
 
 // levelFor reads the admin's Level menu.
 func levelFor(choice string) string {
