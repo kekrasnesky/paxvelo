@@ -1138,7 +1138,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
 </div>{{end}}
 
 {{define "home-photos"}}{{template "head" .}}
-<div class="title-row"><h1>Home photos</h1><p class="muted">The row of photos on the <a href="/" target="_blank" rel="noopener">home page</a>, up to {{.MaxHomePhotos}}. Phones swipe through them; computers show three at a time. With more than 6, the row moves on by itself every few seconds. Drag a photo by ⠿ (or use the arrows) to change the order.</p></div>
+<div class="title-row"><h1>Home photos</h1><p class="muted">The row of photos on the <a href="/" target="_blank" rel="noopener">home page</a>, up to {{.MaxHomePhotos}}. Phones swipe through them; computers show three at a time. With more than 6, the row moves on by itself every few seconds on computers (not on phones). Drag a photo by ⠿ (or use the arrows) to change the order.</p></div>
 <form class="issue" id="home-photos" method="post" action="/admin/home-photos" enctype="multipart/form-data">
   <input type="hidden" name="count" value="{{len .HomePhotos}}">
   {{range $i, $p := .HomePhotos}}<section class="card home-photo">
