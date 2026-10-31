@@ -35,8 +35,8 @@ func TestPagesAndBoardAdmin(t *testing.T) {
 	home := do(t, h, nil, "GET", "/", "", nil).Body.String()
 	menu := home[strings.Index(home, `id="info-menu"`):]
 	menu = menu[:strings.Index(menu, "</div>")]
-	if i, j := strings.Index(menu, "/group-ride-etiquette"), strings.Index(menu, "/minutes"); i < 0 || j < i || strings.Count(menu[:i], "<a ") < 3 {
-		t.Errorf("the new page should be at the end of the Info menu (before Meeting Minutes): %s", menu)
+	if i, j := strings.Index(menu, "/group-ride-etiquette"), strings.Index(menu, "/routes"); i < 0 || j < i || strings.Count(menu[:i], "<a ") < 3 {
+		t.Errorf("the new page should be at the end of the Info menu (before Club Routes): %s", menu)
 	}
 	for _, taken := range []string{"Group Ride Etiquette", "Calendar", "Our Rides"} {
 		addr := map[string]string{"Our Rides": "rides"}[taken]

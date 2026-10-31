@@ -27,7 +27,6 @@ func ldOf(t *testing.T, page string) map[string]any {
 // and each page has its own description.
 func TestSearchEngineData(t *testing.T) {
 	a, h, _ := testApp(t)
-	a.refreshMinutes() // main does this at startup
 
 	home := do(t, h, nil, "GET", "/", "", nil).Body.String()
 	if v := ldOf(t, home); v == nil || v["@type"] != "SportsClub" || v["url"] != a.cfg.SiteURL+"/" {
@@ -49,7 +48,7 @@ func TestSearchEngineData(t *testing.T) {
 	}
 
 	seen := map[string]string{}
-	for _, p := range []string{"/", "/rides", "/bike-safety", "/committee", "/contact", "/join", "/calendar", "/newsletter", "/minutes"} {
+	for _, p := range []string{"/", "/rides", "/bike-safety", "/committee", "/contact", "/join", "/calendar", "/newsletter"} {
 		m := regexp.MustCompile(`<meta name="description" content="([^"]*)">`).FindStringSubmatch(do(t, h, nil, "GET", p, "", nil).Body.String())
 		if m == nil {
 			t.Errorf("%s has no description", p)

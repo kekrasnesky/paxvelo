@@ -300,15 +300,6 @@ strong{font-weight:500}
 .nl-insta{margin:clamp(22px,2.6vw,34px) 0;padding-top:clamp(22px,2.6vw,34px);border-top:1px solid #1f1a18;text-align:center}
 .nl-insta .nl-kicker a{text-decoration:none}
 
-/* ---------- Meeting minutes ---------- */
-.minutes{margin:.6rem 0 0;padding:0;list-style:none;border-top:1px solid var(--rule)}
-.minutes li{padding:.7rem 0;border-bottom:1px solid var(--rule)}
-.minutes a{display:block;text-decoration:none}
-.minutes strong{display:block;font-size:1.1rem;font-weight:500;color:var(--ink)}
-.minutes a span{font-size:.95rem}
-@media (hover:hover){.minutes a:hover strong{text-decoration:underline}}
-.minutes p{margin:.4rem 0 0!important}
-
 /* ---------- Ride calendar ---------- */
 .page-cal{max-width:calc(1240px + 2 * var(--pad))}
 .cal-top{display:flex;align-items:center;justify-content:space-between;gap:1rem}

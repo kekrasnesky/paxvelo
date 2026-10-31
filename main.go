@@ -57,7 +57,6 @@ func main() {
 	app.mailer = newMailer(cfg, store, site)
 	app.mailer.stats = stats
 	app.refreshNewsletter()
-	app.refreshMinutes()
 	if err := app.rebuildContent(); err != nil {
 		log.Fatal(err)
 	}
@@ -150,8 +149,8 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("GET /e/o/{c}/{code}/{sig}", a.emailOpened)
 	mux.HandleFunc("GET /e/c/{c}/{code}/{sig}", a.emailClicked)
 
-	// Meeting minutes, and the files uploaded for them in the admin.
-	mux.HandleFunc("GET /minutes", a.minutesPage)
+	// Meeting minutes files. They aren't listed anywhere; a newsletter can link
+	// to one, and search engines are told not to index them.
 	mux.Handle("GET /files/", a.serveFiles())
 
 	// The ride calendar, and signing in with Strava to lead rides.
@@ -280,7 +279,6 @@ func (a *App) routes() http.Handler {
 	mux.Handle("POST /admin/instagram/sync", a.auth(a.instagramSyncNow))
 	mux.Handle("GET /admin/minutes", a.auth(a.minutesAdmin))
 	mux.Handle("POST /admin/minutes", a.auth(a.addMinutes))
-	mux.Handle("POST /admin/minutes/{id}/publish", a.auth(a.publishMinutes))
 	mux.Handle("POST /admin/minutes/{id}/delete", a.auth(a.deleteMinutes))
 	mux.Handle("POST /admin/newsletter/{id}/email", a.auth(a.emailIssue))
 

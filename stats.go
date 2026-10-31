@@ -627,7 +627,7 @@ func (a *App) statsView(week string, now time.Time) statsView {
 var statsLabels = map[string]string{
 	"/": "Home", "/newsletter": "Newsletter", "/calendar": "Calendar", "/calendar/ride": "Ride pages on the calendar", "/routes": "Routes",
 	"/join": "Join", "/membership": "My membership", "/unsubscribe": "Unsubscribe",
-	"/share-photos": "Share your photos", "/gallery": "Photo gallery", "/minutes": "Minutes",
+	"/share-photos": "Share your photos", "/gallery": "Photo gallery",
 }
 
 func weekLabel(id string) string {

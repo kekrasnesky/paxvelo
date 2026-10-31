@@ -14,7 +14,6 @@ var pageDescs = map[string]string{
 	"/join":         "Join PaxVelo Cycling Club in Southern Maryland. Membership runs January to December, with shop and kit discounts and a say in the club.",
 	"/calendar":     "Upcoming PaxVelo group rides in St. Mary’s County, Maryland, and who’s leading them.",
 	"/newsletter":   "PaxVelo Cycling Club’s monthly newsletter: ride reports, photos, and club news from Southern Maryland.",
-	"/minutes":      "Minutes from PaxVelo Cycling Club’s board and member meetings.",
 	"/share-photos": "Send PaxVelo Cycling Club your ride photos for the newsletter and gallery, straight from your phone.",
 	"/gallery":      "Photos from PaxVelo Cycling Club’s group rides in Southern Maryland, taken by our members.",
 }

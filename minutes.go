@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -17,24 +16,21 @@ import (
 )
 
 // Meeting minutes are uploaded in the admin portal (Minutes tab) as PDF or
-// Word files and listed on the public /minutes page once published. Like the
-// newsletter, the page is rendered whenever something changes and served
-// from memory.
+// Word files. They aren't listed on the website. A file opens for anyone
+// with its link (a newsletter can link to it), but its name is random and
+// it's kept out of search engines and the sitemap.
 
 type Minutes struct {
-	ID         int        `json:"id"`
-	Date       string     `json:"date"` // the meeting date, 2006-01-02
-	Title      string     `json:"title"`
-	Summary    string     `json:"summary,omitempty"`
-	File       string     `json:"file"`      // /files/<random>.pdf
-	FileName   string     `json:"file_name"` // the name it was uploaded with
-	Size       int64      `json:"size"`
-	Published  *time.Time `json:"published,omitempty"`
-	UploadedBy string     `json:"uploaded_by,omitempty"`
-	Updated    time.Time  `json:"updated"`
+	ID         int       `json:"id"`
+	Date       string    `json:"date"` // the meeting date, 2006-01-02
+	Title      string    `json:"title"`
+	Summary    string    `json:"summary,omitempty"`
+	File       string    `json:"file"`      // /files/<random>.pdf
+	FileName   string    `json:"file_name"` // the name it was uploaded with
+	Size       int64     `json:"size"`
+	UploadedBy string    `json:"uploaded_by,omitempty"`
+	Updated    time.Time `json:"updated"`
 }
-
-func (m Minutes) IsPublished() bool { return m.Published != nil }
 
 // DateLabel is the meeting date as people write it, like October 7, 2026.
 func (m Minutes) DateLabel() string {
@@ -43,13 +39,6 @@ func (m Minutes) DateLabel() string {
 		return m.Date
 	}
 	return t.Format("January 2, 2006")
-}
-
-func (m Minutes) Year() string {
-	if len(m.Date) >= 4 {
-		return m.Date[:4]
-	}
-	return ""
 }
 
 // Kind is the file type shown next to the download link.
@@ -76,12 +65,7 @@ func (s *Store) AllMinutes() []Minutes {
 	defer s.mu.Unlock()
 	out := make([]Minutes, 0, len(s.d.Minutes))
 	for _, m := range s.d.Minutes {
-		c := *m
-		if m.Published != nil {
-			t := *m.Published
-			c.Published = &t
-		}
-		out = append(out, c)
+		out = append(out, *m)
 	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].Date > out[j].Date })
 	return out
@@ -99,23 +83,6 @@ func (s *Store) AddMinutes(m Minutes) (Minutes, error) {
 	return m, s.save()
 }
 
-func (s *Store) SetMinutesPublished(id int, published bool) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for _, m := range s.d.Minutes {
-		if m.ID == id {
-			m.Published = nil
-			if published {
-				now := time.Now().UTC()
-				m.Published = &now
-			}
-			m.Updated = time.Now().UTC()
-			return s.save()
-		}
-	}
-	return nil
-}
-
 // DeleteMinutes removes an upload and returns it, so its file can be deleted.
 func (s *Store) DeleteMinutes(id int) (Minutes, error) {
 	s.mu.Lock()
@@ -127,40 +94,6 @@ func (s *Store) DeleteMinutes(id int) (Minutes, error) {
 		}
 	}
 	return Minutes{}, nil
-}
-
-// ---- Public page ----
-
-type minutesYear struct {
-	Year string
-	List []Minutes
-}
-
-// refreshMinutes re-renders the public minutes page.
-func (a *App) refreshMinutes() {
-	a.site.minutesMu.Lock()
-	defer a.site.minutesMu.Unlock()
-	var years []minutesYear
-	for _, m := range a.store.AllMinutes() {
-		if !m.IsPublished() {
-			continue
-		}
-		if len(years) == 0 || years[len(years)-1].Year != m.Year() {
-			years = append(years, minutesYear{Year: m.Year()})
-		}
-		years[len(years)-1].List = append(years[len(years)-1].List, m)
-	}
-	var buf bytes.Buffer
-	if err := a.site.dynamic["minutes"].ExecuteTemplate(&buf, "layout", a.site.view("/minutes", "Meeting Minutes — "+siteName, years)); err != nil {
-		log.Printf("minutes page: %v", err)
-		return
-	}
-	b := buf.Bytes()
-	a.site.minutes.Store(&Page{Path: "/minutes", html: b, gz: gzipBytes(b), etag: etag(b)})
-}
-
-func (a *App) minutesPage(w http.ResponseWriter, r *http.Request) {
-	a.site.servePage(a.site.minutes.Load()).ServeHTTP(w, r)
 }
 
 // ---- Files ----
@@ -202,16 +135,17 @@ func (a *App) saveDocument(hdr *multipart.FileHeader) (path string, size int64, 
 	return "/files/" + name, int64(len(b)), nil
 }
 
-// serveFiles serves uploaded documents. Word files download instead of
-// opening in the browser, since browsers can't show them.
-func (a *App) serveFiles() http.Handler {
+// serveFiles serves uploaded minutes. Word files download instead of opening
+// in the browser, since browsers can't show them.
+func (a *App) serveFiles() http.HandlerFunc {
 	files := a.site.staticFiles("/files/", os.DirFS(a.filesDir()))
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Robots-Tag", "noindex")
 		if strings.HasSuffix(r.URL.Path, ".docx") {
 			w.Header().Set("Content-Disposition", "attachment")
 		}
 		files.ServeHTTP(w, r)
-	})
+	}
 }
 
 // ---- Admin ----
@@ -251,35 +185,11 @@ func (a *App) addMinutes(w http.ResponseWriter, r *http.Request) {
 	me, _ := a.adminName(r)
 	m := Minutes{Date: date, Title: title, Summary: strings.TrimSpace(r.FormValue("summary")), File: path,
 		FileName: filepath.Base(files[0].Filename), Size: size, UploadedBy: me}
-	if r.FormValue("publish") != "" {
-		now := time.Now().UTC()
-		m.Published = &now
-	}
 	if _, err := a.store.AddMinutes(m); err != nil {
 		back(w, r, "/admin/minutes?err=save")
 		return
 	}
-	a.refreshMinutes()
-	if m.IsPublished() {
-		back(w, r, "/admin/minutes?ok=minutes-published")
-	} else {
-		back(w, r, "/admin/minutes?ok=minutes-added")
-	}
-}
-
-func (a *App) publishMinutes(w http.ResponseWriter, r *http.Request) {
-	id, _ := strconv.Atoi(r.PathValue("id"))
-	publish := r.FormValue("publish") == "1"
-	if err := a.store.SetMinutesPublished(id, publish); err != nil {
-		back(w, r, "/admin/minutes?err=save")
-		return
-	}
-	a.refreshMinutes()
-	if publish {
-		back(w, r, "/admin/minutes?ok=minutes-published")
-	} else {
-		back(w, r, "/admin/minutes?ok=minutes-hidden")
-	}
+	back(w, r, "/admin/minutes?ok=minutes-added")
 }
 
 func (a *App) deleteMinutes(w http.ResponseWriter, r *http.Request) {
@@ -292,6 +202,5 @@ func (a *App) deleteMinutes(w http.ResponseWriter, r *http.Request) {
 	if name := strings.TrimPrefix(m.File, "/files/"); name != "" && name != m.File && !strings.ContainsAny(name, `/\`) {
 		os.Remove(filepath.Join(a.filesDir(), name))
 	}
-	a.refreshMinutes()
 	back(w, r, "/admin/minutes?ok=minutes-deleted")
 }

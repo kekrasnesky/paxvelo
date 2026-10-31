@@ -841,22 +841,20 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
 {{define "minutes"}}{{template "head" .}}
 <div class="title-row">
   <h1>Meeting minutes</h1>
-  <p class="muted">Published minutes are listed at <a href="/minutes" target="_blank" rel="noopener">{{.SiteURL}}/minutes</a>.</p>
+  <p class="muted">Minutes aren’t listed on the website. To share one, link to its file from a newsletter. Anyone with that link can open it.</p>
 </div>
 <div class="table-wrap"><table>
-  <thead><tr><th>Meeting</th><th>File</th><th>Status</th><th>Uploaded by</th><th><span class="sr">Actions</span></th></tr></thead>
+  <thead><tr><th>Meeting</th><th>File</th><th>Uploaded by</th><th><span class="sr">Actions</span></th></tr></thead>
   <tbody>
   {{range .Minutes}}<tr>
     <td><strong>{{.Title}}</strong><br><span class="muted small">{{.DateLabel}}</span></td>
     <td><a href="{{.File}}" target="_blank" rel="noopener">{{.FileName}}</a><br><span class="muted small">{{.Kind}}, {{.SizeLabel}}</span></td>
-    <td>{{if .IsPublished}}<span class="paid">Public</span>{{else}}Hidden{{end}}</td>
     <td>{{or .UploadedBy "—"}}</td>
     <td class="right nowrap">
-      <form method="post" action="/admin/minutes/{{.ID}}/publish" class="inline">{{if .IsPublished}}<input type="hidden" name="publish" value="0"><button class="link">{{icon "eye-off"}}Unpublish</button>{{else}}<input type="hidden" name="publish" value="1"><button class="mini">{{icon "globe"}}Publish</button>{{end}}</form>
-      · <form method="post" action="/admin/minutes/{{.ID}}/delete" class="inline" onsubmit="return confirm('Delete the minutes for {{.DateLabel}}? This can’t be undone.')"><button class="link danger">{{icon "trash"}}Delete</button></form>
+      <form method="post" action="/admin/minutes/{{.ID}}/delete" class="inline" onsubmit="return confirm('Delete the minutes for {{.DateLabel}}? This can’t be undone.')"><button class="link danger">{{icon "trash"}}Delete</button></form>
     </td>
   </tr>
-  {{else}}<tr><td colspan="5" class="empty">No minutes uploaded yet.</td></tr>
+  {{else}}<tr><td colspan="4" class="empty">No minutes uploaded yet.</td></tr>
   {{end}}
   </tbody>
 </table></div>
@@ -869,7 +867,6 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   <label>Short summary (optional) <textarea name="summary" rows="3" maxlength="600" placeholder="Approved the 2027 ride calendar and the new kit order."></textarea></label>
   <label>Minutes file <input type="file" name="file" accept=".pdf,.docx,application/pdf" required></label>
   <p class="muted small">PDF or Word (.docx), up to 20 MB. PDF is best: anyone can open it in their browser. In Word or Google Docs, use File → Download → PDF.</p>
-  <label class="check"><input type="checkbox" name="publish"> Publish on the website right away</label>
   <button>{{icon "upload"}}Upload</button>
 </form>
 {{template "foot" .}}{{end}}

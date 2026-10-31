@@ -175,7 +175,7 @@ Behold's free plan updates the feed once a day, shows the latest 6 posts, and al
 
 ## Meeting minutes
 
-Upload minutes in the admin portal under **Minutes**: the meeting date, a title, an optional one-line summary, and the file (PDF or Word, up to 20 MB). They stay hidden until you press **Publish**, then appear on the public **Meeting Minutes** page (`paxvelo.club/minutes`, also in the Info menu), newest first and grouped by year. PDFs open in the browser; Word files download.
+Upload minutes in the admin portal under **Minutes**: the meeting date, a title, an optional one-line summary, and the file (PDF or Word, up to 20 MB). Minutes aren't listed on the website. Each file gets a random address (shown in the table), and anyone with that link can open it, so a newsletter can link to it. Search engines are asked not to index the files. PDFs open in the browser; Word files download.
 
 Files are stored on the server in `data/files`. Like photos, they're not part of the **Download a full backup** file, so keep the originals.
 

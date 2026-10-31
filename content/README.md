@@ -138,7 +138,7 @@ The lines between the `---` marks are the page's settings, and all of them are o
 | Setting | What it does |
 |---|---|
 | `menu` | Adds the page to the **Info** menu with this label. Leave it out to keep the page off the menu. |
-| `order` | Where it goes in the Info menu: lower numbers come first. 10 or more puts it at the very end, after Club Routes, Meeting Minutes and Photo Gallery, like Contact Us. |
+| `order` | Where it goes in the Info menu: lower numbers come first. 10 or more puts it at the very end, after Club Routes and Photo Gallery, like Contact Us. |
 | `title` | The name in the browser tab, if it should differ from the `#` title. |
 | `description` | The summary search engines and link previews show. |
 | `wide` | `wide: yes` gives the page a wider layout, like the board page. |

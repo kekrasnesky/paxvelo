@@ -55,8 +55,6 @@ type Site struct {
 	md          *mdRenderer
 	newsMu      sync.RWMutex
 	newsRefresh sync.Mutex
-	minutes     atomic.Pointer[Page] // the public meeting minutes page
-	minutesMu   sync.Mutex
 	news        map[string]*Page // the newsletter, rendered when it changes
 	newsVersion uint64           // the club data's version when news was rendered
 	newsDay     time.Time        // and the day, since rides move into the past
@@ -241,7 +239,7 @@ func newSite(cfg Config) (*Site, error) {
 	if err := s.renderContent(contentData{}); err != nil {
 		return nil, err
 	}
-	for _, name := range []string{"join", "unsubscribe", "membership", "notfound", "newsletter", "minutes", "calendar", "ride", "ride-new", "routes", "share-photos", "gallery"} {
+	for _, name := range []string{"join", "unsubscribe", "membership", "notfound", "newsletter", "calendar", "ride", "ride-new", "routes", "share-photos", "gallery"} {
 		if s.dynamic[name], err = parse(name + ".html"); err != nil {
 			return nil, err
 		}
@@ -304,7 +302,7 @@ func (s *Site) renderContent(d contentData) error {
 			links = append(links, navLink{p.Path, p.Menu})
 		}
 	}
-	links = append(links, navLink{"/routes", "Club Routes"}, navLink{"/minutes", "Meeting Minutes"}, navLink{"/gallery", "Photo Gallery"}) // the gallery links to Share Your Photos
+	links = append(links, navLink{"/routes", "Club Routes"}, navLink{"/gallery", "Photo Gallery"}) // the gallery links to Share Your Photos
 	links = append(links, last...)
 	s.infoLinks.Store(&links)
 	feed := d.InstaFeed

@@ -343,7 +343,7 @@ func (a *App) unsubscribe(w http.ResponseWriter, r *http.Request) {
 // ---- Sitemap ----
 
 // sitemap lists the public pages for search engines: the content pages, the
-// calendar, minutes, the join form, and every published newsletter.
+// calendar, the join form, and every published newsletter.
 func (a *App) sitemap(w http.ResponseWriter, r *http.Request) {
 	type loc struct {
 		Loc string `xml:"loc"`
@@ -352,7 +352,7 @@ func (a *App) sitemap(w http.ResponseWriter, r *http.Request) {
 	for _, p := range *a.site.pageList.Load() {
 		urls = append(urls, loc{a.cfg.SiteURL + p.Path})
 	}
-	for _, path := range []string{"/calendar", "/routes", "/join", "/minutes", "/newsletter", "/gallery"} {
+	for _, path := range []string{"/calendar", "/routes", "/join", "/newsletter", "/gallery"} {
 		urls = append(urls, loc{a.cfg.SiteURL + path})
 	}
 	for _, is := range a.store.Issues() {
