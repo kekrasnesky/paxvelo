@@ -243,6 +243,7 @@ var flashText = map[string]string{
 	"board":              "Saved. The board page is updated.",
 	"home-photos":        "Saved. The home page is updated.",
 	"submitted-deleted":  "Deleted.",
+	"waiver-deleted":     "Waiver deleted.",
 	"connected":          "Strava is connected, and the club’s events are on the calendar.",
 	"connected-error":    "Strava is connected, but reading the club’s events didn’t work. See the error below.",
 	"disconnected":       "Strava disconnected. Events already imported stay on the calendar.",

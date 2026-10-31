@@ -194,6 +194,7 @@ func (a *App) routes() http.Handler {
 	mux.Handle("GET /admin/waivers.csv", a.auth(a.exportWaivers))
 	mux.Handle("GET /admin/waivers/{id}", a.auth(a.waiverPage))
 	mux.Handle("GET /admin/waivers/{id}/signature.png", a.auth(a.waiverSignature))
+	mux.Handle("POST /admin/waivers/{id}/delete", a.auth(a.deleteWaiver))
 	mux.Handle("POST /admin/import", a.auth(a.importCSV))
 	mux.Handle("GET /admin/backup", a.auth(a.backup))
 	mux.Handle("GET /admin/email", a.auth(a.emailPage))

@@ -345,6 +345,7 @@ initBlock(document);
   <div><span class="sig-line">{{date .Signed}}</span><span class="muted small">Date</span></div>
 </div>
 <p class="muted small no-print">To keep a copy, use your browser’s Print and choose Save as PDF.</p>
+{{if $.CanManage}}<form class="footnote no-print" method="post" action="/admin/waivers/{{.ID}}/delete" onsubmit="return confirm('Delete this waiver? Only do this for a fake or junk signing: real waivers are the club’s insurance record. This can’t be undone.')"><button class="link danger">{{icon "trash"}}Delete this waiver</button></form>{{end}}
 {{end}}{{template "foot" .}}{{end}}
 
 {{define "email"}}{{template "head" .}}

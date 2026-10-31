@@ -261,6 +261,19 @@ func (s *Store) MinorWaivers(memberID, year int) []Waiver {
 	return out
 }
 
+// DeleteWaiver removes a signed waiver. The text it signed stays, for the
+// others that signed it.
+func (s *Store) DeleteWaiver(id int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	n := len(s.d.Waivers)
+	s.d.Waivers = slices.DeleteFunc(s.d.Waivers, func(w *Waiver) bool { return w.ID == id })
+	if len(s.d.Waivers) == n {
+		return nil
+	}
+	return s.save()
+}
+
 // SignedWaiver returns a signed waiver and the text that was signed.
 func (s *Store) SignedWaiver(id int) (Waiver, template.HTML, bool) {
 	s.mu.Lock()
@@ -465,6 +478,7 @@ func (a *App) waiversPage(w http.ResponseWriter, r *http.Request) {
 		v.WaiverYears = append(v.WaiverYears, year)
 	}
 	v.Unsigned = a.unsignedRiders(year)
+	v.Flash, v.Error = flashFrom(r)
 	a.renderAdmin(w, r, http.StatusOK, "waivers", v)
 }
 
@@ -503,7 +517,30 @@ func (a *App) waiverPage(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	a.renderAdmin(w, r, http.StatusOK, "waiver", adminView{Title: "Waiver: " + signed.RiderName(), Tab: "waivers", Waiver: &signed, WaiverHTML: text})
+	v := adminView{Title: "Waiver: " + signed.RiderName(), Tab: "waivers", Waiver: &signed, WaiverHTML: text, CanManage: a.canManage(r)}
+	v.Flash, v.Error = flashFrom(r)
+	a.renderAdmin(w, r, http.StatusOK, "waiver", v)
+}
+
+// deleteWaiver removes a junk signing, like a prank on the join form. Signed
+// waivers are otherwise kept for good, so only the president can.
+func (a *App) deleteWaiver(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.Atoi(r.PathValue("id"))
+	if !a.canManage(r) {
+		back(w, r, fmt.Sprintf("/admin/waivers/%d?err=president-only", id))
+		return
+	}
+	signed, _, ok := a.store.SignedWaiver(id)
+	if !ok {
+		back(w, r, "/admin/waivers")
+		return
+	}
+	if err := a.store.DeleteWaiver(id); err != nil {
+		back(w, r, fmt.Sprintf("/admin/waivers/%d?err=save", id))
+		return
+	}
+	log.Printf("waiver %d (%s, %d) deleted", id, signed.RiderName(), signed.Year)
+	back(w, r, fmt.Sprintf("/admin/waivers?year=%d&ok=waiver-deleted", signed.Year))
 }
 
 // exportWaivers downloads a year's signed waivers as a spreadsheet.

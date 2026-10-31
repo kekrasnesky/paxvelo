@@ -270,3 +270,49 @@ func TestDrawnSignature(t *testing.T) {
 		t.Errorf("signing for a child with a drawing: %d", w.Code)
 	}
 }
+
+// Only the president can delete a waiver, for a junk signing like a prank on
+// the join form. Other admins don't see the button and can't.
+func TestDeleteWaiver(t *testing.T) {
+	a, h, _ := testApp(t)
+	year := a.cfg.ThisYear()
+	m, _, _ := a.store.Join(memberDetails{Name: "Ligma Balls", Email: "prank@example.com"}, year)
+	junk, _, _ := a.store.SignWaiver(Waiver{MemberID: m.ID, Year: year, Signature: "Ligma Balls", Where: "Join form"}, a.site.waiver)
+	page := "/admin/waivers/" + strconv.Itoa(junk.ID)
+
+	session := func(name, email string, president bool) *http.Cookie {
+		u, _ := a.store.AddAdmin(name, email, "")
+		hash, _ := hashPassword(name + " has a password")
+		u, _ = a.store.SetAdminPassword(u.ID, hash)
+		if president {
+			a.store.SetPresident(u.ID)
+		}
+		rec := httptest.NewRecorder()
+		a.setSession(rec, accountSession(u), 3600)
+		return rec.Result().Cookies()[0]
+	}
+	sam, president := session("Sam", "sam@example.com", false), session("Pat", "pat@example.com", true)
+	if body := do(t, h, sam, "GET", page, "", nil).Body.String(); strings.Contains(body, "Delete this waiver") {
+		t.Error("only the president sees Delete")
+	}
+	if w := do(t, h, sam, "POST", page+"/delete", "", nil); !strings.Contains(w.Header().Get("Location"), "err=president-only") {
+		t.Errorf("another admin deleting: %s", w.Header().Get("Location"))
+	}
+	if _, _, ok := a.store.SignedWaiver(junk.ID); !ok {
+		t.Fatal("another admin can't delete a waiver")
+	}
+
+	if body := do(t, h, president, "GET", page, "", nil).Body.String(); !strings.Contains(body, "Delete this waiver") {
+		t.Error("the president should see Delete")
+	}
+	w := do(t, h, president, "POST", page+"/delete", "", nil)
+	if to := w.Header().Get("Location"); !strings.Contains(to, "ok=waiver-deleted") {
+		t.Errorf("deleting: %s", to)
+	}
+	if _, _, ok := a.store.SignedWaiver(junk.ID); ok {
+		t.Error("the waiver should be gone")
+	}
+	if list := do(t, h, president, "GET", w.Header().Get("Location"), "", nil).Body.String(); strings.Contains(list, "Ligma") || !strings.Contains(list, "Waiver deleted.") {
+		t.Error("the list should say it's deleted, without it")
+	}
+}
