@@ -48,8 +48,8 @@ type calView struct {
 }
 
 var calFlash = map[string]string{
-	"led":       "You’re signed up to lead. Thanks! The club has been emailed.",
-	"stepped":   "Done. That spot needs a new leader now, and the club has been emailed.",
+	"led":       "You’re signed up to lead. Thanks!",
+	"stepped":   "Done. That spot needs a new leader now.",
 	"added":     "Ride added to the calendar. The club has been emailed.",
 	"held":      "Thanks! A club admin will look at your ride and approve it, and then it shows on the calendar. The club has been emailed.",
 	"cancelled": "Ride cancelled.",
@@ -222,9 +222,9 @@ func (a *App) rideRights(v *calView, o RideOcc) {
 	v.Past = o.Date < a.today().Format("2006-01-02")
 	open := !v.Past && !o.Cancelled
 	for _, s := range o.Slots() {
-		v.Spots = append(v.Spots, spotView{Slot: s, CanLead: open && s.Leader == nil})
+		v.Spots = append(v.Spots, spotView{Slot: s, CanLead: open && s.Leader == nil && o.IsRide()})
 	}
-	v.CanManage = !v.Past && len(o.Leaders) > 0
+	v.CanManage = !v.Past && len(o.Leaders) > 0 && o.IsRide() // an event's host is set on the admin portal
 }
 
 // sameLeader reports whether a leader is this person, by name.
@@ -278,16 +278,9 @@ func (a *App) leaderPost(w http.ResponseWriter, r *http.Request) (string, string
 	return name, "", true
 }
 
-// rideAndGroup names a spot in emails, like "Tuesday Night Ride (A group)".
-func rideAndGroup(name, group string) string {
-	if group == "" {
-		return name
-	}
-	return name + " (" + group + ")"
-}
-
 // leadRide puts someone in an empty spot by name. Changing a filled spot is
-// for the admin portal. Nobody leads more than one group of a ride.
+// for the admin portal. Nobody leads more than one group of a ride. The club
+// isn't emailed about leaders.
 func (a *App) leadRide(w http.ResponseWriter, r *http.Request) {
 	key := r.PathValue("key")
 	if !sameOrigin(r) {
@@ -300,12 +293,12 @@ func (a *App) leadRide(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	group := strings.TrimSpace(r.FormValue("group"))
-	o, err := a.store.UpdateRide(key, func(c *CalRide) error {
+	_, err := a.store.UpdateRide(key, func(c *CalRide) error {
 		current := c.leaderFor(group)
 		switch {
 		case c.Date < a.today().Format("2006-01-02"):
 			return errPastRide
-		case c.Cancelled || c.Held || !c.hasGroup(group):
+		case c.Cancelled || c.Held || !c.IsRide() || !c.hasGroup(group):
 			return errNoRide
 		case current != nil && sameLeader(*current, name):
 			return nil
@@ -322,9 +315,6 @@ func (a *App) leadRide(w http.ResponseWriter, r *http.Request) {
 		rideBack(w, r, key, "err="+code)
 		return
 	}
-	what := rideAndGroup(o.Name, group)
-	a.notifyRide(fmt.Sprintf("%s will lead %s on %s", name, what, shortDate(o.Date)),
-		fmt.Sprintf("%s signed up to lead %s on %s.", name, what, rideWhen(o)), o, group)
 	rideBack(w, r, key, "ok=led")
 }
 
@@ -339,13 +329,11 @@ func (a *App) stepDown(w http.ResponseWriter, r *http.Request) {
 		rideBack(w, r, key, "err="+code)
 		return
 	}
-	var group, was string
-	o, err := a.store.UpdateRide(key, func(c *CalRide) error {
+	_, err := a.store.UpdateRide(key, func(c *CalRide) error {
 		g, leading := c.groupOf(name)
 		if !leading {
 			return errNotYours
 		}
-		group, was = g, c.leaderFor(g).Name
 		c.setLeader(g, nil)
 		return nil
 	})
@@ -353,9 +341,6 @@ func (a *App) stepDown(w http.ResponseWriter, r *http.Request) {
 		rideBack(w, r, key, "err="+code)
 		return
 	}
-	what := rideAndGroup(o.Name, group)
-	a.notifyRide(fmt.Sprintf("%s on %s needs a leader", what, shortDate(o.Date)),
-		fmt.Sprintf("%s stepped down from %s on %s, so it needs a new leader.", was, what, rideWhen(o)), o, "")
 	rideBack(w, r, key, "ok=stepped")
 }
 

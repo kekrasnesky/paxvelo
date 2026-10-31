@@ -137,7 +137,7 @@ func (a *App) attention() []attentionItem {
 
 	today := a.today()
 	for _, o := range a.store.Rides(today, today.AddDate(0, 0, 6)) {
-		if o.Cancelled {
+		if o.Cancelled || !o.IsRide() {
 			continue
 		}
 		var open []string

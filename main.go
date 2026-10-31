@@ -246,6 +246,7 @@ func (a *App) routes() http.Handler {
 	mux.Handle("GET /admin/strava/callback", a.auth(a.stravaConnectCallback))
 	mux.Handle("POST /admin/strava/disconnect", a.auth(a.stravaDisconnect))
 	mux.Handle("POST /admin/strava/sync", a.auth(a.stravaSyncNow))
+	mux.Handle("GET /admin/strava/preview", a.auth(a.stravaPreviewJSON))
 
 	// The calendar API, for scripts (see README.md, "Calendar API").
 	mux.HandleFunc("GET /api/rides", a.apiRides)

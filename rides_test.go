@@ -65,6 +65,14 @@ func fakeStrava(t *testing.T) *httptest.Server {
 		}
 		json.NewEncoder(w).Encode(going)
 	})
+	mux.HandleFunc("GET /api/v3/group_events/{id}", func(w http.ResponseWriter, r *http.Request) {
+		switch r.PathValue("id") {
+		case "901": // an event the calendar hasn't imported
+			json.NewEncoder(w).Encode(map[string]any{"id": 901, "title": "Cafe Loop Clinic", "route_id": json.Number("3550943418851772710")})
+		default:
+			http.Error(w, "not found", http.StatusNotFound)
+		}
+	})
 	mux.HandleFunc("GET /api/v3/routes/{id}", func(w http.ResponseWriter, r *http.Request) {
 		switch r.PathValue("id") {
 		case "3550943418851772710": // bigger than a float64 holds exactly, like Strava's real route IDs
@@ -163,8 +171,8 @@ func TestRideLeaders(t *testing.T) {
 	if loc := lead("Jane Doe", groupA); !strings.Contains(loc, "ok=led") {
 		t.Fatalf("jane lead: %q", loc)
 	}
-	if len(*sent) != 1 || !strings.Contains((*sent)[0].subject, "Jane Doe will lead Tuesday Night Ride (A group") || !strings.Contains((*sent)[0].body, "signed up on the website") {
-		t.Errorf("notice: %+v", *sent)
+	if len(*sent) != 0 {
+		t.Errorf("leader changes aren't emailed: %+v", *sent)
 	}
 	// Each pace group has its own leader: Bob can lead B, but Jane can't lead both.
 	if loc := lead("jane doe", groupB); !strings.Contains(loc, "err=already") {
@@ -208,8 +216,8 @@ func TestRideLeaders(t *testing.T) {
 	if o, _ := a.store.Ride(key); o.Status() != "partial" || o.leaderFor(groupB) != nil {
 		t.Errorf("after stepping down: %+v", o.Leaders)
 	}
-	if len(*sent) != 1 || !strings.Contains((*sent)[0].body, "Bob Smith stepped down from Tuesday Night Ride (B group)") {
-		t.Errorf("step-down notice: %+v", *sent)
+	if len(*sent) != 0 {
+		t.Errorf("stepping down isn't emailed: %+v", *sent)
 	}
 
 	// A leader adds the Strava link; a bad link is refused.
@@ -319,8 +327,8 @@ func TestRidesAdmin(t *testing.T) {
 	if o, _ := a.store.Ride(key); len(o.Leaders) != 1 || o.Leaders[0].Name != "Chris T." || o.Leaders[0].SetBy != "Board Member" || o.Leaders[0].Group != "A group" {
 		t.Errorf("admin-assigned leader: %+v", o.Leaders)
 	}
-	if len(*sent) != 1 || !strings.Contains((*sent)[0].body, "Board Member made Chris T. the leader") {
-		t.Errorf("notice: %+v", *sent)
+	if len(*sent) != 0 {
+		t.Errorf("a new leader shouldn't email the club: %+v", *sent)
 	}
 	// An admin can change a filled spot, add a C group, and move the start time.
 	*sent = nil
@@ -329,7 +337,7 @@ func TestRidesAdmin(t *testing.T) {
 	if o.Time != "18:30" || len(o.Groups) != 3 || o.leaderFor("A group").Name != "Dana K." || o.leaderFor("C group").Name != "Eli P." {
 		t.Errorf("edited ride: %+v", o.CalRide)
 	}
-	if len(*sent) != 3 || !strings.Contains((*sent)[0].body, "instead of Chris T.") || !strings.Contains((*sent)[2].subject, "has changed") {
+	if len(*sent) != 1 || !strings.Contains((*sent)[0].subject, "has changed") {
 		t.Errorf("notices after editing: %+v", *sent)
 	}
 	// A ride needs a name; nothing is saved without one.
@@ -378,7 +386,7 @@ func TestRidesAdmin(t *testing.T) {
 	if w := do(t, h, admin, "POST", "/admin/weekly/3", ct, body); !strings.Contains(w.Header().Get("Location"), "ok=series-saved") {
 		t.Fatalf("save weekly ride: %s", w.Header().Get("Location"))
 	}
-	if w := do(t, h, admin, "GET", "/admin/weekly/3", "", nil); !strings.Contains(w.Body.String(), `<option value="elite" selected>`) {
+	if w := do(t, h, admin, "GET", "/admin/weekly/3", "", nil); !strings.Contains(w.Body.String(), `value="elite" checked`) {
 		t.Error("the weekly ride's page should show its level")
 	}
 	// The date follows the new name, time, level, and groups (Gus keeps the A group), but keeps its own start.
@@ -429,8 +437,8 @@ func TestLeadWithJustAName(t *testing.T) {
 	if o, _ := a.store.Ride(key); o.leaderFor(group) == nil || o.leaderFor(group).Name != "Pat Rider" {
 		t.Errorf("leader: %+v", o.Leaders)
 	}
-	if len(*sent) != 1 || !strings.Contains((*sent)[0].body, "signed up on the website") {
-		t.Errorf("notice: %+v", *sent)
+	if len(*sent) != 0 {
+		t.Errorf("signing up to lead shouldn't email the club: %+v", *sent)
 	}
 	// Someone else can't replace them by typing a different name.
 	if loc := post(url.Values{"group": {group}, "leader_name": {"Someone Else"}, "ft": {oldToken(a)}}); !strings.Contains(loc, "err=taken") {

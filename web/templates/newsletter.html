@@ -59,8 +59,10 @@
       <div class="nl-ride">
         <strong>{{.Name}}</strong>
         <span>{{.Weekday}}{{with .Time}} · {{.}}{{end}}{{with .Place}} · {{.}}{{end}}</span>
+        {{with .Kind}}<span>{{.}}</span>{{end}}
         {{with .Details}}<span>{{.}}</span>{{end}}
-        <ul class="nl-leaders">{{range .Slots}}<li>{{with .Group}}{{.}}: {{end}}{{if .Leader}}led by <strong>{{.Leader}}</strong>{{else}}<strong class="nl-needs">needs a leader</strong>{{end}}</li>{{end}}</ul>
+        {{with .Host}}<ul class="nl-leaders"><li>{{.}}</li></ul>{{end}}
+        {{if .Slots}}<ul class="nl-leaders">{{range .Slots}}<li>{{with .Group}}{{.}}: {{end}}{{if .Leader}}led by <strong>{{.Leader}}</strong>{{else}}<strong class="nl-needs">needs a leader</strong>{{end}}</li>{{end}}</ul>{{end}}
       </div>
       {{if and .Open (not .Past)}}<a class="btn nl-lead" href="/calendar/ride/{{.Key}}">Lead this ride</a>{{else}}<a class="nl-go" href="/calendar/ride/{{.Key}}" aria-label="Ride details">›</a>{{end}}
     </li>{{end}}

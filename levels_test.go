@@ -39,8 +39,8 @@ func TestRideLevels(t *testing.T) {
 			t.Errorf("%q: %q, want %q", c.ride.Name, got, c.want)
 		}
 	}
-	if levelFor("intermediate elite") != "intermediate elite" || levelFor("fast") != "" {
-		t.Error("the Level menu should take only its own choices")
+	if levelFor([]string{"elite", "intermediate"}) != "intermediate elite" || levelFor([]string{"fast"}) != "" || levelFor(nil) != "" {
+		t.Error("the Level boxes should take only their own levels, in order")
 	}
 }
 
