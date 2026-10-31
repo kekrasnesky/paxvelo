@@ -1391,7 +1391,7 @@ var t=document.getElementById('page-text'),p=t.selectionStart;t.value=t.value.sl
 <div class="guide">
 <div class="title-row"><h1>How the site works</h1></div>
 <p class="guide-lede">Who uses the website, what they do there, which emails go out, and where the rides come from. Share it with new board members: it’s the same for every admin.</p>
-<nav class="guide-toc" aria-label="On this page"><a href="#g-map">The big picture</a><a href="#g-signup">A new member signs up</a><a href="#g-emails">Emails</a><a href="#g-rides">Rides</a><a href="#g-people">Who does what</a></nav>
+<nav class="guide-toc" aria-label="On this page"><a href="#g-map">The big picture</a><a href="#g-signup">A new member signs up</a><a href="#g-emails">Emails</a><a href="#g-rides">Rides</a><a href="#g-photos">Photos</a><a href="#g-people">Who does what</a></nav>
 <div class="guide-key"><span><i></i>something happens on the site</span><span><i class="r"></i>an email goes out</span><span><i class="n"></i>what the site remembers</span></div>
 
 <h2 class="section" id="g-map">The big picture</h2>
@@ -1598,7 +1598,7 @@ var t=document.getElementById('page-text'),p=t.selectionStart;t.value=t.value.sl
 <h2 class="section" id="g-rides">Where the rides come from</h2>
 <figure class="board">
       <div class="surface">
-        <svg viewBox="0 0 960 400" role="img" aria-label="Rides reach the calendar three ways: Strava club events imported hourly, weekly Tuesday and Thursday rides set up by admins, and rides riders add on the website, which wait for approval unless the rider signed in with Strava. The calendar feeds the calendar page, the newsletter and the Club Routes page.">
+        <svg viewBox="0 0 960 400" role="img" aria-label="Rides reach the calendar three ways: Strava club events imported hourly, weekly Tuesday and Thursday rides set up by admins, and rides riders add on the website, which wait for approval unless the rider signed in with Strava or typed the club PIN. The calendar feeds the calendar page, the newsletter and the Club Routes page.">
           <defs>
             <filter id="wC" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="2" seed="2"/><feDisplacementMap in="SourceGraphic" scale="2.6"/></filter>
             <marker id="hC" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M1,1 L9,5 L1,9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></marker>
@@ -1633,8 +1633,8 @@ var t=document.getElementById('page-text'),p=t.selectionStart;t.value=t.value.sl
           <text class="t s mt" x="140" y="196" text-anchor="middle">set up by admins</text>
           <text class="t" x="140" y="316" text-anchor="middle">A rider adds a ride</text>
           <text class="t s mt" x="140" y="336" text-anchor="middle">on the website</text>
-          <text class="t s" x="400" y="317" text-anchor="middle">signed in</text>
-          <text class="t s" x="400" y="334" text-anchor="middle">with Strava?</text>
+          <text class="t s" x="400" y="317" text-anchor="middle">Strava or</text>
+          <text class="t s" x="400" y="334" text-anchor="middle">club PIN?</text>
           <text class="t s mt" x="420" y="52" text-anchor="middle">imported every hour</text>
           <text class="t s mt" x="397" y="172" text-anchor="middle">each week, in season</text>
           <text class="t s mt" x="408" y="255">yes</text>
@@ -1654,15 +1654,32 @@ var t=document.getElementById('page-text'),p=t.selectionStart;t.value=t.value.sl
           <text class="t s mt" x="870" y="336" text-anchor="middle">“ride waiting”</text>
         </svg>
       </div>
-      <figcaption>Strava is where riders RSVP. The website is where rides get leaders. Three things feed the one calendar, and everything public reads from it: the calendar page, the newsletter's rides block, and Club Routes. Taking, changing or giving up a leader spot also emails the club inbox.</figcaption>
+      <figcaption>Strava is where riders RSVP. The website is where rides get leaders. Three things feed the one calendar, and everything public reads from it: the calendar page, the newsletter's rides block, and Club Routes. Taking, changing or giving up a leader spot also emails the club inbox. A rider who isn't signed in with Strava skips the wait by typing the club PIN.</figcaption>
     </figure>
+
+<h2 class="section" id="g-photos">Photos</h2>
+<div class="guide-flows">
+  <div class="card"><h3>A member shares photos</h3><ol>
+    <li>On <a href="/share-photos" target="_blank" rel="noopener">Share your photos</a> they pick photos from their phone (or drag them in), add captions if they like, type their name for the credit, and pick the album (ride or event) or name a new one. No account.</li>
+    <li>The phone shrinks the photos and they upload with a progress bar. The site drops where each was taken.</li>
+    <li><b>With the club PIN</b>, they go straight into the album they picked. <b>Without it</b>, or with no album picked, they wait on <a href="/admin/submitted">Sent-in photos</a> until an admin approves or rejects them.</li></ol></div>
+  <div class="card"><h3>The gallery</h3><ul>
+    <li><a href="/gallery" target="_blank" rel="noopener">/gallery</a> is a grid of albums, each with a cover. An album is a grid of photos that loads more as you go.</li>
+    <li>A photo opens full screen with its caption and “Photo by …”. Swipe or use the arrow keys; <b>Share</b> sends a link to that one photo, and <b>Download</b> saves it.</li>
+    <li>Each photo is kept in three sizes, so phones load small files and big screens sharp ones.</li></ul></div>
+  <div class="card"><h3>The club PIN</h3><ul>
+    <li>Set it on <a href="/admin/gallery">Website → Gallery</a> and share it with members, in the newsletter or a club email. When it’s empty it’s off.</li>
+    <li>It lets members post photos and add rides without waiting for an admin. Ten tries an hour, so it can’t be guessed.</li>
+    <li>If it gets around, change it there and tell members the new one.</li></ul></div>
+</div>
 
 <h2 class="section" id="g-people">Who does what</h2>
 <div class="guide-flows">
   <div class="card"><h3>Visitors</h3><ul>
     <li>Read the home page, Our Rides, Bike Safety 101, the board, the newsletter and meeting minutes.</li>
     <li>Find rides on <a href="/calendar" target="_blank" rel="noopener">/calendar</a>, tagged Social, Intermediate or Elite, with route maps from Strava.</li>
-    <li>RSVP on Strava. The website doesn’t take RSVPs.</li></ul></div>
+    <li>RSVP on Strava. The website doesn’t take RSVPs.</li>
+    <li>Browse the <a href="/gallery" target="_blank" rel="noopener">photo gallery</a> by album, and send in their own photos.</li></ul></div>
   <div class="card"><h3>New members</h3><ol>
     <li>Pick Individual (${{.Guide.DuesIndividual}}) or Family (${{.Guide.DuesFamily}}) and fill in the <a href="/join" target="_blank" rel="noopener">join form</a>, with one riding question, the club terms and this year’s insurance waiver.</li>
     <li>Every admin gets a “New member” email. The member goes on to PayPal.</li>
@@ -1671,17 +1688,19 @@ var t=document.getElementById('page-text'),p=t.selectionStart;t.value=t.value.sl
   <div class="card"><h3>Members</h3><ul>
     <li>Every club email has their private membership link: dues status, a PayPal button, this year’s waiver to sign, their details, and emails on or off.</li>
     <li>The insurance waiver is signed once a year, and parents or guardians sign for each rider under 18 there too. Other adults on a Family membership each get an emailed link to sign their own, once the dues are marked paid. The <a href="/admin/waivers">Waivers</a> tab keeps every signed copy and shows who hasn’t signed.</li>
-    <li>Every member email has an unsubscribe link.</li></ul></div>
+    <li>Every member email has an unsubscribe link.</li>
+    <li>With the club PIN, their photos and the rides they add go up right away.</li></ul></div>
   <div class="card"><h3>Riders and ride leaders</h3><ul>
     <li>Open a ride, type a name, press <b>I’ll lead</b>. The club inbox is told. Leaders can step down themselves.</li>
-    <li>Anyone can add a ride. It waits for approval on the <a href="/admin/calendar">Calendar</a> tab unless they signed in with Strava.</li></ul></div>
+    <li>Anyone can add a ride. It waits for approval on the <a href="/admin/calendar">Calendar</a> tab unless they signed in with Strava or typed the club PIN.</li></ul></div>
   <div class="card"><h3>Treasurer</h3><ol>
     <li>A “New member” email arrives, then PayPal’s receipt.</li>
     <li>Open the link in the first email and press <b>Mark paid</b>. The first time, that sends their welcome email.</li>
     <li>On January 1 everyone shows as not paid. Filter <a href="/admin/members?dues=unpaid">Not paid</a> and send a reminder with <code>{pay_link}</code>.</li></ol></div>
   <div class="card"><h3>Admins</h3><ul>
     <li><a href="/admin">Needs attention</a> lists rides waiting for approval, rides this week with no leader, stuck email sends, unpublished newsletter drafts, and new photos members sent in.</li>
-    <li><a href="/admin/submitted">Sent-in photos</a>: photos members send from the <a href="/share-photos" target="_blank" rel="noopener">Share your photos</a> page, tagged with the ride they’re from. Add the good ones to an issue’s photo strip or the <a href="/admin/gallery">gallery</a>; they stay private until then.</li>
+    <li><a href="/admin/submitted">Sent-in photos</a> is the review queue for photos sent without the club PIN. Tick the good ones and <b>Approve</b> them into an album, or <b>Reject</b> them. Any of them can also go in an issue’s photo strip. They stay private until then. Photos posted with the PIN show there too, marked as such.</li>
+    <li><a href="/admin/gallery">Gallery</a>: start, rename, reorder and delete albums; upload photos straight into one; caption them, drag them into order, pick the cover, or move them to another album. The club PIN is set here.</li>
     <li><a href="/admin/email">Email</a>: club emails, and the welcome email with its four riding-advice boxes.</li>
     <li>Newsletter, Rides, Pages, Home photos, Board, Instagram and Minutes go live as soon as you save.</li>
     <li>Only the president can remove admins, delete members or download a full backup.</li></ul></div>

@@ -66,7 +66,7 @@ func TestGuidePage(t *testing.T) {
 	page := do(t, h, admin, "GET", "/admin/guide", "", nil).Body.String()
 	for _, want := range []string{
 		`href="/admin/guide" aria-current="page">How the site works`,
-		"A new member signs up", "Every email the site sends", "Where the rides come from",
+		"A new member signs up", "Every email the site sends", "Where the rides come from", `id="g-photos"`, "The club PIN",
 		"pays $" + strconv.Itoa(a.cfg.DuesIndividual) + " or $" + strconv.Itoa(a.cfg.DuesFamily),
 		"Club inbox (" + a.cfg.RidesEmail + ")",
 	} {
