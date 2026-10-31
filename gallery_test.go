@@ -519,8 +519,8 @@ func TestPhotoPIN(t *testing.T) {
 	if to := setPIN(url.Values{"pin": {"abc"}}); !strings.Contains(to, "err=pin-short") {
 		t.Errorf("a short PIN: %s", to)
 	}
-	if to := setPIN(url.Values{"pin": {" Velo2026 "}}); !strings.Contains(to, "ok=pin-saved") || a.store.PhotoPIN() != "Velo2026" {
-		t.Fatalf("setting the PIN: %s %q", to, a.store.PhotoPIN())
+	if to := setPIN(url.Values{"pin": {" Velo2026 "}}); !strings.Contains(to, "ok=pin-saved") || a.store.ClubPIN() != "Velo2026" {
+		t.Fatalf("setting the PIN: %s %q", to, a.store.ClubPIN())
 	}
 	if page := do(t, h, nil, "GET", "/share-photos", "", nil).Body.String(); !strings.Contains(page, `name="pin"`) {
 		t.Error("the share page should ask for the PIN")
@@ -554,7 +554,7 @@ func TestPhotoPIN(t *testing.T) {
 	}
 
 	// Turning it off: the box goes, and a PIN typed anyway isn't asked about.
-	if to := setPIN(url.Values{"pin": {"Velo2026"}, "off": {"1"}}); !strings.Contains(to, "ok=pin-off") || a.store.PhotoPIN() != "" {
+	if to := setPIN(url.Values{"pin": {"Velo2026"}, "off": {"1"}}); !strings.Contains(to, "ok=pin-off") || a.store.ClubPIN() != "" {
 		t.Errorf("turning off: %s", to)
 	}
 }
@@ -562,7 +562,7 @@ func TestPhotoPIN(t *testing.T) {
 // Guessing the PIN stops after 10 tries an hour, right or wrong.
 func TestPhotoPINGuesses(t *testing.T) {
 	a, h, _ := testApp(t)
-	a.store.SetPhotoPIN("Velo2026")
+	a.store.SetClubPIN("Velo2026")
 	al, _ := a.store.AddAlbum("Saturday ride", "")
 	for range 10 {
 		a.limit.Allow("pin:192.0.2.1", 10, time.Hour) // httptest's address

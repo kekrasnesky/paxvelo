@@ -48,6 +48,7 @@ type calView struct {
 	// Adding a ride
 	Form     CalRide
 	FormName string
+	PINOn    bool // the club PIN is set, so riders not signed in can use it
 }
 
 var calFlash = map[string]string{
@@ -455,7 +456,7 @@ func (a *App) cancelRide(w http.ResponseWriter, r *http.Request) {
 // newRidePage is the form for adding a ride: just a date, a time, and a name.
 func (a *App) newRidePage(w http.ResponseWriter, r *http.Request) {
 	v := a.calBase(r)
-	v.Form = CalRide{Date: r.URL.Query().Get("date"), Time: "08:00"}
+	v.Form, v.PINOn = CalRide{Date: r.URL.Query().Get("date"), Time: "08:00"}, a.store.ClubPIN() != ""
 	if _, err := time.Parse("2006-01-02", v.Form.Date); err != nil {
 		v.Form.Date = a.today().Format("2006-01-02")
 	}
@@ -474,11 +475,18 @@ func (a *App) addRide(w http.ResponseWriter, r *http.Request) {
 		Details: cleanName(r.FormValue("details")), StravaURL: strings.TrimSpace(r.FormValue("strava_url")), AddedBy: rd.Name,
 		Groups: groupsFor(r.FormValue("pace"), nil),
 		// Anyone can type a name here, so unless they signed in with Strava
-		// (which proves they're in the club) an admin approves the ride first.
+		// or typed the club PIN (either proves they're in the club) an admin
+		// approves the ride first.
 		Held: rd.ID == 0,
 	}
 	v := a.calBase(r)
-	v.Form, v.FormName = c, r.FormValue("leader_name")
+	v.Form, v.FormName, v.PINOn = c, r.FormValue("leader_name"), a.store.ClubPIN() != ""
+	var pinProblem string
+	if c.Held && code == "" {
+		var viaPIN bool
+		viaPIN, pinProblem = a.checkPIN(r, r.FormValue("pin"))
+		c.Held = !viaPIN || pinProblem != ""
+	}
 	_, dateErr := time.Parse("2006-01-02", c.Date)
 	_, timeErr := time.Parse("15:04", c.Time)
 	switch {
@@ -492,6 +500,8 @@ func (a *App) addRide(w http.ResponseWriter, r *http.Request) {
 		v.Error = "Pick today or a date coming up."
 	case c.StravaURL != "" && !stravaLink(c.StravaURL):
 		v.Error = calError["link"]
+	case pinProblem != "":
+		v.Error = pinProblem
 	}
 	if v.Error != "" {
 		a.renderCal(w, http.StatusBadRequest, "ride-new", "/calendar", "Add a Ride", v)

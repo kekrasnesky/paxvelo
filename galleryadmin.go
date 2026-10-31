@@ -17,9 +17,7 @@ import (
 // each album upload photos, caption them, put them in order (by dragging, or
 // by date or photographer), pick the cover, and move photos to other albums.
 // Sent-in photos are approved into albums on Email → Sent-in photos. The
-// club photo PIN, set here, lets members skip that review.
-
-const minPIN = 4 // characters in the club photo PIN
+// club PIN (clubpin.go) is set here too.
 
 func albumAdminHref(id int) string { return "/admin/gallery/" + strconv.Itoa(id) }
 
@@ -31,13 +29,13 @@ type albumAdmin struct {
 }
 
 func (a *App) galleryAdminPage(w http.ResponseWriter, r *http.Request) {
-	v := adminView{Title: "Gallery", Tab: "gallery", AlbumCards: a.store.AlbumCards(true), PhotoPIN: a.store.PhotoPIN()}
+	v := adminView{Title: "Gallery", Tab: "gallery", AlbumCards: a.store.AlbumCards(true), ClubPIN: a.store.ClubPIN()}
 	v.Flash, v.Error = flashFrom(r)
 	a.renderAdmin(w, r, http.StatusOK, "gallery", v)
 }
 
 // galleryAction starts an album, moves one up or down the list, or sets the
-// club photo PIN.
+// club PIN.
 func (a *App) galleryAction(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	if r.FormValue("do") == "pin" {
@@ -46,9 +44,9 @@ func (a *App) galleryAction(w http.ResponseWriter, r *http.Request) {
 			pin = ""
 		}
 		switch {
-		case pin != "" && (len([]rune(pin)) < minPIN || len(pin) > 40):
+		case pin != "" && (len([]rune(pin)) < minPIN || len([]rune(pin)) > maxPIN):
 			back(w, r, "/admin/gallery?err=pin-short")
-		case a.store.SetPhotoPIN(pin) != nil:
+		case a.store.SetClubPIN(pin) != nil:
 			back(w, r, "/admin/gallery?err=save")
 		case pin == "":
 			back(w, r, "/admin/gallery?ok=pin-off")
@@ -432,18 +430,4 @@ func galleryAdded(q url.Values) string {
 		s += fmt.Sprintf(" %d %s already there.", already, plural(already, "was", "were"))
 	}
 	return s
-}
-
-// PhotoPIN is the club photo PIN, or "" when it's off.
-func (s *Store) PhotoPIN() string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.d.PhotoPIN
-}
-
-func (s *Store) SetPhotoPIN(pin string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.d.PhotoPIN = pin
-	return s.save()
 }

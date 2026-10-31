@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -980,5 +981,40 @@ func TestNewSiteHasNoWeeklyRides(t *testing.T) {
 	}
 	if got := s.AllSeries(); len(got) != 0 {
 		t.Errorf("weekly rides on a new site: %+v", got)
+	}
+}
+
+// With the club PIN, a ride added without signing in with Strava goes
+// straight onto the calendar. A wrong PIN is refused, and with no PIN set
+// the box isn't there.
+func TestRideWithClubPIN(t *testing.T) {
+	a, h, sent := rideApp(t)
+	sunday := nextWeekday(a, time.Sunday)
+	if page := do(t, h, nil, "GET", "/calendar/new", "", nil).Body.String(); strings.Contains(page, `name="pin"`) {
+		t.Error("with no PIN set, Add a ride shouldn't ask for one")
+	}
+	a.store.SetClubPIN("Velo2026")
+	if page := do(t, h, nil, "GET", "/calendar/new", "", nil).Body.String(); !strings.Contains(page, `name="pin"`) {
+		t.Error("Add a ride should ask for the club PIN")
+	}
+	add := func(name, pin string) *httptest.ResponseRecorder {
+		ct, body := form(url.Values{"date": {sunday}, "name": {name}, "leader_name": {"Pat Rider"}, "pin": {pin}, "ft": {oldToken(a)}})
+		return do(t, h, nil, "POST", "/calendar/new", ct, body)
+	}
+	if w := add("Wrong Spin", "nope"); w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "isn’t right") {
+		t.Errorf("a wrong PIN: %d", w.Code)
+	}
+	if len(a.store.HeldRides()) != 0 || len(*sent) != 0 {
+		t.Error("a ride with a wrong PIN shouldn't be saved")
+	}
+	if w := add("Sunday Spin", "velo2026"); !strings.Contains(w.Header().Get("Location"), "ok=added") {
+		t.Fatalf("the right PIN, any case: %d %s", w.Code, w.Header().Get("Location"))
+	}
+	on := a.store.Rides(a.today(), a.today().AddDate(0, 0, 14))
+	if !slices.ContainsFunc(on, func(o RideOcc) bool { return o.Name == "Sunday Spin" && !o.Held }) || len(a.store.HeldRides()) != 0 {
+		t.Errorf("the ride should be on the calendar: %+v", on)
+	}
+	if w := add("Later Spin", ""); !strings.Contains(w.Header().Get("Location"), "ok=held") {
+		t.Errorf("no PIN typed: held as before: %s", w.Header().Get("Location"))
 	}
 }

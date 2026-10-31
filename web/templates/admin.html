@@ -560,11 +560,11 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
   </div>
 </form>
 <form method="post" action="/admin/gallery" class="card album-new">
-  <h2>Club photo PIN</h2>
-  <p class="muted small">{{if .PhotoPIN}}Members who type this PIN on the <a href="/share-photos" target="_blank" rel="noopener">Share your photos</a> page skip the review: their photos go straight into the album they pick. Photos with no album picked still wait on Sent-in photos. If the PIN gets around, change it here and tell members the new one.{{else}}Off: every sent-in photo waits for review. Set a PIN and share it with members (in the newsletter or a club email) to let them post straight to the gallery.{{end}}</p>
+  <h2>Club PIN</h2>
+  <p class="muted small">{{if .ClubPIN}}Members who type this PIN skip the review: on the <a href="/share-photos" target="_blank" rel="noopener">Share your photos</a> page their photos go straight into the album they pick (with no album picked they still wait on Sent-in photos), and on <a href="/calendar/new" target="_blank" rel="noopener">Add a ride</a> their ride goes straight onto the calendar without signing in with Strava. If the PIN gets around, change it here and tell members the new one.{{else}}Off: sent-in photos wait for review, and rides added without signing in with Strava wait for approval. Set a PIN and share it with members (in the newsletter or a club email) to let them post photos and rides straight to the site.{{end}}</p>
   <div class="gal-tools">
-    <label>PIN <input name="pin" value="{{.PhotoPIN}}" minlength="4" maxlength="40" autocomplete="off" placeholder="At least 4 characters"></label>
-    <div class="gal-tools-go"><button name="do" value="pin">{{icon "check"}}Save PIN</button>{{if .PhotoPIN}}<button class="ghost" name="do" value="pin" formnovalidate onclick="this.form.off.value='1'">Turn off</button>{{end}}<input type="hidden" name="off" value=""></div>
+    <label>PIN <input name="pin" value="{{.ClubPIN}}" minlength="4" maxlength="40" autocomplete="off" placeholder="At least 4 characters"></label>
+    <div class="gal-tools-go"><button name="do" value="pin">{{icon "check"}}Save PIN</button>{{if .ClubPIN}}<button class="ghost" name="do" value="pin" formnovalidate onclick="this.form.off.value='1'">Turn off</button>{{end}}<input type="hidden" name="off" value=""></div>
   </div>
 </form>
 {{if .AlbumCards}}<form method="post" action="/admin/gallery"><ul class="album-list">

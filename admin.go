@@ -51,7 +51,7 @@ type adminView struct {
 	Reviewed   []submittedBatch
 	Albums     []Album
 	AlbumCards []albumCard
-	PhotoPIN   string
+	ClubPIN    string
 	Album      *albumAdmin
 	// CanManage: the logged-in admin may delete members and remove admins
 	// (the president, or whoever has the server's setup password).
@@ -254,8 +254,8 @@ var flashText = map[string]string{
 	"album-saved":        "Saved.",
 	"album-deleted":      "Album deleted.",
 	"photos-moved":       "Moved to the other album.",
-	"pin-saved":          "Saved. Members who type this PIN on the share page skip the review.",
-	"pin-off":            "The PIN is off. Every sent-in photo waits for review.",
+	"pin-saved":          "Saved. Members who type this PIN skip the review for photos and rides.",
+	"pin-off":            "The PIN is off. Sent-in photos and rides added without Strava wait for review.",
 	"waiver-deleted":     "Waiver deleted.",
 	"connected":          "Strava is connected, and the club’s events are on the calendar.",
 	"connected-error":    "Strava is connected, but reading the club’s events didn’t work. See the error below.",

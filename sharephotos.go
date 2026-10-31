@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/subtle"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -29,10 +28,8 @@ import (
 // deletes them, and any can go in an issue's photo strip. The newsletter's
 // "Share your photos" block links to the page.
 //
-// Members who know the club photo PIN (set on Website → Gallery) skip the
-// review: with it, their photos go straight into the album they picked, or a
-// new one they named. Wrong guesses are limited, and admins can change the
-// PIN whenever it gets around.
+// Members who know the club PIN (clubpin.go) skip the review: with it, their
+// photos go straight into the album they picked, or a new one they named.
 
 const (
 	maxSharePhotos   = 30       // photos in one go
@@ -64,7 +61,7 @@ type SubmittedPhoto struct {
 	Used      string    `json:"used,omitempty"`    // its address once added to a newsletter
 	UsedIn    string    `json:"used_in,omitempty"` // which issue, like "November 2026"
 	Gallery   int       `json:"gallery,omitempty"` // its gallery photo's ID, once added
-	ViaPIN    bool      `json:"pin,omitempty"`     // sent with the club photo PIN
+	ViaPIN    bool      `json:"pin,omitempty"`     // sent with the club PIN
 }
 
 func (a *App) submittedDir() string { return filepath.Join(a.cfg.DataDir, "submitted") }
@@ -78,7 +75,7 @@ type shareData struct {
 	Agree             bool
 	Albums            []Album // the latest ones, to pick from
 	Max               int
-	PINOn             bool   // the club photo PIN is set
+	PINOn             bool   // the club PIN is set
 	Message           string // a problem
 	Detail            string // after sending: how many came through
 	Link              string // and the album they went into, when they skipped the review
@@ -88,7 +85,7 @@ type shareData struct {
 const shareAlbums = 12 // albums to pick from on the share page
 
 func (a *App) shareData(d shareData) shareData {
-	d.Token, d.Max, d.PINOn = a.formToken(), maxSharePhotos, a.store.PhotoPIN() != ""
+	d.Token, d.Max, d.PINOn = a.formToken(), maxSharePhotos, a.store.ClubPIN() != ""
 	d.Albums = a.store.Albums()
 	d.Albums = d.Albums[:min(len(d.Albums), shareAlbums)]
 	return d
@@ -144,8 +141,8 @@ func (a *App) sharePhotos(w http.ResponseWriter, r *http.Request) {
 	if from.Album == 0 {
 		from.AlbumName = cleanTitle(d.AlbumName, maxAlbumTitle)
 	}
-	pin, typedPIN := a.store.PhotoPIN(), strings.TrimSpace(r.FormValue("pin"))
-	from.ViaPIN = pin != "" && typedPIN != ""
+	viaPIN, pinProblem := a.checkPIN(r, r.FormValue("pin"))
+	from.ViaPIN = viaPIN
 	files := r.MultipartForm.File["photos"]
 	captions := r.MultipartForm.Value["caption"] // one for each photo, in order, when the page sends them
 	switch {
@@ -163,10 +160,10 @@ func (a *App) sharePhotos(w http.ResponseWriter, r *http.Request) {
 		fail(http.StatusBadRequest, fmt.Sprintf("Keep the note under %d characters.", maxShareNote))
 	case !d.Agree:
 		fail(http.StatusBadRequest, "Tick the box to say you can share these photos with the club.")
-	case from.ViaPIN && !a.limit.Allow("pin:"+clientIP(r), 10, time.Hour): // every try counts, so it can't be guessed
-		fail(http.StatusTooManyRequests, "Too many PIN tries. Try again later, or leave the PIN empty and an admin will look at your photos.")
-	case from.ViaPIN && !samePIN(typedPIN, pin):
-		fail(http.StatusBadRequest, "That PIN isn’t right. Check it, or leave it empty and an admin will look at your photos.")
+	case pinProblem == pinLimit:
+		fail(http.StatusTooManyRequests, pinProblem)
+	case pinProblem != "":
+		fail(http.StatusBadRequest, pinProblem)
 	case a.store.WaitingPhotos()+len(files) > maxWaitingPhotos:
 		fail(http.StatusServiceUnavailable, "We have a lot of photos waiting to be looked at. Try again in a few days.")
 	case !a.limit.Allow("share:"+clientIP(r), 5, time.Hour): // counted once the form is right, so typos never lock anyone out
@@ -222,12 +219,7 @@ func (a *App) sharePhotos(w http.ResponseWriter, r *http.Request) {
 	reply(http.StatusOK)
 }
 
-// samePIN compares a typed PIN with the club's, ignoring case.
-func samePIN(typed, pin string) bool {
-	return subtle.ConstantTimeCompare([]byte(strings.ToLower(typed)), []byte(strings.ToLower(pin))) == 1
-}
-
-// postWithPIN puts photos sent with the club photo PIN straight into the
+// postWithPIN puts photos sent with the club PIN straight into the
 // album picked for them (starting it if they named a new one), and returns
 // how many went in and the album. Without an album they wait for review, as
 // does any photo that couldn't be added.
@@ -280,7 +272,7 @@ type submittedBatch struct {
 	Submitted         time.Time
 	New               bool
 	Waiting           int  // photos not yet approved or used in a newsletter
-	ViaPIN            bool // sent with the club photo PIN
+	ViaPIN            bool // sent with the club PIN
 	Photos            []SubmittedPhoto
 }
 
