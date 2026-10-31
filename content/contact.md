@@ -1,28 +1,28 @@
 ---
 menu: Contact Us
 order: 10
-description: How to reach PaxVelo Cycling Club in Southern Maryland: Discord for the fastest answer, email, and Strava for rides.
+description: How to reach PaxVelo Cycling Club in Southern Maryland: email the board, find our rides on the calendar and Strava, or follow us on Instagram and Facebook.
 ---
 
 # Contact Us
 
-Questions about rides, membership, or the club? Here's where to find us.
+Questions about rides, membership, or the club? Here's how to reach us.
 
-## Discord: the fastest answer
+## Email the board
 
-All our members are on Discord, and it's where the club talks about everything: rides, routes, gear, the swap meet, and more. Post a question there and someone will usually answer quickly.
+The best way to reach us is email: [PaxVeloClub@gmail.com](mailto:PaxVeloClub@gmail.com). Use it for questions about membership or dues, a ride you're thinking of joining, ideas for the club, or anything you'd rather not post in public. A board member will get back to you.
 
-[Join us on Discord](https://discord.gg/8TtR4pu4C2)
+## Looking for a ride?
 
-## Email
+Club rides are on our [ride calendar](/calendar), with the start time, route, and any last-minute changes. They're posted on [Strava]({strava}) too, so join the club there and RSVP to the rides you're coming to. New to group riding? Just show up and say hello, or email us first and we'll help you find a ride that fits.
 
-For membership, dues, or anything you'd rather not post in public, email [PaxVeloClub@gmail.com](mailto:PaxVeloClub@gmail.com). A board member will get back to you, though it may take a little longer than Discord.
+Want to lead one? Open it on the calendar.
 
-## Rides
+## Want to join?
 
-Club rides are posted on [Strava]({strava}), with the start time, route, and any last-minute changes, and on our [ride calendar](/calendar). Join the club on Strava and RSVP to the rides you're coming to. Want to lead one? Open it on the calendar.
+[Become a member](/join) and you're in. Dues and what they cover are on that page.
 
-## Elsewhere
+## Follow along
 
 - **Instagram:** [@paxvelo](https://www.instagram.com/paxvelo/)
 - **Facebook:** [PaxVelo Cycling Club](https://www.facebook.com/groups/112307228841445/)
