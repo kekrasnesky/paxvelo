@@ -48,7 +48,7 @@
             <span class="cal-pop-when">{{.ShortDate}} · {{.TimeLabel}}</span>
             {{with .PublicPlace}}<span class="cal-pop-where">{{.}}</span>{{end}}
             {{with .Levels}}<span class="cal-pop-lvls">{{range .}}<span><span class="lvl lvl-{{.Key}}">{{.Name}}</span> {{.MPH}}</span>{{end}}</span>{{end}}
-            {{if .Cancelled}}<span class="cal-pop-off">This ride is cancelled.</span>{{else}}<ul class="cal-pop-slots">{{range .Slots}}<li>{{with .Group}}<span class="cal-pop-group">{{.}}</span> {{end}}{{with .Leader}}{{.Name}}{{else}}<span class="cal-need">Needs a leader</span>{{end}}</li>{{end}}</ul>{{end}}
+            {{if .Cancelled}}<span class="cal-pop-off">This ride is cancelled.</span>{{else if not .IsRide}}<span class="cal-pop-off">{{.LeaderSummary}}</span>{{else}}<ul class="cal-pop-slots">{{range .Slots}}<li>{{with .Group}}<span class="cal-pop-group">{{.}}</span> {{end}}{{with .Leader}}{{.Name}}{{else}}<span class="cal-need">Needs a leader</span>{{end}}</li>{{end}}</ul>{{end}}
             {{with .Meta}}<span class="cal-meta">{{.}}</span>{{end}}
             <a class="cal-pop-go" href="/calendar/ride/{{.Key}}">{{if or (eq .Status "open") (eq .Status "partial")}}View ride or sign up to lead{{else}}View ride{{end}} →</a>
           </div>

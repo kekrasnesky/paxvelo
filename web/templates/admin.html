@@ -96,11 +96,47 @@ function initStrip(strip){
 function initBlock(el){el.querySelectorAll('[data-photo]').forEach(initPhotoBox);el.querySelectorAll('.strip').forEach(initStrip)}
 initBlock(document);
 
-// On ride pages, show a leader box for each pace group the menu picks.
-(function(){var pace=document.querySelector('select[name=pace][data-leaders]');if(!pace)return;
-  function show(){var want={'':[''],'2':['A group','B group'],'3':['A group','B group','C group']}[pace.value];
-    document.querySelectorAll('[data-group]').forEach(function(b){b.hidden=want?want.indexOf(b.dataset.group)<0:b.dataset.keep!=='1'})}
-  pace.addEventListener('change',show);show()})();
+// On ride pages, show what fits "What is it?": a ride has pace groups, a
+// level, and a leader box for each group; a clinic or meeting has one host.
+document.querySelectorAll('form[data-kinds]').forEach(function(form){
+  var pace=form.querySelector('select[name=pace]');
+  function show(){var k=form.querySelector('input[name=kind]:checked'),ride=!k||k.value==='';
+    form.querySelectorAll('[data-ride-only]').forEach(function(e){e.hidden=!ride});
+    form.querySelectorAll('[data-ride-text]').forEach(function(e){var t=ride?e.dataset.rideText:e.dataset.eventText;if(e.tagName==='INPUT')e.placeholder=t;else e.textContent=t});
+    form.querySelectorAll('[data-host-label]').forEach(function(e){e.textContent=ride?'Leader':k.dataset.host});
+    var want=!ride?['']:pace&&{'':[''],'2':['A group','B group'],'3':['A group','B group','C group']}[pace.value];
+    form.querySelectorAll('[data-group]').forEach(function(b){b.hidden=want?want.indexOf(b.dataset.group)<0:b.dataset.keep!=='1'})}
+  form.addEventListener('change',function(e){if(e.target.name==='kind'||e.target.name==='pace')show()});show()});
+
+// "Repeat every week" shows its last date, and needs a start time.
+document.querySelectorAll('[data-repeat]').forEach(function(box){
+  var opts=box.form.querySelector('[data-repeat-opts]'),time=box.form.querySelector('input[name=time]');
+  function show(){opts.hidden=!box.checked;time.required=box.checked}
+  box.addEventListener('change',show);show()});
+
+// A Strava event link shows its route's map as soon as it's pasted, so it's
+// easy to see it's the right one.
+document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
+  var out=inp.closest('label').nextElementSibling,timer,last=null,cache={};
+  function el(tag,cls,text){var e=document.createElement(tag);if(cls)e.className=cls;if(text)e.textContent=text;return e}
+  function render(p){out.textContent='';out.hidden=false;
+    if(p.map){var a=el('a','sp-map');a.href=p.url||inp.value;a.target='_blank';a.rel='noopener';
+      var img=new Image();img.src=p.map;img.alt='Map of the '+(p.route||'event’s')+' route';a.append(img);out.append(a)}
+    var t=el('div','sp-text');
+    if(p.title)t.append(el('strong','',p.title));
+    if(p.route)t.append(el('span','',p.route+(p.stats?' · '+p.stats:'')));
+    if(p.note)t.append(el('span','muted small',p.note));
+    out.append(t)}
+  function check(){var u=inp.value.trim();if(u===last)return;last=u;
+    if(!u){out.hidden=true;return}
+    if(cache[u]){render(cache[u]);return}
+    render({note:'Looking up the event on Strava…'});
+    fetch('/admin/strava/preview?url='+encodeURIComponent(u),{credentials:'same-origin'})
+      .then(function(r){return r.json()})
+      .then(function(p){cache[u]=p;if(inp.value.trim()===u)render(p)})
+      .catch(function(){if(inp.value.trim()===u)render({note:'Couldn’t reach Strava just now.'})})}
+  inp.addEventListener('input',function(){clearTimeout(timer);timer=setTimeout(check,400)});
+  inp.addEventListener('change',check);check()});
 </script>
 </body>
 </html>{{end}}
@@ -1048,8 +1084,8 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   <tbody>
   {{range .Upcoming}}<tr{{if .Cancelled}} class="off"{{end}}>
     <td class="nowrap">{{.DateLabel}}<br><span class="muted small">{{.TimeLabel}}</span></td>
-    <td><a href="/admin/rides/{{.Key}}">{{.Name}}</a>{{if .Custom}} <span class="tag">One-off</span>{{end}}{{if .Cancelled}} <span class="tag">Cancelled</span>{{end}}</td>
-    <td>{{range .Slots}}<span class="leader-line">{{with .Group}}<span class="muted">{{.}}:</span> {{end}}{{with .Leader}}{{.Name}}{{else}}<span class="danger">needs a leader</span>{{end}}</span>{{end}}</td>
+    <td><a href="/admin/rides/{{.Key}}">{{.Name}}</a>{{if not .IsRide}} <span class="tag">{{.KindName}}</span>{{end}}{{if .Custom}} <span class="tag">One-off</span>{{end}}{{if .Cancelled}} <span class="tag">Cancelled</span>{{end}}</td>
+    <td>{{if not .IsRide}}{{with .Leaders}}{{(index . 0).Name}}{{else}}<span class="muted">–</span>{{end}}{{else}}{{range .Slots}}<span class="leader-line">{{with .Group}}<span class="muted">{{.}}:</span> {{end}}{{with .Leader}}{{.Name}}{{else}}<span class="danger">needs a leader</span>{{end}}</span>{{end}}{{end}}</td>
     <td class="right nowrap"><a class="btn mini ghost" href="/admin/rides/{{.Key}}">{{icon "pencil"}}Edit</a></td>
   </tr>
   {{else}}<tr><td colspan="4" class="empty">No rides in the next 60 days.</td></tr>
@@ -1062,7 +1098,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   <thead><tr><th>Ride</th><th>When</th><th>Season</th><th>Start</th><th><span class="sr">Actions</span></th></tr></thead>
   <tbody>
   {{range .Series}}<tr>
-    <td><a href="/admin/weekly/{{.ID}}"><strong>{{.Name}}</strong></a>{{with .Details}}<br><span class="muted small">{{.}}</span>{{end}}{{with .Groups}}<br><span class="muted small">Groups: {{join . ", "}}</span>{{end}}</td>
+    <td><a href="/admin/weekly/{{.ID}}"><strong>{{.Name}}</strong></a>{{with .Details}}<br><span class="muted small">{{firstLine .}}</span>{{end}}{{with .Groups}}<br><span class="muted small">Groups: {{join . ", "}}</span>{{end}}</td>
     <td class="nowrap">{{.WeekdayName}}s, {{timeLabel .Time}}</td>
     <td class="nowrap">{{.SeasonLabel}}</td>
     <td>{{.Place}}</td>
@@ -1142,29 +1178,45 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
 {{end}}
 {{template "foot" .}}{{end}}
 
-{{define "series-fields"}}<div class="pair">
+{{define "series-fields"}}{{template "kind-pick" .Kind}}
+  <div class="pair">
     <label>Name <input name="name" value="{{.Name}}" required maxlength="80" placeholder="Saturday Coffee Ride"></label>
     <label>Start time <input type="time" name="time" required value="{{or .Time "08:00"}}"></label>
   </div>
   <div class="pair">
     <label>Day <select name="weekday">{{$wd := .Weekday}}{{range weekdays}}<option value="{{.N}}"{{if eq .N $wd}} selected{{end}}>{{.Name}}</option>{{end}}</select></label>
-    <label>Start (optional) <input name="place" value="{{.Place}}" maxlength="100" placeholder="Leonardtown Square"></label>
+    <label>Start location (optional) <input name="place" value="{{.Place}}" maxlength="100" placeholder="Leonardtown Square"></label>
   </div>
-  <label>Details (optional) <input name="details" value="{{.Details}}" maxlength="100" placeholder="Casual · all levels · 25 mi"></label>
-  {{template "pace-select" .Groups}}
-  {{template "level-select" .Level}}
-  <label>Strava link (optional) <input type="url" name="strava_url" value="{{.StravaURL}}" placeholder="https://www.strava.com/clubs/10197/…"></label>
+  <label>Description (optional) <textarea name="details" rows="3" maxlength="1000" placeholder="Route, pace, coffee stop, what to bring…">{{.Details}}</textarea></label>
+  <div class="ride-only" data-ride-only>
+    {{template "pace-select" .Groups}}
+    {{template "level-select" .Level}}
+  </div>
+  {{template "strava-link" .StravaURL}}
   <div class="pair">
     <label>Season starts (optional) <input type="date" name="season_start" value="{{.From}}"></label>
     <label>Season ends <input type="date" name="season_end" value="{{.Until}}"></label>
   </div>
-  <p class="muted small">The season repeats every year (only the month and day count). Leave both empty for a ride that runs all year.</p>{{end}}
+  <p class="muted small">The season repeats every year (only the month and day count). Leave both empty for a ride that runs all year.</p>
+  <label>Last date (optional) <input type="date" name="ends" value="{{.Ends}}"></label>
+  <p class="muted small">{{with .Starts}}It started {{.}}. {{end}}After the last date it stops for good. Leave it empty to keep it going.</p>{{end}}
+
+{{define "kind-pick"}}{{$kind := .}}<fieldset class="kinds">
+    <legend>What is it?</legend>
+    <div class="kind-opts">{{range eventKinds}}<label><input type="radio" name="kind" value="{{.Key}}" data-host="{{.Host}}"{{if eq .Key $kind}} checked{{end}}><span>{{.Name}}</span></label>{{end}}</div>
+  </fieldset>{{end}}
+
+{{define "strava-link"}}<label>Strava event link (optional) <input type="url" name="strava_url" value="{{.}}" placeholder="https://www.strava.com/clubs/10197/group_events/…" data-strava-preview></label>
+  <div class="strava-preview" data-strava-out hidden aria-live="polite"></div>{{end}}
 
 {{define "pace-select"}}{{$pace := paceOf .}}<label>Pace groups <select name="pace">{{range paceChoices}}<option value="{{.Value}}"{{if eq .Value $pace}} selected{{end}}>{{.Label}}</option>{{end}}{{if eq $pace "keep"}}<option value="keep" selected>Keep: {{join . ", "}}</option>{{end}}</select></label>
   <p class="muted small">Each group gets its own leader. Put the paces in the details, like “A 24–28 mph, B 20–22 mph”.</p>{{end}}
 
-{{define "level-select"}}{{$level := .}}<label>Level <select name="level">{{range levelChoices}}<option value="{{.Value}}"{{if eq .Value $level}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>
-  <p class="muted small">Shown as a colored tag so new riders know how fast it goes: Social 16–18 mph, Intermediate 18–20 mph, Elite 20+ mph. Automatic goes by the ride’s name (like ThNR or SuMR), then the pace on its Strava event, and otherwise Intermediate.</p>{{end}}
+{{define "level-select"}}<fieldset class="levels">
+    <legend>Level</legend>
+    <div class="level-opts">{{range levelBoxes .}}<label class="check"><input type="checkbox" name="level" value="{{.Key}}"{{if .Checked}} checked{{end}}><span class="lvl lvl-{{.Key}}">{{.Name}}</span><span class="muted small">{{.MPH}}</span></label>{{end}}</div>
+    <p class="muted small">Tick one, or two if it depends on who turns out. Tick none and it’s worked out from the ride’s name (like ThNR or SuMR), then the pace on its Strava event, and otherwise Intermediate.</p>
+  </fieldset>{{end}}
 
 {{define "series"}}{{template "head" .}}{{$f := .SeriesForm}}
 <p class="crumb"><a href="/admin/rides">← Rides</a></p>
@@ -1192,7 +1244,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
 </div>{{end}}
 <div class="cal-bar">
   <nav class="cal-nav" aria-label="Month"><a class="btn mini ghost" href="/admin/calendar?m={{$m.Prev}}" aria-label="Previous month">‹</a><h2>{{$m.MonthLabel}}</h2><a class="btn mini ghost" href="/admin/calendar?m={{$m.Next}}" aria-label="Next month">›</a></nav>
-  <a class="btn" href="/admin/rides/new">Add a ride</a>
+  <a class="btn" href="/admin/rides/new">Add to the calendar</a>
 </div>
 <p class="cal-key small"><span class="nowrap"><span class="dot led"></span> Has its leaders</span> <span class="nowrap"><span class="dot partial"></span> Needs another leader</span> <span class="nowrap"><span class="dot open"></span> Needs a leader</span> <span class="nowrap"><span class="dot cancelled"></span> Cancelled</span></p>
 <div class="table-wrap cal-wrap"><table class="cal">
@@ -1210,31 +1262,37 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
 {{define "ride"}}{{template "head" .}}{{$f := .RideForm}}
 <p class="crumb"><a href="/admin/calendar{{if $f.Date}}?m={{slice $f.Date 0 7}}{{end}}">← Calendar</a></p>
 <div class="title-row">
-  <h1>{{if $f.New}}Add a ride{{else}}{{$f.Name}}{{end}}</h1>
-  {{if not $f.New}}<p>{{if $f.Cancelled}}<span class="tag">Cancelled</span> {{end}}{{if $f.Custom}}One-off ride{{else}}Weekly ride · <a href="/admin/weekly/{{$f.SeriesID}}">change every week</a>{{end}} · <a href="/calendar/ride/{{$f.Key}}" target="_blank" rel="noopener">Public page</a></p>{{end}}
+  <h1>{{if $f.New}}Add to the calendar{{else}}{{$f.Name}}{{end}}</h1>
+  {{if not $f.New}}<p>{{if $f.Cancelled}}<span class="tag">Cancelled</span> {{end}}{{if $f.Custom}}One-off{{else}}Weekly · <a href="/admin/weekly/{{$f.SeriesID}}">change every week</a>{{end}} · <a href="/calendar/ride/{{$f.Key}}" target="_blank" rel="noopener">Public page</a></p>{{end}}
 </div>
 {{if $f.Past}}<p class="flash warn">This ride has already happened.</p>{{end}}
-<form class="card new-issue" method="post" action="{{if $f.New}}/admin/rides/new{{else}}/admin/rides/{{$f.Key}}{{end}}">
-  <div class="pair">
-    <label>Ride name <input name="name" value="{{$f.Name}}" required maxlength="80" placeholder="Saturday Coffee Ride"></label>
-    <label>Start time <input type="time" name="time" value="{{$f.Time}}"></label>
-  </div>
+<form class="card new-issue ride-form" method="post" action="{{if $f.New}}/admin/rides/new{{else}}/admin/rides/{{$f.Key}}{{end}}" data-kinds>
+  {{template "kind-pick" $f.Kind}}
+  <label>Name <input name="name" value="{{$f.Name}}" required maxlength="80" placeholder="Saturday Coffee Ride"></label>
   <div class="pair">
     {{if or $f.New $f.Custom}}<label>Date <input type="date" name="date" value="{{$f.Date}}" required></label>
-    {{else}}<label>Date <input value="{{$f.DateLabel}}" disabled><span class="muted small">This is one date of a weekly ride. To move it, cancel it and add a one-off ride.</span></label>{{end}}
-    <label>Start (optional) <input name="place" value="{{$f.Place}}" maxlength="100" placeholder="Leonardtown Square"></label>
+    {{else}}<label>Date <input value="{{$f.DateLabel}}" disabled><span class="muted small">One date of a weekly ride. To move it, cancel it and add a one-off.</span></label>{{end}}
+    <label>Start time <input type="time" name="time" value="{{$f.Time}}"></label>
   </div>
-  <label>Details (optional) <input name="details" value="{{$f.Details}}" maxlength="100" placeholder="Casual · all levels · 25 mi"></label>
-  {{$pace := $f.Pace}}<label>Pace groups <select name="pace" data-leaders>{{range paceChoices}}<option value="{{.Value}}"{{if eq .Value $pace}} selected{{end}}>{{.Label}}</option>{{end}}{{if eq $pace "keep"}}<option value="keep" selected>Keep: {{join $f.Groups ", "}}</option>{{end}}</select></label>
-  {{template "level-select" $f.Level}}
+  {{if $f.New}}<label class="check"><input type="checkbox" name="repeat" value="weekly" data-repeat{{if $f.Weekly}} checked{{end}}> Repeat every week</label>
+  <div class="repeat-opts" data-repeat-opts{{if not $f.Weekly}} hidden{{end}}>
+    <label>Last date (optional) <input type="date" name="repeat_until" value="{{$f.Until}}"></label>
+    <p class="muted small">Same day and time every week from the date above. Leave the last date empty to keep it going. Change or stop it any time on the Rides tab.</p>
+  </div>{{end}}
+  <label>Start location (optional) <input name="place" value="{{$f.Place}}" maxlength="100" placeholder="Leonardtown Square"></label>
+  <label>Description (optional) <textarea name="details" rows="3" maxlength="1000" placeholder="Route, pace, coffee stop, what to bring…">{{$f.Details}}</textarea></label>
+  <div class="ride-only" data-ride-only>
+    {{$pace := $f.Pace}}<label>Pace groups <select name="pace" data-leaders>{{range paceChoices}}<option value="{{.Value}}"{{if eq .Value $pace}} selected{{end}}>{{.Label}}</option>{{end}}{{if eq $pace "keep"}}<option value="keep" selected>Keep: {{join $f.Groups ", "}}</option>{{end}}</select></label>
+    {{template "level-select" $f.Level}}
+  </div>
   <fieldset class="leaders">
-    <legend>Ride leaders</legend>
-    {{range $f.Leaders}}<label class="leader-row" data-group="{{.Group}}"{{if and (ne .Group "") (ne .Group "A group") (ne .Group "B group") (ne .Group "C group")}} data-keep="1"{{end}}>{{or .Group "Leader"}}
-      <input name="{{.Field}}" value="{{.Name}}" placeholder="Needs a leader" maxlength="60">
+    <legend data-ride-text="Ride leaders" data-event-text="Who’s running it">Ride leaders</legend>
+    {{range $f.Leaders}}<label class="leader-row" data-group="{{.Group}}"{{if and (ne .Group "") (ne .Group "A group") (ne .Group "B group") (ne .Group "C group")}} data-keep="1"{{end}}><span{{if not .Group}} data-host-label{{end}}>{{or .Group "Leader"}}</span>
+      <input name="{{.Field}}" value="{{.Name}}" placeholder="Needs a leader" maxlength="60"{{if not .Group}} data-ride-text="Needs a leader" data-event-text="Optional"{{end}}>
       {{with .Note}}<span class="muted small">{{.}}</span>{{end}}</label>{{end}}
-    <p class="muted small">Type a name to make someone the leader, or clear it to open the spot. The club is emailed about every change.</p>
+    <p class="muted small" data-ride-text="Type a name to make someone the leader, or clear it to open the spot. Leader changes aren’t emailed to the club." data-event-text="Nobody signs up for this on the calendar. Name who’s running it, if you like.">Type a name to make someone the leader, or clear it to open the spot. Leader changes aren’t emailed to the club.</p>
   </fieldset>
-  <label>Strava event link (optional) <input type="url" name="strava_url" value="{{$f.StravaURL}}" placeholder="https://www.strava.com/clubs/10197/group_events/…"></label>
+  {{template "strava-link" $f.StravaURL}}
   <button>{{if $f.New}}{{icon "plus"}}Add to the calendar{{else}}{{icon "save"}}Save changes{{end}}</button>
 </form>
 {{if not $f.New}}<div class="send-row footnote">

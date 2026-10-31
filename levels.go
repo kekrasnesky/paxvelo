@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"html/template"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -21,10 +22,26 @@ var rideLevels = []rideLevel{
 	{"elite", "Elite", "20+ mph"},
 }
 
-// levelChoices is the admin's Level menu. The Tuesday Night Ride is either,
-// depending on who turns out.
+// levelChoices are the {level-…} widgets content pages can use. The Tuesday
+// Night Ride is either, depending on who turns out.
 var levelChoices = []paceChoice{{"", "Automatic"}, {"social", "Social"}, {"intermediate", "Intermediate"},
 	{"elite", "Elite"}, {"intermediate elite", "Intermediate or Elite"}}
+
+// levelBox is one of the admin's Level checkboxes.
+type levelBox struct {
+	rideLevel
+	Checked bool
+}
+
+// levelBoxes is the Level checkboxes for a ride's level. None ticked means
+// automatic.
+func levelBoxes(level string) []levelBox {
+	var out []levelBox
+	for _, l := range rideLevels {
+		out = append(out, levelBox{l, strings.Contains(" "+level+" ", " "+l.Key+" ")})
+	}
+	return out
+}
 
 // levelWidget is a level's tags for a content page, the way a ride's page
 // shows them, like {level-intermediate-elite} on a line by itself.
@@ -44,14 +61,16 @@ func levelWidget(keys string) template.HTML {
 	return template.HTML(`<p class="lvls page-lvls">` + s + "</p>")
 }
 
-// levelFor reads the admin's Level menu.
-func levelFor(choice string) string {
-	for _, c := range levelChoices {
-		if c.Value == choice {
-			return choice
+// levelFor reads the admin's Level checkboxes, in the order rideLevels has
+// them, so "social elite" is stored the same however it was ticked.
+func levelFor(ticked []string) string {
+	var keys []string
+	for _, l := range rideLevels {
+		if slices.Contains(ticked, l.Key) {
+			keys = append(keys, l.Key)
 		}
 	}
-	return ""
+	return strings.Join(keys, " ")
 }
 
 // The club's regular rides, by the names they go by on Strava and the calendar.
@@ -70,6 +89,9 @@ var stravaLevels = map[int]string{1: "social", 2: "intermediate", 4: "elite"}
 
 // Levels is the ride's level, or two when it depends on turnout.
 func (o RideOcc) Levels() []rideLevel {
+	if !o.IsRide() {
+		return nil
+	}
 	keys := o.Level
 	if keys == "" {
 		for _, n := range levelNames {

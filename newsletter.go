@@ -375,7 +375,15 @@ func (a *App) issueRides(is Issue) ridesView {
 		}
 		t, _ := time.Parse("2006-01-02", o.Date)
 		sr := shownRide{Key: o.Key, Month: strings.ToUpper(t.Format("Jan")), Day: t.Format("2"), Weekday: t.Format("Monday"),
-			Name: o.Name, Time: o.TimeLabel(), Place: o.PublicPlace(), Details: o.Details, Past: o.Date < today}
+			Name: o.Name, Time: o.TimeLabel(), Place: o.PublicPlace(), Details: firstLine(o.Details), Past: o.Date < today}
+		if !o.IsRide() { // nobody signs up to lead a clinic or a meeting
+			sr.Kind = o.KindName()
+			if l := o.leaderFor(""); l != nil {
+				sr.Host = o.HostLabel() + ": " + l.Name
+			}
+			v.Rides = append(v.Rides, sr)
+			continue
+		}
 		for _, sl := range o.Slots() {
 			ss := shownSlot{Group: sl.Group}
 			if sl.Leader != nil {
@@ -404,6 +412,7 @@ type shownRide struct {
 	Key, Month, Day, Weekday string
 	Name, Time, Place        string
 	Details                  string
+	Kind, Host               string // for a clinic, a meeting, and so on: "Club meeting", "Host: Sam"
 	Slots                    []shownSlot
 	Open                     int // spots without a leader
 	Past                     bool

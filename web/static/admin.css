@@ -217,7 +217,7 @@ details.more[open]{display:grid;gap:.6rem;padding-bottom:.8rem}
 .cal-day a{text-decoration:none;font-weight:500;padding:0 .3rem}
 .cal-ride{display:block;margin-top:.3rem;padding:.25rem .4rem;border-left:4px solid #2f6b3a;background:#f5f2ec;font-size:.78rem;line-height:1.35;text-decoration:none}
 .cal-ride:hover{background:#ece6dd}
-.cal-ride.partial{border-color:#4f7f99}.cal-ride.open{border-color:#c98a1b}
+.cal-ride.partial{border-color:#4f7f99}.cal-ride.open{border-color:#c98a1b}.cal-ride.event{border-color:#8a7fb0}
 .cal-ride.cancelled{border-color:#b9afa5;color:var(--muted);text-decoration:line-through}
 .cal-lead{display:block;color:var(--muted)}
 .cal-list{display:none;margin:1rem 0 0;padding:0;list-style:none}
@@ -402,3 +402,25 @@ button:has(>.ic),.btn:has(>.ic){display:inline-flex;align-items:center;justify-c
 .stats-pair .pad{margin:0;padding:.6rem .85rem}
 @media (max-width:800px){.stats-pair{grid-template-columns:1fr}}
 .link-counts{margin:.4rem 0 0;padding-left:1.1rem}
+
+/* The ride page: "What is it?" as a row of chips, Level as tickboxes, and the
+   map of a pasted Strava event's route */
+.kinds,.levels{display:grid;gap:.5rem;margin:0;padding:0;border:0}
+.kinds legend,.levels legend{padding:0 0 .4rem;font-size:.9rem;font-weight:500}
+.kind-opts{display:flex;flex-wrap:wrap;gap:.4rem}
+.kind-opts label{display:block;font-weight:300}
+.kind-opts input{position:absolute;width:1px;height:1px;opacity:0}
+.kind-opts span{display:block;padding:.45rem .8rem;border:1px solid #cfc6bd;border-radius:999px;background:#fff;cursor:pointer}
+.kind-opts input:checked+span{border-color:var(--red);background:var(--red);color:#fff}
+.kind-opts input:focus-visible+span{outline:2px solid var(--red);outline-offset:2px}
+.level-opts{display:flex;flex-wrap:wrap;gap:.5rem 1.4rem}
+.level-opts .check{gap:.45rem}
+.lvl{display:inline-block;padding:.1rem .55rem;border-radius:999px;background:var(--lc);color:#fff;font-size:.78rem;font-weight:500}
+.lvl-social{--lc:#2e7d4f}.lvl-intermediate{--lc:#b45f06}.lvl-elite{--lc:#a3172d}
+.ride-only{display:grid;gap:1rem}
+.ride-only[hidden],.repeat-opts[hidden],.strava-preview[hidden]{display:none}
+.repeat-opts{display:grid;gap:.3rem;margin-top:-.5rem;padding:0 0 0 1.6rem}
+.strava-preview{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem 1rem;margin-top:-.5rem;padding:.6rem;border:1px solid var(--line);background:var(--paper)}
+.strava-preview .sp-map{flex:0 0 auto;line-height:0}
+.strava-preview img{width:min(260px,100%);aspect-ratio:2/1;object-fit:cover;border:1px solid var(--line)}
+.strava-preview .sp-text{display:grid;gap:.15rem;min-width:12rem;flex:1;font-size:.9rem}

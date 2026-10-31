@@ -328,6 +328,7 @@ strong{font-weight:500}
 /* Rides that need a leader get a dashed yellow badge, a different shape from
    the filled pace pills, so the two never read as one color code */
 .cal-ride.open,.cal-ride.partial{--c:#d9a400}
+.cal-ride.event{--c:#5b7f95} /* a clinic, meeting or social, not a ride */
 .cal-grid{width:100%;border-collapse:collapse;table-layout:fixed;background:#fff;box-shadow:0 1px 3px rgba(45,45,45,.08)}
 .cal-grid th{padding:.45rem;border:1px solid var(--ink);background:var(--ink);color:var(--paper);font:500 .85rem/1 var(--font);letter-spacing:.06em;text-transform:uppercase}
 .cal-grid td{height:6.6rem;padding:.3rem;border:1px solid var(--line);vertical-align:top}

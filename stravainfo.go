@@ -358,16 +358,142 @@ func readGoing(get func(string, any) error, ids []string) map[string]int {
 // routes a few at a time.
 func (a *App) readRoutes(get func(string, any) error, first []string) {
 	for _, id := range a.store.staleRoutes(first, maxRouteReads) {
-		var sr stravaRoute
-		r := Route{ID: id, Checked: time.Now().UTC()}
-		if err := get("/routes/"+id, &sr); err != nil {
-			r.Missing = true
-		} else {
-			r.Name, r.Distance, r.Elevation, r.MovingTime, r.Private = cleanName(sr.Name), sr.Distance, sr.ElevationGain, sr.MovingTime, sr.Private
-			r.Map = or(sr.MapURLs.Light, sr.MapURLs.URL)
-		}
-		a.store.saveRoute(r)
+		a.readRoute(get, id)
 	}
+}
+
+// readRoute reads one route from Strava and keeps it.
+func (a *App) readRoute(get func(string, any) error, id string) Route {
+	var sr stravaRoute
+	r := Route{ID: id, Checked: time.Now().UTC()}
+	if err := get("/routes/"+id, &sr); err != nil {
+		r.Missing = true
+	} else {
+		r.Name, r.Distance, r.Elevation, r.MovingTime, r.Private = cleanName(sr.Name), sr.Distance, sr.ElevationGain, sr.MovingTime, sr.Private
+		r.Map = or(sr.MapURLs.Light, sr.MapURLs.URL)
+	}
+	a.store.saveRoute(r)
+	return r
+}
+
+// ---- The route preview on the admin's ride page ----
+
+// stravaPreview is what the ride page shows under a pasted Strava event link.
+type stravaPreview struct {
+	Title string `json:"title,omitempty"` // the event's name
+	Route string `json:"route,omitempty"`
+	Stats string `json:"stats,omitempty"` // "21 mi · 400 ft of climbing"
+	Map   string `json:"map,omitempty"`
+	URL   string `json:"url,omitempty"`  // the route on Strava
+	Note  string `json:"note,omitempty"` // why there's no map
+}
+
+var eventIDRE = regexp.MustCompile(`/group_events/(\d+)`)
+
+// stravaPreviewJSON answers the ride page as an admin types or pastes a
+// Strava event link.
+func (a *App) stravaPreviewJSON(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+	defer cancel()
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(a.previewEvent(ctx, strings.TrimSpace(r.URL.Query().Get("url"))))
+}
+
+// previewEvent finds a Strava event's route: from what the calendar already
+// has, or from Strava with the connected account (a request or two, well
+// inside Strava's limit of 100 every 15 minutes).
+func (a *App) previewEvent(ctx context.Context, u string) stravaPreview {
+	m := eventIDRE.FindStringSubmatch(u)
+	switch {
+	case strings.HasPrefix(u, "https://strava.app.link/"):
+		return stravaPreview{Note: "Strava’s short share links can’t show the route here. Open the link, then copy the address from the browser."}
+	case !stravaLink(u) || m == nil:
+		return stravaPreview{Note: "That isn’t a Strava event link. It looks like https://www.strava.com/clubs/10197/group_events/1234."}
+	}
+	id := m[1]
+	title, routeID, known := a.store.knownEvent(id)
+	route := a.store.route(routeID)
+	stale := routeID != "" && (route == nil || (route.Map == "" && time.Since(route.Checked) > time.Hour))
+	var get func(string, any) error
+	if !known || stale {
+		g, err := a.stravaGetter(ctx)
+		if err != nil {
+			if known {
+				return stravaPreview{Title: title, Note: "Connect Strava on the Rides tab to see the route here."}
+			}
+			return stravaPreview{Note: "Connect Strava on the Rides tab to see the event’s route here."}
+		}
+		get = g
+	}
+	if !known {
+		ev, ok := a.readEvent(get, id)
+		if !ok {
+			return stravaPreview{Note: "Strava wouldn’t show that event. Check the link: it has to be one of the club’s events."}
+		}
+		title = cleanName(ev.Title)
+		if rid := ev.RouteID.String(); rid != "" && rid != "0" {
+			routeID, route = rid, a.store.route(rid)
+			stale = route == nil || (route.Map == "" && time.Since(route.Checked) > time.Hour)
+		}
+	}
+	p := stravaPreview{Title: title}
+	if routeID == "" {
+		p.Note = "This event doesn’t have a route on Strava."
+		return p
+	}
+	if stale {
+		r := a.readRoute(get, routeID)
+		route = &r
+	}
+	if route.Missing || route.Map == "" {
+		p.Note = "Strava won’t share this event’s route. It may be someone’s private route."
+		return p
+	}
+	p.Route, p.Stats, p.Map, p.URL = route.Name, route.Stats(), route.Map, route.URL()
+	return p
+}
+
+// readEvent reads one of the club's events from Strava. If Strava won't give
+// it by itself, it looks through the club's upcoming events.
+func (a *App) readEvent(get func(string, any) error, id string) (stravaEvent, bool) {
+	var ev stravaEvent
+	if err := get("/group_events/"+id, &ev); err == nil && ev.ID.String() == id {
+		return ev, true
+	}
+	var events []stravaEvent
+	if err := get("/clubs/"+a.cfg.StravaClubID+"/group_events?upcoming=true&per_page=200", &events); err == nil {
+		for _, e := range events {
+			if e.ID.String() == id {
+				return e, true
+			}
+		}
+	}
+	return stravaEvent{}, false
+}
+
+// knownEvent is what the calendar has from the hourly import about a Strava
+// event: its name and its route.
+func (s *Store) knownEvent(id string) (title, routeID string, ok bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	prefix := "strava:" + id + ":"
+	for _, r := range s.d.CalRides {
+		if strings.HasPrefix(r.External, prefix) && r.Strava != nil {
+			return r.Name, r.Strava.RouteID, true
+		}
+	}
+	return "", "", false
+}
+
+// route is a route the site has kept, or nil.
+func (s *Store) route(id string) *Route {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if r := s.d.Routes[id]; r != nil && id != "" {
+		c := *r
+		return &c
+	}
+	return nil
 }
 
 // readHistory reads every club event Strava still has, to count how often

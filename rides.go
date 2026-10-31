@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 )
 
 // The ride calendar shows every club ride: the weekly rides (set up by admins
@@ -37,6 +38,11 @@ type RideSeries struct {
 	// Empty means all year.
 	SeasonStart string `json:"season_start,omitempty"`
 	SeasonEnd   string `json:"season_end,omitempty"`
+	// Its first and last dates (2026-11-04), for one added from the Add a ride
+	// page with "Repeat every week". Empty means no limit.
+	Starts string `json:"starts,omitempty"`
+	Ends   string `json:"ends,omitempty"`
+	Kind   string `json:"kind,omitempty"` // like CalRide.Kind
 }
 
 // WeekdayName is the series' day, like Tuesday.
@@ -59,6 +65,9 @@ func (s RideSeries) SeasonLabel() string {
 
 func (s RideSeries) runsOn(d time.Time) bool {
 	if int(d.Weekday()) != s.Weekday {
+		return false
+	}
+	if day := d.Format("2006-01-02"); (s.Starts != "" && day < s.Starts) || (s.Ends != "" && day > s.Ends) {
 		return false
 	}
 	if s.SeasonStart == "" || s.SeasonEnd == "" {
@@ -84,16 +93,19 @@ type Leader struct {
 // CalRide is a ride on one date: a one-off ride, or one date of a weekly ride
 // once something about that date has changed (a leader, a Strava link).
 type CalRide struct {
-	ID        int       `json:"id"`
-	SeriesID  int       `json:"series_id,omitempty"`
-	Date      string    `json:"date"`
-	Time      string    `json:"time,omitempty"`
-	Name      string    `json:"name"`
-	Place     string    `json:"place,omitempty"`
-	Details   string    `json:"details,omitempty"`
-	StravaURL string    `json:"strava_url,omitempty"`
-	Groups    []string  `json:"groups,omitempty"`
-	Level     string    `json:"level,omitempty"` // like RideSeries.Level
+	ID        int      `json:"id"`
+	SeriesID  int      `json:"series_id,omitempty"`
+	Date      string   `json:"date"`
+	Time      string   `json:"time,omitempty"`
+	Name      string   `json:"name"`
+	Place     string   `json:"place,omitempty"`
+	Details   string   `json:"details,omitempty"`
+	StravaURL string   `json:"strava_url,omitempty"`
+	Groups    []string `json:"groups,omitempty"`
+	Level     string   `json:"level,omitempty"` // like RideSeries.Level
+	// Kind is what it is when it isn't a ride: a clinic, a club meeting, and so
+	// on (see eventKinds). Empty means a group ride.
+	Kind      string    `json:"kind,omitempty"`
 	Leaders   []Leader  `json:"leaders,omitempty"`
 	External  string    `json:"external,omitempty"` // "strava:<event>:<date>", or an ID sent through the calendar API
 	Cancelled bool      `json:"cancelled,omitempty"`
@@ -120,6 +132,88 @@ func (o RideOcc) TimeLabel() string { return timeLabel(o.Time) }
 type Slot struct {
 	Group  string // empty for a ride without pace groups
 	Leader *Leader
+}
+
+// The calendar also has things that aren't rides: clinics, club meetings,
+// socials. They have no pace groups or level, and nobody signs up to lead
+// them; an admin can name who's hosting.
+type eventKind struct{ Key, Name, Host string }
+
+var eventKinds = []eventKind{
+	{"", "Group ride", "Leader"},
+	{"clinic", "Clinic or skills session", "Instructor"},
+	{"meeting", "Club meeting", "Host"},
+	{"social", "Social", "Host"},
+	{"other", "Other event", "Host"},
+}
+
+// kindFor reads the admin's "What is it?" choice.
+func kindFor(choice string) string {
+	for _, k := range eventKinds {
+		if k.Key == choice {
+			return choice
+		}
+	}
+	return ""
+}
+
+func (c CalRide) IsRide() bool { return c.Kind == "" }
+
+func (c CalRide) kind() eventKind {
+	for _, k := range eventKinds {
+		if k.Key == c.Kind {
+			return k
+		}
+	}
+	return eventKinds[0]
+}
+
+// KindName is what it is, like "Club meeting".
+func (c CalRide) KindName() string { return c.kind().Name }
+
+// HostLabel names the person running it: Leader, Instructor, or Host.
+func (c CalRide) HostLabel() string { return c.kind().Host }
+
+// cleanText tidies a description: plain text that keeps its line breaks, at
+// most 1,000 characters.
+func cleanText(s string) string {
+	var lines []string
+	blank := false
+	for _, l := range strings.Split(strings.ReplaceAll(s, "\r\n", "\n"), "\n") {
+		l = strings.Join(strings.Fields(strings.Map(func(r rune) rune {
+			if unicode.IsControl(r) {
+				return ' '
+			}
+			return r
+		}, l)), " ")
+		if l == "" { // at most one empty line in a row
+			if blank || len(lines) == 0 {
+				continue
+			}
+			blank = true
+		} else {
+			blank = false
+		}
+		lines = append(lines, l)
+	}
+	s = strings.TrimSpace(strings.Join(lines, "\n"))
+	if r := []rune(s); len(r) > 1000 {
+		s = string(r[:1000])
+	}
+	return s
+}
+
+// firstLine is the start of a description, for lists with no room for all of
+// it: its first line, at most 120 characters.
+func firstLine(s string) string {
+	line, rest, _ := strings.Cut(s, "\n")
+	if r := []rune(line); len(r) > 120 {
+		return strings.TrimSpace(string(r[:119])) + "…"
+	}
+	if strings.TrimSpace(rest) != "" {
+		return line + " …"
+	}
+	return line
 }
 
 // The club rides in up to three pace groups. Admins and riders pick how many
@@ -256,6 +350,8 @@ func (o RideOcc) Status() string {
 	switch {
 	case o.Cancelled:
 		return "cancelled"
+	case !o.IsRide():
+		return "event"
 	case led == len(o.groupNames()):
 		return "led"
 	case led > 0:
@@ -268,6 +364,12 @@ func (o RideOcc) Status() string {
 func (o RideOcc) LeaderSummary() string {
 	if o.Cancelled {
 		return "Cancelled"
+	}
+	if !o.IsRide() {
+		if l := o.leaderFor(""); l != nil {
+			return o.KindName() + " · " + l.Name
+		}
+		return o.KindName()
 	}
 	var names []string
 	missing := 0
@@ -368,7 +470,7 @@ func (s *Store) Rides(from, to time.Time) []RideOcc {
 			date := d.Format("2006-01-02")
 			if key := seriesKey(se.ID, date); !stored[key] {
 				out = append(out, RideOcc{Key: key, CalRide: CalRide{SeriesID: se.ID, Date: date, Time: se.Time,
-					Name: se.Name, Place: se.Place, Details: se.Details, StravaURL: se.StravaURL, Groups: append([]string(nil), se.Groups...), Level: se.Level}})
+					Name: se.Name, Place: se.Place, Details: se.Details, StravaURL: se.StravaURL, Groups: append([]string(nil), se.Groups...), Level: se.Level, Kind: se.Kind}})
 			}
 		}
 	}
@@ -425,7 +527,7 @@ func (s *Store) ride(key string, create bool) (*CalRide, error) {
 		return nil, errNoRide
 	}
 	r := &CalRide{SeriesID: id, Date: date, Time: se.Time, Name: se.Name, Place: se.Place, Details: se.Details, StravaURL: se.StravaURL,
-		Groups: append([]string(nil), se.Groups...), Level: se.Level, Added: time.Now().UTC()}
+		Groups: append([]string(nil), se.Groups...), Level: se.Level, Kind: se.Kind, Added: time.Now().UTC()}
 	if create {
 		s.d.NextRide = max(s.d.NextRide, 1)
 		r.ID = s.d.NextRide
@@ -497,14 +599,15 @@ func (s *Store) AllSeries() []RideSeries {
 	return out
 }
 
-func (s *Store) AddSeries(se RideSeries) error {
+// AddSeries adds a weekly ride and returns its ID.
+func (s *Store) AddSeries(se RideSeries) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.d.NextSeries = max(s.d.NextSeries, 1)
 	se.ID = s.d.NextSeries
 	s.d.NextSeries++
 	s.d.Series = append(s.d.Series, &se)
-	return s.save()
+	return se.ID, s.save()
 }
 
 func (s *Store) Series(id int) (RideSeries, bool) {
@@ -549,6 +652,7 @@ func (s *Store) UpdateSeries(se RideSeries, from string) error {
 				follow(&r.Details, old.Details, se.Details)
 				follow(&r.StravaURL, old.StravaURL, se.StravaURL)
 				follow(&r.Level, old.Level, se.Level)
+				follow(&r.Kind, old.Kind, se.Kind)
 				if slices.Equal(r.Groups, old.Groups) {
 					r.Groups = append([]string(nil), se.Groups...)
 					r.fitLeaders()
