@@ -285,7 +285,7 @@ Export your contacts from Squarespace as a CSV, then use **Import from a spreads
 
 ## Backups
 
-The server copies the data file every night and keeps 30 days, and every Sunday it makes an archive of the uploaded photos and minutes files that it keeps for 8 weeks (all in `/opt/paxvelo/backups`). Copies on the server don't help if the server itself is lost, so a second job copies that folder to Google Drive every night at 3:30 am.
+The server copies the data file every night and keeps 30 days, and every Sunday it makes an archive of the uploaded photos and minutes files that it keeps for 8 weeks (all in `/opt/paxvelo/backups`). The admin portal's **Home** warns when the newest nightly copy there is more than two days old (`BACKUP_DIR` in paxvelo.conf, if the folder moves), and when the disk is getting full. Copies on the server don't help if the server itself is lost, so a second job copies that folder to Google Drive every night at 3:30 am.
 
 **Setting up the Google Drive copy** (once; `setup.sh` already installs the pieces):
 

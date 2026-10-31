@@ -225,15 +225,67 @@ initBlock(document);
 </div>
 {{template "foot" .}}{{end}}
 
-{{define "attention"}}{{template "head" .}}
-<div class="title-row"><h1>Needs attention</h1></div>
-{{with .Attention}}
+{{define "attention"}}{{template "head" .}}{{with .Dashboard}}
+{{if .SetupLogin}}<div class="setup-warn" role="alert">
+  <p><strong>You’re still using the setup password.</strong> It has the president’s powers and stops working as soon as any admin chooses a password. Add yourself on Admins, set your own password from the email, and log in with that.</p>
+  <a class="btn" href="/admin/admins">Go to Admins</a>
+</div>{{end}}
+<div class="title-row dash-title"><h1>Home</h1>
+  <nav class="quick" aria-label="Quick actions">
+    <a class="btn ghost" href="/admin/members#add">{{icon "plus"}}Add member</a>
+    <a class="btn ghost" href="/admin/members?dues=unpaid">{{icon "check"}}Mark paid</a>
+    <a class="btn ghost" href="/admin/email">{{icon "mail"}}Email members</a>
+    <a class="btn ghost" href="/admin/rides/new">{{icon "plus"}}Add a ride</a>
+  </nav>
+</div>
+{{if .Intro}}<section class="card intro">
+  <h2>Welcome to the admin portal</h2>
+  <p>New here? <strong>How the site works</strong> walks through what happens when someone joins, every email the site sends, where the rides come from, and how photos and the club PIN work. It takes about five minutes.</p>
+  <div class="intro-acts"><a class="btn" href="/admin/guide">How the site works</a>
+  <form method="post" action="/admin/intro"><button class="ghost">Got it</button></form></div>
+</section>{{end}}
+
+<h2 class="glance-h">Needs attention</h2>
 {{if .Items}}<ul class="todo">{{range .Items}}<li><span>{{.Text}}</span><a class="btn ghost" href="{{.Href}}">{{.Link}}</a></li>{{end}}</ul>
 {{else}}<p class="all-clear">{{icon "check"}}Nothing needs you right now.</p>{{end}}
-<h2 class="glance-h">At a glance</h2>
-<ul class="glance">
-  <li><a href="/admin/members?dues=unpaid">{{.Unpaid}} of {{.Active}} members haven’t paid {{$.Year}} dues</a></li>
-</ul>
+{{with .Nudges}}<h2 class="glance-h">Security</h2>
+<ul class="todo nudge">{{range .}}<li><span>{{.Text}}</span><a class="btn ghost" href="{{.Href}}">{{.Link}}</a></li>{{end}}</ul>{{end}}
+
+<div class="dash">
+{{with .Members}}<section class="card dash-card">
+  <div class="dash-head"><h2>Members</h2><a href="/admin/members">All members</a></div>
+  <dl class="nums">
+    <div><dt>Active</dt><dd>{{.Active}}</dd></div>
+    <div><dt>Paid for {{$.Year}}</dt><dd>{{.Paid}}</dd></div>
+    <div><dt><a href="/admin/members?dues=unpaid">Not paid</a></dt><dd><a href="/admin/members?dues=unpaid">{{.Unpaid}}</a></dd></div>
+    <div><dt>Joined in 30 days</dt><dd>{{.New}}</dd></div>
+  </dl>
+  <div class="plans">
+    <p><span>Individual plans</span><strong>{{.Individual}}</strong><span class="muted small">{{.PaidIndividual}} paid</span></p>
+    <p><span>Family plans</span><strong>{{.Family}}</strong><span class="muted small">{{.PaidFamily}} paid</span></p>
+    <p class="muted small">{{$.Year}} memberships paid so far come to ${{.Dues}} at today’s dues.</p>
+  </div>
+  <h3>Signed up, not marked paid yet</h3>
+  {{if .Signups}}<ul class="signups">{{range .Signups}}<li>
+    <span><strong>{{.Name}}</strong><br><span class="muted small">{{.PlanName}} · joined {{date .Joined}}</span></span>
+    <form method="post" action="/admin/members/{{.ID}}/paid"><input type="hidden" name="paid" value="1"><input type="hidden" name="return" value="/admin"><button class="mini">{{icon "check"}}Mark paid</button></form>
+  </li>{{end}}</ul>
+  {{with .MoreSignups}}<p class="small"><a href="/admin/members?dues=unpaid">{{.}} more on the unpaid list</a></p>{{end}}
+  <p class="muted small">Mark them paid when PayPal emails the club. That sends their welcome email.</p>
+  {{else}}<p class="muted small">Nobody: everyone who joined on the website lately has been marked paid.</p>{{end}}
+</section>{{end}}
+
+<section class="card dash-card">
+  <div class="dash-head"><h2>Rides this week</h2><a href="/admin/calendar">Calendar</a></div>
+  {{if .Rides}}<ul class="week">{{range .Rides}}<li>
+    <span class="when">{{.ShortDate}}{{with .TimeLabel}}<br><span class="muted small">{{.}}</span>{{end}}</span>
+    <span><a href="/admin/rides/{{.Key}}"><strong>{{.Name}}</strong></a><br>
+      <span class="lead {{.Status}}">{{.LeaderSummary}}</span> <span class="muted small">· {{.GoingLabel}}</span></span>
+  </li>{{end}}</ul>
+  {{else}}<p class="muted">No rides on the calendar in the next seven days.</p>{{end}}
+  {{with .Off}}<p class="small cancelled"><strong>Cancelled:</strong> {{range $i, $o := .}}{{if $i}}; {{end}}<a href="/admin/rides/{{$o.Key}}">{{$o.Name}}</a>, {{$o.ShortDate}}{{end}}</p>{{end}}
+</section>
+</div>
 {{end}}
 {{template "foot" .}}{{end}}
 
@@ -346,7 +398,7 @@ initBlock(document);
 </table></div>
 <p class="muted small">Admins get an email when someone joins on the website. When PayPal emails the club about their payment, find them here and press <strong>Mark paid</strong>: the first time, that sends their welcome email. Everyone shows as not paid again on January 1. {{if not .CanManage}}Only the president can delete members. {{end}}Members who joined before the phone and emergency contact fields existed show a dash: if they fill in the join form again with the same email, their details are added.</p>
 <div class="grid2">
-  <form class="card" method="post" action="/admin/members">
+  <form class="card" id="add" method="post" action="/admin/members">
     <h2>Add a member</h2>
     <label>Full name <input name="name" required maxlength="100"></label>
     <label>Email <input type="email" name="email" required maxlength="254"></label>

@@ -19,7 +19,7 @@ type adminGroup struct {
 }
 
 var adminGroups = []adminGroup{
-	{"Home", "/admin", []adminSection{{"attention", "Needs attention", "/admin"}, {"guide", "How the site works", "/admin/guide"}}},
+	{"Home", "/admin", []adminSection{{"attention", "Overview", "/admin"}, {"guide", "How the site works", "/admin/guide"}}},
 	{"Members", "/admin/members", []adminSection{{"members", "Members", "/admin/members"}, {"waivers", "Waivers", "/admin/waivers"}}},
 	{"Email", "/admin/email", []adminSection{{"email", "Email members", "/admin/email"}, {"newsletter", "Newsletter", "/admin/newsletter"}, {"submitted", "Sent-in photos", "/admin/submitted"}}},
 	{"Rides", "/admin/calendar", []adminSection{{"calendar", "Calendar", "/admin/calendar"}, {"rides", "Weekly rides", "/admin/rides"}, {"history", "History", "/admin/history"}}},
@@ -89,6 +89,7 @@ type guideView struct {
 // flow, every email it sends, and where rides come from. Its text lives in
 // the "guide" template, so change it there when the site changes.
 func (a *App) guidePage(w http.ResponseWriter, r *http.Request) {
+	a.seenGuide(r) // and Home stops pointing them here
 	g := guideView{DuesIndividual: a.cfg.DuesIndividual, DuesFamily: a.cfg.DuesFamily, RidesEmail: a.cfg.RidesEmail}
 	a.renderAdmin(w, r, http.StatusOK, "guide", adminView{Title: "How the site works", Tab: "guide", Guide: &g})
 }
@@ -191,27 +192,4 @@ func (a *App) attention() []attentionItem {
 		}
 	}
 	return out
-}
-
-type attentionView struct {
-	Items  []attentionItem
-	Unpaid int // active members who haven't paid this year's dues
-	Active int
-}
-
-func (a *App) attentionPage(w http.ResponseWriter, r *http.Request) {
-	items := a.attention()
-	d := attentionView{Items: items}
-	year := a.cfg.ThisYear()
-	for _, m := range a.store.Members() {
-		if m.Active() {
-			d.Active++
-			if !m.PaidFor(year) {
-				d.Unpaid++
-			}
-		}
-	}
-	v := adminView{Title: "Needs attention", Tab: "attention", Year: year, Attention: &d}
-	v.Flash, v.Error = flashFrom(r)
-	a.renderAdmin(w, r, http.StatusOK, "attention", v)
 }

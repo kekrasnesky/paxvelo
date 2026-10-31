@@ -201,6 +201,7 @@ func (a *App) routes() http.Handler {
 	mux.Handle("POST /admin/security", a.auth(a.securityAction))
 	mux.Handle("GET /admin", a.auth(a.attentionPage))
 	mux.Handle("GET /admin/guide", a.auth(a.guidePage))
+	mux.Handle("POST /admin/intro", a.auth(a.dismissIntro))
 	mux.Handle("GET /admin/members", a.auth(a.membersPage))
 	mux.Handle("GET /admin/stats", a.auth(a.statsAdmin))
 	mux.Handle("GET /admin/", http.RedirectHandler("/admin", http.StatusSeeOther))
