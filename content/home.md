@@ -21,7 +21,7 @@ PaxVelo is a 501(c)(3) nonprofit cycling club. We’re here for great roads, goo
 
 ![PaxVelo riders in club kit gathering for a group ride](photos/ride.webp)
 
-From race-pace training to easy weekend spins, there’s a PaxVelo ride for every rider. We roll out on Southern Maryland’s beautiful roads all season long, and every ride is posted on Strava.
+PaxVelo riders come from all backgrounds and every experience level, and there’s a ride here for every one of them. Southern Maryland has endless roads to explore, lots of them with wide shoulders, and the loop at Pax River NAS is the safest place to ride in the area. Grab your bike and come ride with us!
 
 [About our rides](rides.md) [Find a ride on Strava]({strava})
 
