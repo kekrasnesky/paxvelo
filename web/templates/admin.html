@@ -163,8 +163,6 @@ initBlock(document);
       <p class="muted small">Each admin logs in with their email and own password. Add, reset or remove them on <a href="/admin/admins">Admins</a>.</p></details></li>
     <li><details><summary><span>Setup password</span><span class="sec-on">On</span></summary>
       <p class="muted small"><code>ADMIN_PASSWORD</code> in paxvelo.conf logs in as any admin: the emergency key for whoever runs the server. Change it there if it might be known.</p></details></li>
-    <li><details><summary><span>Sign in with Strava</span><span class="sec-on{{if not .StravaReady}} off{{end}}">{{if .StravaReady}}On{{else}}Off{{end}}</span></summary>
-      <p class="muted small">Riders in the PaxVelo club on Strava sign in on the calendar. Their rides skip approval, and the club’s Strava admins can change leaders and cancel rides.</p></details></li>
     <li><details><summary><span>Calendar API key</span><span class="sec-on{{if not .APIOn}} off{{end}}">{{if .APIOn}}On{{else}}Off{{end}}</span></summary>
       <p class="muted small"><code>CALENDAR_API_KEY</code> in paxvelo.conf lets another program change rides. Anyone can read the calendar without it.</p></details></li>
     <li><details><summary><span>Members’ own links</span><span class="sec-on">On</span></summary>
@@ -1041,7 +1039,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   <h1>Rides</h1>
   <p class="muted">Everything here shows on the public <a href="/calendar" target="_blank" rel="noopener">ride calendar</a>.</p>
 </div>
-{{if not .StravaReady}}<p class="flash warn">The Strava settings aren’t in paxvelo.conf yet, so the club’s Strava events aren’t imported and club admins can’t sign in with Strava on the calendar. Riders can still sign up to lead by typing their name. README.md, “Ride calendar”, explains the setup.</p>{{end}}
+{{if not .StravaReady}}<p class="flash warn">The Strava settings aren’t in paxvelo.conf yet, so the club’s Strava events aren’t imported. Rides added here or on the calendar still work. README.md, “Ride calendar”, explains the setup.</p>{{end}}
 
 <h2 class="section">Coming up</h2>
 <p class="muted small">The next 60 days. Press <strong>Edit</strong> to change a ride’s leaders, details, or pace groups, or to cancel it. The <a href="/admin/calendar">Calendar tab</a> shows every month.</p>
@@ -1099,9 +1097,6 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
 {{end}}
 <p class="muted small">Scripts can also add rides through the calendar API{{if not .APIEnabled}} (turned off until CALENDAR_API_KEY is set){{end}}. README.md, “Calendar API”, has examples.</p>
 
-<h2 class="section">Club admins on Strava</h2>
-<p class="muted small">Club admins on Strava can post club events, and on the calendar they can take over or cancel any ride. This list updates whenever someone signs in with Strava.{{with .StravaAdminsChecked}} Last checked {{datetime .}}.{{end}}</p>
-{{if .StravaAdmins}}<ul class="small">{{range .StravaAdmins}}<li>{{.}}</li>{{end}}</ul>{{else}}<p class="muted small">Not checked yet.</p>{{end}}
 {{template "foot" .}}{{end}}
 
 {{define "history"}}{{template "head" .}}{{$h := .History}}
@@ -1189,7 +1184,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
 </div>
 {{if .Held}}<div class="card">
   <h2>Waiting for approval</h2>
-  <p class="muted small">Added on the website by someone who didn’t sign in with Strava. They aren’t on the public calendar until you approve them.</p>
+  <p class="muted small">Added on the website without the club PIN. They aren’t on the public calendar until you approve them.</p>
   <ul class="plain">{{range .Held}}<li><strong>{{.Name}}</strong>, {{.DateLabel}}{{if .Time}} at {{.TimeLabel}}{{end}}{{if .Place}}, {{.Place}}{{end}}{{if .AddedBy}} <span class="muted">(added by {{.AddedBy}})</span>{{end}}
     <form method="post" action="/admin/rides/{{.Key}}/approve" class="inline"><button class="mini">{{icon "check"}}Approve</button></form>
     <a class="btn mini ghost" href="/admin/rides/{{.Key}}">Open</a>
@@ -1625,7 +1620,7 @@ var t=document.getElementById('page-text'),p=t.selectionStart;t.value=t.value.sl
 <h2 class="section" id="g-rides">Where the rides come from</h2>
 <figure class="board">
       <div class="surface">
-        <svg viewBox="0 0 960 400" role="img" aria-label="Rides reach the calendar three ways: Strava club events imported hourly, weekly Tuesday and Thursday rides set up by admins, and rides riders add on the website, which wait for approval unless the rider signed in with Strava or typed the club PIN. The calendar feeds the calendar page, the newsletter and the Club Routes page.">
+        <svg viewBox="0 0 960 400" role="img" aria-label="Rides reach the calendar three ways: Strava club events imported hourly, weekly Tuesday and Thursday rides set up by admins, and rides riders add on the website, which wait for approval unless the rider typed the club PIN. The calendar feeds the calendar page, the newsletter and the Club Routes page.">
           <defs>
             <filter id="wC" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="2" seed="2"/><feDisplacementMap in="SourceGraphic" scale="2.6"/></filter>
             <marker id="hC" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M1,1 L9,5 L1,9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></marker>
@@ -1660,8 +1655,7 @@ var t=document.getElementById('page-text'),p=t.selectionStart;t.value=t.value.sl
           <text class="t s mt" x="140" y="196" text-anchor="middle">set up by admins</text>
           <text class="t" x="140" y="316" text-anchor="middle">A rider adds a ride</text>
           <text class="t s mt" x="140" y="336" text-anchor="middle">on the website</text>
-          <text class="t s" x="400" y="317" text-anchor="middle">Strava or</text>
-          <text class="t s" x="400" y="334" text-anchor="middle">club PIN?</text>
+          <text class="t s" x="400" y="325" text-anchor="middle">club PIN?</text>
           <text class="t s mt" x="420" y="52" text-anchor="middle">imported every hour</text>
           <text class="t s mt" x="397" y="172" text-anchor="middle">each week, in season</text>
           <text class="t s mt" x="408" y="255">yes</text>
@@ -1681,7 +1675,7 @@ var t=document.getElementById('page-text'),p=t.selectionStart;t.value=t.value.sl
           <text class="t s mt" x="870" y="336" text-anchor="middle">“ride waiting”</text>
         </svg>
       </div>
-      <figcaption>Strava is where riders RSVP. The website is where rides get leaders. Three things feed the one calendar, and everything public reads from it: the calendar page, the newsletter's rides block, and Club Routes. Taking, changing or giving up a leader spot also emails the club inbox. A rider who isn't signed in with Strava skips the wait by typing the club PIN.</figcaption>
+      <figcaption>Strava is where riders RSVP. The website is where rides get leaders. Three things feed the one calendar, and everything public reads from it: the calendar page, the newsletter's rides block, and Club Routes. Taking, changing or giving up a leader spot also emails the club inbox. A rider skips the wait by typing the club PIN.</figcaption>
     </figure>
 
 <h2 class="section" id="g-photos">Photos</h2>
@@ -1696,7 +1690,7 @@ var t=document.getElementById('page-text'),p=t.selectionStart;t.value=t.value.sl
     <li>Each photo is kept in three sizes, so phones load small files and big screens sharp ones.</li></ul></div>
   <div class="card"><h3>The club PIN</h3><ul>
     <li>Set it on <a href="/admin/security">Security → Club PIN &amp; access</a> (the gear in the corner) and share it with members, in the newsletter or a club email. When it’s empty it’s off.</li>
-    <li>It lets members post photos and add rides without waiting for an admin. Ten tries an hour, so it can’t be guessed.</li>
+    <li>It lets members post photos and add rides without waiting for an admin, and lets ride leaders step down or cancel. Ten tries an hour, so it can’t be guessed.</li>
     <li>If it gets around, change it there and tell members the new one.</li></ul></div>
 </div>
 
@@ -1718,8 +1712,9 @@ var t=document.getElementById('page-text'),p=t.selectionStart;t.value=t.value.sl
     <li>Every member email has an unsubscribe link.</li>
     <li>With the club PIN, their photos and the rides they add go up right away.</li></ul></div>
   <div class="card"><h3>Riders and ride leaders</h3><ul>
-    <li>Open a ride, type a name, press <b>I’ll lead</b>. The club inbox is told. Leaders can step down themselves.</li>
-    <li>Anyone can add a ride. It waits for approval on the <a href="/admin/calendar">Calendar</a> tab unless they signed in with Strava or typed the club PIN.</li></ul></div>
+    <li>Open a ride, type a name, press <b>I’ll lead</b>. The club inbox is told. No account, no Strava sign-in.</li>
+    <li>With their name and the club PIN, leaders step down, add the Strava event link, or cancel their ride under <b>Leading this ride?</b>.</li>
+    <li>Anyone can add a ride. It waits for approval on the <a href="/admin/calendar">Calendar</a> tab unless they typed the club PIN.</li></ul></div>
   <div class="card"><h3>Treasurer</h3><ol>
     <li>A “New member” email arrives, then PayPal’s receipt.</li>
     <li>Open the link in the first email and press <b>Mark paid</b>. The first time, that sends their welcome email.</li>

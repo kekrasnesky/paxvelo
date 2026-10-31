@@ -236,7 +236,7 @@ func (a *App) stravaConnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ts := strconv.FormatInt(time.Now().Unix(), 10)
-	state := ts + "." + sign(a.riderKey(), "import|"+ts)
+	state := ts + "." + sign(a.stravaKey(), "import|"+ts)
 	q := url.Values{
 		"client_id": {a.cfg.StravaClientID}, "response_type": {"code"}, "approval_prompt": {"force"},
 		"redirect_uri": {a.cfg.SiteURL + "/admin/strava/callback"}, "scope": {"read"}, "state": {state},
@@ -248,7 +248,7 @@ func (a *App) stravaConnectCallback(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	ts, sig, _ := strings.Cut(q.Get("state"), ".")
 	n, err := strconv.ParseInt(ts, 10, 64)
-	if err != nil || !hmac.Equal([]byte(sig), []byte(sign(a.riderKey(), "import|"+ts))) || time.Since(time.Unix(n, 0)) > 15*time.Minute {
+	if err != nil || !hmac.Equal([]byte(sig), []byte(sign(a.stravaKey(), "import|"+ts))) || time.Since(time.Unix(n, 0)) > 15*time.Minute {
 		back(w, r, "/admin/rides?err=connect")
 		return
 	}

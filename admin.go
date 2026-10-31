@@ -89,17 +89,15 @@ type adminView struct {
 	HomePhotos    []HomePhoto
 	MaxHomePhotos int
 	// Rides tab
-	Series              []RideSeries
-	Upcoming            []RideOcc
-	Weekdays            []monthOption
-	Held                []RideOcc // rides added on the website, waiting for approval
-	StravaReady         bool
-	StravaAdmins        []string
-	StravaAdminsChecked *time.Time
-	StravaLink          *StravaLink
-	APIEnabled          bool
-	SeriesForm          seriesForm
-	History             *historyView // the ride history page
+	Series      []RideSeries
+	Upcoming    []RideOcc
+	Weekdays    []monthOption
+	Held        []RideOcc // rides added on the website, waiting for approval
+	StravaReady bool
+	StravaLink  *StravaLink
+	APIEnabled  bool
+	SeriesForm  seriesForm
+	History     *historyView // the ride history page
 	// Calendar tab and ride pages
 	Month    calMonth
 	RideForm rideForm

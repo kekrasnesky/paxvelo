@@ -110,10 +110,11 @@
     d.addEventListener('keydown',function(e){if(e.key==='Escape')closePop()});
   }
 
-  // Forms that ask first (take over, step down, cancel a ride): the question
-  // is in data-confirm, since the page's security policy won't run onsubmit=""
+  // Forms that ask first (step down, cancel a ride): the question is in
+  // data-confirm, on the form or the button pressed, since the page's
+  // security policy won't run onsubmit=""
   d.addEventListener('submit',function(e){
-    var q=e.target.getAttribute('data-confirm');
+    var q=(e.submitter&&e.submitter.getAttribute('data-confirm'))||e.target.getAttribute('data-confirm');
     if(q&&!confirm(q))e.preventDefault();
   });
 

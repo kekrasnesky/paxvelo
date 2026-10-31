@@ -9,7 +9,7 @@
   {{if $r.Cancelled}}<p class="cal-note">This ride is cancelled.</p>{{end}}
 
   {{with $r.NotesFor $d.Member}}<p class="ride-notes">{{.}}</p>
-  {{else}}{{if $r.HiddenNotes $d.Member}}<p class="muted-note">The ride notes are for club members.{{if $d.StravaReady}} <a href="/strava/login?next=/calendar/ride/{{$r.Key}}">Sign in with Strava</a> to see them here, or read them on the event.{{else}} Read them on the Strava event.{{end}}</p>{{end}}{{end}}
+  {{else}}{{if $r.HiddenNotes $d.Member}}<p class="muted-note">The ride notes are for club members. Read them on the Strava event.</p>{{end}}{{end}}
 
   <dl class="facts">
     {{with $r.PlaceFor $d.Member}}<div><dt>Start</dt><dd>{{.}}{{with $r.DirectionsFor $d.Member}} · <a href="{{.}}" target="_blank" rel="noopener">Directions</a>{{end}}</dd></div>
@@ -29,34 +29,38 @@
       {{range .Spots}}<li class="spot {{if .Leader}}led{{else}}open{{end}}">
         <div class="spot-who">
           {{with .Group}}<span class="spot-group">{{.}}</span>{{end}}
-          <strong>{{with .Leader}}{{.Name}}{{if $d.Rider}}{{if eq .StravaID $d.Rider.ID}} (you){{end}}{{end}}{{else}}Needs a leader{{end}}</strong>
+          <strong>{{with .Leader}}{{.Name}}{{else}}Needs a leader{{end}}</strong>
         </div>
         <div class="spot-act">
           {{if .CanLead}}<form class="lead-form" method="post" action="/calendar/ride/{{$r.Key}}/lead">
             <input type="hidden" name="ft" value="{{$d.Token}}"><input type="hidden" name="group" value="{{.Group}}">
             <span class="hp" aria-hidden="true"><input name="website" tabindex="-1" autocomplete="off"></span>
-            {{if not $d.Rider}}<input name="leader_name" required maxlength="60" autocomplete="name" placeholder="Your name" aria-label="Your name{{with .Group}}, to lead {{.}}{{end}}">{{end}}
+            <input name="leader_name" required maxlength="60" autocomplete="name" placeholder="Your name" aria-label="Your name{{with .Group}}, to lead {{.}}{{end}}">
             <button class="btn">I’ll lead{{if .Group}} this group{{else}} this ride{{end}}</button>
           </form>{{end}}
-          {{if .CanTakeOver}}<form method="post" action="/calendar/ride/{{$r.Key}}/lead" data-confirm="Take over from {{.Leader.Name}}?"><input type="hidden" name="ft" value="{{$d.Token}}"><input type="hidden" name="group" value="{{.Group}}"><button class="btn btn-quiet">Take over</button></form>{{end}}
-          {{if .CanStepDown}}<form method="post" action="/calendar/ride/{{$r.Key}}/stepdown" data-confirm="{{if .Mine}}Step down? Someone else will need to lead.{{else}}Remove {{.Leader.Name}} as the leader?{{end}}"><input type="hidden" name="group" value="{{.Group}}"><button class="btn btn-quiet">{{if .Mine}}Step down{{else}}Remove{{end}}</button></form>{{end}}
         </div>
       </li>{{end}}
     </ul>
-    {{if and .StravaReady (not .Rider) (not .Past)}}<p class="muted-note">Club admin? <a href="/strava/login?next=/calendar/ride/{{$r.Key}}">Sign in with Strava</a> to change leaders or cancel the ride.</p>{{end}}
     {{if .Past}}<p class="cal-note">This ride has already happened.</p>{{end}}
 
-    {{if .CanEdit}}
-    {{if and .Leading (not .Rider.Admin)}}<p class="muted-note">To post this ride as a club event on Strava you need to be a club admin there. We’ve let the club admins know, so they can add you or post it for you. Once it’s on Strava, paste the link below.</p>
-    {{else if .Leading}}<p class="muted-note">Post it on Strava as a club event, then paste the link below so riders can find it.</p>{{end}}
-    <form class="cal-strava-form" method="post" action="/calendar/ride/{{$r.Key}}/strava">
-      <label>Strava event link <input type="url" name="strava_url" value="{{$r.StravaURL}}" placeholder="https://www.strava.com/clubs/10197/group_events/…"></label>
-      <button class="btn btn-quiet">{{icon "save"}}Save link</button>
-    </form>
-    {{end}}
-    {{if and .Rider .Rider.Admin (not .Past)}}
-    <form method="post" action="/calendar/ride/{{$r.Key}}/cancel" {{if not $r.Cancelled}}data-confirm="Cancel {{$r.Name}} on {{$r.DateLabel}}? The club gets an email."{{end}}><input type="hidden" name="cancel" value="{{if $r.Cancelled}}0{{else}}1{{end}}"><button class="link-button">{{if $r.Cancelled}}{{icon "undo"}}Put it back on the calendar{{else}}{{icon "ban"}}Cancel this ride{{end}}</button></form>
-    {{end}}
+    {{if .CanManage}}<details class="ride-manage">
+      <summary>Leading this ride?</summary>
+      {{if .PINOn}}<p class="muted-note">Type the name you signed up with and the club PIN, then step down, add the Strava event link, or {{if $r.Cancelled}}put it back on the calendar{{else}}cancel the ride{{end}}. The club gets an email.</p>
+      <form class="ride-manage-form" method="post" action="/calendar/ride/{{$r.Key}}/stepdown">
+        <div class="pair">
+          <label>Your name <input name="leader_name" required maxlength="60" autocomplete="name"></label>
+          <label>Club PIN <input name="pin" required maxlength="40" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+        </div>
+        <label><span>Strava event link <span class="opt">to add or change it</span></span> <input type="url" name="strava_url" value="{{$r.StravaURL}}" placeholder="https://www.strava.com/clubs/10197/group_events/…"></label>
+        <input type="hidden" name="cancel" value="{{if $r.Cancelled}}0{{else}}1{{end}}">
+        <div class="ride-manage-acts">
+          <button class="btn btn-quiet" formaction="/calendar/ride/{{$r.Key}}/strava">{{icon "save"}}Save link</button>
+          {{if not $r.Cancelled}}<button class="btn btn-quiet" data-confirm="Step down? Someone else will need to lead.">Step down</button>{{end}}
+          <button class="link-button" formaction="/calendar/ride/{{$r.Key}}/cancel"{{if not $r.Cancelled}} data-confirm="Cancel {{$r.Name}} on {{$r.DateLabel}}? The club gets an email."{{end}}>{{if $r.Cancelled}}{{icon "undo"}}Put it back on the calendar{{else}}{{icon "ban"}}Cancel this ride{{end}}</button>
+        </div>
+      </form>
+      {{else}}<p class="muted-note">To step down, cancel, or add the Strava link, ask a club admin.</p>{{end}}
+    </details>{{end}}
   </section>
 </article>
 {{end}}{{end}}

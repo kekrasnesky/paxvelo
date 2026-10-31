@@ -12,12 +12,11 @@ import (
 )
 
 // The ride calendar shows every club ride: the weekly rides (set up by admins
-// on the Rides tab) and one-off rides anyone signed in can add. A ride can be
-// split into pace groups (like A and B), each with its own leader; a ride
-// without groups has one leader. A spot with no leader can be taken by anyone
-// signed in with Strava; once it has one, only that leader (stepping down) or
-// an admin can change it. Admins here are the club's admins on Strava, plus anyone using
-// the admin portal.
+// on the Rides tab), the club's Strava events, and one-off rides anyone can
+// add. A ride can be split into pace groups (like A and B), each with its own
+// leader; a ride without groups has one leader. A spot with no leader can be
+// taken by anyone who types their name; once it has one, only that leader
+// (stepping down, with the club PIN) or an admin can change it.
 
 // RideSeries is a weekly ride, like the Tuesday Night Ride.
 type RideSeries struct {
@@ -236,10 +235,10 @@ func (c *CalRide) setLeader(group string, l *Leader) {
 	c.Leaders = kept
 }
 
-// groupOf finds the group a rider leads on this ride.
-func (c CalRide) groupOf(rd Rider) (string, bool) {
+// groupOf finds the group someone leads on this ride, by name.
+func (c CalRide) groupOf(name string) (string, bool) {
 	for _, l := range c.Leaders {
-		if sameLeader(l, rd) {
+		if sameLeader(l, name) {
 			return l.Group, true
 		}
 	}
@@ -616,18 +615,4 @@ func (s *Store) DeleteSeries(id int) error {
 	}
 	s.d.CalRides = kept
 	return s.save()
-}
-
-func (s *Store) StravaAdmins() ([]string, *time.Time) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return append([]string(nil), s.d.StravaAdmins...), s.d.StravaAdminsChecked
-}
-
-func (s *Store) SetStravaAdmins(names []string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	now := time.Now().UTC()
-	s.d.StravaAdmins, s.d.StravaAdminsChecked = names, &now
-	s.saveOrLog()
 }

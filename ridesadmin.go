@@ -19,7 +19,6 @@ func (a *App) ridesAdmin(w http.ResponseWriter, r *http.Request) {
 	today := a.today()
 	v := adminView{Title: "Rides", Tab: "rides", Series: a.store.AllSeries(), Upcoming: a.store.Rides(today, today.AddDate(0, 0, 60)),
 		StravaReady: a.stravaReady(), Weekdays: weekdays}
-	v.StravaAdmins, v.StravaAdminsChecked = a.store.StravaAdmins()
 	if l, ok := a.store.StravaLink(); ok {
 		v.StravaLink = &l
 	}
@@ -79,7 +78,7 @@ func (a *App) rideFormFor(o RideOcc, isNew bool) rideForm {
 			case l.SetBy != "":
 				b.Note = "Set by " + l.SetBy
 			case l.StravaID != 0:
-				b.Note = "Signed up with Strava"
+				b.Note = "From the Strava event"
 			default:
 				b.Note = "Signed up on the calendar"
 			}

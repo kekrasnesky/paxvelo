@@ -1,6 +1,7 @@
 package main
 
 import (
+	"net/url"
 	"regexp"
 	"strings"
 	"testing"
@@ -14,11 +15,13 @@ var inlineHandlerRE = regexp.MustCompile(`\son[a-z]+="`)
 // blocks. Admin pages get the looser policy, and uploaded files none.
 func TestContentSecurityPolicy(t *testing.T) {
 	a, h, _ := rideApp(t)
-	ann, _ := signIn(t, h, "ann", "/calendar") // a club admin, who sees the ride page's cancel form
 	ride := "/calendar/ride/" + seriesKey(1, nextWeekday(a, time.Tuesday))
+	a.store.SetClubPIN("8356") // so the ride page has its leader's form
+	ct, body := form(url.Values{"leader_name": {"Jane Doe"}, "group": {"A group"}, "ft": {oldToken(a)}})
+	do(t, h, nil, "POST", ride+"/lead", ct, body)
 
 	for _, path := range []string{"/", "/calendar", ride, "/calendar/new", "/join", "/kit", "/newsletter", "/membership", "/gallery", "/share-photos", "/no-such-page"} {
-		w := do(t, h, ann, "GET", path, "", nil)
+		w := do(t, h, nil, "GET", path, "", nil)
 		page, csp := w.Body.Bytes(), w.Header().Get("Content-Security-Policy")
 		if !strings.Contains(csp, "script-src 'self' 'sha256-") || strings.Contains(csp, "unsafe-inline' https://www.instagram") {
 			t.Errorf("%s: not the public policy: %q", path, csp)
@@ -37,8 +40,8 @@ func TestContentSecurityPolicy(t *testing.T) {
 			t.Errorf("%s: has an inline event handler (%s…), which the policy blocks: use data-confirm or site.js", path, m)
 		}
 	}
-	if !strings.Contains(do(t, h, ann, "GET", ride, "", nil).Body.String(), `data-confirm="Cancel `) {
-		t.Error("the ride page should ask before an admin cancels the ride")
+	if !strings.Contains(do(t, h, nil, "GET", ride, "", nil).Body.String(), `data-confirm="Cancel `) {
+		t.Error("the ride page should ask before a leader cancels the ride")
 	}
 
 	if csp := do(t, h, nil, "GET", "/admin/login", "", nil).Header().Get("Content-Security-Policy"); csp != adminCSP {

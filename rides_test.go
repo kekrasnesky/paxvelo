@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -128,23 +127,6 @@ func rideApp(t *testing.T) (*App, http.Handler, *[]notice) {
 	return a, a.routes(), &sent
 }
 
-// signIn goes through "Sign in with Strava" and returns the rider cookie.
-func signIn(t *testing.T, h http.Handler, code, next string) (*http.Cookie, string) {
-	t.Helper()
-	w := do(t, h, nil, "GET", "/strava/login?next="+url.QueryEscape(next), "", nil)
-	u, err := url.Parse(w.Header().Get("Location"))
-	if err != nil || u.Query().Get("state") == "" {
-		t.Fatalf("login redirect: %q", w.Header().Get("Location"))
-	}
-	w = do(t, h, nil, "GET", "/strava/callback?code="+code+"&state="+url.QueryEscape(u.Query().Get("state")), "", nil)
-	for _, c := range w.Result().Cookies() {
-		if c.Name == riderCookie && c.Value != "" {
-			return c, w.Header().Get("Location")
-		}
-	}
-	return nil, w.Header().Get("Location")
-}
-
 // nextWeekday is the next date (after today) falling on a weekday.
 func nextWeekday(a *App, wd time.Weekday) string {
 	d := a.today().AddDate(0, 0, 1)
@@ -154,100 +136,106 @@ func nextWeekday(a *App, wd time.Weekday) string {
 	return d.Format("2006-01-02")
 }
 
+// Anyone takes an empty spot by typing their name. With their name and the
+// club PIN, a leader steps down, adds the Strava link, or cancels the ride;
+// nobody can change someone else's spot from the calendar.
 func TestRideLeaders(t *testing.T) {
 	a, h, sent := rideApp(t)
-	jane, next := signIn(t, h, "jane", "/calendar")
-	bob, _ := signIn(t, h, "bob", "/calendar")
-	ann, _ := signIn(t, h, "ann", "/calendar")
-	if jane == nil || bob == nil || ann == nil || next != "/calendar" {
-		t.Fatalf("sign in failed (next=%q)", next)
-	}
-	if rd, _ := a.rider(httptestReq(ann)); !rd.Admin || rd.Name != "Ann A." {
-		t.Errorf("Ann should be a club admin: %+v", rd)
-	}
-	if names, _ := a.store.StravaAdmins(); len(names) != 1 || names[0] != "Ann A." {
-		t.Errorf("club admins: %v", names)
-	}
-
-	// Not in the club on Strava: can't sign in.
-	if c, loc := signIn(t, h, "outsider", "/calendar"); c != nil || !strings.Contains(loc, "err=notmember") {
-		t.Errorf("outsider signed in: %v %q", c, loc)
-	}
-
-	// The weekly Tuesday ride has no leader, so anyone can take it.
+	a.store.SetClubPIN("8356")
 	key := seriesKey(1, nextWeekday(a, time.Tuesday))
 	groupA, groupB := "A group", "B group"
-	gA, gB := url.Values{"group": {groupA}}, url.Values{"group": {groupB}}
-	if w := do(t, h, nil, "GET", "/calendar/ride/"+key, "", nil); !strings.Contains(w.Body.String(), "Sign in with Strava") {
-		t.Errorf("signed-out ride page: %d", w.Code)
-	}
-	post := func(c *http.Cookie, path string, vals url.Values) string {
+	post := func(path string, vals url.Values) string {
 		v := url.Values{"ft": {oldToken(a)}}
 		for k, x := range vals {
 			v[k] = x
 		}
 		ct, body := form(v)
-		return do(t, h, c, "POST", path, ct, body).Header().Get("Location")
+		return do(t, h, nil, "POST", "/calendar/ride/"+key+path, ct, body).Header().Get("Location")
 	}
-	if loc := post(jane, "/calendar/ride/"+key+"/lead", gA); !strings.Contains(loc, "ok=led") {
+	lead := func(name, group string) string {
+		return post("/lead", url.Values{"leader_name": {name}, "group": {group}})
+	}
+	page := do(t, h, nil, "GET", "/calendar/ride/"+key, "", nil).Body.String()
+	if strings.Contains(page, "Sign in with Strava") || strings.Contains(page, "Leading this ride?") {
+		t.Error("no Strava sign-in, and nothing to manage before anyone leads")
+	}
+
+	if loc := lead("Jane Doe", groupA); !strings.Contains(loc, "ok=led") {
 		t.Fatalf("jane lead: %q", loc)
 	}
-	if o, _ := a.store.Ride(key); func() bool { l := o.leaderFor(groupA); return l == nil || l.Name != "Jane D." }() {
-		t.Fatalf("leader: %+v", o.Leaders)
-	}
-	if len(*sent) != 1 || (*sent)[0].to != "PaxVeloClub@gmail.com" || !strings.Contains((*sent)[0].subject, "Jane D. will lead Tuesday Night Ride (A group") ||
-		!strings.Contains((*sent)[0].body, "isn’t an admin of the PaxVelo club on Strava") {
+	if len(*sent) != 1 || !strings.Contains((*sent)[0].subject, "Jane Doe will lead Tuesday Night Ride (A group") || !strings.Contains((*sent)[0].body, "signed up on the website") {
 		t.Errorf("notice: %+v", *sent)
 	}
-
 	// Each pace group has its own leader: Bob can lead B, but Jane can't lead both.
-	if loc := post(jane, "/calendar/ride/"+key+"/lead", gB); !strings.Contains(loc, "err=already") {
+	if loc := lead("jane doe", groupB); !strings.Contains(loc, "err=already") {
 		t.Errorf("jane led two groups: %q", loc)
 	}
-	if loc := post(bob, "/calendar/ride/"+key+"/lead", gB); !strings.Contains(loc, "ok=led") {
+	if loc := lead("Bob Smith", groupB); !strings.Contains(loc, "ok=led") {
 		t.Errorf("bob lead B: %q", loc)
 	}
-	if o, _ := a.store.Ride(key); o.Status() != "led" || o.LeaderSummary() != "Jane D., Bob S." {
+	if o, _ := a.store.Ride(key); o.Status() != "led" || o.LeaderSummary() != "Jane Doe, Bob Smith" {
 		t.Errorf("both groups led: %q %q", o.Status(), o.LeaderSummary())
 	}
-	post(bob, "/calendar/ride/"+key+"/stepdown", gB)
-	if o, _ := a.store.Ride(key); o.Status() != "partial" || o.LeaderSummary() != "Needs 1 more leader" {
-		t.Errorf("one group led: %q %q", o.Status(), o.LeaderSummary())
+	// A filled spot can't be taken from the calendar.
+	if loc := lead("Ann Admin", groupA); !strings.Contains(loc, "err=taken") {
+		t.Errorf("took a led spot: %q", loc)
+	}
+	if page := do(t, h, nil, "GET", "/calendar/ride/"+key, "", nil).Body.String(); !strings.Contains(page, "Leading this ride?") || !strings.Contains(page, `name="pin"`) {
+		t.Error("the ride page should let leaders manage it with the PIN")
 	}
 
-	// Once a group has a leader, other riders can't take it or remove her...
-	if loc := post(bob, "/calendar/ride/"+key+"/lead", gA); !strings.Contains(loc, "err=taken") {
-		t.Errorf("bob took a led ride: %q", loc)
+	// Stepping down needs the club PIN and a leader's name.
+	manage := func(path, name, pin string, extra url.Values) string {
+		v := url.Values{"leader_name": {name}, "pin": {pin}}
+		for k, x := range extra {
+			v[k] = x
+		}
+		return post(path, v)
 	}
-	if loc := post(bob, "/calendar/ride/"+key+"/stepdown", gA); !strings.Contains(loc, "err=notyours") {
-		t.Errorf("bob removed the leader: %q", loc)
+	if loc := manage("/stepdown", "Bob Smith", "", nil); !strings.Contains(loc, "err=pinneeded") {
+		t.Errorf("no PIN: %q", loc)
 	}
-	// ...but a club admin can.
-	if loc := post(ann, "/calendar/ride/"+key+"/lead", gA); !strings.Contains(loc, "ok=led") {
-		t.Errorf("admin take over: %q", loc)
+	if loc := manage("/stepdown", "Bob Smith", "1234", nil); !strings.Contains(loc, "err=pin") {
+		t.Errorf("wrong PIN: %q", loc)
 	}
-	if o, _ := a.store.Ride(key); func() bool { l := o.leaderFor(groupA); return l == nil || l.Name != "Ann A." || !l.StravaAdmin }() {
-		t.Errorf("after take over: %+v", o.Leaders)
+	if loc := manage("/stepdown", "Someone Else", "8356", nil); !strings.Contains(loc, "err=notyours") {
+		t.Errorf("not a leader: %q", loc)
 	}
-	if last := (*sent)[len(*sent)-1]; !strings.Contains(last.subject, "took over") || strings.Contains(last.body, "isn’t an admin") {
-		t.Errorf("take over notice: %+v", last)
+	*sent = nil
+	if loc := manage("/stepdown", "bob smith", "8356", nil); !strings.Contains(loc, "ok=stepped") {
+		t.Errorf("bob steps down: %q", loc)
 	}
-	// The leader can step down, and then anyone can take it again.
-	post(ann, "/calendar/ride/"+key+"/stepdown", gA)
-	if o, _ := a.store.Ride(key); o.leaderFor(groupA) != nil {
-		t.Errorf("leader after stepping down: %+v", o.Leaders)
+	if o, _ := a.store.Ride(key); o.Status() != "partial" || o.leaderFor(groupB) != nil {
+		t.Errorf("after stepping down: %+v", o.Leaders)
 	}
-	if loc := post(bob, "/calendar/ride/"+key+"/lead", gA); !strings.Contains(loc, "ok=led") {
-		t.Errorf("bob lead after step down: %q", loc)
+	if len(*sent) != 1 || !strings.Contains((*sent)[0].body, "Bob Smith stepped down from Tuesday Night Ride (B group)") {
+		t.Errorf("step-down notice: %+v", *sent)
 	}
 
-	// Leaders can add the Strava event link; others can't.
-	if loc := post(jane, "/calendar/ride/"+key+"/strava", url.Values{"strava_url": {"https://www.strava.com/clubs/10197/group_events/9"}}); !strings.Contains(loc, "err=notyours") {
-		t.Errorf("jane set bob's link: %q", loc)
+	// A leader adds the Strava link; a bad link is refused.
+	if loc := manage("/strava", "Jane Doe", "8356", url.Values{"strava_url": {"https://example.com/x"}}); !strings.Contains(loc, "err=link") {
+		t.Errorf("bad link: %q", loc)
 	}
-	post(bob, "/calendar/ride/"+key+"/strava", url.Values{"strava_url": {"https://www.strava.com/clubs/10197/group_events/9"}})
+	manage("/strava", "Jane Doe", "8356", url.Values{"strava_url": {"https://www.strava.com/clubs/10197/group_events/9"}})
 	if o, _ := a.store.Ride(key); o.StravaURL != "https://www.strava.com/clubs/10197/group_events/9" {
 		t.Errorf("strava link: %q", o.StravaURL)
+	}
+
+	// A leader cancels it, and can put it back.
+	*sent = nil
+	manage("/cancel", "Jane Doe", "8356", url.Values{"cancel": {"1"}})
+	if o, _ := a.store.Ride(key); !o.Cancelled || len(*sent) != 1 || !strings.Contains((*sent)[0].subject, "is cancelled") {
+		t.Errorf("cancel: %v %+v", o.Cancelled, *sent)
+	}
+	manage("/cancel", "Jane Doe", "8356", url.Values{"cancel": {"0"}})
+	if o, _ := a.store.Ride(key); o.Cancelled {
+		t.Error("putting it back")
+	}
+
+	// With no PIN set, leaders ask an admin.
+	a.store.SetClubPIN("")
+	if page := do(t, h, nil, "GET", "/calendar/ride/"+key, "", nil).Body.String(); !strings.Contains(page, "ask a club admin") || strings.Contains(page, `name="pin"`) {
+		t.Error("with no PIN, the ride page should send leaders to an admin")
 	}
 
 	// Past rides can't be taken.
@@ -258,36 +246,35 @@ func TestRideLeaders(t *testing.T) {
 		}
 		return d.Format("2006-01-02")
 	}())
-	if loc := post(jane, "/calendar/ride/"+past+"/lead", nil); !strings.Contains(loc, "err=past") {
+	ct, body := form(url.Values{"leader_name": {"Jane Doe"}, "ft": {oldToken(a)}})
+	if loc := do(t, h, nil, "POST", "/calendar/ride/"+past+"/lead", ct, body).Header().Get("Location"); !strings.Contains(loc, "err=past") {
 		t.Errorf("past ride: %q", loc)
 	}
 
-	// Signing up without Strava needs a name, and a form from this site.
-	if loc := post(nil, "/calendar/ride/"+key+"/lead", gA); !strings.Contains(loc, "err=name") {
-		t.Errorf("signed out lead without a name: %q", loc)
+	// Signing up needs a name, and a form from this site.
+	if loc := lead("", groupB); !strings.Contains(loc, "err=name") {
+		t.Errorf("lead without a name: %q", loc)
 	}
 	r := httptest.NewRequest("POST", "/calendar/ride/"+key+"/lead", nil)
 	r.Header.Set("Origin", "https://evil.example")
-	r.AddCookie(jane)
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, r)
 	if w.Code != http.StatusForbidden {
 		t.Errorf("cross-site post: %d", w.Code)
 	}
-}
-
-func httptestReq(c *http.Cookie) *http.Request {
-	r := httptest.NewRequest("GET", "/", nil)
-	r.AddCookie(c)
-	return r
+	// Strava sign-in is gone.
+	if w := do(t, h, nil, "GET", "/strava/login", "", nil); w.Code != http.StatusNotFound {
+		t.Errorf("/strava/login: %d", w.Code)
+	}
 }
 
 func TestAddRideAndCalendar(t *testing.T) {
 	a, h, sent := rideApp(t)
-	jane, _ := signIn(t, h, "jane", "/calendar/new")
+	a.store.SetClubPIN("8356")
 	date := nextWeekday(a, time.Saturday)
-	ct, body := form(url.Values{"date": {date}, "time": {"08:30"}, "name": {"Coffee Ride"}, "place": {"Leonardtown Square"}, "lead": {"on"}, "ft": {oldToken(a)}})
-	w := do(t, h, jane, "POST", "/calendar/new", ct, body)
+	ct, body := form(url.Values{"date": {date}, "time": {"08:30"}, "name": {"Coffee Ride"}, "place": {"Leonardtown Square"}, "lead": {"on"},
+		"leader_name": {"Jane D."}, "pin": {"8356"}, "ft": {oldToken(a)}})
+	w := do(t, h, nil, "POST", "/calendar/new", ct, body)
 	if !strings.Contains(w.Header().Get("Location"), "ok=added") {
 		t.Fatalf("add ride: %d %s", w.Code, w.Body.String())
 	}
@@ -301,8 +288,8 @@ func TestAddRideAndCalendar(t *testing.T) {
 		}
 	}
 	// Only a name and date are needed.
-	ct, body = form(url.Values{"date": {date}, "name": {""}, "ft": {oldToken(a)}})
-	if w := do(t, h, jane, "POST", "/calendar/new", ct, body); w.Code != http.StatusBadRequest {
+	ct, body = form(url.Values{"date": {date}, "name": {""}, "leader_name": {"Jane D."}, "ft": {oldToken(a)}})
+	if w := do(t, h, nil, "POST", "/calendar/new", ct, body); w.Code != http.StatusBadRequest {
 		t.Errorf("ride without a name: %d", w.Code)
 	}
 	// The Thursday ride only runs in season.
@@ -412,17 +399,6 @@ func TestRidesAdmin(t *testing.T) {
 	}
 }
 
-func TestStravaStateCantBeForged(t *testing.T) {
-	_, h, _ := rideApp(t)
-	w := do(t, h, nil, "GET", "/strava/callback?code=jane&state=bogus.sig", "", nil)
-	if !strings.Contains(w.Header().Get("Location"), "err=signin") || len(w.Result().Cookies()) > 0 {
-		t.Errorf("forged state: %s", w.Header().Get("Location"))
-	}
-	if got := safeNext("//evil.example/x"); got != "/calendar" {
-		t.Errorf("safeNext let an outside address through: %q", got)
-	}
-}
-
 // oldToken is a join-form token from a few seconds ago, like a real visitor's.
 func oldToken(a *App) string {
 	ts := strconv.FormatInt(time.Now().Add(-10*time.Second).Unix(), 10)
@@ -453,7 +429,7 @@ func TestLeadWithJustAName(t *testing.T) {
 	if o, _ := a.store.Ride(key); o.leaderFor(group) == nil || o.leaderFor(group).Name != "Pat Rider" {
 		t.Errorf("leader: %+v", o.Leaders)
 	}
-	if len(*sent) != 1 || !strings.Contains((*sent)[0].body, "signed up with just their name") {
+	if len(*sent) != 1 || !strings.Contains((*sent)[0].body, "signed up on the website") {
 		t.Errorf("notice: %+v", *sent)
 	}
 	// Someone else can't replace them by typing a different name.
@@ -468,9 +444,8 @@ func TestLeadWithJustAName(t *testing.T) {
 	}
 }
 
-// A ride added by someone who isn't signed in with Strava stays off the
-// calendar, the newsletter's data and the API until an admin approves it. A
-// ride from a rider signed in with Strava (so in the club) goes straight on.
+// A ride added without the club PIN stays off the calendar, the newsletter's
+// data and the API until an admin approves it.
 func TestRidesAddedByNameAreHeld(t *testing.T) {
 	a, h, sent := rideApp(t)
 	sunday := nextWeekday(a, time.Sunday)
@@ -522,15 +497,6 @@ func TestRidesAddedByNameAreHeld(t *testing.T) {
 	}
 	if w := do(t, h, nil, "GET", "/calendar/ride/"+key, "", nil); w.Code != http.StatusOK {
 		t.Errorf("the approved ride isn't public: %d", w.Code)
-	}
-
-	// Signed in with Strava: straight onto the calendar.
-	rec = httptest.NewRecorder()
-	a.setRider(rec, &Rider{ID: 7, Name: "Ann A."})
-	rider := rec.Result().Cookies()[0]
-	ct, body = form(url.Values{"date": {sunday}, "name": {"Coffee Ride"}, "ft": {oldToken(a)}})
-	if w := do(t, h, rider, "POST", "/calendar/new", ct, body); !strings.Contains(w.Header().Get("Location"), "ok=added") || !onCalendar("Coffee Ride") {
-		t.Errorf("a ride from a Strava rider should go straight on: %s", w.Header().Get("Location"))
 	}
 }
 
@@ -626,29 +592,6 @@ func TestStravaImportAndAPI(t *testing.T) {
 	h.ServeHTTP(dw, r)
 	if dw.Code != http.StatusOK || len(a.store.Rides(a.today(), a.today().AddDate(0, 0, 14))) == 0 {
 		t.Errorf("delete: %d", dw.Code)
-	}
-}
-
-// A Strava sign-in lasts a month, but its club-admin powers only a day, so
-// someone removed as a club admin on Strava loses them the next day.
-func TestStravaAdminPowersExpire(t *testing.T) {
-	a, _, _ := rideApp(t)
-	cookie := func(checked int64) *http.Request {
-		b, _ := json.Marshal(Rider{ID: 7, Name: "Ann A.", Admin: true, Checked: checked})
-		exp := strconv.FormatInt(time.Now().Add(time.Hour).Unix(), 10)
-		enc := base64.RawURLEncoding.EncodeToString(b)
-		r := httptest.NewRequest("GET", "/calendar", nil)
-		r.AddCookie(&http.Cookie{Name: riderCookie, Value: exp + "." + enc + "." + sign(a.riderKey(), exp+"."+enc)})
-		return r
-	}
-	if rd, ok := a.rider(cookie(time.Now().Unix())); !ok || !rd.Admin {
-		t.Errorf("a fresh sign-in should be an admin: %+v", rd)
-	}
-	if rd, ok := a.rider(cookie(time.Now().Add(-25 * time.Hour).Unix())); !ok || rd.Admin {
-		t.Errorf("a day-old sign-in should stay signed in but lose admin powers: %+v", rd)
-	}
-	if rd, ok := a.rider(cookie(0)); !ok || rd.Admin {
-		t.Errorf("a sign-in from before this check should lose admin powers: %+v", rd)
 	}
 }
 

@@ -187,17 +187,15 @@ type storeData struct {
 	Gallery     []*GalleryPhoto `json:"gallery,omitempty"`
 
 	// Ride calendar
-	NextRide            int                  `json:"next_ride_id,omitempty"`
-	NextSeries          int                  `json:"next_series_id,omitempty"`
-	Series              []*RideSeries        `json:"weekly_rides,omitempty"`
-	CalRides            []*CalRide           `json:"rides,omitempty"`
-	StravaAdmins        []string             `json:"strava_admins,omitempty"`
-	StravaAdminsChecked *time.Time           `json:"strava_admins_checked,omitempty"`
-	Routes              map[string]*Route    `json:"strava_routes,omitempty"` // by Strava route ID
-	RoutesChecked       *time.Time           `json:"strava_routes_checked,omitempty"`
-	StravaClub          *StravaClub          `json:"strava_club,omitempty"`
-	History             map[string]*PastRide `json:"ride_history,omitempty"`          // the club's Strava events, by event ID
-	HistoryImported     string               `json:"ride_history_imported,omitempty"` // the last past day put on the calendar
+	NextRide        int                  `json:"next_ride_id,omitempty"`
+	NextSeries      int                  `json:"next_series_id,omitempty"`
+	Series          []*RideSeries        `json:"weekly_rides,omitempty"`
+	CalRides        []*CalRide           `json:"rides,omitempty"`
+	Routes          map[string]*Route    `json:"strava_routes,omitempty"` // by Strava route ID
+	RoutesChecked   *time.Time           `json:"strava_routes_checked,omitempty"`
+	StravaClub      *StravaClub          `json:"strava_club,omitempty"`
+	History         map[string]*PastRide `json:"ride_history,omitempty"`          // the club's Strava events, by event ID
+	HistoryImported string               `json:"ride_history_imported,omitempty"` // the last past day put on the calendar
 
 	// Pages and board members edited in the admin
 	PageEdits   map[string]PageEdit `json:"page_edits,omitempty"`

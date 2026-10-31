@@ -37,8 +37,7 @@ type Config struct {
 	StravaURL        string
 	DonateURL        string
 
-	// Ride calendar: the Strava import, admins' "Sign in with Strava", and
-	// notices about ride leaders
+	// Ride calendar: the Strava import, and notices about ride leaders
 	StravaClientID     string
 	StravaClientSecret string
 	StravaClubID       string // from STRAVA_URL unless set

@@ -93,7 +93,7 @@ func TestSecurityTab(t *testing.T) {
 	page := do(t, h, admin, "GET", "/admin/security", "", nil).Body.String()
 	for _, want := range []string{
 		`href="/admin/admins" aria-current="page"`, `<nav class="sub"`, `href="/admin/security" aria-current="page">Club PIN &amp; access`,
-		`name="pin"`, "Sign in with Strava", "Calendar API key", "Setup password", `href="/admin/backup"`,
+		`name="pin"`, "Calendar API key", "Setup password", `href="/admin/backup"`,
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("Club PIN & access missing %q", want)

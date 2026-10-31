@@ -29,7 +29,7 @@ const (
 // in, and the backup.
 func (a *App) securityPage(w http.ResponseWriter, r *http.Request) {
 	v := adminView{Title: "Club PIN & access", Tab: "security", ClubPIN: a.store.ClubPIN(),
-		StravaReady: a.stravaReady(), APIOn: a.cfg.CalendarAPIKey != "", CanManage: a.canManage(r)}
+		APIOn: a.cfg.CalendarAPIKey != "", CanManage: a.canManage(r)}
 	v.Flash, v.Error = flashFrom(r)
 	a.renderAdmin(w, r, http.StatusOK, "security", v)
 }
