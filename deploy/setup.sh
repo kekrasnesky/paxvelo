@@ -42,7 +42,7 @@ chmod 644 /etc/cron.d/paxvelo-offsite
 echo
 echo "Server ready. Next:"
 echo "  1. Copy your paxvelo.conf to /opt/paxvelo/paxvelo.conf (then: chmod 600, chown paxvelo)"
-echo "  2. Connect GitHub for automatic publishing (README.md, Automatic publishing),"
+echo "  2. Connect GitHub for automatic publishing (CLAUDE.md, Deploy),"
 echo "     or publish by hand from your computer: ./deploy/deploy.sh root@THIS_SERVER"
-echo "  3. Connect Google Drive for off-server backups (README.md, Backups)"
-echo "  4. Once your SSH key works, turn off password logins: sh lock-ssh.sh (README.md, Locking down SSH)"
+echo "  3. Connect Google Drive for off-server backups (CLAUDE.md, Backups)"
+echo "  4. Once your SSH key works, turn off password logins: sh lock-ssh.sh (CLAUDE.md, Deploy)"

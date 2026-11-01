@@ -1,7 +1,7 @@
 #!/bin/sh
 # Copies the backups in /opt/paxvelo/backups (the nightly data file and the
 # weekly photos and minutes archive) to Google Drive. Run nightly by cron.
-# Does nothing until Google Drive is connected (README.md, "Backups").
+# Does nothing until Google Drive is connected (CLAUDE.md, "Backups").
 export RCLONE_CONFIG=/opt/paxvelo/rclone.conf
 [ -f "$RCLONE_CONFIG" ] || exit 0
 if rclone sync /opt/paxvelo/backups "gdrive:PaxVelo backups" --log-level ERROR; then

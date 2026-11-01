@@ -21,7 +21,7 @@ import (
 // Changes need the key from CALENDAR_API_KEY, sent as
 // "Authorization: Bearer <key>". {id} is your own lasting name for the ride,
 // like "coffee-2026-11-07"; sending the same id again updates that ride, and
-// leaders who signed up on the website are kept. README.md has examples.
+// leaders who signed up on the website are kept. CLAUDE.md has examples.
 
 type apiRide struct {
 	Key       string      `json:"key"`
