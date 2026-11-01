@@ -1875,13 +1875,14 @@ var BODY={
       split:function(tail){var nb={type:'p',md:tail};arr.splice(i+1,0,nb);update();render(nb);return nb._el},
       drop:function(){arr.splice(i,1);var p=arr[i-1];update();render(p,'end')}});
     b._el=e;b._focus=function(w){caret(e,w==='end')};c.appendChild(e)},
-  photos:function(b,c,arr,i){var row=el('div',{'class':'ed-photos'});
-    b.photos.forEach(function(p,k){var d=inp(p.alt,function(v){p.alt=v;edit(b)},{placeholder:'Like: Riders gathering at the start'});if(!k)b._focus=function(){d.focus()};
-      row.appendChild(el('figure',{'class':'ed-photo'},[el('img',{src:/^photos\//.test(p.url)?'/'+p.url:p.url,alt:''}),
+  photos:function(b,c,arr,i){var row=el('div',{'class':'ed-photos'}),msg=el('p',{'class':'ed-status small',role:'status'});
+    b.photos.forEach(function(p,k){var d=inp(p.alt,function(v){p.alt=v;edit(b)},{placeholder:'Like: Riders gathering at the start'}),img=el('img',{src:/^photos\//.test(p.url)?'/'+p.url:p.url,alt:''});
+      if(!k)b._focus=function(){d.focus()};
+      row.appendChild(el('figure',{'class':'ed-photo'},[img,
         field('Describe this photo',d,'For people who can’t see it.'),
-        el('span',{'class':'ed-row'},[pick('Replace',function(u){p.url=u;edit(b);render(b)}),
+        el('span',{'class':'ed-row'},[pick('Replace',function(u){p.url=u;edit(b);render(b)},msg,img),
           btn('Remove','Remove this photo',function(){if(b.photos.length===1){remove(arr,i,'photo');return}b.photos.splice(k,1);edit(b);render(b)})])]))});
-    c.appendChild(row);c.appendChild(el('div',{'class':'ed-row'},[pick('＋ Add another photo',function(u){b.photos.push({alt:'',url:u});edit(b);render(b)}),
+    c.appendChild(row);c.appendChild(msg);c.appendChild(el('div',{'class':'ed-row'},[pick('＋ Add another photo',function(u){b.photos.push({alt:'',url:u});edit(b);render(b)},msg),
       el('span',{'class':'muted small',text:'Photos in one card sit side by side.'})]))},
   buttons:function(b,c,arr,i){b.links.forEach(function(l,k){var w=inp(l.label,function(v){l.label=v;edit(b)},{placeholder:dest(l.href)});if(!k)b._focus=function(){w.focus()};
       c.appendChild(el('div',{'class':'ed-button'},[field('Words on the button',w),field('Goes to',destPick(l.href,function(h){l.href=h;w.placeholder=dest(h);edit(b)})),
@@ -1932,12 +1933,23 @@ function destPick(href,set){var s=el('select',{'aria-label':'Where it goes'}),u=
   s.addEventListener('change',function(){u.hidden=!!s.value;if(s.value)set(s.value);else{u.focus();if(u.value.trim())set(webAddress(u.value.trim()))}});
   u.addEventListener('input',function(){if(u.value.trim())set(webAddress(u.value.trim()))});
   return el('span',{'class':'ed-dest'},[s,u])}
-// pick is a button that uploads a photo and hands back its address.
-function pick(label,done){var f=el('input',{type:'file',accept:'image/jpeg,image/png,image/webp'});
-  f.addEventListener('change',function(){if(f.files[0])upload(f.files[0],done);f.value=''});return el('label',{'class':'ghost mail-photo'},[label,f])}
-function upload(file,done){var fd=new FormData();fd.append('photo',file);state.textContent='Uploading the photo…';
-  fetch('/admin/pages/photo',{method:'POST',body:fd}).then(function(r){return r.json()}).then(function(j){state.textContent='';if(j.error){alert(j.error);return}
-    done(/\]\(([^)]*)\)$/.exec(j.markdown)[1])}).catch(function(){state.textContent='The photo didn’t upload. Check your connection and try again.'})}
+// pick is a button that uploads a photo and hands back its address. The
+// card says how the upload is going (msg), and the photo being replaced (img)
+// shows the new one, faded, until it's up.
+function pick(label,done,msg,img){var f=el('input',{type:'file',accept:'image/jpeg,image/png,image/webp'});
+  f.addEventListener('change',function(){var file=f.files[0];f.value='';if(!file)return;var old=img&&img.src;
+    if(img&&window.URL&&URL.createObjectURL){img.src=URL.createObjectURL(file);img.classList.add('uploading')}
+    upload(file,done,msg,function(){if(img){img.src=old;img.classList.remove('uploading')}})});
+  return el('label',{'class':'ghost mail-photo'},[label,f])}
+function upload(file,done,msg,failed){var fd=new FormData();fd.append('photo',file);say('Uploading the photo…');
+  function say(text,bad){var m=msg||state;m.textContent=text;m.classList.toggle('err-text',!!bad);if(bad&&!msg)alert(text)}
+  function fail(text){say(text,true);if(failed)failed()}
+  if(file.size>8<<20){fail('That photo is over 8 MB. Make it smaller at squoosh.app and try again.');return}
+  fetch('/admin/pages/photo',{method:'POST',body:fd}).then(function(r){
+      if((r.headers.get('Content-Type')||'').indexOf('json')<0)throw new Error(r.redirected?'login':'server');return r.json()})
+    .then(function(j){if(j.error){fail('That photo didn’t upload: '+j.error);return}say('');done(/\]\(([^)]*)\)$/.exec(j.markdown)[1])})
+    .catch(function(e){fail(e.message==='login'?'You’ve been logged out, so the photo didn’t upload. Log in again in another tab, then try again.'
+      :'The photo didn’t upload. Check your connection and try again.')})}
 
 // The ＋ Add buttons between cards.
 function gap(arr,i,top){var g=el('div',{'class':'ed-gap'}),a=el('button',{type:'button','class':'ed-add','aria-expanded':'false',text:'＋ Add'});

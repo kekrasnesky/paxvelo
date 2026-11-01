@@ -309,6 +309,9 @@ details.more[open]{display:grid;gap:.6rem;padding-bottom:.8rem}
 .ed-photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(12rem,1fr));gap:.8rem}
 .ed-photo{display:grid;gap:.5rem;align-content:start;margin:0}
 .ed-photo img{width:100%;aspect-ratio:4/3;object-fit:cover;border:1px solid var(--line);background:#f1ece5}
+.ed-photo img.uploading{opacity:.45}
+.ed-status{margin:0}
+.ed-status:empty{display:none}
 .ed-row{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem .8rem}
 .ed-button{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;align-items:end;gap:.6rem}
 .ed-dest{display:grid;gap:.35rem}
