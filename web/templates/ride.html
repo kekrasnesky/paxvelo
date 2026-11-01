@@ -20,9 +20,10 @@
     {{with $r.Levels}}<div><dt>Level</dt><dd><span class="lvls">{{range $i, $l := .}}{{if $i}} or {{end}}<span class="lvl lvl-{{$l.Key}}">{{$l.Name}}</span> {{$l.MPH}}{{end}}</span>{{if gt (len .) 1}}, depending on who turns out{{end}}</dd></div>{{end}}
     {{if not $r.IsRide}}{{with $r.Leaders}}<div><dt>{{$r.HostLabel}}</dt><dd>{{(index . 0).Name}}</dd></div>{{end}}{{end}}
     {{if or $r.IsRide $r.StravaURL}}<div><dt>Strava</dt><dd>{{with $r.StravaURL}}<a href="{{.}}" target="_blank" rel="noopener">See the event on Strava</a>{{with $r.Strava}}{{if .Going}} · {{.Going}} going{{end}}{{with .Organizer}} · posted by {{.}}{{end}}{{end}}{{else}}Not posted yet. <a href="{{$d.ClubURL}}" target="_blank" rel="noopener">Check the club page</a>{{end}}</dd></div>{{end}}
-    {{if $r.IsRide}}<div><dt>Ride type</dt><dd>{{if .Series}}Weekly club ride{{else}}One-off ride{{with $r.AddedBy}}, added by {{.}}{{end}}{{end}}</dd></div>
+    {{if $r.IsRide}}<div><dt>Ride type</dt><dd>{{if .Series}}Weekly club ride{{else}}One-off ride{{with $r.PublicAddedBy}}, added by {{.}}{{end}}{{end}}</dd></div>
     {{else}}<div><dt>What</dt><dd>{{$r.KindName}}{{if .Series}}, every week{{end}}</dd></div>{{end}}
   </dl>
+  {{if not .Past}}<p class="ride-tools"><a class="btn btn-quiet" href="/calendar/ride/{{$r.Key}}/calendar.ics" rel="nofollow">{{icon "calendar"}}Add to calendar</a><button class="btn btn-quiet ride-share" type="button" hidden>{{icon "share"}}Share</button></p>{{end}}
   {{with $r.Route}}{{if and .Shown .Map}}<a class="ride-map" href="{{.URL}}" target="_blank" rel="noopener"><img src="{{.Map}}" alt="Map of the {{.Name}} route" loading="lazy"><span>Route on Strava</span></a>{{end}}{{end}}
 
   {{if $r.IsRide}}<section class="cal-act">

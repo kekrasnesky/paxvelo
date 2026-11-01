@@ -8,6 +8,7 @@
   var behind=[d.querySelector('.skip'),d.querySelector('.hdr .logo'),d.getElementById('main'),d.querySelector('.ftr')];
   function setMenu(open){
     root.classList.toggle('menu-open',open);
+    if(open)setDD(true); // the phone menu shows the Info pages straight away
     behind.forEach(function(el){if(el)el.inert=open});
     if(burger){burger.setAttribute('aria-expanded',open);burger.setAttribute('aria-label',open?'Close menu':'Open menu')}
   }
@@ -24,7 +25,7 @@
   function setDD(open){if(dd){dd.classList.toggle('open',open);ddBtn.setAttribute('aria-expanded',open)}}
   if(ddBtn){
     ddBtn.addEventListener('click',function(e){e.stopPropagation();setDD(!dd.classList.contains('open'))});
-    d.addEventListener('click',function(e){if(!dd.contains(e.target))setDD(false)});
+    d.addEventListener('click',function(e){if(!dd.contains(e.target)&&!(burger&&burger.contains(e.target)))setDD(false)});
     // Tabbing on past the last link closes it too
     dd.addEventListener('focusout',function(e){if(e.relatedTarget&&!dd.contains(e.relatedTarget))setDD(false)});
   }
@@ -109,6 +110,25 @@
     });
     d.addEventListener('keydown',function(e){if(e.key==='Escape')closePop()});
   }
+
+  // A ride's Share button: the phone's share sheet, or else the link copied
+  var rideShare=d.querySelector('.ride-share');
+  if(rideShare&&(navigator.share||navigator.clipboard)){
+    rideShare.hidden=false;
+    rideShare.addEventListener('click',function(){
+      var url=location.href.split(/[?#]/)[0];
+      if(navigator.share)navigator.share({title:d.querySelector('h1').textContent,url:url}).catch(function(){});
+      else navigator.clipboard.writeText(url).then(function(){rideShare.lastChild.textContent='Link copied'});
+    });
+  }
+
+  // Ride forms remember the name typed, so a leader types it once per browser
+  var NAME='pv-leader-name';
+  function savedName(){try{return localStorage.getItem(NAME)||''}catch(e){return ''}}
+  d.querySelectorAll('input[name=leader_name]').forEach(function(el){
+    if(!el.value)el.value=savedName();
+    if(el.form)el.form.addEventListener('submit',function(){var v=el.value.trim();if(v)try{localStorage.setItem(NAME,v)}catch(e){}});
+  });
 
   // Forms that ask first (step down, cancel a ride): the question is in
   // data-confirm, on the form or the button pressed, since the page's

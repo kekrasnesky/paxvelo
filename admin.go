@@ -35,6 +35,7 @@ type adminView struct {
 	// Members tab
 	Q, Dues       string // search text; dues filter: "", "paid", "unpaid"
 	Members       []Member
+	MemberPage    *memberView // one member's page
 	Active, Unsub int
 	Paid, Unpaid  int // active members paid / not paid for Year
 	Allowance     emailAllowance
@@ -60,6 +61,7 @@ type adminView struct {
 	// CanNamePresident: the logged-in admin may choose who is president.
 	CanNamePresident bool
 	// Email tab
+	Audiences     []audienceOption
 	Campaigns     []Campaign
 	Draft         EmailDraft
 	Welcome       WelcomeEmail
@@ -82,7 +84,7 @@ type adminView struct {
 	InstaFeed     []InstaPost
 	// Pages and Board tabs
 	Pages    []pageRow
-	Links    []editorLink // the page editor's link box
+	Links    []editorLink // the page editor's and email editor's link box
 	Page     pageRow
 	PageText string
 	Board    []BoardMember
@@ -228,6 +230,7 @@ var flashText = map[string]string{
 	"added":              "Member added.",
 	"exists":             "That email is already on the list.",
 	"deleted":            "Member deleted.",
+	"member-saved":       "Saved.",
 	"sending":            "Sending now. It keeps going in the background, so you can close this page.",
 	"stopped":            "Sending stopped.",
 	"resumed":            "Sending resumed.",
@@ -307,6 +310,8 @@ var errorText = map[string]string{
 	"empty":           "Add a subject and a message first.",
 	"welcome":         "The welcome email needs a subject and a message.",
 	"save":            "Couldn’t save. Check the server log.",
+	"no-member":       "That member isn’t on the list anymore.",
+	"email-taken":     "Another member already has that email. Nothing was changed.",
 	"month":           "Choose a month and year.",
 	"series":          "A weekly ride needs a name, a day, and a start time.",
 	"ends":            "The last date has to be a date after the weekly ride starts, or empty.",
@@ -357,6 +362,13 @@ func flashFrom(r *http.Request) (flash, errMsg string) {
 		}
 		if b > 0 {
 			flash += fmt.Sprintf(" %d %s skipped (no valid email).", b, plural(b, "row", "rows"))
+		}
+	} else if code == "paid-many" {
+		n, _ := strconv.Atoi(q.Get("n"))
+		welcomes, _ := strconv.Atoi(q.Get("w"))
+		flash = fmt.Sprintf("Marked %d %s as paid.", n, plural(n, "member", "members"))
+		if welcomes > 0 {
+			flash += fmt.Sprintf(" %d welcome %s on the way.", welcomes, plural(welcomes, "email is", "emails are"))
 		}
 	} else if code == "submitted-added" {
 		flash = submittedAdded(q)
@@ -429,32 +441,26 @@ func (m Member) matches(lq string) bool {
 func (a *App) markPaid(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.Atoi(r.PathValue("id"))
 	paid := r.FormValue("paid") == "1"
-	if err := a.store.SetPaid(id, a.cfg.ThisYear(), paid); err != nil {
+	code, err := "unpaid", error(nil)
+	if paid {
+		code, err = a.payMember(id)
+	} else {
+		err = a.store.SetPaid(id, a.cfg.ThisYear(), false)
+	}
+	if err != nil {
 		back(w, r, "/admin/members?err=save")
 		return
 	}
-	to := "/admin/members?ok=unpaid"
-	if paid {
-		to = "/admin/members?ok=paid"
-		if a.store.Welcome().Enabled {
-			if m, due, err := a.store.TakeWelcome(id); err == nil && due {
-				go a.mailer.SendWelcome(m)
-				to = "/admin/members?ok=paid-welcome"
-			}
-		}
-		// And the adults on their Family plan who haven't signed this year's
-		// waiver get their links.
-		if names := a.emailHousehold(a.store.UnsignedHousehold(id, a.cfg.ThisYear())); len(names) > 0 {
-			to += "-links"
-		}
-	}
-	// Back to Home, or keep the admin's search and filter in place.
+	to := "/admin/members?ok=" + code
+	// Back to Home or the member's page, or keep the admin's search and filter in place.
 	if ret := r.FormValue("return"); ret == "/admin" {
-		to = "/admin?ok=" + strings.TrimPrefix(to, "/admin/members?ok=")
+		to = "/admin?ok=" + code
+	} else if ret == "/admin/members/"+strconv.Itoa(id) {
+		to = ret + "?ok=" + code
 	} else if ret != "" {
 		if u, err := url.Parse(ret); err == nil {
 			q := u.Query()
-			q.Set("ok", strings.TrimPrefix(to, "/admin/members?ok="))
+			q.Set("ok", code)
 			to = "/admin/members?" + q.Encode()
 		}
 	}
@@ -754,6 +760,7 @@ func (a *App) emailView(r *http.Request) adminView {
 			v.Sending = true
 		}
 	}
+	v.Audiences, v.Links = a.store.emailAudiences(v.Year), a.editorLinks()
 	v.Flash, v.Error = flashFrom(r)
 	return v
 }
@@ -851,6 +858,17 @@ func (a *App) resumeCampaign(w http.ResponseWriter, r *http.Request) {
 	a.store.ResumeCampaign(id)
 	a.mailer.Wake()
 	back(w, r, "/admin/email?ok=resumed")
+}
+
+// saveDraft keeps the email being written, a couple of seconds after each
+// change, so leaving the page or a lost connection doesn't lose it.
+func (a *App) saveDraft(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 256<<10)
+	if err := a.store.SetDraft(draftFrom(r)); err != nil {
+		http.Error(w, "Couldn’t save the draft.", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // discardDraft empties the saved email draft.

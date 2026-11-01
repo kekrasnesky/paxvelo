@@ -648,8 +648,8 @@ func TestUpcomingSkipsRidesAlreadyGone(t *testing.T) {
 	}
 }
 
-// On phones, an empty month says what fits: gone or nothing yet. The rest of
-// this month says nothing, since the upcoming rides show what's next.
+// On phones, an empty month says what fits: gone, nothing left, or nothing
+// yet, with a link on to the next month.
 func TestCalendarEmptyMonthNote(t *testing.T) {
 	a, _, _ := rideApp(t)
 	for _, s := range a.store.AllSeries() {
@@ -658,7 +658,7 @@ func TestCalendarEmptyMonthNote(t *testing.T) {
 	now := a.today()
 	for m, want := range map[string]string{
 		now.AddDate(0, -2, 0).Format("2006-01"): "No rides this month.",
-		now.Format("2006-01"):                   "",
+		now.Format("2006-01"):                   "Nothing else on the calendar this month.",
 		now.AddDate(0, 2, 0).Format("2006-01"):  "No rides on the calendar this month yet.",
 	} {
 		if got := a.month(m).NoDays; got != want {

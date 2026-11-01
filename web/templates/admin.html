@@ -23,6 +23,15 @@
 
 {{define "foot"}}</main>
 <script>
+// Ctrl+S (Cmd+S on a Mac) presses the Save button of the form you're typing
+// in. Only Save buttons, so it never sends or deletes anything; pages with
+// their own Ctrl+S (the page editor, the email draft) handle it first.
+document.addEventListener('keydown',function(e){
+  if(e.defaultPrevented||!(e.ctrlKey||e.metaKey)||e.altKey||e.shiftKey||e.key.toLowerCase()!=='s')return;
+  var f=document.activeElement&&document.activeElement.form;if(!f)return;
+  var b=[].filter.call(f.querySelectorAll('button:not([type=button]):not([formaction])'),function(b){return /\bsave\b/i.test(b.textContent)})[0];
+  if(b){e.preventDefault();f.requestSubmit?f.requestSubmit(b):b.click()}});
+
 // Photo framing: click a photo to choose the spot every crop keeps in view.
 function initFramer(f){
   var input=f.querySelector('input[type=hidden]'),pick=f.querySelector('.framer-pick'),dot=f.querySelector('.framer-dot'),pv=f.querySelectorAll('.framer-previews img');
@@ -409,30 +418,35 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
   <a href="/admin/members?dues=unpaid{{with .Q}}&q={{.}}{{end}}"{{if eq .Dues "unpaid"}} aria-current="page"{{end}}>Not paid for {{.Year}} ({{.Unpaid}})</a>
   <a href="/admin/members?dues=paid{{with .Q}}&q={{.}}{{end}}"{{if eq .Dues "paid"}} aria-current="page"{{end}}>Paid for {{.Year}} ({{.Paid}})</a>
 </nav>
-<div class="table-wrap"><table class="tight cards">
-  <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Emergency contact</th><th>Emergency phone</th><th>Plan</th><th>Riding</th><th>{{.Year}} dues</th><th>Joined</th>{{if .CanManage}}<th><span class="sr">Actions</span></th>{{end}}</tr></thead>
+<form id="bulk" class="bulk-bar" method="post" action="/admin/members/paid" hidden>
+  <input type="hidden" name="return" value="/admin/members?q={{.Q}}&dues={{.Dues}}">
+  <span class="bulk-n"></span>
+  <button class="mini">{{icon "check"}}Mark them paid</button>
+  <button type="button" class="link small bulk-clear">Clear</button>
+</form>
+<div class="table-wrap"><table class="tight cards members">
+  <thead><tr><th class="pick-col"><input type="checkbox" class="pick-all" aria-label="Tick everyone shown who hasn’t paid"></th><th><button type="button" class="sort" data-sort="name">Name</button></th><th>Email</th><th>Phone</th><th><button type="button" class="sort" data-sort="plan">Plan</button></th><th>Riding</th><th><button type="button" class="sort" data-sort="paid">{{.Year}} dues</button></th><th><button type="button" class="sort" data-sort="joined">Joined</button></th></tr></thead>
   <tbody>
-  {{range .Members}}{{$paid := .PaidFor $.Year}}<tr{{if not .Active}} class="off"{{end}}>
-    <td data-label="Name">{{.Name}}</td>
+  {{range .Members}}{{$paid := .PaidFor $.Year}}<tr id="m{{.ID}}" data-name="{{.Name}}" data-plan="{{.Plan}}" data-paid="{{if $paid}}1{{else}}0{{end}}" data-joined="{{.Joined.Format "2006-01-02T15:04:05"}}" data-find="{{.Name}} {{.Email}} {{.Phone}}"{{if not .Active}} class="off"{{end}}>
+    <td class="pick-col" data-label="Tick">{{if not $paid}}<input type="checkbox" name="id" value="{{.ID}}" form="bulk" aria-label="Tick {{.Name}}">{{end}}</td>
+    <td data-label="Name"><a class="member-link" href="/admin/members/{{.ID}}">{{.Name}}</a>{{with .Household}}<br><span class="muted small">With {{range $i, $h := .}}{{if $i}}, {{end}}{{$h.Name}}{{end}}</span>{{end}}</td>
     <td class="email" data-label="Email"><a href="mailto:{{.Email}}">{{.Email}}</a>{{if not .Active}} <span class="tag">Unsubscribed</span>{{end}}</td>
     <td class="nowrap" data-label="Phone">{{with .Phone}}<a href="tel:{{.}}">{{.}}</a>{{else}}<span class="muted">—</span>{{end}}</td>
-    <td data-label="Emergency contact">{{or .EmergencyName "—"}}</td>
-    <td class="nowrap" data-label="Emergency phone">{{with .EmergencyPhone}}<a href="tel:{{.}}">{{.}}</a>{{else}}<span class="muted">—</span>{{end}}</td>
-    <td data-label="Plan">{{.PlanName}}{{with .Household}}<br><span class="muted small">With {{range $i, $h := .}}{{if $i}}, {{end}}{{$h.Name}}{{end}}</span>{{end}}</td>
+    <td data-label="Plan">{{.PlanName}}</td>
     <td data-label="Riding">{{with .LevelName}}{{.}}{{else}}<span class="muted">—</span>{{end}}{{with .RideNames}}<br><span class="muted small">{{.}}</span>{{end}}</td>
-    <td class="nowrap" data-label="{{$.Year}} dues"><form method="post" action="/admin/members/{{.ID}}/paid" class="inline">
+    <td class="nowrap" data-label="{{$.Year}} dues"><form method="post" action="/admin/members/{{.ID}}/paid" class="inline paid-form">
       <input type="hidden" name="return" value="/admin/members?q={{$.Q}}&dues={{$.Dues}}">
       {{if $paid}}<span class="paid">Paid</span> <input type="hidden" name="paid" value="0"><button class="link small">{{icon "undo"}}Undo</button>
-      {{else}}<input type="hidden" name="paid" value="1"><button class="mini">{{icon "check"}}Mark paid</button>{{if .WelcomePending}}<span class="muted small welcome-note">Sends their welcome email</span>{{end}}{{end}}
+      {{else}}<input type="hidden" name="paid" value="1"><button class="mini ghost">{{icon "check"}}Mark paid</button>{{if .WelcomePending}}<span class="muted small welcome-note">Sends their welcome email</span>{{end}}{{end}}
     </form></td>
     <td class="nowrap" data-label="Joined">{{date .Joined}}</td>
-    {{if $.CanManage}}<td class="right cell-act"><form method="post" action="/admin/members/{{.ID}}/delete" onsubmit="return confirm('Delete {{.Email}}? This can’t be undone.')"><button class="link danger">{{icon "trash"}}Delete</button></form></td>{{end}}
   </tr>
-  {{else}}<tr><td colspan="9" class="empty">{{if or $.Q $.Dues}}Nobody matches that.{{else}}No members yet. Share the join page: <a href="{{$.SiteURL}}/join">{{$.SiteURL}}/join</a>{{end}}</td></tr>
+  {{else}}<tr><td colspan="8" class="empty">{{if or $.Q $.Dues}}Nobody matches that.{{else}}No members yet. Share the join page: <a href="{{$.SiteURL}}/join">{{$.SiteURL}}/join</a>{{end}}</td></tr>
   {{end}}
+  <tr class="no-match" hidden><td colspan="8" class="empty">Nobody matches that.</td></tr>
   </tbody>
 </table></div>
-<p class="muted small">Admins get an email when someone joins on the website. When PayPal emails the club about their payment, find them here and press <strong>Mark paid</strong>: the first time, that sends their welcome email. Everyone shows as not paid again on January 1. {{if not .CanManage}}Only the president can delete members. {{end}}Members who joined before the phone and emergency contact fields existed show a dash: if they fill in the join form again with the same email, their details are added.</p>
+<details class="howto"><summary>How this works</summary><p class="muted small">Admins get an email when someone joins on the website. When PayPal emails the club about their payment, find them here and press <strong>Mark paid</strong>: the first time, that sends their welcome email. Tick several to mark them paid together. Everyone shows as not paid again on January 1. Click a name to see everything about a member, fix their details{{if .CanManage}}, or delete them{{end}}. Members who joined before the phone and emergency contact fields existed show a dash: if they fill in the join form again with the same email, their details are added.</p></details>
 <div class="grid2">
   <form class="card" id="add" method="post" action="/admin/members">
     <h2>Add a member</h2>
@@ -459,7 +473,90 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
     <button>{{icon "upload"}}Import</button>
   </form>
 </div>
+<script>
+(function(){
+var table=document.querySelector('table.members'),body=table.tBodies[0],none=body.querySelector('.no-match');
+function rows(){return [].slice.call(body.querySelectorAll('tr[id^=m]'))}
+// The search box narrows the list as you type (Search still asks the server).
+var box=document.querySelector('.search input[name=q]');
+box.addEventListener('input',function(){var q=box.value.trim().toLowerCase(),digits=q.replace(/\D/g,''),shown=0;
+  rows().forEach(function(tr){var f=tr.dataset.find.toLowerCase(),hit=!q||f.indexOf(q)>=0||(digits.length>=3&&f.replace(/\D/g,'').indexOf(digits)>=0);tr.hidden=!hit;if(hit)shown++});
+  none.hidden=shown>0||!rows().length;count()});
+// Column headings sort the list; pressing one again reverses it.
+var sorted=null,dir=1;
+table.querySelectorAll('button.sort').forEach(function(b){b.addEventListener('click',function(){var k=b.dataset.sort;dir=sorted===k?-dir:(k==='joined'?-1:1);sorted=k;
+  table.querySelectorAll('th[aria-sort]').forEach(function(th){th.removeAttribute('aria-sort')});
+  b.closest('th').setAttribute('aria-sort',dir>0?'ascending':'descending');
+  rows().sort(function(x,y){return dir*x.dataset[k].localeCompare(y.dataset[k],undefined,{sensitivity:'base'})}).forEach(function(tr){body.insertBefore(tr,none)})})});
+// Ticking members shows a bar to mark them all paid at once.
+var bulk=document.getElementById('bulk'),all=table.querySelector('.pick-all');
+function picks(){return [].slice.call(body.querySelectorAll('input[name=id]')).filter(function(c){return !c.closest('tr').hidden})}
+function count(){var n=picks().filter(function(c){return c.checked}).length;bulk.hidden=!n;bulk.querySelector('.bulk-n').textContent=n+(n===1?' member ticked':' members ticked');
+  all.checked=n>0&&n===picks().length}
+body.addEventListener('change',function(e){if(e.target.name==='id')count()});
+all.addEventListener('change',function(){picks().forEach(function(c){c.checked=all.checked});count()});
+bulk.querySelector('.bulk-clear').addEventListener('click',function(){picks().forEach(function(c){c.checked=false});count()});
+bulk.addEventListener('submit',function(e){
+  body.querySelectorAll('input[name=id]').forEach(function(c){if(c.closest('tr').hidden)c.checked=false}); // only the ones you can see
+  var n=picks().filter(function(c){return c.checked}).length;
+  if(!confirm('Mark '+n+(n===1?' member':' members')+' as paid for {{.Year}}? Anyone who joined on the website gets their welcome email.'))e.preventDefault()});
+// Mark paid and Undo work in place, so a long list keeps your spot: the
+// server sends the page back and only that row, the counts and the message change.
+body.addEventListener('submit',function(e){var f=e.target;if(!f.classList.contains('paid-form')||!window.fetch||!window.DOMParser)return;
+  e.preventDefault();var tr=f.closest('tr');f.querySelector('button').disabled=true;
+  fetch(f.action,{method:'POST',body:new URLSearchParams(new FormData(f))}).then(function(r){if(!r.ok)throw r;return r.text()}).then(function(t){
+    var doc=new DOMParser().parseFromString(t,'text/html'),nr=doc.getElementById(tr.id);
+    if(nr){nr.hidden=tr.hidden;tr.replaceWith(nr)}else tr.remove();
+    var main=document.querySelector('main');
+    main.querySelectorAll(':scope > .flash:not(.warn)').forEach(function(x){x.remove()});
+    [].slice.call(doc.querySelectorAll('main > .flash:not(.warn)')).reverse().forEach(function(x){main.prepend(x)});
+    ['.title-row .muted','nav.filter'].forEach(function(sel){var a=document.querySelector(sel),b=doc.querySelector(sel);if(a&&b)a.replaceWith(b)});
+    count();
+  }).catch(function(){f.submit()})});
+})();
+</script>
 {{template "foot" .}}{{end}}
+
+{{define "member"}}{{template "head" .}}{{with .MemberPage}}{{$m := .}}{{$paid := .PaidFor $.Year}}
+<p><a href="/admin/members">← All members</a></p>
+<div class="title-row">
+  <h1>{{.Name}}</h1>
+  <p class="muted">{{.PlanName}} plan · joined {{date .Joined}}{{if not .Active}} <span class="tag">Unsubscribed</span>{{end}}</p>
+</div>
+<div class="grid2 member-page">
+  <form class="card" method="post" action="/admin/members/{{.ID}}">
+    <h2>Details</h2>
+    <label>Full name <input name="name" required maxlength="100" value="{{.Name}}"></label>
+    <label>Email <input type="email" name="email" required maxlength="254" value="{{.Email}}"></label>
+    <label><span>Phone <span class="opt">(optional)</span></span><input type="tel" name="phone" maxlength="30" value="{{.Phone}}"></label>
+    <label><span>Emergency contact <span class="opt">(optional)</span></span><input name="emergency_name" maxlength="100" value="{{.EmergencyName}}"></label>
+    <label><span>Emergency contact’s phone <span class="opt">(optional)</span></span><input type="tel" name="emergency_phone" maxlength="30" value="{{.EmergencyPhone}}"></label>
+    <label>Plan <select name="plan"><option value="individual">Individual</option><option value="family"{{if eq .Plan "family"}} selected{{end}}>Family</option></select></label>
+    <label>Riding <select name="level"><option value="">Not given</option>{{range riderLevels}}<option value="{{.Value}}"{{if eq .Value $m.Level}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>
+    <button>{{icon "save"}}Save</button>
+  </form>
+  <div class="card">
+    <h2>Dues</h2>
+    <form method="post" action="/admin/members/{{.ID}}/paid" class="inline">
+      <input type="hidden" name="return" value="/admin/members/{{.ID}}">
+      {{if $paid}}<span class="paid">Paid for {{$.Year}}</span> <input type="hidden" name="paid" value="0"><button class="link small">{{icon "undo"}}Undo</button>
+      {{else}}<span class="muted">Not paid for {{$.Year}}</span> <input type="hidden" name="paid" value="1"><button class="mini">{{icon "check"}}Mark paid</button>{{end}}
+    </form>
+    {{if .WelcomePending}}<p class="muted small">Joined on the website: marking them paid sends their welcome email.</p>{{end}}
+    <p class="small">Years paid: {{range $i, $y := .PaidYears}}{{if $i}}, {{end}}{{$y}}{{else}}<span class="muted">none yet</span>{{end}}</p>
+    <h2 class="member-h">Waivers</h2>
+    {{if .Waivers}}<ul class="member-list">{{range .Waivers}}<li><a href="/admin/waivers/{{.ID}}">{{.Year}}</a> · {{if .Minor}}for {{.Rider}}, age {{.RiderAge}}{{else if .Household}}{{.Rider}}, on this family plan{{else}}their own{{end}} <span class="muted small">signed {{date .Signed}}</span></li>{{end}}</ul>
+    {{else}}<p class="muted small">No waivers signed yet.</p>{{end}}
+    {{with .Household}}<h2 class="member-h">Adults on this family plan</h2>
+    <ul class="member-list">{{range .}}<li>{{.Name}} · <a href="mailto:{{.Email}}">{{.Email}}</a>{{if not .LinkSent}} <span class="muted small">(waiver link not sent yet)</span>{{end}}</li>{{end}}</ul>{{end}}
+    <h2 class="member-h">Contact</h2>
+    <p class="small"><a href="mailto:{{.Email}}">Email {{.FirstName}}</a>{{with .Phone}} · <a href="tel:{{.}}">Call {{.}}</a>{{end}}{{with .EmergencyPhone}} · Emergency: <a href="tel:{{.}}">{{.}}</a>{{with $m.EmergencyName}} ({{.}}){{end}}{{end}}</p>
+    {{with .TermsAgreed}}<p class="muted small">Agreed to the club terms {{date .}}.</p>{{end}}
+  </div>
+</div>
+{{if $.CanManage}}<form class="footnote" method="post" action="/admin/members/{{.ID}}/delete" onsubmit="return confirm('Delete {{.Email}}? This can’t be undone.')"><button class="link danger">{{icon "trash"}}Delete this member</button></form>
+{{else}}<p class="muted small footnote">Only the president can delete members.</p>{{end}}
+{{end}}{{template "foot" .}}{{end}}
 
 {{define "waivers"}}{{template "head" .}}
 <div class="title-row">
@@ -503,7 +600,7 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
   {{end}}
   </tbody>
 </table></div>{{end}}
-<p class="muted small">The club’s insurance needs every member to sign the League of American Bicyclists waiver each year. A waiver covers January to December, so everyone shows as not signed again on January 1. New members sign on the join form. Everyone else signs on their own membership page, from the “My membership” link in every club email, and parents or guardians sign there for each rider under 18 in their household. In January, send an email from the Email tab asking members to sign this year’s waiver. Adults on a family membership sign their own, from a link emailed to them once the member’s dues are marked paid, and again each year when they’re marked paid and that adult hasn’t signed yet. “Not signed” lists members and those adults: the site can’t know about riders under 18 until someone signs for them. Signed waivers are kept for good, even if a member is deleted. Open one to print it or save it as a PDF.</p>
+<details class="howto"><summary>How waivers work</summary><p class="muted small">The club’s insurance needs every member to sign the League of American Bicyclists waiver each year. A waiver covers January to December, so everyone shows as not signed again on January 1. New members sign on the join form. Everyone else signs on their own membership page, from the “My membership” link in every club email, and parents or guardians sign there for each rider under 18 in their household. In January, send an email from the Email tab asking members to sign this year’s waiver. Adults on a family membership sign their own, from a link emailed to them once the member’s dues are marked paid, and again each year when they’re marked paid and that adult hasn’t signed yet. “Not signed” lists members and those adults: the site can’t know about riders under 18 until someone signs for them. Signed waivers are kept for good, even if a member is deleted. Open one to print it or save it as a PDF.</p></details>
 {{template "foot" .}}{{end}}
 
 {{define "waiver"}}{{template "head" .}}{{with .Waiver}}
@@ -555,19 +652,29 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
   <div class="send-row">
     <input type="email" name="test_to" value="{{.TestTo}}" aria-label="Send test to">
     <button class="ghost" formaction="/admin/email/test">{{icon "mail"}}Send test</button>
-    {{if or .Draft.Subject .Draft.Body}}<button class="link danger" formaction="/admin/email/discard" onclick="return confirm('Discard this draft?')">{{icon "trash"}}Discard draft</button>{{end}}
+    <button class="link danger draft-discard" formaction="/admin/email/discard" onclick="return confirm('Discard this draft?')"{{if not (or .Draft.Subject .Draft.Body)}} hidden{{end}}>{{icon "trash"}}Discard draft</button>
+    <span class="muted small draft-status" role="status"></span>
   </div>
   <div class="send-row">
     <label class="inline-label">Send to
-      <select name="audience">
-        <option value="all">Everyone ({{.Active}})</option>
-        <option value="unpaid">Not paid for {{.Year}} ({{.Unpaid}})</option>
-        <option value="paid">Paid for {{.Year}} ({{.Paid}})</option>
-      </select>
+      <select name="audience">{{range .Audiences}}<option value="{{.Value}}">{{.Label}}</option>{{end}}</select>
     </label>
     <button formaction="/admin/email/send" onclick="return confirm('Send this email to: '+this.form.audience.selectedOptions[0].text+'?')">{{icon "send"}}Send email</button>
   </div>
 </form>
+<script>
+// The draft saves itself a couple of seconds after each change, and the
+// page asks before you leave while a change hasn't been saved yet.
+(function(){var f=document.querySelector('form.compose'),st=f.querySelector('.draft-status'),discard=f.querySelector('.draft-discard'),timer,unsaved=false,leaving=false;
+  function save(){clearTimeout(timer);var fd=new URLSearchParams();fd.set('subject',f.subject.value);fd.set('body',f.body.value);
+    st.textContent='Saving…';
+    fetch('/admin/email/draft',{method:'POST',body:fd}).then(function(r){if(!r.ok)throw r;unsaved=false;st.textContent='Draft saved';discard.hidden=!(f.subject.value.trim()||f.body.value.trim())})
+      .catch(function(){st.textContent='Not saved: check your connection. It tries again when you type.'})}
+  f.addEventListener('input',function(e){if(e.target.name!=='subject'&&e.target.name!=='body')return;unsaved=true;st.textContent='';clearTimeout(timer);timer=setTimeout(save,2000)});
+  f.addEventListener('submit',function(){leaving=true});
+  f.addEventListener('keydown',function(e){if((e.ctrlKey||e.metaKey)&&!e.altKey&&!e.shiftKey&&e.key.toLowerCase()==='s'){e.preventDefault();save()}});
+  window.addEventListener('beforeunload',function(e){if(unsaved&&!leaving){save();e.preventDefault();e.returnValue=''}})})();
+</script>
 
 <div class="title-row section-row"><h2>Sent emails</h2><a href="/admin/stats">How many opened and clicked</a></div>
 <div class="table-wrap"><table>
@@ -623,14 +730,16 @@ function initMail(form){
     frame.style.maxWidth=b.dataset.w+'px';setTimeout(fit,50)})});
   function picked(){return ta.value.slice(ta.selectionStart,ta.selectionEnd)}
   // Types text where the cursor is (keeping undo working where the browser allows).
-  function put(text){ta.focus();if(!document.execCommand('insertText',false,text)){ta.setRangeText(text,ta.selectionStart,ta.selectionEnd,'end');later()}}
+  function put(text){ta.focus();if(!document.execCommand('insertText',false,text)){ta.setRangeText(text,ta.selectionStart,ta.selectionEnd,'end');ta.dispatchEvent(new Event('input',{bubbles:true}))}}
   // Puts something on lines of its own, with a blank line before and after.
   function block(text){var before=ta.value.slice(0,ta.selectionStart);
     put((before===''||/\n\n$/.test(before)?'':/\n$/.test(before)?'\n':'\n\n')+text+'\n\n')}
   var act={
     bold:function(){put('**'+(picked()||'bold words')+'**')},
-    link:function(){var u=prompt('The web address to link to:','https://');if(!u||u==='https://')return;
-      var w=picked()||prompt('The words to click:','')||u;put('['+w+']('+u+')')},
+    italic:function(){put('*'+(picked()||'words in italics')+'*')},
+    link:function(){var box=document.getElementById('mail-link-box'),w=picked().trim(),at=[ta.selectionStart,ta.selectionEnd];
+      if(!box||!box.showModal){var u=prompt('The web address to link to:','https://');if(!u||u==='https://')return;put('['+(w||prompt('The words to click:','')||u)+']('+u+')');return}
+      openMailLink(w,function(label,href,big){ta.focus();ta.setSelectionRange(at[0],at[1]);var md='['+label+']('+href+')';if(big)block('['+md+']');else put(md)})},
     button:function(){var w=picked()||prompt('The words on the button:','Sign up');if(!w)return;
       var u=prompt('Where the button goes (a web address):','https://');if(!u||u==='https://')return;block('[['+w+']('+u+')]')},
     heading:function(){block('## '+(picked()||'Heading'))},
@@ -638,22 +747,51 @@ function initMail(form){
     name:function(){put('{first_name}')}
   };
   form.querySelectorAll('.mail-bar [data-do]').forEach(function(b){b.addEventListener('click',function(){act[b.dataset.do]()})});
+  ta.addEventListener('keydown',function(e){if(!(e.ctrlKey||e.metaKey)||e.altKey||e.shiftKey)return;var k={b:'bold',i:'italic',k:'link'}[e.key.toLowerCase()];
+    if(k){e.preventDefault();act[k]()}});
   file.addEventListener('change',function(){var f=file.files[0];if(!f)return;var fd=new FormData();fd.append('photo',f);file.value='';
     var st=form.querySelector('.mail-bar-status');st.textContent='Uploading the photo…';
     fetch('/admin/pages/photo',{method:'POST',body:fd}).then(function(r){return r.json()}).then(function(j){
       if(j.error){st.textContent=j.error;return}st.textContent='';var m=/\((\/[^)]+)\)/.exec(j.markdown);if(m)block('![Photo]('+m[1]+')')})
     .catch(function(){st.textContent='The photo didn’t upload. Try again.'})});
 }
+// The link box: a page on the site, or any web or email address, as words
+// to click or a big button. done gets the words, the address, and whether
+// it's a button.
+function openMailLink(words,done){var box=document.getElementById('mail-link-box'),f=box.querySelector('form'),
+    w=box.querySelector('[name=words]'),page=box.querySelector('[name=page]'),url=box.querySelector('[name=url]');
+  w.value=words;url.value='';f.kind[0].checked=true;f.big.checked=false;
+  f.onsubmit=function(e){if(!e.submitter||e.submitter.value!=='ok')return;var web=f.kind[1].checked,href=web?url.value.trim():page.value;if(!href)return;
+    if(web&&!/^[a-z]+:/i.test(href))href=(href.indexOf('@')>0?'mailto:':'https://')+href;
+    var label=w.value.trim()||(web?href.replace(/^(https?:\/\/|mailto:)(www\.)?/,'').replace(/\/$/,''):page.options[page.selectedIndex].text);
+    var big=f.big.checked;setTimeout(function(){done(label,href,big)},0)}; // once the box has closed and the message box can take focus again
+  box.showModal();w.focus()}
+(function(){var box=document.getElementById('mail-link-box');if(!box)return;var f=box.querySelector('form');
+  box.querySelector('[name=url]').addEventListener('focus',function(){f.kind[1].checked=true});
+  box.querySelector('[name=page]').addEventListener('focus',function(){f.kind[0].checked=true})})();
 document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('form'))});
 </script>
+<dialog id="mail-link-box" class="card link-dialog">
+  <form method="dialog">
+    <h2>Add a link</h2>
+    <label>Words to click <input name="words" placeholder="See the ride calendar"></label>
+    <label class="check"><input type="radio" name="kind" value="page" checked> A page on the club website</label>
+    <select name="page" aria-label="Page">{{range .Links}}<option value="{{.Path}}">{{.Title}}</option>{{end}}</select>
+    <label class="check"><input type="radio" name="kind" value="web"> Another website or an email address</label>
+    <input name="url" inputmode="url" autocomplete="off" placeholder="https://www.example.com" aria-label="Web address">
+    <label class="check"><input type="checkbox" name="big"> Show it as a big button</label>
+    <div class="send-row"><button value="ok">{{icon "check"}}Add link</button><button value="" class="link">Cancel</button></div>
+  </form>
+</dialog>
 {{if .Sending}}<script>
 (function poll(){setTimeout(function(){fetch('/admin/email/status').then(function(r){return r.json()}).then(function(list){var busy=false;list.forEach(function(c){var tr=document.querySelector('tr[data-id="'+c.id+'"]');if(!tr)return;tr.querySelector('.prog').textContent=c.progress;tr.querySelector('.st').textContent=c.status+(c.error?' – '+c.error:'');if(c.status==='Sending')busy=true;else tr.querySelector('.act').textContent=''});if(busy)poll()}).catch(poll)},3000)})();
 </script>{{end}}
 {{template "foot" .}}{{end}}
 
 {{define "mail-bar"}}<div class="mail-bar" role="toolbar" aria-label="Formatting">
-  <button type="button" class="ghost" data-do="bold" title="Bold"><strong>B</strong></button>
-  <button type="button" class="ghost" data-do="link">Link</button>
+  <button type="button" class="ghost" data-do="bold" title="Bold (Ctrl+B)"><strong>B</strong></button>
+  <button type="button" class="ghost" data-do="italic" title="Italics (Ctrl+I)"><em>I</em></button>
+  <button type="button" class="ghost" data-do="link" title="Link (Ctrl+K)">Link</button>
   <button type="button" class="ghost" data-do="button">Button</button>
   <button type="button" class="ghost" data-do="heading">Heading</button>
   <button type="button" class="ghost" data-do="list">List</button>
@@ -1130,7 +1268,14 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
 {{if not .StravaReady}}<p class="flash warn">The Strava settings aren’t in paxvelo.conf yet, so the club’s Strava events aren’t imported. Rides added here or on the calendar still work. README.md, “Ride calendar”, explains the setup.</p>{{end}}
 
 <h2 class="section">Coming up</h2>
-<p class="muted small">The next 60 days. Press <strong>Edit</strong> to change a ride’s leaders, details, or pace groups, or to cancel it. The <a href="/admin/calendar">Calendar tab</a> shows every month.</p>
+{{if .Held}}<div class="card held">
+  <h2>Waiting for approval</h2>
+  <p class="muted small">Added on the website without the club PIN. They aren’t on the public calendar until you approve them.</p>
+  <ul class="plain">{{range .Held}}<li><strong>{{.Name}}</strong>, {{.DateLabel}}{{if .Time}} at {{.TimeLabel}}{{end}}{{if .Place}}, {{.Place}}{{end}}{{if .AddedBy}} <span class="muted">(added by {{.AddedBy}})</span>{{end}}
+    <form method="post" action="/admin/rides/{{.Key}}/approve" class="inline"><input type="hidden" name="return" value="rides"><button class="mini">{{icon "check"}}Approve</button></form>
+    <a class="btn mini ghost" href="/admin/rides/{{.Key}}">Open</a></li>{{end}}</ul>
+</div>{{end}}
+<p class="muted small">The next 60 days. Press <strong>Edit</strong> to change a ride’s leaders, details, or pace groups. <strong>Cancel</strong> marks it cancelled on the calendar and emails the club. The <a href="/admin/calendar">Calendar tab</a> shows every month.</p>
 <div class="table-wrap"><table>
   <thead><tr><th>Date</th><th>Ride</th><th>Leaders</th><th><span class="sr">Actions</span></th></tr></thead>
   <tbody>
@@ -1138,7 +1283,8 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
     <td class="nowrap">{{.DateLabel}}<br><span class="muted small">{{.TimeLabel}}</span></td>
     <td><a href="/admin/rides/{{.Key}}">{{.Name}}</a>{{if not .IsRide}} <span class="tag">{{.KindName}}</span>{{end}}{{if .Custom}} <span class="tag">One-off</span>{{end}}{{if .Cancelled}} <span class="tag">Cancelled</span>{{end}}</td>
     <td>{{if not .IsRide}}{{with .Leaders}}{{(index . 0).Name}}{{else}}<span class="muted">–</span>{{end}}{{else}}{{range .Slots}}<span class="leader-line">{{with .Group}}<span class="muted">{{.}}:</span> {{end}}{{with .Leader}}{{.Name}}{{else}}<span class="danger">needs a leader</span>{{end}}</span>{{end}}{{end}}</td>
-    <td class="right nowrap"><a class="btn mini ghost" href="/admin/rides/{{.Key}}">{{icon "pencil"}}Edit</a></td>
+    <td class="right nowrap row-acts"><a class="btn mini ghost" href="/admin/rides/{{.Key}}">{{icon "pencil"}}Edit</a>
+      <form method="post" action="/admin/rides/{{.Key}}/cancel" class="inline"><input type="hidden" name="return" value="rides">{{if .Cancelled}}<input type="hidden" name="cancel" value="0"><button class="link small">{{icon "undo"}}Put back</button>{{else}}<input type="hidden" name="cancel" value="1"><button class="link danger small" onclick="return confirm('Cancel {{.Name}} on {{.ShortDate}}? It shows as cancelled on the calendar and the club is emailed.')">{{icon "ban"}}Cancel</button>{{end}}</form></td>
   </tr>
   {{else}}<tr><td colspan="4" class="empty">No rides in the next 60 days.</td></tr>
   {{end}}
@@ -1320,6 +1466,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
 {{if $f.Past}}<p class="flash warn">This ride has already happened.</p>{{end}}
 <form class="card new-issue ride-form" method="post" action="{{if $f.New}}/admin/rides/new{{else}}/admin/rides/{{$f.Key}}{{end}}" data-kinds>
   {{template "kind-pick" $f.Kind}}
+  <div class="ride-cols"><div class="ride-col">
   <label>Name <input name="name" value="{{$f.Name}}" required maxlength="80" placeholder="Saturday Coffee Ride"></label>
   <div class="pair">
     {{if or $f.New $f.Custom}}<label>Date <input type="date" name="date" value="{{$f.Date}}" required></label>
@@ -1333,6 +1480,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   </div>{{end}}
   <label>Start location (optional) <input name="place" value="{{$f.Place}}" maxlength="100" placeholder="Leonardtown Square"></label>
   <label>Description (optional) <textarea name="details" rows="3" maxlength="1000" placeholder="Route, pace, coffee stop, what to bring…">{{$f.Details}}</textarea></label>
+  </div><div class="ride-col">
   <div class="ride-only" data-ride-only>
     {{$pace := $f.Pace}}<label>Pace groups <select name="pace" data-leaders>{{range paceChoices}}<option value="{{.Value}}"{{if eq .Value $pace}} selected{{end}}>{{.Label}}</option>{{end}}{{if eq $pace "keep"}}<option value="keep" selected>Keep: {{join $f.Groups ", "}}</option>{{end}}</select></label>
     {{template "level-select" $f.Level}}
@@ -1345,6 +1493,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
     <p class="muted small" data-ride-text="Type a name to make someone the leader, or clear it to open the spot. Leader changes aren’t emailed to the club." data-event-text="Nobody signs up for this on the calendar. Name who’s running it, if you like.">Type a name to make someone the leader, or clear it to open the spot. Leader changes aren’t emailed to the club.</p>
   </fieldset>
   {{template "strava-link" $f.StravaURL}}
+  </div></div>
   <button>{{if $f.New}}{{icon "plus"}}Add to the calendar{{else}}{{icon "save"}}Save changes{{end}}</button>
 </form>
 {{if not $f.New}}<div class="send-row footnote">
@@ -1643,7 +1792,7 @@ var host=document.getElementById('cards'),modeBar=form.querySelector('.ed-mode')
 try{if(localStorage.getItem('page-editor')==='text')mode='text'}catch(e){}
 var PIECES={'membership-plans':['Join boxes','The two Join boxes with the dues prices'],'social-links':['Social icons','The Discord, Strava, Facebook, and Instagram icons'],
   instagram:['Instagram posts','The Instagram posts picked on the Instagram tab, and a Follow button'],board:['Board members','The board members, edited on the Board tab'],
-  'home-photos':['Home page photos','The photo slideshow, edited on the Home photos tab']};
+  'home-photos':['Home page photos','The photo slideshow, edited on the Home photos tab'],'upcoming-rides':['Next rides','The next few rides from the calendar, with a link to it']};
 var LEVELS=[['level-social','Social'],['level-intermediate','Intermediate'],['level-elite','Elite'],['level-intermediate-elite','Intermediate or Elite, depending on who turns out']];
 var PH={strava:'the club’s Strava page',kit:'the team kit store',donate:'the donation link','dues-individual':'Individual dues amount','dues-family':'Family dues amount'};
 var linkG=/(!?)\[([^\]]*)\]\(\s*([^)\s]*)\s*\)/g,FACT=/^\*\*([^*]+?)(?::\*\*|\*\*:)\s*(.*)$/;
@@ -1846,7 +1995,7 @@ function caret(e,end){e.focus();var r=document.createRange();r.selectNodeContent
 
 // ---- Drawing the cards ----
 var KINDS=[['p','Paragraph'],['h2','Section heading',1],['photo','Photo'],['button','Button'],['list','List'],['facts','Ride details'],['cols','Columns',1],
-  ['membership-plans','Join boxes',1],['social-links','Social icons'],['instagram','Instagram posts',1],['level','Ride level'],['note','Note for editors']];
+  ['membership-plans','Join boxes',1],['social-links','Social icons'],['instagram','Instagram posts',1],['upcoming-rides','Next rides',1],['level','Ride level'],['note','Note for editors']];
 function render(focus,where){host.textContent='';host.appendChild(settingsCard());cards(doc.blocks,host,true);
   if(focus&&focus._focus){focus._focus(where);var c=focus._card;if(c&&c.scrollIntoView){var r=c.getBoundingClientRect();if(r.top<0||r.bottom>innerHeight)c.scrollIntoView({block:'center'})}}}
 function cards(arr,into,top){arr.forEach(function(b,i){if(b.type!=='title')into.appendChild(gap(arr,i,top));into.appendChild(card(arr,i,top))});into.appendChild(gap(arr,arr.length,top))}

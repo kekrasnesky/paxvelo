@@ -611,8 +611,9 @@ func (s *Store) StartCampaign(subject, body, audience string, year int) (Campaig
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	c := &Campaign{ID: s.d.NextCampaign, Subject: subject, Body: body, Created: time.Now().UTC(), Status: "sending", Audience: audienceLabel(audience, year)}
+	signed := s.signedWaivers(year)
 	for _, m := range s.d.Members {
-		if m.Active() && inAudience(*m, audience, year) {
+		if m.Active() && inAudience(*m, audience, year, signed) {
 			c.Pending = append(c.Pending, m.ID)
 		}
 	}
@@ -741,12 +742,20 @@ func randHex(n int) string {
 	return hex.EncodeToString(b)
 }
 
-func inAudience(m Member, audience string, year int) bool {
+// inAudience reports whether a member is in the group an email goes to:
+// "all", "paid" or "unpaid" for the year, "unsigned" (no waiver of their own
+// for the year; signed holds who has one), or "level-<riderLevels value>".
+func inAudience(m Member, audience string, year int, signed map[int]bool) bool {
 	switch audience {
 	case "paid":
 		return m.PaidFor(year)
 	case "unpaid":
 		return !m.PaidFor(year)
+	case "unsigned":
+		return !signed[m.ID]
+	}
+	if lv, ok := strings.CutPrefix(audience, "level-"); ok {
+		return m.Level == lv
 	}
 	return true
 }
@@ -757,6 +766,51 @@ func audienceLabel(audience string, year int) string {
 		return fmt.Sprintf("Paid for %d", year)
 	case "unpaid":
 		return fmt.Sprintf("Not paid for %d", year)
+	case "unsigned":
+		return fmt.Sprintf("Haven’t signed the %d waiver", year)
+	}
+	if lv, ok := strings.CutPrefix(audience, "level-"); ok {
+		for _, c := range riderLevels {
+			if c.Value == lv {
+				return "Riding: " + c.Short
+			}
+		}
 	}
 	return "Everyone"
 }
+
+// signedWaivers is who signed their own waiver for a year. Callers hold s.mu.
+func (s *Store) signedWaivers(year int) map[int]bool {
+	signed := map[int]bool{}
+	for _, w := range s.d.Waivers {
+		if w.Year == year && !w.Minor && !w.Household {
+			signed[w.MemberID] = true
+		}
+	}
+	return signed
+}
+
+// emailAudiences are the groups an email can go to, each with how many
+// active members are in it now.
+func (s *Store) emailAudiences(year int) []audienceOption {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	signed := s.signedWaivers(year)
+	values := []string{"all", "unpaid", "paid", "unsigned"}
+	for _, c := range riderLevels {
+		values = append(values, "level-"+c.Value)
+	}
+	var out []audienceOption
+	for _, v := range values {
+		n := 0
+		for _, m := range s.d.Members {
+			if m.Active() && inAudience(*m, v, year, signed) {
+				n++
+			}
+		}
+		out = append(out, audienceOption{v, fmt.Sprintf("%s (%d)", audienceLabel(v, year), n)})
+	}
+	return out
+}
+
+type audienceOption struct{ Value, Label string }

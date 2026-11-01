@@ -7,6 +7,7 @@
     <li>Cheaper club kit</li>
     <li>A say in everything we do</li>
   </ul>
+  <p class="join-back"{{if .Data.OK}} hidden{{end}}>Already a member? <a href="/membership">Check your dues or update your details</a>.</p>
   <form class="join" method="post" action="/join"{{if .Data.OK}} hidden{{end}}>
     <input type="hidden" name="ft" value="{{.Data.Token}}">
     <div class="hp" aria-hidden="true"><label>Leave this empty <input name="website" tabindex="-1" autocomplete="off"></label></div>

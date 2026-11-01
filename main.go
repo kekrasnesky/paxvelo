@@ -67,6 +67,7 @@ func main() {
 	go app.stravaSyncLoop(ctx)
 	go app.instagramSyncLoop(ctx)
 	go app.stats.run(ctx)
+	go app.upcomingLoop(ctx)
 	go app.sizeOldPhotos()
 
 	srv := &http.Server{
@@ -160,6 +161,7 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("GET /calendar/new", a.newRidePage)
 	mux.HandleFunc("POST /calendar/new", a.addRide)
 	mux.HandleFunc("GET /calendar/ride/{key}", a.ridePage)
+	mux.HandleFunc("GET /calendar/ride/{key}/calendar.ics", a.rideICS)
 	mux.HandleFunc("POST /calendar/ride/{key}/lead", a.leadRide)
 	mux.HandleFunc("POST /calendar/ride/{key}/stepdown", a.stepDown)
 	mux.HandleFunc("POST /calendar/ride/{key}/strava", a.setRideStrava)
@@ -206,6 +208,9 @@ func (a *App) routes() http.Handler {
 	mux.Handle("GET /admin/stats", a.auth(a.statsAdmin))
 	mux.Handle("GET /admin/", http.RedirectHandler("/admin", http.StatusSeeOther))
 	mux.Handle("POST /admin/members", a.auth(a.addMember))
+	mux.Handle("GET /admin/members/{id}", a.auth(a.memberPage))
+	mux.Handle("POST /admin/members/{id}", a.auth(a.saveMember))
+	mux.Handle("POST /admin/members/paid", a.auth(a.markPaidMany))
 	mux.Handle("POST /admin/members/{id}/delete", a.auth(a.deleteMember))
 	mux.Handle("POST /admin/members/{id}/paid", a.auth(a.markPaid))
 	mux.Handle("GET /admin/members.csv", a.auth(a.exportCSV))
@@ -224,6 +229,7 @@ func (a *App) routes() http.Handler {
 	mux.Handle("POST /admin/email/{id}/stop", a.auth(a.stopCampaign))
 	mux.Handle("POST /admin/email/{id}/resume", a.auth(a.resumeCampaign))
 	mux.Handle("POST /admin/email/discard", a.auth(a.discardDraft))
+	mux.Handle("POST /admin/email/draft", a.auth(a.saveDraft))
 	mux.Handle("POST /admin/welcome", a.auth(a.saveWelcome))
 	mux.Handle("GET /admin/newsletter", a.auth(a.newsletterAdmin))
 	mux.Handle("POST /admin/newsletter", a.auth(a.createIssue))
