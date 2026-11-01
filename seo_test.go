@@ -32,7 +32,7 @@ func TestSearchEngineData(t *testing.T) {
 	if v := ldOf(t, home); v == nil || v["@type"] != "SportsClub" || v["url"] != a.cfg.SiteURL+"/" {
 		t.Errorf("home page should describe the club: %v", v)
 	}
-	if !strings.Contains(home, "<title>PaxVelo Cycling Club · Group Rides in Southern Maryland</title>") {
+	if !strings.Contains(home, "<title>PaxVelo · Group Rides in Southern Maryland</title>") {
 		t.Error("home page title should say where the club rides")
 	}
 
@@ -85,7 +85,7 @@ func TestBoardInSearchData(t *testing.T) {
 		t.Fatalf("want the one named board member, got %v", v["member"])
 	}
 	p := members[0].(map[string]any)["member"].(map[string]any)
-	if p["name"] != "Pat Rider" || p["jobTitle"] != "President, PaxVelo Cycling Club" {
+	if p["name"] != "Pat Rider" || p["jobTitle"] != "President, PaxVelo" {
 		t.Errorf("board member: %v", p)
 	}
 }

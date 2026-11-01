@@ -29,7 +29,7 @@ const menuLast = 10
 const siteDescription = "Southern Maryland’s Premier Cycling Club"
 
 // siteName is the club's name in page titles and link previews.
-const siteName = "PaxVelo Cycling Club"
+const siteName = "PaxVelo"
 
 type Page struct {
 	Path     string

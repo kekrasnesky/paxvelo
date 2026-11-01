@@ -7,7 +7,7 @@
 <title>{{.Title}}</title>
 <meta name="description" content="{{.Desc}}">
 {{with .Path}}<link rel="canonical" href="{{$.SiteURL}}{{.}}">{{end}}
-<meta property="og:site_name" content="PaxVelo Cycling Club">
+<meta property="og:site_name" content="PaxVelo">
 <meta property="og:title" content="{{.Title}}">
 <meta property="og:description" content="{{.Desc}}">
 {{if .Image}}<meta property="og:image" content="{{.SiteURL}}{{.Image}}">
@@ -34,7 +34,7 @@
 </svg>
 
 <header class="hdr">
-  <a class="logo" href="/" aria-label="PaxVelo Cycling Club home"><img src="/static/img/logo-light.svg?v={{.V}}" width="150" height="81" alt=""><span class="wordmark">PaxVelo Cycling Club</span></a>
+  <a class="logo" href="/" aria-label="PaxVelo home"><img src="/static/img/logo-light.svg?v={{.V}}" width="150" height="81" alt=""><span class="wordmark">PaxVelo</span></a>
   <nav class="nav" id="nav" aria-label="Main">
     <a href="/"{{if eq .Path "/"}} aria-current="page"{{end}}>Home</a>
     <div class="dd">
@@ -66,7 +66,7 @@
       <li><img src="/static/img/sponsors/oldline.svg?v={{.V}}" alt="Old Line" width="433" height="328" loading="lazy"></li>
     </ul>
   </div>
-  <p class="ftr-copy"><picture><source srcset="/static/img/rider-light-still.svg?v={{.V}}" media="(prefers-reduced-motion: reduce)"><img src="/static/img/rider-light.svg?v={{.V}}" alt="" width="44" height="42" loading="lazy"></picture>© PaxVelo Cycling Club, a 501(c)(3) nonprofit</p>
+  <p class="ftr-copy"><picture><source srcset="/static/img/rider-light-still.svg?v={{.V}}" media="(prefers-reduced-motion: reduce)"><img src="/static/img/rider-light.svg?v={{.V}}" alt="" width="44" height="42" loading="lazy"></picture>© PaxVelo, a 501(c)(3) nonprofit</p>
   {{template "social" .}}
   <a class="ftr-mail" href="mailto:PaxVeloClub@gmail.com">PaxVeloClub@gmail.com</a>
   <a class="ftr-admin" href="/admin" rel="nofollow">Admin</a>

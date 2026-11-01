@@ -3,7 +3,7 @@ menu: Executive Board Members
 order: 1
 wide: yes
 people: yes
-description: Meet the volunteers on PaxVelo Cycling Club’s executive board.
+description: Meet the volunteers on PaxVelo’s executive board.
 ---
 
 # Executive Board Members

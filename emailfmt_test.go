@@ -68,7 +68,7 @@ func TestEmailPreview(t *testing.T) {
 		t.Fatalf("status %d", w.Code)
 	}
 	got := w.Body.String()
-	for _, want := range []string{"PAXVELO CYCLING CLUB", "Hi Pat,", "<strong>See you there</strong>", `src="/static/img/logo.png"`} {
+	for _, want := range []string{"PAXVELO", "Hi Pat,", "<strong>See you there</strong>", `src="/static/img/logo.png"`} {
 		if !strings.Contains(got, want) {
 			t.Errorf("preview missing %q", want)
 		}

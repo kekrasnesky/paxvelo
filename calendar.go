@@ -276,7 +276,7 @@ func (a *App) rideICS(w http.ResponseWriter, r *http.Request) {
 	}
 	link := a.cfg.SiteURL + "/calendar/ride/" + o.Key
 	host := strings.TrimPrefix(strings.TrimPrefix(a.cfg.SiteURL, "https://"), "http://")
-	lines := []string{"BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//PaxVelo Cycling Club//Ride calendar//EN", "METHOD:PUBLISH", "BEGIN:VEVENT",
+	lines := []string{"BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//PaxVelo//Ride calendar//EN", "METHOD:PUBLISH", "BEGIN:VEVENT",
 		"UID:" + o.Key + "@" + host, "DTSTAMP:" + time.Now().UTC().Format("20060102T150405Z")}
 	if t, err := time.ParseInLocation("2006-01-02 15:04", o.Date+" "+o.Time, a.cfg.Location); err == nil {
 		lines = append(lines, "DTSTART:"+t.UTC().Format("20060102T150405Z"), "DTEND:"+t.Add(2*time.Hour).UTC().Format("20060102T150405Z"))

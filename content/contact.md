@@ -1,7 +1,7 @@
 ---
 menu: Contact Us
 order: 10
-description: How to reach PaxVelo Cycling Club in Southern Maryland: email the board, find our rides on the calendar and Strava, or follow us on Instagram and Facebook.
+description: How to reach PaxVelo in Southern Maryland: email the board, find our rides on the calendar and Strava, or follow us on Instagram and Facebook.
 ---
 
 # Contact Us
@@ -25,4 +25,4 @@ Want to lead one? Open it on the calendar.
 ## Follow along
 
 - **Instagram:** [@paxvelo](https://www.instagram.com/paxvelo/)
-- **Facebook:** [PaxVelo Cycling Club](https://www.facebook.com/groups/112307228841445/)
+- **Facebook:** [PaxVelo](https://www.facebook.com/groups/112307228841445/)
