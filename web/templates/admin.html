@@ -2263,11 +2263,12 @@ window.addEventListener('resize',fit);fit();refresh();
   {{range $i, $m := .Board}}<section class="card">
     <h2>{{if $m.Name}}{{$m.Name}}{{else}}Add a board member{{end}}</h2>
     <div class="pair"><label>Name <input name="name{{$i}}" value="{{$m.Name}}" maxlength="60"></label><label>Role <input name="role{{$i}}" value="{{$m.Role}}" maxlength="60"></label></div>
-    <div class="photo-field">
+    <div class="photo-field" data-board="{{$i}}">
       {{if $m.Photo}}{{template "framer" (framer $m.Photo $m.Focus (printf "focus%d" $i))}}{{else}}<span></span>{{end}}
       <input type="hidden" name="photo_current{{$i}}" value="{{$m.Photo}}">
       <div class="fields">
-        <label>{{if $m.Photo}}Replace photo{{else}}Photo{{end}} <input type="file" name="photo{{$i}}_file" accept="image/jpeg,image/png,image/webp"></label>
+        <button type="button" class="ghost gal-choose">Choose from the gallery</button>
+        <label>{{if $m.Photo}}Or upload a different photo{{else}}Or upload a photo{{end}} <input type="file" name="photo{{$i}}_file" accept="image/jpeg,image/png,image/webp"></label>
         <label>Position <input type="number" name="order{{$i}}" value="{{inc $i}}" min="1" max="40" class="year"></label>
         {{if $m.Photo}}<label class="check"><input type="checkbox" name="photo_remove{{$i}}"> Remove photo</label>{{end}}
         {{if $m.Name}}<label class="check"><input type="checkbox" name="remove{{$i}}"> Remove this person</label>{{end}}
@@ -2276,6 +2277,16 @@ window.addEventListener('resize',fit);fit();refresh();
   </section>{{end}}
   <div class="save-bar"><button>{{icon "save"}}Save</button><span class="muted small">Photos show as circles: click a photo to keep their face in view.</span></div>
 </form>
+<script>
+// Choose from the gallery: the picked photo shows right away, ready to
+// frame, and is kept when Save is pressed.
+document.querySelectorAll('[data-board]').forEach(function(box){
+  var i=box.dataset.board,cur=box.querySelector('input[name="photo_current'+i+'"]'),file=box.querySelector('input[type=file]'),rm=box.querySelector('input[name="photo_remove'+i+'"]');
+  box.querySelector('.gal-choose').addEventListener('click',function(){pickFromGallery(1,function(urls){if(!urls[0])return;
+    cur.value=urls[0];file.value='';if(rm)rm.checked=false;
+    var t=document.createElement('div');t.innerHTML=framerHTML(urls[0],'focus'+i);box.replaceChild(t.firstChild,box.firstElementChild);initFramer(box.firstElementChild)})});
+});
+</script>
 {{template "foot" .}}{{end}}
 
 {{define "guide"}}{{template "head" .}}

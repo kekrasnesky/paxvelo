@@ -227,6 +227,15 @@ func TestGalleryToNewsletter(t *testing.T) {
 	if !sitePhoto(picked.URLs[0]) {
 		t.Error("an issue should accept the picked photo")
 	}
+	// The board page uses the same box: the picked photo is kept on Save.
+	if page := do(t, h, admin, "GET", "/admin/board", "", nil).Body.String(); !strings.Contains(page, `class="ghost gal-choose"`) {
+		t.Error("the board page should offer Choose from the gallery")
+	}
+	ct, body = form(url.Values{"count": {"1"}, "name0": {"Jane Smith"}, "role0": {"President"}, "order0": {"1"}, "photo_current0": {picked.URLs[0]}})
+	do(t, h, admin, "POST", "/admin/board", ct, body)
+	if b := a.store.Board(); len(b) != 1 || b[0].Photo != picked.URLs[0] {
+		t.Errorf("board %+v", b)
+	}
 	if got := newsCaption(GalleryPhoto{Caption: "Costumes", By: "Sam"}); got != "Costumes · Photo by Sam" {
 		t.Errorf("caption %q", got)
 	}
