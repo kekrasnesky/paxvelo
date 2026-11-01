@@ -731,11 +731,11 @@ func TestStravaDetails(t *testing.T) {
 	if cafe.Meta() != "21 mi · 3 going" {
 		t.Errorf("meta: %q", cafe.Meta())
 	}
-	if home.Route.Shown() || home.PublicPlace() != "" || home.DirectionsFor(false) != "" || home.NotesFor(false) != "" {
-		t.Errorf("a private event at a house shouldn't be public: %+v", home)
+	if home.Route.Shown() || home.Place == "" || home.Directions() == "" || home.Notes() == "" {
+		t.Errorf("a private event's start and notes are public; only its private route isn't: %+v", home)
 	}
 
-	// The public ride page shows the route but not a private event's notes or address.
+	// The public ride page shows the route, and a private event's notes and start too.
 	page := do(t, h, nil, "GET", "/calendar/ride/"+cafe.Key, "", nil).Body.String()
 	for _, want := range []string{"Coffee at the end.", "St Mary&#39;s Cafe Loop", "21 mi · 400 ft of climbing", `class="lvl lvl-intermediate">Intermediate</span> 18–20 mph`, "3 going", "posted by Gabriel M.", "google.com/maps/dir", "maps.example/a@2x"} {
 		if !strings.Contains(page, want) {
@@ -743,16 +743,13 @@ func TestStravaDetails(t *testing.T) {
 		}
 	}
 	page = do(t, h, nil, "GET", "/calendar/ride/"+home.Key, "", nil).Body.String()
-	for _, hidden := range []string{"Tulagi", "driveway", "Secret Loop", "google.com/maps"} {
-		if strings.Contains(page, hidden) {
-			t.Errorf("public page for a private ride shows %q", hidden)
+	for _, want := range []string{"Tulagi", "driveway", "google.com/maps"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("public page for a private Strava event should show %q", want)
 		}
 	}
-	if !strings.Contains(page, "ride notes are for club members") {
-		t.Error("the public page should say the notes are for club members")
-	}
-	if page = do(t, h, admin, "GET", "/calendar/ride/"+home.Key, "", nil).Body.String(); !strings.Contains(page, "Tulagi") || !strings.Contains(page, "driveway") {
-		t.Error("an admin should see a private ride's address and notes")
+	if strings.Contains(page, "Secret Loop") || strings.Contains(page, "for club members") {
+		t.Error("a private route stays private, and nothing says the notes are for members")
 	}
 
 	// The Routes page lists the club's public routes, with the next ride on each.
@@ -781,9 +778,9 @@ func TestStravaDetails(t *testing.T) {
 			t.Errorf("routes page is missing %q:\n%s", want, page)
 		}
 	}
-	// So does the API, without the house.
-	if body := do(t, h, nil, "GET", "/api/rides?from="+sun+"&to="+sun, "", nil).Body.String(); strings.Contains(body, "Tulagi") {
-		t.Errorf("the API shows a private start address: %s", body)
+	// So does the API, with the start (the club's events are private only to keep bots out).
+	if body := do(t, h, nil, "GET", "/api/rides?from="+sun+"&to="+sun, "", nil).Body.String(); !strings.Contains(body, "Tulagi") {
+		t.Errorf("the API should show a private event's start: %s", body)
 	}
 }
 
@@ -883,8 +880,8 @@ func TestPastRidesOnCalendar(t *testing.T) {
 		got[0].leaderFor("") == nil || got[0].leaderFor("").Name != "Michael D." {
 		t.Fatalf("the coffee ride should be on the calendar: %+v", got)
 	}
-	if page := do(t, h, nil, "GET", "/calendar/ride/"+got[0].Key, "", nil).Body.String(); !strings.Contains(page, "Coffee Ride") || strings.Contains(page, "Tulagi") {
-		t.Error("a past private ride's page shouldn't show the house")
+	if page := do(t, h, nil, "GET", "/calendar/ride/"+got[0].Key, "", nil).Body.String(); !strings.Contains(page, "Coffee Ride") || !strings.Contains(page, "Tulagi") {
+		t.Error("a past private ride's page should show where it started")
 	}
 	if len(day(lastYear)) != 0 {
 		t.Error("last year's events stay off the calendar")

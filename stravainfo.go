@@ -107,50 +107,19 @@ func thousands(n int) string {
 	return s
 }
 
-var streetRE = regexp.MustCompile(`^\d+\s`)
-
-// homeStart reports whether the ride starts at a street address on an event
-// only the club can see: likely someone's house.
-func (o RideOcc) homeStart() bool {
-	return o.Strava != nil && o.Strava.Private && streetRE.MatchString(o.Place)
-}
-
-// PublicPlace is where the ride starts, for pages and feeds anyone can see.
-func (o RideOcc) PublicPlace() string {
-	if o.homeStart() {
-		return ""
-	}
-	return o.Place
-}
-
-// PlaceFor is where the ride starts, for this visitor.
-func (o RideOcc) PlaceFor(member bool) string {
-	if member {
-		return o.Place
-	}
-	return o.PublicPlace()
-}
-
-// NotesFor is the ride notes from Strava, for this visitor.
-func (o RideOcc) NotesFor(member bool) string {
-	if o.Strava == nil || (o.Strava.Private && !member) {
+// Notes is the ride notes from the Strava event. The club's Strava events
+// are private only to keep bots out, so their notes and starts are public.
+func (o RideOcc) Notes() string {
+	if o.Strava == nil {
 		return ""
 	}
 	return o.Strava.Description
 }
 
-// HiddenNotes reports whether the event has notes only club members can see.
-func (o RideOcc) HiddenNotes(member bool) bool {
-	return o.Strava != nil && o.Strava.Description != "" && o.NotesFor(member) == ""
-}
-
-// DirectionsFor links to directions to the start, for this visitor: to the
-// exact spot when the Strava event has one, or else a map search for the
-// start's name, in Maryland unless it says where.
-func (o RideOcc) DirectionsFor(member bool) string {
-	if o.homeStart() && !member {
-		return ""
-	}
+// Directions links to directions to the start: to the exact spot when the
+// Strava event has one, or else a map search for the start's name, in
+// Maryland unless it says where.
+func (o RideOcc) Directions() string {
 	if o.Strava != nil && o.Strava.Lat != 0 {
 		return fmt.Sprintf("https://www.google.com/maps/dir/?api=1&destination=%.6f,%.6f", o.Strava.Lat, o.Strava.Lng)
 	}

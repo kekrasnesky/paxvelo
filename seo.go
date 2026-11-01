@@ -78,7 +78,7 @@ func (s *Site) clubLD(board []BoardMember) template.JS {
 func (s *Site) ridesLD(rides []RideOcc) template.JS {
 	var events []ld
 	for _, o := range rides {
-		place := o.PublicPlace()
+		place := o.Place
 		if place == "" || o.Cancelled {
 			continue
 		}

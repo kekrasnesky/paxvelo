@@ -10,12 +10,11 @@
 
   {{with $r.Details}}<p class="ride-notes">{{.}}</p>{{end}}
 
-  {{with $r.NotesFor $d.Member}}<p class="ride-notes">{{.}}</p>
-  {{else}}{{if $r.HiddenNotes $d.Member}}<p class="muted-note">The ride notes are for club members. Read them on the Strava event.</p>{{end}}{{end}}
+  {{with $r.Notes}}<p class="ride-notes">{{.}}</p>{{end}}
 
   <dl class="facts">
     {{if $r.IsVirtual}}<div><dt>Where</dt><dd class="virtual-where">{{if $r.OnZwift}}{{template "zwift"}} Virtual, on Zwift{{else}}Virtual: online or on an indoor trainer{{end}}</dd></div>{{end}}
-    {{with $r.PlaceFor $d.Member}}<div><dt>Start</dt><dd>{{.}}{{with $r.DirectionsFor $d.Member}} · <a href="{{.}}" target="_blank" rel="noopener">Directions</a>{{end}}</dd></div>
+    {{with $r.Place}}<div><dt>Start</dt><dd>{{.}}{{with $r.Directions}} · <a href="{{.}}" target="_blank" rel="noopener">Directions</a>{{end}}</dd></div>
     {{else}}{{if $r.Place}}<div><dt>Start</dt><dd>Shared with club members on the Strava event</dd></div>{{end}}{{end}}
     {{with $r.Route}}{{if .Shown}}<div><dt>Route</dt><dd><a href="{{.URL}}" target="_blank" rel="noopener">{{.Name}}</a>, {{.Stats}}{{with .TimeLabel}}, about {{.}} of riding{{end}}</dd></div>{{end}}{{end}}
     {{with $r.Levels}}<div><dt>Level</dt><dd><span class="lvls">{{range $i, $l := .}}{{if $i}} or {{end}}<span class="lvl lvl-{{$l.Key}}">{{$l.Name}}</span> {{$l.MPH}}{{end}}</span>{{if gt (len .) 1}}, depending on who turns out{{end}}</dd></div>{{end}}

@@ -386,7 +386,7 @@ func (a *App) issueRides(is Issue) ridesView {
 		}
 		t, _ := time.Parse("2006-01-02", o.Date)
 		sr := shownRide{Key: o.Key, Month: strings.ToUpper(t.Format("Jan")), Day: t.Format("2"), Weekday: t.Format("Monday"),
-			Name: o.Name, Time: o.TimeLabel(), Place: o.PublicPlace(), Details: firstLine(o.Details), Past: o.Date < today}
+			Name: o.Name, Time: o.TimeLabel(), Place: o.Place, Details: firstLine(o.Details), Past: o.Date < today}
 		if !o.IsRide() { // nobody signs up to lead a clinic or a meeting
 			sr.Kind = o.KindName()
 			if l := o.leaderFor(""); l != nil {
@@ -431,7 +431,7 @@ type shownEvent struct {
 func eventShown(o RideOcc, today string) shownEvent {
 	t, _ := time.Parse("2006-01-02", o.Date)
 	e := shownEvent{Key: o.Key, Kind: o.KindName(), Name: o.Name, Month: strings.ToUpper(t.Format("Jan")), Day: t.Format("2"),
-		When: t.Format("Monday, January 2"), Place: o.PublicPlace(), Details: o.Details, Cancelled: o.Cancelled, Past: o.Date < today}
+		When: t.Format("Monday, January 2"), Place: o.Place, Details: o.Details, Cancelled: o.Cancelled, Past: o.Date < today}
 	if o.Time != "" {
 		e.When += " · " + o.TimeLabel()
 	}

@@ -66,7 +66,7 @@ func TestDirectionsSearch(t *testing.T) {
 		"Arlington Virginia": "query=Arlington+Virginia",
 		"":                   "",
 	} {
-		got := RideOcc{CalRide: CalRide{Place: place}}.DirectionsFor(false)
+		got := RideOcc{CalRide: CalRide{Place: place}}.Directions()
 		if !strings.HasSuffix(got, want) || (want == "") != (got == "") {
 			t.Errorf("directions for %q = %q, want …%s", place, got, want)
 		}

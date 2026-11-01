@@ -33,7 +33,6 @@ type calView struct {
 	UpcomingNote           string    // what to say when there are none
 	Flash, Error           string
 	ClubURL                string
-	Member                 bool   // logged in to the admin portal: sees private ride details
 	PINOn                  bool   // the club PIN is set
 	Token                  string // form token, for spam checks
 
@@ -76,7 +75,7 @@ var calError = map[string]string{
 }
 
 func (a *App) calBase(r *http.Request) calView {
-	return calView{ClubURL: a.cfg.StravaURL, Token: a.formToken(), Member: a.loggedIn(r), PINOn: a.store.ClubPIN() != "",
+	return calView{ClubURL: a.cfg.StravaURL, Token: a.formToken(), PINOn: a.store.ClubPIN() != "",
 		Flash: calFlash[r.URL.Query().Get("ok")], Error: calError[r.URL.Query().Get("err")]}
 }
 
@@ -208,7 +207,7 @@ var upcomingTpl = template.Must(template.New("").Parse(`<div class="next-rides">
 {{range .Rides}}<li><a class="cal-ride {{.Status}}" href="/calendar/ride/{{.Key}}">
 <span class="cal-up-date">{{.ShortDate}}</span>
 <span class="cal-time">{{.TimeLabel}}</span> {{.Name}}
-{{with .PublicPlace}}<span class="cal-place">{{.}}</span>{{end}}
+{{with .Place}}<span class="cal-place">{{.}}</span>{{end}}
 <span class="lvls">{{range .Levels}}<span class="lvl lvl-{{.Key}}">{{.Name}}</span>{{end}}</span>
 {{if or (eq .Status "open") (eq .Status "partial")}}<span class="cal-lead"><span class="cal-need">{{.LeaderSummary}}</span></span>{{end}}
 </a></li>
@@ -284,8 +283,7 @@ func (a *App) rideICS(w http.ResponseWriter, r *http.Request) {
 		lines = append(lines, "DTSTART;VALUE=DATE:"+day.Format("20060102"), "DTEND;VALUE=DATE:"+day.AddDate(0, 0, 1).Format("20060102"))
 	}
 	lines = append(lines, "SUMMARY:"+icsText(o.Name))
-	member := a.loggedIn(r)
-	if p := o.PlaceFor(member); p != "" {
+	if p := o.Place; p != "" {
 		lines = append(lines, "LOCATION:"+icsText(p))
 	}
 	desc := link
