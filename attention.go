@@ -21,9 +21,9 @@ type adminGroup struct {
 var adminGroups = []adminGroup{
 	{"Home", "/admin", []adminSection{{"attention", "Overview", "/admin"}, {"guide", "How the site works", "/admin/guide"}}},
 	{"Members", "/admin/members", []adminSection{{"members", "Members", "/admin/members"}, {"waivers", "Waivers", "/admin/waivers"}}},
-	{"Email", "/admin/email", []adminSection{{"email", "Email members", "/admin/email"}, {"newsletter", "Newsletter", "/admin/newsletter"}, {"submitted", "Sent-in photos", "/admin/submitted"}}},
+	{"Email", "/admin/email", []adminSection{{"email", "Email members", "/admin/email"}, {"newsletter", "Newsletter", "/admin/newsletter"}}},
 	{"Rides", "/admin/calendar", []adminSection{{"calendar", "Calendar", "/admin/calendar"}, {"rides", "Weekly rides", "/admin/rides"}, {"history", "History", "/admin/history"}}},
-	{"Website", "/admin/pages", []adminSection{{"pages", "Pages", "/admin/pages"}, {"home-photos", "Home photos", "/admin/home-photos"}, {"gallery", "Gallery", "/admin/gallery"},
+	{"Website", "/admin/pages", []adminSection{{"pages", "Pages", "/admin/pages"}, {"home-photos", "Home photos", "/admin/home-photos"}, {"gallery", "Gallery", "/admin/gallery"}, {"submitted", "Photos to review", "/admin/submitted"},
 		{"board", "Board", "/admin/board"}, {"instagram", "Instagram", "/admin/instagram"}, {"minutes", "Minutes", "/admin/minutes"}}},
 	{"Stats", "/admin/stats", []adminSection{{"stats", "Stats", "/admin/stats"}}},
 }
@@ -115,7 +115,7 @@ func (a *App) attention() []attentionItem {
 
 	if n := a.store.NewSubmitted(); n > 0 {
 		out = append(out, attentionItem{
-			Text: fmt.Sprintf("%d new %s sent in for the newsletter.", n, plural(n, "photo", "photos")),
+			Text: fmt.Sprintf("%d new %s to review.", n, plural(n, "photo", "photos")),
 			Href: "/admin/submitted", Link: "Look at them",
 		})
 	}

@@ -70,14 +70,51 @@ function dropZone(el,onFiles){
   el.addEventListener('drop',function(e){e.preventDefault();el.classList.remove('dragging');onFiles(e.dataTransfer.files)})}
 function changed(el){el.dispatchEvent(new Event('change',{bubbles:true}))}
 
+// Choose from the gallery: a box lists the albums, then an album's photos
+// to tick (up to max). The picked ones are copied for the newsletter and
+// handed to done with their captions, credit included.
+function pickFromGallery(max,done){
+  var d=document.getElementById('gal-pick');
+  if(!d){d=document.createElement('dialog');d.id='gal-pick';d.className='gal-pick';d.setAttribute('aria-label','Choose from the gallery');document.body.appendChild(d)}
+  function head(title,back){return '<div class="gal-pick-head"><h2>'+esc(title)+'</h2><button type="button" class="ghost mini" data-act="close">Close</button></div>'+
+    (back?'<p><button type="button" class="link" data-act="back">← All albums</button></p>':'')}
+  function albums(){d.innerHTML=head('Choose from the gallery')+'<p class="muted small">Loading…</p>';
+    fetch('/admin/gallery/pick',{credentials:'same-origin'}).then(function(r){return r.json()}).then(function(j){
+      d.innerHTML=head('Choose from the gallery')+(j.albums.length?'<div class="gal-pick-grid">'+j.albums.map(function(a){
+        return '<button type="button" class="gal-pick-album" data-id="'+a.id+'" data-title="'+esc(a.title)+'"><img src="'+esc(a.cover)+'" alt="" loading="lazy"><strong>'+esc(a.title)+'</strong><span class="muted small">'+esc(a.label)+'</span></button>'}).join('')+'</div>'
+        :'<p class="muted">The gallery has no photos yet. Approve photos members shared, or upload some in Website → Gallery.</p>')})
+    .catch(function(){d.querySelector('p.muted').textContent='Couldn’t load the gallery. Check your connection and try again.'})}
+  function photos(id,title){d.innerHTML=head(title,true)+'<p class="muted small">Loading…</p>';
+    fetch('/admin/gallery/pick?album='+encodeURIComponent(id),{credentials:'same-origin'}).then(function(r){return r.json()}).then(function(j){
+      d.innerHTML=head(title,true)+'<p class="muted small">'+(max>1?'Tick up to '+max+' photos.':'Pick a photo.')+'</p><div class="gal-pick-grid">'+j.photos.map(function(p){
+        return '<label class="gal-pick-photo"><img src="'+esc(p.thumb)+'" alt="" loading="lazy"><span><input type="'+(max>1?'checkbox':'radio')+'" name="gal-pick" value="'+p.id+'"> '+esc(p.caption||'By '+p.by)+'</span></label>'}).join('')+
+        '</div><div class="gal-pick-foot"><button type="button" data-act="add" disabled>Add</button><span class="muted small gal-pick-msg" role="status"></span></div>'})}
+  function picked(){return [].map.call(d.querySelectorAll('input[name=gal-pick]:checked'),function(c){return c.value})}
+  function add(){var ids=picked(),msg=d.querySelector('.gal-pick-msg'),btn=d.querySelector('[data-act=add]');if(!ids.length)return;
+    btn.disabled=true;msg.textContent='Adding…';
+    var body=new URLSearchParams();ids.forEach(function(id){body.append('id',id)});
+    fetch('/admin/newsletter/from-gallery',{method:'POST',body:body,credentials:'same-origin'}).then(function(r){return r.json()}).then(function(j){
+      if(j.error){msg.textContent=j.error;btn.disabled=false;return}
+      d.close();done(j.urls||[],j.captions||[])}).catch(function(){msg.textContent='Couldn’t reach the server. Try again.';btn.disabled=false})}
+  d.onclick=function(e){var b=e.target.closest('[data-act],.gal-pick-album');if(e.target===d)return d.close();if(!b)return;
+    if(b.dataset.act==='close')d.close();else if(b.dataset.act==='back')albums();else if(b.dataset.act==='add')add();else photos(b.dataset.id,b.dataset.title)};
+  d.onchange=function(){var n=picked().length,msg=d.querySelector('.gal-pick-msg');
+    if(n>max){d.querySelectorAll('input[name=gal-pick]:checked')[n-1].checked=false;n=max;msg.textContent='There’s room for '+max+' more.'}else msg.textContent=n?n+' picked':'';
+    d.querySelector('[data-act=add]').textContent=n>1?'Add '+n+' photos':'Add';d.querySelector('[data-act=add]').disabled=!n};
+  albums();d.showModal();
+}
+
 function initPhotoBox(box){
   var p=box.dataset.photo,cur=box.querySelector('input[name="'+p+'photo_current"]'),shown=box.querySelector('.photo-shown'),
     rm=box.querySelector('.photo-remove'),st=box.querySelector('.photo-status'),file=box.querySelector('input[type=file]'),lab=box.querySelector('.drop strong');
   function set(url){cur.value=url;shown.innerHTML=url?framerHTML(url,p+'photo_focus'):'';if(url)initFramer(shown.firstChild);
-    rm.hidden=!url;lab.textContent=url?'Replace photo':'Add a photo';changed(box)}
+    rm.hidden=!url;lab.textContent=url?'Upload a different photo':'Upload a photo';changed(box)}
   function send(files){uploadPhotos([].slice.call(files,0,1),st,function(urls){if(urls[0])set(urls[0])})}
   file.addEventListener('change',function(){send(file.files);file.value=''});
   rm.addEventListener('click',function(){set('');st.textContent=''});
+  var cap=box.querySelector('input[name="'+p+'caption"]');
+  box.querySelector('.gal-choose').addEventListener('click',function(){pickFromGallery(1,function(urls,caps){
+    if(urls[0])set(urls[0]);if(cap&&!cap.value&&caps[0])cap.value=caps[0]})});
   dropZone(box,send);
 }
 
@@ -102,6 +139,9 @@ function initStrip(strip){
     if(b.dataset.act==='remove')it.remove();
     refresh();changed(strip)});
   file.addEventListener('change',function(){send(file.files);file.value=''});
+  sec.querySelector('.gal-choose').addEventListener('click',function(){var room=max-strip.children.length;
+    if(!room){st.textContent='The strip is full. Remove a photo to add another.';return}
+    pickFromGallery(room,function(urls){st.textContent='';urls.forEach(function(u){strip.appendChild(item(u))});refresh();changed(strip)})});
   dropZone(sec,send);
   refresh();
 }
@@ -203,7 +243,7 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
     <button name="do" value="pin">{{icon "check"}}Save</button>{{if .ClubPIN}}<button class="ghost" name="do" value="pin" formnovalidate onclick="this.form.off.value='1'">Turn off</button>{{end}}<input type="hidden" name="off" value="">
   </div>
   <details class="sec-more"><summary>How it works</summary>
-    <p class="muted small">On <a href="/share-photos" target="_blank" rel="noopener">Share your photos</a>, photos go straight into the album the member picks (with no album picked they still wait on <a href="/admin/submitted">Sent-in photos</a>). On <a href="/calendar/new" target="_blank" rel="noopener">Add a ride</a>, the ride goes straight onto the calendar. Capital letters don’t matter, and each connection gets 10 tries an hour. If the PIN gets around, change it here and tell members the new one.</p>
+    <p class="muted small">On <a href="/share-photos" target="_blank" rel="noopener">Share your photos</a>, photos go straight into the album the member picks (with no album picked they still wait on <a href="/admin/submitted">Photos to review</a>). On <a href="/calendar/new" target="_blank" rel="noopener">Add a ride</a>, the ride goes straight onto the calendar. Capital letters don’t matter, and each connection gets 10 tries an hour. If the PIN gets around, change it here and tell members the new one.</p>
   </details>
 </form>
 <div class="card sec-card">
@@ -814,7 +854,7 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
 
 {{define "gallery"}}{{template "head" .}}
 <div class="title-row"><h1>Gallery</h1><a class="btn ghost" href="/gallery" target="_blank" rel="noopener">View the gallery</a></div>
-<p class="muted small">The public <a href="/gallery" target="_blank" rel="noopener">photo gallery</a> is a set of albums, one for each ride or event, shown in this order. Open an album to upload photos, caption them, put them in order, pick its cover, or move photos to another album. Photos members send in wait on <a href="/admin/submitted">Sent-in photos</a> until you approve them into an album. An album shows on the website once it has photos. The club PIN, which lets members post without review, is under <a href="/admin/security">Security</a>.</p>
+<p class="muted small">The public <a href="/gallery" target="_blank" rel="noopener">photo gallery</a> is a set of albums, one for each ride or event, shown in this order. This is where the club’s photos live: the newsletter picks its photos from here. Open an album to upload photos, caption them, put them in order, pick its cover, move photos to another album, or add them to a newsletter. Photos members share wait on <a href="/admin/submitted">Photos to review</a> until you approve them into an album. An album shows on the website once it has photos. The club PIN, which lets members post without review, is under <a href="/admin/security">Security</a>.</p>
 <form method="post" action="/admin/gallery" class="card album-new">
   <h2>Start an album</h2>
   <div class="gal-tools">
@@ -877,15 +917,17 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
       <button class="ghost" name="do" value="last">Move to end</button>
       {{if $.Albums}}<span class="send-row"><select name="to" aria-label="Album to move them to">{{range $.Albums}}<option value="{{.ID}}">{{.Title}}</option>{{end}}</select><button class="ghost" name="do" value="move">Move to album</button></span>{{end}}
       <span class="send-row"><input name="by" maxlength="100" placeholder="Photographer’s name" aria-label="Photographer’s name"><button class="ghost" name="do" value="credit">Set credit</button></span>
-      <button class="ghost danger" name="do" value="remove" onclick="return confirm('Take the ticked photos out of the gallery? Sent-in photos can be approved again from Sent-in photos.')">{{icon "trash"}}Take out</button>
+      <button class="ghost danger" name="do" value="remove" onclick="return confirm('Take the ticked photos out of the gallery? Photos members shared can be approved again from Photos to review.')">{{icon "trash"}}Take out</button>
     </div>
+    <div class="gal-tools-go" id="to-newsletter">{{if $.Issues}}<span class="send-row"><select name="issue" aria-label="Newsletter issue">{{range $.Issues}}<option value="{{.ID}}">{{.Label}}{{if not .IsPublished}} (draft){{end}}</option>{{end}}</select><button class="ghost" name="do" value="newsletter">{{icon "plus"}}Add to newsletter</button></span>
+      <span class="muted small">They go in the issue’s photo strip.</span>{{else}}<span class="muted small">To put these photos in a newsletter, <a href="/admin/newsletter">start an issue</a> first.</span>{{end}}</div>
   </div>
-  <div class="sent-grid album-grid">{{range $al.Photos}}<div class="sent-photo" draggable="true" data-id="{{.ID}}">
+  <div class="sent-grid album-grid">{{range $al.Photos}}<div class="sent-photo{{if $al.Ticked .ID}} on{{end}}" draggable="true" data-id="{{.ID}}">
     <label><img src="{{.Thumb}}" alt="{{.Alt}}" loading="lazy">
-    <span><input type="checkbox" name="id" value="{{.ID}}"> {{if eq .ID $al.Cover}}<strong>Cover</strong> · {{end}}By {{.By}}</span></label>
+    <span><input type="checkbox" name="id" value="{{.ID}}"{{if $al.Ticked .ID}} checked{{end}}> {{if eq .ID $al.Cover}}<strong>Cover</strong> · {{end}}By {{.By}}</span></label>
     <input name="caption-{{.ID}}" value="{{.Caption}}" maxlength="200" placeholder="Caption" aria-label="Caption">
   </div>{{end}}</div>
-</form>{{else}}<p class="empty">No photos in this album yet. Upload some above, or approve sent-in photos into it on <a href="/admin/submitted">Sent-in photos</a>.</p>{{end}}
+</form>{{else}}<p class="empty">No photos in this album yet. Upload some above, or approve photos members shared into it on <a href="/admin/submitted">Photos to review</a>.</p>{{end}}
 <script>
 // Bulk upload: each photo is made smaller in the browser first, then they go
 // up 10 at a time with a running count, so a big album doesn't time out.
@@ -943,57 +985,93 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
 {{template "foot" .}}{{end}}
 
 {{define "submitted"}}{{template "head" .}}
-<div class="title-row"><h1>Sent-in photos</h1></div>
-<p class="muted small">Photos people sent in from the <a href="/share-photos" target="_blank" rel="noopener">Share your photos</a> page. Nothing here is public until you approve it. Tick the good ones, check the album each person’s photos go in, and <strong>Approve</strong> them into the <a href="/admin/gallery">gallery</a>, or add them to an issue’s photo strip. <strong>Reject</strong> deletes the ticked photos.</p>
-{{if or .Batches .Reviewed}}<form method="post" action="/admin/submitted" class="sent-in">
-  <div class="tools sent-tools">
-    <div class="sent-add">
-      <button name="do" value="approve">{{icon "check"}}Approve ticked</button>
-      <button class="ghost danger" name="do" value="delete" onclick="return confirm('Reject and delete the ticked photos? This can’t be undone. Any already in a newsletter or the gallery stay there.')">{{icon "trash"}}Reject ticked</button>
-    </div>
-    {{if .Issues}}<div class="sent-add"><label>Or add ticked photos to <select name="issue">{{range .Issues}}<option value="{{.ID}}">{{.Label}}{{if not .IsPublished}} (draft){{end}}</option>{{end}}</select></label>
-    <button class="ghost" name="do" value="add">{{icon "plus"}}Add to photo strip</button></div>{{end}}
-  </div>
+<div class="title-row"><h1>Photos to review</h1></div>
+<p class="muted small">Photos members shared on the <a href="/share-photos" target="_blank" rel="noopener">Share your photos</a> page. Nothing here is public until you approve it. Each person’s photos are one card, already ticked: untick any you don’t want, check the album, fix a caption or the credit if you like, and press <strong>Approve</strong>. Approved photos go in the <a href="/admin/gallery">gallery</a>, which is where the newsletter picks its photos from. <strong>Reject</strong> hides photos and deletes them after 30 days, so you can change your mind.</p>
+{{if or .Batches .Reviewed}}<div class="sent-in">
   {{range .Batches}}{{template "sent-batch" (sentBatch . $.Albums)}}{{else}}<p class="empty">Nothing waiting for review.</p>{{end}}
   {{with .Reviewed}}<details class="sent-reviewed"><summary>Already reviewed ({{len .}})</summary>
     {{range .}}{{template "sent-batch" (sentBatch . $.Albums)}}{{end}}
   </details>{{end}}
-</form>{{else}}<p class="empty">No photos sent in yet. The newsletter’s Share your photos block links to the page, or share <strong>{{.SiteURL}}/share-photos</strong> yourself.</p>{{end}}
+</div>{{else}}<p class="empty">No photos shared yet. The newsletter’s Share your photos block links to the page, or share <strong>{{.SiteURL}}/share-photos</strong> yourself.</p>{{end}}
+<dialog class="sent-big" aria-label="Photo"><form method="dialog"><button class="ghost">Close</button></form><img alt=""></dialog>
 <script>
-// Ticking a photo by clicking it, or all of one person's photos at once.
-document.querySelectorAll('.sent-photo input').forEach(function(c){c.addEventListener('change',function(){c.closest('.sent-photo').classList.toggle('on',c.checked)})});
-document.querySelectorAll('.sent-all input').forEach(function(all){all.addEventListener('change',function(){
-  all.closest('.sent-batch').querySelectorAll('.sent-photo input:not(:disabled)').forEach(function(c){c.checked=all.checked;c.closest('.sent-photo').classList.toggle('on',c.checked)});
-})});
-// The new album's name is only asked for when "New album" is picked.
-document.querySelectorAll('.sent-album select').forEach(function(s){
-  var name=s.closest('.sent-album').querySelector('.sent-album-name');
-  function show(){name.hidden=s.value!=='new'}
-  s.addEventListener('change',show);show();
-});
+// Each card is its own form. Ticking photos updates the Approve button
+// ("Approve 3 photos into Halloween Ride"), and the buttons send in the
+// background: the card comes back as it now is, with what happened and an
+// Undo button on top, so the page never jumps.
+(function(){
+  function wire(card){
+    var boxes=card.querySelectorAll('.sent-photo input[type=checkbox]'),all=card.querySelector('.sent-all input'),
+      sel=card.querySelector('.sent-album select'),name=card.querySelector('.sent-album-name'),to=card.querySelector('.sent-to'),msg=card.querySelector('.sent-msg');
+    function refresh(){
+      var n=[].filter.call(boxes,function(c){return c.checked}).length;
+      boxes.forEach(function(c){c.closest('.sent-photo').classList.toggle('on',c.checked)});
+      card.querySelectorAll('.sent-n').forEach(function(s){s.textContent=n+(n===1?' photo':' photos')});
+      card.querySelectorAll('button[name=do]').forEach(function(b){b.disabled=!n});
+      if(all)all.checked=n===boxes.length;
+      if(sel){var isNew=sel.value==='new',inp=name.querySelector('input');name.hidden=!isNew;inp.required=isNew;
+        to.textContent=isNew?(inp.value.trim()||'a new album'):sel.options[sel.selectedIndex].text}}
+    boxes.forEach(function(c){c.addEventListener('change',refresh)});
+    if(all)all.addEventListener('change',function(){boxes.forEach(function(c){c.checked=all.checked});refresh()});
+    if(sel){sel.addEventListener('change',function(){refresh();if(sel.value==='new')name.querySelector('input').focus()});name.querySelector('input').addEventListener('input',refresh)}
+    if(boxes.length)refresh();
+    card.addEventListener('submit',function(e){
+      if(!window.fetch||!window.URLSearchParams)return;
+      e.preventDefault();
+      var b=e.submitter,fd=new FormData(card);if(b&&b.name)fd.append(b.name,b.value);
+      card.classList.add('busy');if(msg)msg.textContent='';
+      fetch(card.action,{method:'POST',body:new URLSearchParams(fd),headers:{Accept:'application/json'},credentials:'same-origin'})
+        .then(function(r){return r.json().catch(function(){return {ok:false,message:'Something went wrong (the server answered '+r.status+').'}})})
+        .then(function(j){
+          card.classList.remove('busy');
+          if(!j.ok){if(msg)msg.textContent=j.message||'Something went wrong.';else alert(j.message||'Something went wrong.');return}
+          if(!j.html){card.remove();return}
+          var t=document.createElement('div');t.innerHTML=j.html;var fresh=t.firstElementChild;card.replaceWith(fresh);wire(fresh);
+          var done=fresh.querySelector('.sent-done');if(done){done.tabIndex=-1;done.focus({preventScroll:true})}})
+        .catch(function(){card.classList.remove('busy');if(msg)msg.textContent='Couldn’t reach the server. Check your connection and try again.'});
+    });
+  }
+  document.querySelectorAll('form.sent-batch').forEach(wire);
+  // View larger: the photo full size, without leaving the page.
+  var big=document.querySelector('.sent-big');
+  document.addEventListener('click',function(e){var b=e.target.closest('.sent-view');if(!b||!big.showModal)return;
+    e.preventDefault();big.querySelector('img').src=b.getAttribute('href');big.showModal()});
+  big.addEventListener('click',function(e){if(e.target===big)big.close()});
+})();
 </script>
 {{template "foot" .}}{{end}}
 
-{{define "sent-batch"}}{{$b := .Batch}}<section class="card sent-batch">
+{{define "sent-batch"}}{{$b := .Batch}}<form method="post" action="/admin/submitted" class="card sent-batch" id="batch-{{$b.Batch}}">
+  <input type="hidden" name="batch" value="{{$b.Batch}}">
+  {{with .Note}}<p class="sent-done" role="status">{{icon "check"}}<span>{{.Text}}{{if .Undo}} <button class="link" name="undo" value="{{.Undo}}" formnovalidate>Undo</button>{{end}}{{range .Links}} · <a href="{{.Href}}">{{.Label}}</a>{{end}}</span></p>{{end}}
   <p class="sent-who"><strong>{{$b.Name}}</strong>{{with $b.Email}} · <a href="mailto:{{.}}">{{.}}</a>{{end}} · <span class="muted">{{datetime $b.Submitted}}</span>{{if $b.New}} <span class="tag">New</span>{{end}}{{if $b.ViaPIN}} <span class="tag">Posted with the PIN</span>{{end}}</p>
   {{with $b.Note}}<p class="sent-note">{{.}}</p>{{end}}
-  <div class="sent-tags">
-    <label class="sent-all check"><input type="checkbox"> Tick all {{len $b.Photos}}</label>
+  {{if $b.Waiting}}<div class="sent-tags">
     <div class="sent-album">
-      <label>Approve into <select name="album-{{$b.Batch}}">
+      <label>Album <select name="album-{{$b.Batch}}">
         <option value="new"{{if not $b.Album}} selected{{end}}>New album…</option>
         {{range .Albums}}<option value="{{.ID}}"{{if eq .ID $b.Album}} selected{{end}}>{{.Title}}</option>{{end}}
-      </select></label>
-      <label class="sent-album-name">New album’s name <input name="name-{{$b.Batch}}" maxlength="80" value="{{$b.AlbumName}}" placeholder="{{if $b.AlbumName}}{{$b.AlbumName}}{{else}}Name it{{end}}"></label>
+      </select>{{if $b.Suggested}}<span class="muted small">Picked from the ride’s date. Check it’s right.</span>{{end}}</label>
+      <label class="sent-album-name">New album’s name <input name="name-{{$b.Batch}}" maxlength="80" value="{{$b.AlbumName}}" placeholder="Like Halloween Ride"></label>
     </div>
-  </div>
-  <div class="sent-grid">{{range $b.Photos}}<div class="sent-photo">
-    <label><img src="/admin/submitted/{{.ID}}/photo" alt="Photo sent in by {{.Name}}" loading="lazy">
-    <span><input type="checkbox" name="id" value="{{.ID}}"> {{or .Status "Tick to pick"}}</span></label>
+    <label>Photos by <input name="by-{{$b.Batch}}" value="{{$b.Name}}" maxlength="100"></label>
+  </div>{{end}}
+  <div class="sent-grid">{{range $b.Photos}}<div class="sent-photo{{if not .Status}} on{{end}}">
+    {{if .Status}}<img src="/admin/submitted/{{.ID}}/photo" alt="Photo shared by {{.Name}}" loading="lazy">
+    <span class="small">{{.Status}}{{if eq .Status "Rejected"}} · <button class="link" name="undo" value="restore:{{.ID}}" formnovalidate>Put back</button>{{end}}</span>
     {{with .Caption}}<span class="small">“{{.}}”</span>{{end}}
-    <a class="small" href="/admin/submitted/{{.ID}}/photo?download=1">Download</a>
+    {{else}}<label><img src="/admin/submitted/{{.ID}}/photo" alt="Photo shared by {{.Name}}" loading="lazy">
+    <span><input type="checkbox" name="id" value="{{.ID}}" checked> Include</span></label>
+    <input name="caption-{{.ID}}" value="{{.Caption}}" maxlength="200" placeholder="Caption (optional)" aria-label="Caption">{{end}}
+    <span class="small"><a class="sent-view" href="/admin/submitted/{{.ID}}/photo" target="_blank" rel="noopener">View larger</a> · <a href="/admin/submitted/{{.ID}}/photo?download=1">Download</a></span>
   </div>{{end}}</div>
-</section>{{end}}
+  {{if $b.Waiting}}{{$to := or $b.AlbumName "a new album"}}{{range .Albums}}{{if eq .ID $b.Album}}{{$to = .Title}}{{end}}{{end}}<div class="sent-actions">
+    {{if gt $b.Waiting 1}}<label class="sent-all check"><input type="checkbox" checked> All {{$b.Waiting}}</label>{{end}}
+    <button name="do" value="approve">{{icon "check"}}<span>Approve <span class="sent-n">{{$b.Waiting}} {{if eq $b.Waiting 1}}photo{{else}}photos{{end}}</span> into <span class="sent-to">{{$to}}</span></span></button>
+    <button class="ghost danger" name="do" value="reject" formnovalidate>{{icon "trash"}}<span>Reject <span class="sent-n">{{$b.Waiting}} {{if eq $b.Waiting 1}}photo{{else}}photos{{end}}</span></span></button>
+    <p class="sent-msg small danger" role="alert"></p>
+  </div>{{end}}
+</form>{{end}}
 
 {{define "newsletter"}}{{template "head" .}}
 <div class="title-row">
@@ -1041,7 +1119,7 @@ document.querySelectorAll('.sent-album select').forEach(function(s){
   {{end}}
   <form method="post" action="/admin/newsletter/{{$is.ID}}/copy"><button class="ghost">{{icon "copy"}}Make another draft from this</button></form>
 </div>
-<p class="muted small">The issue is made of blocks: add the ones you want with <strong>Add a block</strong> at the bottom, and move or remove them with the buttons on each. Photos upload as soon as you pick or drop them: click a photo to choose the spot to keep in view, and add a caption if you like. Stories with a heading are listed under “In this issue” at the top. The buttons at the bottom save your changes, then preview or publish. In the text boxes: leave a blank line between paragraphs, put **two stars** around words for bold, and write links as [words to click](https://example.com). In link boxes, {strava} and {kit} fill in the club’s Strava page and team store.</p>
+<p class="muted small">The issue is made of blocks: add the ones you want with <strong>Add a block</strong> at the bottom, and move or remove them with the buttons on each. For photos, <strong>Choose from the gallery</strong> (photos members shared and admins uploaded, with their credit), or upload one just for this issue. Click a photo to choose the spot to keep in view, and add a caption if you like. Stories with a heading are listed under “In this issue” at the top. The buttons at the bottom save your changes, then preview or publish. In the text boxes: leave a blank line between paragraphs, put **two stars** around words for bold, and write links as [words to click](https://example.com). In link boxes, {strava} and {kit} fill in the club’s Strava page and team store.</p>
 
 <form class="issue" method="post" action="/admin/newsletter/{{$is.ID}}" enctype="multipart/form-data">
   <section class="card">
@@ -1116,12 +1194,13 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
     <p class="rides-now">Right now that’s <strong>{{len $r.Rides}} {{if eq (len $r.Rides) 1}}ride{{else}}rides{{end}}</strong> from {{$r.From}} to {{$r.To}}{{if $r.Need}}, and <strong class="danger">{{$r.Need}} still {{if eq $r.Need 1}}needs{{else}}need{{end}} a leader</strong>{{end}}.</p>
     <label>Heading <input name="{{$p}}heading" value="{{.Heading}}" maxlength="120" placeholder="{{ridesHeading}}"></label>
   {{else if eq .Kind.Kind "gallery"}}
-    <p class="muted small">Up to {{maxGallery}} photos in a row. Each shows cropped like the small preview under it: click a photo to choose the spot to keep in view. Use the arrows to change the order.</p>
+    <p class="muted small">Up to {{maxGallery}} photos in a row, best chosen from the gallery. Each shows cropped like the small preview under it: click a photo to choose the spot to keep in view. Use the arrows to change the order.</p>
     <div class="strip" data-p="{{$p}}" data-max="{{maxGallery}}">{{range $g := .Photos}}{{template "strip-item" (stripPhoto $p $g (index $.Focus $g))}}{{end}}</div>
-    <label class="drop strip-add"><input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple hidden><strong>Add photos</strong> <span class="muted small">Click to choose, or drop them here. You can pick several at once.</span></label>
+    <div class="strip-add"><button type="button" class="ghost gal-choose">Choose from the gallery</button>
+      <label class="drop"><input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple hidden><strong>Upload photos</strong> <span class="muted small">Click to choose, or drop them here. They don’t go in the gallery.</span></label></div>
     <p class="muted small"><span class="strip-count"></span> <span class="photo-status" role="status"></span></p>
   {{else if eq .Kind.Kind "share"}}
-    <p class="muted small">A box asking readers to send in their ride photos. Its button goes to the <a href="/share-photos" target="_blank" rel="noopener">Share your photos page</a>, and what people send shows on the <a href="/admin/submitted" target="_blank" rel="noopener">Sent-in photos</a> screen. Keep it under the photo strip.</p>
+    <p class="muted small">A box asking readers to share their ride photos. Its button goes to the <a href="/share-photos" target="_blank" rel="noopener">Share your photos page</a>, and what people share waits on <a href="/admin/submitted" target="_blank" rel="noopener">Photos to review</a> on its way into the gallery. Keep it under the photo strip.</p>
     <div class="fields">
       <label>Heading <input name="{{$p}}heading" value="{{.Heading}}" maxlength="120" placeholder="{{shareHeading}}"></label>
       <label>Text <textarea name="{{$p}}body" rows="2" placeholder="Optional">{{.Body}}</textarea></label>
@@ -1157,7 +1236,8 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   <input type="hidden" name="{{$p}}photo_current" value="{{$s.Photo}}">
   <div class="photo-shown">{{if $s.Photo}}{{template "framer" (framer $s.Photo $s.PhotoFocus (printf "%sphoto_focus" $p))}}{{end}}</div>
   <div class="photo-tools">
-    <label class="drop"><input type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden><strong>{{if $s.Photo}}Replace photo{{else}}Add a photo{{end}}</strong> <span class="muted small">Click, or drop one here</span></label>
+    <button type="button" class="ghost gal-choose">Choose from the gallery</button>
+    <label class="drop"><input type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden><strong>{{if $s.Photo}}Upload a different photo{{else}}Upload a photo{{end}}</strong> <span class="muted small">Click, or drop one here</span></label>
     <button type="button" class="link danger photo-remove"{{if not $s.Photo}} hidden{{end}}>{{icon "trash"}}Remove photo</button>
     <p class="photo-status muted small" role="status"></p>
     <label>Caption (optional) <input name="{{$p}}caption" value="{{$s.Caption}}" maxlength="160" placeholder="A short line under the photo"></label>
@@ -2472,11 +2552,16 @@ window.addEventListener('resize',fit);fit();refresh();
   <div class="card"><h3>A member shares photos</h3><ol>
     <li>On <a href="/share-photos" target="_blank" rel="noopener">Share your photos</a> they pick photos from their phone (or drag them in), add captions if they like, type their name for the credit, and pick the album (ride or event) or name a new one. No account.</li>
     <li>The phone shrinks the photos and they upload with a progress bar. The site drops where each was taken.</li>
-    <li><b>With the club PIN</b>, they go straight into the album they picked. <b>Without it</b>, or with no album picked, they wait on <a href="/admin/submitted">Sent-in photos</a> until an admin approves or rejects them.</li></ol></div>
+    <li><b>With the club PIN</b>, they go straight into the album they picked. <b>Without it</b>, or with no album picked, they wait on <a href="/admin/submitted">Photos to review</a>. Each person’s photos are one card, already ticked, with the album filled in when it can be: one press of <b>Approve</b> puts them in the gallery. Rejected photos are kept out of sight for 30 days in case of a mistake.</li></ol></div>
   <div class="card"><h3>The gallery</h3><ul>
     <li><a href="/gallery" target="_blank" rel="noopener">/gallery</a> is a grid of albums, each with a cover. An album is a grid of photos that loads more as you go.</li>
     <li>A photo opens full screen with its caption and “Photo by …”. Swipe or use the arrow keys; <b>Share</b> sends a link to that one photo, and <b>Download</b> saves it.</li>
     <li>Each photo is kept in three sizes, so phones load small files and big screens sharp ones.</li></ul></div>
+  <div class="card"><h3>Photos in the newsletter</h3><ul>
+    <li>The gallery is where the club’s photos live, and the newsletter picks from it.</li>
+    <li>In an issue, <b>Choose from the gallery</b> on a photo strip or a story opens the albums: tick photos and they go in, with “Photo by …” in a story’s caption.</li>
+    <li>Or start from the album: tick photos on its admin page and <b>Add to newsletter</b>. Right after approving, the card on Photos to review links straight there.</li>
+    <li>The newsletter keeps its own copy, so taking a photo out of the gallery later doesn’t change an issue already sent. Uploading a photo just for one issue still works; it doesn’t go in the gallery.</li></ul></div>
   <div class="card"><h3>The club PIN</h3><ul>
     <li>Set it on <a href="/admin/security">Security → Club PIN &amp; access</a> (the gear in the corner) and share it with members, in the newsletter or a club email. When it’s empty it’s off.</li>
     <li>It lets members post photos and add rides without waiting for an admin, and lets ride leaders step down or cancel. Ten tries an hour, so it can’t be guessed.</li>
@@ -2489,7 +2574,7 @@ window.addEventListener('resize',fit);fit();refresh();
     <li>Read the home page, Our Rides, Bike Safety 101, the board, the newsletter and meeting minutes.</li>
     <li>Find rides on <a href="/calendar" target="_blank" rel="noopener">/calendar</a>, tagged Social, Intermediate or Elite, with route maps from Strava.</li>
     <li>RSVP on Strava. The website doesn’t take RSVPs.</li>
-    <li>Browse the <a href="/gallery" target="_blank" rel="noopener">photo gallery</a> by album, and send in their own photos.</li></ul></div>
+    <li>Browse the <a href="/gallery" target="_blank" rel="noopener">photo gallery</a> by album, and share their own photos.</li></ul></div>
   <div class="card"><h3>New members</h3><ol>
     <li>Pick Individual (${{.Guide.DuesIndividual}}) or Family (${{.Guide.DuesFamily}}) and fill in the <a href="/join" target="_blank" rel="noopener">join form</a>, with one riding question, the club terms and this year’s insurance waiver.</li>
     <li>Every admin gets a “New member” email. The member goes on to PayPal.</li>
@@ -2509,8 +2594,8 @@ window.addEventListener('resize',fit);fit();refresh();
     <li>Open the link in the first email and press <b>Mark paid</b>. The first time, that sends their welcome email.</li>
     <li>On January 1 everyone shows as not paid. Filter <a href="/admin/members?dues=unpaid">Not paid</a> and send a reminder with <code>{pay_link}</code>.</li></ol></div>
   <div class="card"><h3>Admins</h3><ul>
-    <li><a href="/admin">Needs attention</a> lists rides waiting for approval, rides this week with no leader, stuck email sends, unpublished newsletter drafts, and new photos members sent in.</li>
-    <li><a href="/admin/submitted">Sent-in photos</a> is the review queue for photos sent without the club PIN. Tick the good ones and <b>Approve</b> them into an album, or <b>Reject</b> them. Any of them can also go in an issue’s photo strip. They stay private until then. Photos posted with the PIN show there too, marked as such.</li>
+    <li><a href="/admin">Needs attention</a> lists rides waiting for approval, rides this week with no leader, stuck email sends, unpublished newsletter drafts, and new photos members shared.</li>
+    <li><a href="/admin/submitted">Photos to review</a> (under Website) is the queue for photos shared without the club PIN. Each person’s photos are one card, all ticked: untick the ones you don’t want and <b>Approve</b> the rest into the album, or <b>Reject</b> them. Every action has an <b>Undo</b>. Photos stay private until approved. Photos posted with the PIN show there too, marked as such.</li>
     <li><a href="/admin/gallery">Gallery</a>: start, rename, reorder and delete albums; upload photos straight into one; caption them, drag them into order, pick the cover, or move them to another album.</li>
     <li><a href="/admin/security">Security</a> (the gear in the corner): admins and passwords, the club PIN, every other way into the site, and the full backup.</li>
     <li><a href="/admin/email">Email</a>: club emails, and the welcome email with its four riding-advice boxes.</li>

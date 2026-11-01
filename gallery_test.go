@@ -67,9 +67,11 @@ func TestGallery(t *testing.T) {
 	}
 	batch := strconv.Itoa(sent[0].Batch)
 	page := do(t, h, admin, "GET", "/admin/submitted", "", nil).Body.String()
-	for _, want := range []string{`name="album-` + batch + `"`, `<option value="new" selected>`, `value="Halloween ride"`, "“Climbing to Point Lookout”", `value="approve"`, "Tick all 2"} {
+	for _, want := range []string{`name="album-` + batch + `"`, `<option value="new" selected>`, `value="Halloween ride"`, `value="Climbing to Point Lookout"`,
+		`name="by-` + batch + `" value="Pat Rider"`, `name="id" value="` + strconv.Itoa(sent[0].ID) + `" checked`, "All 2",
+		`<span>Approve <span class="sent-n">2 photos</span> into <span class="sent-to">Halloween ride</span></span>`} {
 		if !strings.Contains(page, want) {
-			t.Errorf("Sent-in photos should show %s", want)
+			t.Errorf("Photos to review should show %s", want)
 		}
 	}
 
@@ -162,7 +164,7 @@ func TestGallery(t *testing.T) {
 		t.Error("the sitemap should list the album")
 	}
 
-	// Rejecting deletes a sent-in photo.
+	// The album they picked is picked for approving.
 	w := sendPhotos(t, h, a, url.Values{"name": {"Sam"}, "agree": {"yes"}, "album": {strconv.Itoa(al.ID)}}, map[string][]byte{"c.jpg": photo})
 	if w.Code != http.StatusOK {
 		t.Fatalf("sending to an album: %d", w.Code)
@@ -173,11 +175,6 @@ func TestGallery(t *testing.T) {
 	}
 	if page := do(t, h, admin, "GET", "/admin/submitted", "", nil).Body.String(); !strings.Contains(page, `<option value="`+strconv.Itoa(al.ID)+`" selected>Halloween ride</option>`) {
 		t.Error("the album they picked should be picked for approving")
-	}
-	ct, body := form(url.Values{"do": {"delete"}, "id": {strconv.Itoa(latest.ID)}})
-	do(t, h, admin, "POST", "/admin/submitted", ct, body)
-	if _, ok := a.store.Submitted(latest.ID); ok {
-		t.Error("a rejected photo should be deleted")
 	}
 }
 

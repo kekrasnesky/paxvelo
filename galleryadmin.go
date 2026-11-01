@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -16,7 +17,10 @@ import (
 // Website → Gallery: admins start, rename, reorder and delete albums, and in
 // each album upload photos, caption them, put them in order (by dragging, or
 // by date or photographer), pick the cover, and move photos to other albums.
-// Sent-in photos are approved into albums on Email → Sent-in photos.
+// Photos members share are approved into albums on Website → Photos to
+// review. Ticked photos can go in a newsletter's photo strip, and the
+// newsletter editor picks photos from here too: the gallery is where the
+// club's photos live.
 
 func albumAdminHref(id int) string { return "/admin/gallery/" + strconv.Itoa(id) }
 
@@ -24,8 +28,11 @@ func albumAdminHref(id int) string { return "/admin/gallery/" + strconv.Itoa(id)
 type albumAdmin struct {
 	Album
 	Photos []GalleryPhoto
-	Cover  int // the photo shown as its cover
+	Cover  int   // the photo shown as its cover
+	Tick   []int // photos to show ticked, like the ones just approved
 }
+
+func (al albumAdmin) Ticked(id int) bool { return slices.Contains(al.Tick, id) }
 
 func (a *App) galleryAdminPage(w http.ResponseWriter, r *http.Request) {
 	v := adminView{Title: "Gallery", Tab: "gallery", AlbumCards: a.store.AlbumCards(true)}
@@ -75,7 +82,9 @@ func (a *App) albumAdminPage(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	v := adminView{Title: al.Title, Tab: "gallery", Album: &albumAdmin{Album: al, Photos: a.store.AlbumPhotos(id), Cover: al.Cover}}
+	_, tick := undoAction(":" + r.URL.Query().Get("tick"))
+	v := adminView{Title: al.Title, Tab: "gallery", Issues: a.store.Issues(),
+		Album: &albumAdmin{Album: al, Photos: a.store.AlbumPhotos(id), Cover: al.Cover, Tick: tick}}
 	if ph := v.Album.Photos; len(ph) > 0 && !slices.ContainsFunc(ph, func(p GalleryPhoto) bool { return p.ID == al.Cover }) {
 		v.Album.Cover = ph[0].ID
 	}
@@ -213,6 +222,9 @@ func (a *App) albumAction(w http.ResponseWriter, r *http.Request) {
 			done("photos-moved")
 			return
 		}
+	case "newsletter":
+		a.galleryToNewsletter(w, r, id, ids)
+		return
 	case "credit":
 		by := cleanName(r.FormValue("by"))
 		if by == "" {
@@ -326,10 +338,33 @@ func galleryUploaded(q url.Values) string {
 
 var errNoAlbumName = errors.New("no album name")
 
+// approved is what approving sent-in photos did.
+type approved struct {
+	n, already int
+	album      Album
+	ids        []int // the sent-in photos approved
+	gallery    []int // and their gallery photos
+}
+
+// note is what the card on Photos to review says after approving.
+func (res approved) note() reviewNote {
+	if res.n == 0 {
+		return reviewNote{Text: "Those photos are already in the gallery."}
+	}
+	admin := albumAdminHref(res.album.ID)
+	return reviewNote{
+		Text: fmt.Sprintf("Added %d %s to “%s”.", res.n, plural(res.n, "photo", "photos"), res.album.Title),
+		Undo: "unapprove:" + joinIDs(res.ids),
+		Links: []noteLink{{"Open the album", admin},
+			{"Add to the newsletter", admin + "?tick=" + joinIDs(res.gallery) + "#to-newsletter"}},
+	}
+}
+
 // approvePhotos puts the ticked sent-in photos in the gallery, each batch
-// in the album picked for it, with the caption and name they were sent with.
-func (a *App) approvePhotos(w http.ResponseWriter, r *http.Request, ids []int) {
-	added, already := 0, 0
+// in the album picked for it, with the caption and credit on its card. It
+// returns an error code when it couldn't.
+func (a *App) approvePhotos(r *http.Request, ids []int) (approved, string) {
+	var res approved
 	albums := map[int]int{} // batch → album
 	for _, id := range ids {
 		p, ok := a.store.Submitted(id)
@@ -337,33 +372,41 @@ func (a *App) approvePhotos(w http.ResponseWriter, r *http.Request, ids []int) {
 			continue
 		}
 		if p.Gallery != 0 {
-			already++
+			res.already++
 			continue
 		}
 		album, ok := albums[p.Batch]
 		if !ok {
 			var err error
 			if album, err = a.albumFor(r, p.Batch); err == errNoAlbumName {
-				back(w, r, "/admin/submitted?err=album-pick")
-				return
+				return res, "album-pick"
 			} else if err != nil {
-				back(w, r, "/admin/submitted?err=save")
-				return
+				return res, "save"
 			}
 			albums[p.Batch] = album
 		}
+		// What was typed on the card: each photo's caption, and the credit.
+		if c, ok := r.Form["caption-"+strconv.Itoa(id)]; ok {
+			p.Caption = cleanTitle(c[0], maxCaption)
+		}
+		if by := cleanName(r.FormValue("by-" + strconv.Itoa(p.Batch))); by != "" {
+			p.Name = by
+		}
 		if err := a.publishToAlbum(p, album); err != nil {
 			log.Printf("sent-in photo %d: %v", id, err)
-			back(w, r, "/admin/submitted?err=save")
-			return
+			return res, "save"
 		}
-		added++
+		res.n++
+		res.ids = append(res.ids, id)
+		if done, ok := a.store.Submitted(id); ok {
+			res.gallery = append(res.gallery, done.Gallery)
+		}
+		res.album, _ = a.store.Album(album)
 	}
-	q := url.Values{"ok": {"gallery-added"}, "n": {strconv.Itoa(added)}, "already": {strconv.Itoa(already)}}
-	back(w, r, "/admin/submitted?"+q.Encode())
+	return res, ""
 }
 
-// albumFor is the album picked for a batch on Sent-in photos: one already
+// albumFor is the album picked for a batch on Photos to review: one already
 // there, or a new one by the name typed (or one already by that name).
 func (a *App) albumFor(r *http.Request, batch int) (int, error) {
 	b := strconv.Itoa(batch)
@@ -411,4 +454,147 @@ func galleryAdded(q url.Values) string {
 		s += fmt.Sprintf(" %d %s already there.", already, plural(already, "was", "were"))
 	}
 	return s
+}
+
+// ---- Gallery photos in the newsletter ----
+
+// galleryToNewsletter adds the ticked photos of an album to an issue's
+// photo strip.
+func (a *App) galleryToNewsletter(w http.ResponseWriter, r *http.Request, album int, ids []int) {
+	here := albumAdminHref(album)
+	issueID, _ := strconv.Atoi(r.FormValue("issue"))
+	is, ok := a.store.Issue(issueID)
+	if !ok {
+		back(w, r, here+"?err=gone")
+		return
+	}
+	var photos []GalleryPhoto
+	for _, p := range a.store.AlbumPhotos(album) {
+		if slices.Contains(ids, p.ID) {
+			photos = append(photos, p)
+		}
+	}
+	urls, err := a.newsCopies(photos)
+	if err != nil {
+		log.Printf("gallery to newsletter: %v", err)
+		back(w, r, here+"?err=save")
+		return
+	}
+	added, full := addToStrip(&is, urls)
+	if added > 0 {
+		saved, err := a.store.SaveIssue(is)
+		if err != nil {
+			a.removeMedia(urls)
+			back(w, r, here+"?err=save")
+			return
+		}
+		if saved.IsPublished() {
+			a.refreshNewsletter()
+		}
+	}
+	a.removeMedia(urls[added:]) // the ones that didn't fit
+	q := url.Values{"ok": {"newsletter-added"}, "n": {strconv.Itoa(added)}, "full": {strconv.Itoa(full)}, "to": {is.Label()}}
+	back(w, r, here+"?"+q.Encode())
+}
+
+// newsCopies copies gallery photos for a newsletter and returns their
+// addresses, in order. The newsletter keeps its own copy, so taking a photo
+// out of the gallery doesn't take it out of an issue already sent.
+func (a *App) newsCopies(photos []GalleryPhoto) ([]string, error) {
+	var urls []string
+	for _, p := range photos {
+		u, err := a.copyToMedia(filepath.Join(a.mediaDir(), strings.TrimPrefix(p.Src, "/media/")))
+		if err != nil {
+			a.removeMedia(urls)
+			return nil, err
+		}
+		urls = append(urls, u)
+	}
+	return urls, nil
+}
+
+// newsletterAdded is the flash after adding gallery photos to an issue.
+func newsletterAdded(q url.Values) string {
+	n, _ := strconv.Atoi(q.Get("n"))
+	full, _ := strconv.Atoi(q.Get("full"))
+	s := fmt.Sprintf("Added %d %s to the %s newsletter’s photo strip. Open the issue to frame them.", n, plural(n, "photo", "photos"), q.Get("to"))
+	if n == 0 && full == 0 {
+		s = "Those photos are already in the " + q.Get("to") + " newsletter."
+	}
+	if full > 0 {
+		s += fmt.Sprintf(" Its photo strip holds %d, so %d didn’t fit.", maxGallery, full)
+	}
+	return s
+}
+
+// galleryPick answers the newsletter editor's "Choose from the gallery"
+// box: the albums with photos, or one album's photos.
+func (a *App) galleryPick(w http.ResponseWriter, r *http.Request) {
+	type photo struct {
+		ID      int    `json:"id"`
+		Thumb   string `json:"thumb"`
+		Caption string `json:"caption,omitempty"`
+		By      string `json:"by"`
+	}
+	if id, err := strconv.Atoi(r.URL.Query().Get("album")); err == nil {
+		out := []photo{}
+		for _, p := range a.store.AlbumPhotos(id) {
+			out = append(out, photo{p.ID, p.Thumb(), p.Caption, p.By})
+		}
+		replyJSON(w, http.StatusOK, map[string]any{"photos": out})
+		return
+	}
+	type album struct {
+		ID    int    `json:"id"`
+		Title string `json:"title"`
+		Label string `json:"label"`
+		Cover string `json:"cover"`
+	}
+	out := []album{}
+	for _, c := range a.store.AlbumCards() {
+		label := fmt.Sprintf("%d %s", c.Count, plural(c.Count, "photo", "photos"))
+		if d := c.DateLabel(); d != "" {
+			label = d + " · " + label
+		}
+		out = append(out, album{c.ID, c.Title, label, c.Cover.Thumb()})
+	}
+	replyJSON(w, http.StatusOK, map[string]any{"albums": out})
+}
+
+// galleryPicked copies the gallery photos picked in the newsletter editor
+// for the issue, and answers with their addresses and captions.
+func (a *App) galleryPicked(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	ids := tickedIDs(r)
+	var photos []GalleryPhoto
+	for _, id := range ids[:min(len(ids), maxGallery)] {
+		if p, ok := a.store.GalleryPhoto(id); ok {
+			photos = append(photos, p)
+		}
+	}
+	if len(photos) == 0 {
+		replyJSON(w, http.StatusOK, map[string]any{"error": "Choose a photo first."})
+		return
+	}
+	urls, err := a.newsCopies(photos)
+	if err != nil {
+		log.Printf("gallery to newsletter: %v", err)
+		replyJSON(w, http.StatusOK, map[string]any{"error": "Something went wrong. Try again."})
+		return
+	}
+	captions := make([]string, len(photos))
+	for i, p := range photos {
+		captions[i] = newsCaption(p)
+	}
+	replyJSON(w, http.StatusOK, map[string]any{"urls": urls, "captions": captions})
+}
+
+// newsCaption is a gallery photo's caption with its credit, for a
+// newsletter story's photo.
+func newsCaption(p GalleryPhoto) string {
+	s := "Photo by " + p.By
+	if p.Caption != "" {
+		s = p.Caption + " · " + s
+	}
+	return cleanTitle(s, maxNewsCaption)
 }

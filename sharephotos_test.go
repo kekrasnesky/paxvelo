@@ -48,8 +48,8 @@ func sendPhotos(t *testing.T, h http.Handler, a *App, fields url.Values, files m
 	return w
 }
 
-// Anyone can send in photos from the share page, without an account. They
-// stay private until an admin adds them to a newsletter's photo strip.
+// Anyone can share photos from the share page, without an account. They
+// stay private until an admin approves them.
 func TestSharePhotos(t *testing.T) {
 	a, h, admin := testApp(t)
 	if page := do(t, h, nil, "GET", "/share-photos", "", nil).Body.String(); !strings.Contains(page, "Share Your Photos") || !strings.Contains(page, `name="photos"`) {
@@ -106,7 +106,7 @@ func TestSharePhotos(t *testing.T) {
 	// Needs attention says there are new ones, until an admin looks.
 	attention := func() bool {
 		for _, it := range a.attention() {
-			if strings.Contains(it.Text, "sent in for the newsletter") {
+			if strings.Contains(it.Text, "new photos to review") {
 				return true
 			}
 		}
@@ -117,45 +117,13 @@ func TestSharePhotos(t *testing.T) {
 	}
 	page := do(t, h, admin, "GET", "/admin/submitted", "", nil).Body.String()
 	if !strings.Contains(page, "Pat Rider") || !strings.Contains(page, "/admin/submitted/"+strconv.Itoa(got[0].ID)+"/photo") || !strings.Contains(page, ">New<") {
-		t.Error("Sent-in photos should list them as new")
+		t.Error("Photos to review should list them as new")
 	}
 	if attention() {
 		t.Error("once looked at, they don't need attention")
 	}
 	if w := do(t, h, admin, "GET", "/admin/submitted/"+strconv.Itoa(got[0].ID)+"/photo?download=1", "", nil); w.Code != http.StatusOK || !strings.Contains(w.Header().Get("Content-Disposition"), "paxvelo-pat-rider-") {
 		t.Errorf("download: %d %s", w.Code, w.Header().Get("Content-Disposition"))
-	}
-
-	// Add one to an issue's photo strip: it's copied to the public photos.
-	is, _ := a.store.SaveIssue(Issue{Month: 11, Year: 2026, Blocks: []Block{{ID: "aaaa", Kind: "story"}, {ID: "bbbb", Kind: "gallery", Photos: []string{"/photos/ride.webp"}}}})
-	ct, body := form(url.Values{"do": {"add"}, "issue": {strconv.Itoa(is.ID)}, "id": {strconv.Itoa(got[0].ID)}})
-	w = do(t, h, admin, "POST", "/admin/submitted", ct, body)
-	if to := w.Header().Get("Location"); !strings.Contains(to, "ok=submitted-added") || !strings.Contains(to, "n=1") {
-		t.Fatalf("adding: %s", to)
-	}
-	is, _ = a.store.Issue(is.ID)
-	strip := is.Blocks[1].Photos
-	if len(strip) != 2 || !strings.HasPrefix(strip[1], "/media/") {
-		t.Fatalf("photo strip %v", strip)
-	}
-	if w := do(t, h, nil, "GET", strip[1], "", nil); w.Code != http.StatusOK {
-		t.Errorf("the used photo should be public now: %d", w.Code)
-	}
-	if p, _ := a.store.Submitted(got[0].ID); p.Used != strip[1] || p.UsedIn != "November 2026" {
-		t.Errorf("used %+v", p)
-	}
-	if page := do(t, h, admin, "GET", "/admin/submitted?"+url.Values{"ok": {"submitted-added"}, "n": {"1"}, "to": {"November 2026"}}.Encode(), "", nil).Body.String(); !strings.Contains(page, "In November 2026") || !strings.Contains(page, "Added 1 photo to the November 2026 newsletter’s photo strip.") {
-		t.Error("the photo should say which issue it's in")
-	}
-
-	// Delete the other: its file goes too.
-	ct, body = form(url.Values{"do": {"delete"}, "id": {strconv.Itoa(got[1].ID)}})
-	do(t, h, admin, "POST", "/admin/submitted", ct, body)
-	if _, ok := a.store.Submitted(got[1].ID); ok {
-		t.Error("deleted photo is still listed")
-	}
-	if _, err := os.Stat(filepath.Join(a.submittedDir(), got[1].File)); !os.IsNotExist(err) {
-		t.Error("deleted photo's file should be gone")
 	}
 }
 

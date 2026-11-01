@@ -3,7 +3,7 @@
   <p class="gal-crumb"><a href="/gallery">← All albums</a></p>
   <div class="gal-head">
     <h1>{{$al.Title}}</h1>
-    <a class="btn btn-quiet" href="/share-photos?album={{$al.ID}}">Add your photos</a>
+    <a class="btn btn-quiet" href="/share-photos?album={{$al.ID}}">Share your photos</a>
   </div>
   <p class="gal-showing">{{with $al.DateLabel}}{{.}} · {{end}}{{.Total}} {{if eq .Total 1}}photo{{else}}photos{{end}}</p>
   <ul class="gal" data-total="{{.Total}}">

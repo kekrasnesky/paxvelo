@@ -15,10 +15,11 @@ import (
 )
 
 // The public photo gallery (/gallery): albums of club photos, one per ride or
-// event, each with a cover photo. Photos get in two ways: members send them
-// on the Share your photos page and an admin approves them into an album on
-// Email → Sent-in photos, or an admin uploads straight into an album on
-// Website → Gallery (galleryadmin.go). Each photo is kept at its full size
+// event, each with a cover photo. It is where the club's photos live: the
+// newsletter picks its photos from it. Photos get in two ways: members share
+// them on the Share your photos page and an admin approves them into an
+// album on Website → Photos to review, or an admin uploads straight into an
+// album on Website → Gallery (galleryadmin.go). Each photo is kept at its full size
 // (at most 1600 pixels, see shrinkPhoto) and narrower copies beside it
 // (galleryWidths), so the grid loads small files and the viewer a big one.
 // None of them keep where the photo was taken.
@@ -519,6 +520,17 @@ func (s *Store) AddGallery(p GalleryPhoto) error {
 		}
 	}
 	return s.save()
+}
+
+func (s *Store) GalleryPhoto(id int) (GalleryPhoto, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, p := range s.d.Gallery {
+		if p.ID == id {
+			return *p, true
+		}
+	}
+	return GalleryPhoto{}, false
 }
 
 // AlbumPhotos lists an album's photos in order.

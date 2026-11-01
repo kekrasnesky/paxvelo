@@ -258,7 +258,7 @@
     function fail(text){msg.textContent=text;msg.classList.add('err');btn.disabled=busy=false;bar.hidden=true}
     function counted(){
       var n=chosen.length;list.hidden=!n;
-      count.textContent=n?n+(n===1?' photo':' photos')+' ready. Add more, or send them.'+(n>MAX?' That’s more than '+MAX+': take some out and send them next.':''):hint;
+      count.textContent=n?n+(n===1?' photo':' photos')+' ready. Add more, or share them.'+(n>MAX?' That’s more than '+MAX+': take some out and share them next.':''):hint;
     }
     function add(files){
       [].forEach.call(files,function(f){
@@ -286,7 +286,7 @@
       e.preventDefault();
       if(busy)return;
       if(!chosen.length){fail('Add at least one photo.');input.focus();return}
-      if(chosen.length>MAX)return fail('You can send up to '+MAX+' photos at a time.');
+      if(chosen.length>MAX)return fail('You can share up to '+MAX+' photos at a time.');
       busy=btn.disabled=true;msg.classList.remove('err');
       var out=[],i=0;
       (function next(){

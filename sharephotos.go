@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -16,16 +17,17 @@ import (
 	"unicode/utf8"
 )
 
-// Photos members send in for the newsletter and the gallery, from the public
-// Share your photos page (/share-photos). Nobody needs an account or an app:
-// they pick or drop photos, see them as they upload, and can add a caption to
-// each and say which album (ride or event) they belong in. The phone shrinks
-// them before they upload (site.js), and the server checks them and shrinks
-// them again (shrinkPhoto), which also drops the hidden location they were
-// taken at. They're kept out of sight, in the data folder's "submitted"
-// folder, until an admin reviews them on the Email → Sent-in photos screen:
-// approving puts them in an album of the gallery (gallery.go), rejecting
-// deletes them, and any can go in an issue's photo strip. The newsletter's
+// Photos members share for the gallery (and so for the newsletter, which
+// picks its photos from the gallery), from the public Share your photos page
+// (/share-photos). Nobody needs an account or an app: they pick or drop
+// photos, see them as they upload, and can add a caption to each and say
+// which album (ride or event) they belong in. The phone shrinks them before
+// they upload (site.js), and the server checks them and shrinks them again
+// (shrinkPhoto), which also drops the hidden location they were taken at.
+// They're kept out of sight, in the data folder's "submitted" folder, until
+// an admin reviews them on Website → Photos to review: each person's photos
+// are one card, all ticked, and one button approves them into the album
+// picked on the card. Rejecting can be undone for 30 days. The newsletter's
 // "Share your photos" block links to the page.
 //
 // Members who know the club PIN (clubpin.go) skip the review: with it, their
@@ -37,8 +39,8 @@ const (
 	maxWaitingPhotos = 300      // sent in but not yet used or deleted; past this the page asks people to try later
 	maxShareNote     = 500      // characters
 
-	shareHeading = "Want to see your photos in the newsletter or gallery?"
-	shareButton  = "Upload your photos here"
+	shareHeading = "Got photos from a club ride?"
+	shareButton  = "Share your photos"
 )
 
 // SubmittedPhoto is one photo sent in on the share page.
@@ -57,11 +59,12 @@ type SubmittedPhoto struct {
 	Tags      []string  `json:"tags,omitempty"`
 	Submitted time.Time `json:"submitted"`
 	IP        string    `json:"ip,omitempty"`
-	Seen      bool      `json:"seen,omitempty"`    // an admin has opened Sent-in photos since it came in
-	Used      string    `json:"used,omitempty"`    // its address once added to a newsletter
+	Seen      bool      `json:"seen,omitempty"`    // an admin has opened Photos to review since it came in
+	Used      string    `json:"used,omitempty"`    // its address once added to a newsletter (before the newsletter picked from the gallery)
 	UsedIn    string    `json:"used_in,omitempty"` // which issue, like "November 2026"
 	Gallery   int       `json:"gallery,omitempty"` // its gallery photo's ID, once added
 	ViaPIN    bool      `json:"pin,omitempty"`     // sent with the club PIN
+	Rejected  time.Time `json:"rejected,omitzero"` // when an admin rejected it; it's deleted rejectKeep later
 }
 
 func (a *App) submittedDir() string { return filepath.Join(a.cfg.DataDir, "submitted") }
@@ -116,7 +119,7 @@ func (a *App) sharePhotos(w http.ResponseWriter, r *http.Request) {
 		reply(status)
 	}
 	if err := r.ParseMultipartForm(8 << 20); err != nil {
-		fail(http.StatusRequestEntityTooLarge, "Those photos are too big to send together. Try a few at a time.")
+		fail(http.StatusRequestEntityTooLarge, "Those photos are too big to share together. Try a few at a time.")
 		return
 	}
 	defer r.MultipartForm.RemoveAll()
@@ -151,7 +154,7 @@ func (a *App) sharePhotos(w http.ResponseWriter, r *http.Request) {
 	case len(files) == 0:
 		fail(http.StatusBadRequest, "Choose at least one photo.")
 	case len(files) > maxSharePhotos:
-		fail(http.StatusBadRequest, fmt.Sprintf("You can send up to %d photos at a time.", maxSharePhotos))
+		fail(http.StatusBadRequest, fmt.Sprintf("You can share up to %d photos at a time.", maxSharePhotos))
 	case name == "":
 		fail(http.StatusBadRequest, "Enter your name, so we know who took them.")
 	case !emailOK:
@@ -167,7 +170,7 @@ func (a *App) sharePhotos(w http.ResponseWriter, r *http.Request) {
 	case a.store.WaitingPhotos()+len(files) > maxWaitingPhotos:
 		fail(http.StatusServiceUnavailable, "We have a lot of photos waiting to be looked at. Try again in a few days.")
 	case !a.limit.Allow("share:"+clientIP(r), 5, time.Hour): // counted once the form is right, so typos never lock anyone out
-		fail(http.StatusTooManyRequests, "You’ve sent a lot of photos this hour. Try again later.")
+		fail(http.StatusTooManyRequests, "You’ve shared a lot of photos this hour. Try again later.")
 	}
 	if d.Failed {
 		return
@@ -261,17 +264,22 @@ func (a *App) saveSubmittedFile(hdr *multipart.FileHeader) (string, error) {
 	return name, os.WriteFile(filepath.Join(a.submittedDir(), name), b, 0o644)
 }
 
-// ---- Admin: Sent-in photos ----
+// ---- Admin: Photos to review ----
+
+// rejectKeep is how long a rejected photo is kept, so rejecting can be
+// undone. After that it's deleted the next time an admin opens the page.
+const rejectKeep = 30 * 24 * time.Hour
 
 // submittedBatch is the photos one person sent together.
 type submittedBatch struct {
 	Batch             int
 	Name, Email, Note string
-	Album             int    // the album they picked
+	Album             int    // the album they picked, or one suggested for them
 	AlbumName         string // or the new one they named
+	Suggested         bool   // Album is a guess from when they sent them
 	Submitted         time.Time
 	New               bool
-	Waiting           int  // photos not yet approved or used in a newsletter
+	Waiting           int  // photos not yet approved, rejected or used in a newsletter
 	ViaPIN            bool // sent with the club PIN
 	Photos            []SubmittedPhoto
 }
@@ -279,6 +287,8 @@ type submittedBatch struct {
 // Status says where a sent-in photo has gone, or "" while it waits.
 func (p SubmittedPhoto) Status() string {
 	switch {
+	case !p.Rejected.IsZero():
+		return "Rejected"
 	case p.Used != "" && p.Gallery != 0:
 		return "In " + p.UsedIn + " and the gallery"
 	case p.Used != "":
@@ -306,15 +316,73 @@ func batches(photos []SubmittedPhoto) []submittedBatch {
 	return out
 }
 
-func (a *App) submittedPage(w http.ResponseWriter, r *http.Request) {
-	v := adminView{Title: "Sent-in photos", Tab: "submitted", Issues: a.store.Issues(), Albums: a.store.Albums()}
-	// Batches with photos to review come first; the rest fold away.
-	for _, b := range batches(a.store.SubmittedPhotos()) {
+// reviewBatches are the cards on Photos to review, newest first, each with
+// the album its photos would go in: the one they picked or named, or else
+// the album of a ride from just before they sent them.
+func (a *App) reviewBatches(albums []Album) []submittedBatch {
+	out := batches(a.store.SubmittedPhotos())
+	for i := range out {
+		b := &out[i]
 		if b.Album == 0 && b.AlbumName != "" { // the album they named may be started by now
-			if i := slices.IndexFunc(v.Albums, func(al Album) bool { return strings.EqualFold(al.Title, b.AlbumName) }); i >= 0 {
-				b.Album = v.Albums[i].ID
+			if j := slices.IndexFunc(albums, func(al Album) bool { return strings.EqualFold(al.Title, b.AlbumName) }); j >= 0 {
+				b.Album = albums[j].ID
 			}
 		}
+		if b.Album == 0 && b.AlbumName == "" {
+			b.Album = suggestAlbum(albums, b.Submitted)
+			b.Suggested = b.Album != 0
+		}
+	}
+	return out
+}
+
+// suggestAlbum is the album of the ride or event nearest before a time,
+// up to ten days before (or a day after, for time zones), or 0.
+func suggestAlbum(albums []Album, sent time.Time) int {
+	best, bestGap := 0, time.Duration(0)
+	for _, al := range albums {
+		d, err := time.Parse("2006-01-02", al.Date)
+		if err != nil {
+			continue
+		}
+		gap := sent.Sub(d)
+		if gap < -24*time.Hour || gap > 10*24*time.Hour {
+			continue
+		}
+		gap = max(gap, -gap)
+		if best == 0 || gap < bestGap {
+			best, bestGap = al.ID, gap
+		}
+	}
+	return best
+}
+
+// reviewNote is what a card on Photos to review says after an action: what
+// happened, a button to undo it, and links to what's next.
+type reviewNote struct {
+	Text  string
+	Undo  string // the action that undoes it, like "unapprove:12,13"
+	Links []noteLink
+}
+
+type noteLink struct{ Label, Href string }
+
+// sentBatchView is one card on Photos to review.
+type sentBatchView struct {
+	Batch  submittedBatch
+	Albums []Album
+	Note   *reviewNote
+}
+
+func (a *App) submittedPage(w http.ResponseWriter, r *http.Request) {
+	if files, err := a.store.PurgeRejected(time.Now().Add(-rejectKeep)); err != nil {
+		log.Printf("photos to review: %v", err)
+	} else {
+		a.removeSubmitted(files)
+	}
+	v := adminView{Title: "Photos to review", Tab: "submitted", Albums: a.store.Albums()}
+	// Cards with photos to review come first; the rest fold away.
+	for _, b := range a.reviewBatches(v.Albums) {
 		if b.Waiting > 0 {
 			v.Batches = append(v.Batches, b)
 		} else {
@@ -325,7 +393,13 @@ func (a *App) submittedPage(w http.ResponseWriter, r *http.Request) {
 	a.renderAdmin(w, r, http.StatusOK, "submitted", v)
 	// Shown as new this once.
 	if err := a.store.SeeSubmitted(); err != nil {
-		log.Printf("sent-in photos: %v", err)
+		log.Printf("photos to review: %v", err)
+	}
+}
+
+func (a *App) removeSubmitted(files []string) {
+	for _, f := range files {
+		os.Remove(filepath.Join(a.submittedDir(), f))
 	}
 }
 
@@ -347,121 +421,141 @@ func (a *App) submittedPhoto(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, filepath.Join(a.submittedDir(), p.File))
 }
 
-// submittedAction approves the ticked photos into the gallery, adds them to
-// an issue's photo strip, or deletes them.
+// submittedAction acts on one person's photos on Photos to review: it
+// approves the ticked ones into the album picked on their card, rejects
+// them, or undoes either. The page sends it in the background and swaps in
+// the card it answers with; without JavaScript it goes back to the page.
 func (a *App) submittedAction(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
+	do, ids := r.FormValue("do"), tickedIDs(r)
+	if u := r.FormValue("undo"); u != "" { // like "unapprove:12,13"
+		do, ids = undoAction(u)
+	}
+	asJSON := strings.Contains(r.Header.Get("Accept"), "application/json")
+	fail := func(code string) {
+		if asJSON {
+			replyJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "message": errorText[code]})
+			return
+		}
+		back(w, r, "/admin/submitted?err="+code)
+	}
+	if len(ids) == 0 {
+		fail("none-ticked")
+		return
+	}
+	var note reviewNote
+	flash := url.Values{}
+	switch do {
+	case "approve":
+		res, code := a.approvePhotos(r, ids)
+		if code != "" {
+			fail(code)
+			return
+		}
+		note = res.note()
+		flash = url.Values{"ok": {"gallery-added"}, "n": {strconv.Itoa(res.n)}, "already": {strconv.Itoa(res.already)}}
+	case "reject":
+		n, err := a.store.RejectSubmitted(ids, time.Now().UTC())
+		if err != nil {
+			fail("save")
+			return
+		}
+		note = reviewNote{Text: fmt.Sprintf("Rejected %d %s. %s deleted in 30 days.", n, plural(n, "photo", "photos"), plural(n, "It’s", "They’re")),
+			Undo: "restore:" + joinIDs(ids)}
+		flash.Set("ok", "submitted-rejected")
+	case "restore":
+		if err := a.store.RestoreSubmitted(ids); err != nil {
+			fail("save")
+			return
+		}
+		note = reviewNote{Text: "Put back, ready to review."}
+		flash.Set("ok", "submitted-restored")
+	case "unapprove":
+		var gallery []int
+		for _, id := range ids {
+			if p, ok := a.store.Submitted(id); ok && p.Gallery != 0 {
+				gallery = append(gallery, p.Gallery)
+			}
+		}
+		files, err := a.store.RemoveGallery(gallery)
+		if err != nil {
+			fail("save")
+			return
+		}
+		a.removeMedia(files)
+		note = reviewNote{Text: "Taken back out of the gallery, ready to review again."}
+		flash.Set("ok", "submitted-unapproved")
+	default:
+		fail("none-ticked")
+		return
+	}
+	if !asJSON {
+		back(w, r, "/admin/submitted?"+flash.Encode())
+		return
+	}
+	// The card again, as it is now, with the note on top.
+	batch, _ := strconv.Atoi(r.FormValue("batch"))
+	albums := a.store.Albums()
+	var buf bytes.Buffer
+	for _, b := range a.reviewBatches(albums) {
+		if b.Batch == batch {
+			if err := a.site.admin.ExecuteTemplate(&buf, "sent-batch", sentBatchView{b, albums, &note}); err != nil {
+				log.Printf("photos to review card: %v", err)
+			}
+		}
+	}
+	replyJSON(w, http.StatusOK, map[string]any{"ok": true, "html": buf.String()})
+}
+
+// undoAction reads an undo button's value, like "restore:12,13".
+func undoAction(v string) (string, []int) {
+	do, list, _ := strings.Cut(v, ":")
 	var ids []int
-	for _, s := range r.Form["id"] {
+	for _, s := range strings.Split(list, ",") {
 		if id, err := strconv.Atoi(s); err == nil {
 			ids = append(ids, id)
 		}
 	}
-	if len(ids) == 0 {
-		back(w, r, "/admin/submitted?err=none-ticked")
-		return
-	}
-	if r.FormValue("do") == "delete" {
-		files, err := a.store.DeleteSubmitted(ids)
-		if err != nil {
-			back(w, r, "/admin/submitted?err=save")
-			return
-		}
-		for _, f := range files {
-			os.Remove(filepath.Join(a.submittedDir(), f))
-		}
-		back(w, r, "/admin/submitted?ok=submitted-deleted")
-		return
-	}
-	if r.FormValue("do") == "approve" {
-		a.approvePhotos(w, r, ids)
-		return
-	}
-
-	issueID, _ := strconv.Atoi(r.FormValue("issue"))
-	is, ok := a.store.Issue(issueID)
-	if !ok {
-		back(w, r, "/admin/submitted?err=gone")
-		return
-	}
-	// The issue's first photo strip, or a new one at the end with the box
-	// asking for photos under it.
-	strip := slices.IndexFunc(is.Blocks, func(b Block) bool { return b.Kind == "gallery" })
-	if strip < 0 {
-		is.Blocks = append(is.Blocks, Block{ID: randHex(4), Kind: "gallery"})
-		strip = len(is.Blocks) - 1
-		if !slices.ContainsFunc(is.Blocks, func(b Block) bool { return b.Kind == "share" }) {
-			is.Blocks = append(is.Blocks, Block{ID: randHex(4), Kind: "share"})
-		}
-	}
-	added, full := 0, 0
-	var used []SubmittedPhoto
-	for _, id := range ids {
-		p, ok := a.store.Submitted(id)
-		if !ok || (p.Used != "" && containsStr(is.Blocks[strip].Photos, p.Used)) {
-			continue
-		}
-		if len(is.Blocks[strip].Photos) >= maxGallery {
-			full++
-			continue
-		}
-		u, err := a.publishSubmitted(p)
-		if err != nil {
-			log.Printf("sent-in photo %d: %v", id, err)
-			back(w, r, "/admin/submitted?err=save")
-			return
-		}
-		is.Blocks[strip].Photos = append(is.Blocks[strip].Photos, u)
-		p.Used, p.UsedIn = u, is.Label()
-		used = append(used, p)
-		added++
-	}
-	if added > 0 {
-		saved, err := a.store.SaveIssue(is)
-		if err == nil {
-			err = a.store.MarkSubmittedUsed(used)
-		}
-		if err != nil {
-			back(w, r, "/admin/submitted?err=save")
-			return
-		}
-		if saved.IsPublished() {
-			a.refreshNewsletter()
-		}
-	}
-	q := url.Values{"ok": {"submitted-added"}, "n": {strconv.Itoa(added)}, "full": {strconv.Itoa(full)}, "to": {is.Label()}, "issue": {strconv.Itoa(is.ID)}}
-	back(w, r, "/admin/submitted?"+q.Encode())
+	return do, ids
 }
 
-// publishSubmitted copies a sent-in photo to the public photos, for a
-// newsletter, and returns its address.
+func joinIDs(ids []int) string {
+	s := make([]string, len(ids))
+	for i, id := range ids {
+		s[i] = strconv.Itoa(id)
+	}
+	return strings.Join(s, ",")
+}
+
+func replyJSON(w http.ResponseWriter, status int, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(v)
+}
+
+// publishSubmitted copies a sent-in photo to the public photos and returns
+// its address.
 func (a *App) publishSubmitted(p SubmittedPhoto) (string, error) {
-	b, err := os.ReadFile(filepath.Join(a.submittedDir(), p.File))
+	return a.copyToMedia(filepath.Join(a.submittedDir(), p.File))
+}
+
+// copyToMedia copies a photo file to the public photos under a new name and
+// returns its address, so each place using a photo has its own copy and
+// taking it out of one place leaves the others alone.
+func (a *App) copyToMedia(path string) (string, error) {
+	b, err := os.ReadFile(path)
 	if err != nil {
 		return "", err
 	}
 	if err := os.MkdirAll(a.mediaDir(), 0o755); err != nil {
 		return "", err
 	}
-	name := randHex(8) + filepath.Ext(p.File)
+	name := randHex(8) + filepath.Ext(path)
 	if err := os.WriteFile(filepath.Join(a.mediaDir(), name), b, 0o644); err != nil {
 		return "", err
 	}
 	return "/media/" + name, nil
-}
-
-// submittedAdded is the flash after adding sent-in photos to an issue.
-func submittedAdded(q url.Values) string {
-	n, _ := strconv.Atoi(q.Get("n"))
-	full, _ := strconv.Atoi(q.Get("full"))
-	s := fmt.Sprintf("Added %d %s to the %s newsletter’s photo strip. Open the issue to frame them.", n, plural(n, "photo", "photos"), q.Get("to"))
-	if n == 0 {
-		s = "Those photos are already in the " + q.Get("to") + " newsletter."
-	}
-	if full > 0 {
-		s += fmt.Sprintf(" Its photo strip holds %d, so %d didn’t fit.", maxGallery, full)
-	}
-	return s
 }
 
 // ---- Store ----
@@ -510,14 +604,14 @@ func (s *Store) Submitted(id int) (SubmittedPhoto, bool) {
 	return SubmittedPhoto{}, false
 }
 
-// WaitingPhotos counts the sent-in photos not yet used in a newsletter or the
-// gallery.
+// WaitingPhotos counts the sent-in photos still waiting for review: not yet
+// approved, rejected, or used in a newsletter.
 func (s *Store) WaitingPhotos() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	n := 0
 	for _, p := range s.d.SubmittedPhotos {
-		if p.Used == "" && p.Gallery == 0 {
+		if p.Status() == "" {
 			n++
 		}
 	}
@@ -552,29 +646,41 @@ func (s *Store) SeeSubmitted() error {
 	return s.save()
 }
 
-// MarkSubmittedUsed records which newsletter sent-in photos went into.
-func (s *Store) MarkSubmittedUsed(used []SubmittedPhoto) error {
+// RejectSubmitted marks sent-in photos rejected, leaving any already in the
+// gallery alone, and returns how many it marked.
+func (s *Store) RejectSubmitted(ids []int, at time.Time) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for _, u := range used {
-		for _, p := range s.d.SubmittedPhotos {
-			if p.ID == u.ID {
-				p.Used, p.UsedIn = u.Used, u.UsedIn
-			}
+	n := 0
+	for _, p := range s.d.SubmittedPhotos {
+		if slices.Contains(ids, p.ID) && p.Gallery == 0 && p.Rejected.IsZero() {
+			p.Rejected = at
+			n++
+		}
+	}
+	return n, s.save()
+}
+
+// RestoreSubmitted puts rejected photos back for review.
+func (s *Store) RestoreSubmitted(ids []int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, p := range s.d.SubmittedPhotos {
+		if slices.Contains(ids, p.ID) {
+			p.Rejected = time.Time{}
 		}
 	}
 	return s.save()
 }
 
-// DeleteSubmitted removes sent-in photos and returns their files, for the
-// caller to delete. A copy already added to a newsletter or the gallery stays
-// there.
-func (s *Store) DeleteSubmitted(ids []int) ([]string, error) {
+// PurgeRejected removes the photos rejected before a time and returns their
+// files, for the caller to delete.
+func (s *Store) PurgeRejected(before time.Time) ([]string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var files []string
 	s.d.SubmittedPhotos = slices.DeleteFunc(s.d.SubmittedPhotos, func(p *SubmittedPhoto) bool {
-		if slices.Contains(ids, p.ID) {
+		if !p.Rejected.IsZero() && p.Rejected.Before(before) {
 			files = append(files, p.File)
 			return true
 		}

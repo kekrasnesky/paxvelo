@@ -724,7 +724,33 @@ func (a *App) uploadNewsPhotos(w http.ResponseWriter, r *http.Request) {
 
 // ---- Admin ----
 
-const maxBlocks, maxGallery, maxNewsInstagram = 24, 8, 3
+const maxBlocks, maxGallery, maxNewsInstagram, maxNewsCaption = 24, 8, 3, 160
+
+// addToStrip adds photos to an issue's first photo strip, or to a new one at
+// the end with the box asking for photos under it, and returns how many went
+// in and how many didn't fit. Photos already in the strip are left out.
+func addToStrip(is *Issue, urls []string) (added, full int) {
+	strip := slices.IndexFunc(is.Blocks, func(b Block) bool { return b.Kind == "gallery" })
+	if strip < 0 {
+		is.Blocks = append(is.Blocks, Block{ID: randHex(4), Kind: "gallery"})
+		strip = len(is.Blocks) - 1
+		if !slices.ContainsFunc(is.Blocks, func(b Block) bool { return b.Kind == "share" }) {
+			is.Blocks = append(is.Blocks, Block{ID: randHex(4), Kind: "share"})
+		}
+	}
+	b := &is.Blocks[strip]
+	for _, u := range urls {
+		switch {
+		case containsStr(b.Photos, u):
+		case len(b.Photos) >= maxGallery:
+			full++
+		default:
+			b.Photos = append(b.Photos, u)
+			added++
+		}
+	}
+	return added, full
+}
 
 func (a *App) newsletterAdmin(w http.ResponseWriter, r *http.Request) {
 	v := adminView{Title: "Newsletter", Tab: "newsletter", Issues: a.store.Issues(), Months: months}
@@ -1120,7 +1146,7 @@ func (a *App) emailIssue(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if asksPhotos {
-		body += "\n\nGot photos from a club ride? Send them in for the newsletter and the photo gallery, straight from your phone:\n" + a.cfg.SiteURL + "/share-photos"
+		body += "\n\nGot photos from a club ride? Share them in the club’s photo gallery, where we pick photos for the newsletter, straight from your phone:\n" + a.cfg.SiteURL + "/share-photos"
 	}
 	body += "\n\nSee you on the road!\nPaxVelo"
 	if d := a.store.Draft(); d.Subject != "" || d.Body != "" {

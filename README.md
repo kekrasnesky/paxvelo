@@ -15,8 +15,9 @@ The club's website: public pages, membership signup with PayPal dues, a ride cal
 | **Members → Waivers** | See who has signed this year's insurance waiver. Each January, email members asking them to sign again. |
 | **Rides / Calendar** | Set up weekly rides, add one-off events, change leaders, cancel rides. Approve rides that members submit. |
 | **Newsletter** | Build the monthly issue from blocks, preview it, publish it, then email members about it. |
-| **Email** | Send email to all members or a group (such as only those who haven't paid). Always **Send test** to yourself first. Also where member-submitted photos wait for approval. |
-| **Website → Gallery** | Albums of ride photos. |
+| **Email** | Send email to all members or a group (such as only those who haven't paid). Always **Send test** to yourself first. |
+| **Website → Gallery** | Albums of ride photos. This is where the club's photos live: the newsletter picks its photos from here. |
+| **Website → Photos to review** | Photos members shared wait here. Each person's photos are one card: press **Approve** to put them in the gallery, or **Reject**. Both can be undone. |
 | **Instagram** | Choose which club posts show on the home page. |
 | **Minutes** | Upload meeting minutes (PDF or Word). They aren't listed publicly; anyone with the link can open them. |
 | **Stats** | How many people visit and open emails. Counts only: it never tracks individuals. |

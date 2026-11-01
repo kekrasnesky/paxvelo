@@ -189,12 +189,7 @@ func newSite(cfg Config) (*Site, error) {
 		"lines":        func(l []string) string { return strings.Join(l, "\n") },
 		"external":     func(u string) bool { return strings.HasPrefix(u, "http://") || strings.HasPrefix(u, "https://") },
 		"icon":         icon,
-		"sentBatch": func(b submittedBatch, albums []Album) any {
-			return struct {
-				Batch  submittedBatch
-				Albums []Album
-			}{b, albums}
-		},
+		"sentBatch":    func(b submittedBatch, albums []Album) sentBatchView { return sentBatchView{Batch: b, Albums: albums} },
 		"riderLevels":  func() []choice { return riderLevels },
 		"waiverText":   func() template.HTML { return s.waiver.HTML },
 		"guardianText": func() template.HTML { return s.waiver.Guardian },
