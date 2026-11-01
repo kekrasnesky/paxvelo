@@ -409,30 +409,35 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
   <a href="/admin/members?dues=unpaid{{with .Q}}&q={{.}}{{end}}"{{if eq .Dues "unpaid"}} aria-current="page"{{end}}>Not paid for {{.Year}} ({{.Unpaid}})</a>
   <a href="/admin/members?dues=paid{{with .Q}}&q={{.}}{{end}}"{{if eq .Dues "paid"}} aria-current="page"{{end}}>Paid for {{.Year}} ({{.Paid}})</a>
 </nav>
-<div class="table-wrap"><table class="tight cards">
-  <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Emergency contact</th><th>Emergency phone</th><th>Plan</th><th>Riding</th><th>{{.Year}} dues</th><th>Joined</th>{{if .CanManage}}<th><span class="sr">Actions</span></th>{{end}}</tr></thead>
+<form id="bulk" class="bulk-bar" method="post" action="/admin/members/paid" hidden>
+  <input type="hidden" name="return" value="/admin/members?q={{.Q}}&dues={{.Dues}}">
+  <span class="bulk-n"></span>
+  <button class="mini">{{icon "check"}}Mark them paid</button>
+  <button type="button" class="link small bulk-clear">Clear</button>
+</form>
+<div class="table-wrap"><table class="tight cards members">
+  <thead><tr><th class="pick-col"><input type="checkbox" class="pick-all" aria-label="Tick everyone shown who hasn’t paid"></th><th><button type="button" class="sort" data-sort="name">Name</button></th><th>Email</th><th>Phone</th><th><button type="button" class="sort" data-sort="plan">Plan</button></th><th>Riding</th><th><button type="button" class="sort" data-sort="paid">{{.Year}} dues</button></th><th><button type="button" class="sort" data-sort="joined">Joined</button></th></tr></thead>
   <tbody>
-  {{range .Members}}{{$paid := .PaidFor $.Year}}<tr{{if not .Active}} class="off"{{end}}>
-    <td data-label="Name">{{.Name}}</td>
+  {{range .Members}}{{$paid := .PaidFor $.Year}}<tr id="m{{.ID}}" data-name="{{.Name}}" data-plan="{{.Plan}}" data-paid="{{if $paid}}1{{else}}0{{end}}" data-joined="{{.Joined.Format "2006-01-02T15:04:05"}}" data-find="{{.Name}} {{.Email}} {{.Phone}}"{{if not .Active}} class="off"{{end}}>
+    <td class="pick-col" data-label="Tick">{{if not $paid}}<input type="checkbox" name="id" value="{{.ID}}" form="bulk" aria-label="Tick {{.Name}}">{{end}}</td>
+    <td data-label="Name"><a class="member-link" href="/admin/members/{{.ID}}">{{.Name}}</a>{{with .Household}}<br><span class="muted small">With {{range $i, $h := .}}{{if $i}}, {{end}}{{$h.Name}}{{end}}</span>{{end}}</td>
     <td class="email" data-label="Email"><a href="mailto:{{.Email}}">{{.Email}}</a>{{if not .Active}} <span class="tag">Unsubscribed</span>{{end}}</td>
     <td class="nowrap" data-label="Phone">{{with .Phone}}<a href="tel:{{.}}">{{.}}</a>{{else}}<span class="muted">—</span>{{end}}</td>
-    <td data-label="Emergency contact">{{or .EmergencyName "—"}}</td>
-    <td class="nowrap" data-label="Emergency phone">{{with .EmergencyPhone}}<a href="tel:{{.}}">{{.}}</a>{{else}}<span class="muted">—</span>{{end}}</td>
-    <td data-label="Plan">{{.PlanName}}{{with .Household}}<br><span class="muted small">With {{range $i, $h := .}}{{if $i}}, {{end}}{{$h.Name}}{{end}}</span>{{end}}</td>
+    <td data-label="Plan">{{.PlanName}}</td>
     <td data-label="Riding">{{with .LevelName}}{{.}}{{else}}<span class="muted">—</span>{{end}}{{with .RideNames}}<br><span class="muted small">{{.}}</span>{{end}}</td>
-    <td class="nowrap" data-label="{{$.Year}} dues"><form method="post" action="/admin/members/{{.ID}}/paid" class="inline">
+    <td class="nowrap" data-label="{{$.Year}} dues"><form method="post" action="/admin/members/{{.ID}}/paid" class="inline paid-form">
       <input type="hidden" name="return" value="/admin/members?q={{$.Q}}&dues={{$.Dues}}">
       {{if $paid}}<span class="paid">Paid</span> <input type="hidden" name="paid" value="0"><button class="link small">{{icon "undo"}}Undo</button>
-      {{else}}<input type="hidden" name="paid" value="1"><button class="mini">{{icon "check"}}Mark paid</button>{{if .WelcomePending}}<span class="muted small welcome-note">Sends their welcome email</span>{{end}}{{end}}
+      {{else}}<input type="hidden" name="paid" value="1"><button class="mini ghost">{{icon "check"}}Mark paid</button>{{if .WelcomePending}}<span class="muted small welcome-note">Sends their welcome email</span>{{end}}{{end}}
     </form></td>
     <td class="nowrap" data-label="Joined">{{date .Joined}}</td>
-    {{if $.CanManage}}<td class="right cell-act"><form method="post" action="/admin/members/{{.ID}}/delete" onsubmit="return confirm('Delete {{.Email}}? This can’t be undone.')"><button class="link danger">{{icon "trash"}}Delete</button></form></td>{{end}}
   </tr>
-  {{else}}<tr><td colspan="9" class="empty">{{if or $.Q $.Dues}}Nobody matches that.{{else}}No members yet. Share the join page: <a href="{{$.SiteURL}}/join">{{$.SiteURL}}/join</a>{{end}}</td></tr>
+  {{else}}<tr><td colspan="8" class="empty">{{if or $.Q $.Dues}}Nobody matches that.{{else}}No members yet. Share the join page: <a href="{{$.SiteURL}}/join">{{$.SiteURL}}/join</a>{{end}}</td></tr>
   {{end}}
+  <tr class="no-match" hidden><td colspan="8" class="empty">Nobody matches that.</td></tr>
   </tbody>
 </table></div>
-<p class="muted small">Admins get an email when someone joins on the website. When PayPal emails the club about their payment, find them here and press <strong>Mark paid</strong>: the first time, that sends their welcome email. Everyone shows as not paid again on January 1. {{if not .CanManage}}Only the president can delete members. {{end}}Members who joined before the phone and emergency contact fields existed show a dash: if they fill in the join form again with the same email, their details are added.</p>
+<p class="muted small">Admins get an email when someone joins on the website. When PayPal emails the club about their payment, find them here and press <strong>Mark paid</strong>: the first time, that sends their welcome email. Tick several to mark them paid together. Everyone shows as not paid again on January 1. Click a name to see everything about a member, fix their details{{if .CanManage}}, or delete them{{end}}. Members who joined before the phone and emergency contact fields existed show a dash: if they fill in the join form again with the same email, their details are added.</p>
 <div class="grid2">
   <form class="card" id="add" method="post" action="/admin/members">
     <h2>Add a member</h2>
@@ -459,7 +464,90 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
     <button>{{icon "upload"}}Import</button>
   </form>
 </div>
+<script>
+(function(){
+var table=document.querySelector('table.members'),body=table.tBodies[0],none=body.querySelector('.no-match');
+function rows(){return [].slice.call(body.querySelectorAll('tr[id^=m]'))}
+// The search box narrows the list as you type (Search still asks the server).
+var box=document.querySelector('.search input[name=q]');
+box.addEventListener('input',function(){var q=box.value.trim().toLowerCase(),digits=q.replace(/\D/g,''),shown=0;
+  rows().forEach(function(tr){var f=tr.dataset.find.toLowerCase(),hit=!q||f.indexOf(q)>=0||(digits.length>=3&&f.replace(/\D/g,'').indexOf(digits)>=0);tr.hidden=!hit;if(hit)shown++});
+  none.hidden=shown>0||!rows().length;count()});
+// Column headings sort the list; pressing one again reverses it.
+var sorted=null,dir=1;
+table.querySelectorAll('button.sort').forEach(function(b){b.addEventListener('click',function(){var k=b.dataset.sort;dir=sorted===k?-dir:(k==='joined'?-1:1);sorted=k;
+  table.querySelectorAll('th[aria-sort]').forEach(function(th){th.removeAttribute('aria-sort')});
+  b.closest('th').setAttribute('aria-sort',dir>0?'ascending':'descending');
+  rows().sort(function(x,y){return dir*x.dataset[k].localeCompare(y.dataset[k],undefined,{sensitivity:'base'})}).forEach(function(tr){body.insertBefore(tr,none)})})});
+// Ticking members shows a bar to mark them all paid at once.
+var bulk=document.getElementById('bulk'),all=table.querySelector('.pick-all');
+function picks(){return [].slice.call(body.querySelectorAll('input[name=id]')).filter(function(c){return !c.closest('tr').hidden})}
+function count(){var n=picks().filter(function(c){return c.checked}).length;bulk.hidden=!n;bulk.querySelector('.bulk-n').textContent=n+(n===1?' member ticked':' members ticked');
+  all.checked=n>0&&n===picks().length}
+body.addEventListener('change',function(e){if(e.target.name==='id')count()});
+all.addEventListener('change',function(){picks().forEach(function(c){c.checked=all.checked});count()});
+bulk.querySelector('.bulk-clear').addEventListener('click',function(){picks().forEach(function(c){c.checked=false});count()});
+bulk.addEventListener('submit',function(e){
+  body.querySelectorAll('input[name=id]').forEach(function(c){if(c.closest('tr').hidden)c.checked=false}); // only the ones you can see
+  var n=picks().filter(function(c){return c.checked}).length;
+  if(!confirm('Mark '+n+(n===1?' member':' members')+' as paid for {{.Year}}? Anyone who joined on the website gets their welcome email.'))e.preventDefault()});
+// Mark paid and Undo work in place, so a long list keeps your spot: the
+// server sends the page back and only that row, the counts and the message change.
+body.addEventListener('submit',function(e){var f=e.target;if(!f.classList.contains('paid-form')||!window.fetch||!window.DOMParser)return;
+  e.preventDefault();var tr=f.closest('tr');f.querySelector('button').disabled=true;
+  fetch(f.action,{method:'POST',body:new URLSearchParams(new FormData(f))}).then(function(r){if(!r.ok)throw r;return r.text()}).then(function(t){
+    var doc=new DOMParser().parseFromString(t,'text/html'),nr=doc.getElementById(tr.id);
+    if(nr){nr.hidden=tr.hidden;tr.replaceWith(nr)}else tr.remove();
+    var main=document.querySelector('main');
+    main.querySelectorAll(':scope > .flash:not(.warn)').forEach(function(x){x.remove()});
+    [].slice.call(doc.querySelectorAll('main > .flash:not(.warn)')).reverse().forEach(function(x){main.prepend(x)});
+    ['.title-row .muted','nav.filter'].forEach(function(sel){var a=document.querySelector(sel),b=doc.querySelector(sel);if(a&&b)a.replaceWith(b)});
+    count();
+  }).catch(function(){f.submit()})});
+})();
+</script>
 {{template "foot" .}}{{end}}
+
+{{define "member"}}{{template "head" .}}{{with .MemberPage}}{{$m := .}}{{$paid := .PaidFor $.Year}}
+<p><a href="/admin/members">← All members</a></p>
+<div class="title-row">
+  <h1>{{.Name}}</h1>
+  <p class="muted">{{.PlanName}} plan · joined {{date .Joined}}{{if not .Active}} <span class="tag">Unsubscribed</span>{{end}}</p>
+</div>
+<div class="grid2 member-page">
+  <form class="card" method="post" action="/admin/members/{{.ID}}">
+    <h2>Details</h2>
+    <label>Full name <input name="name" required maxlength="100" value="{{.Name}}"></label>
+    <label>Email <input type="email" name="email" required maxlength="254" value="{{.Email}}"></label>
+    <label><span>Phone <span class="opt">(optional)</span></span><input type="tel" name="phone" maxlength="30" value="{{.Phone}}"></label>
+    <label><span>Emergency contact <span class="opt">(optional)</span></span><input name="emergency_name" maxlength="100" value="{{.EmergencyName}}"></label>
+    <label><span>Emergency contact’s phone <span class="opt">(optional)</span></span><input type="tel" name="emergency_phone" maxlength="30" value="{{.EmergencyPhone}}"></label>
+    <label>Plan <select name="plan"><option value="individual">Individual</option><option value="family"{{if eq .Plan "family"}} selected{{end}}>Family</option></select></label>
+    <label>Riding <select name="level"><option value="">Not given</option>{{range riderLevels}}<option value="{{.Value}}"{{if eq .Value $m.Level}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>
+    <button>{{icon "save"}}Save</button>
+  </form>
+  <div class="card">
+    <h2>Dues</h2>
+    <form method="post" action="/admin/members/{{.ID}}/paid" class="inline">
+      <input type="hidden" name="return" value="/admin/members/{{.ID}}">
+      {{if $paid}}<span class="paid">Paid for {{$.Year}}</span> <input type="hidden" name="paid" value="0"><button class="link small">{{icon "undo"}}Undo</button>
+      {{else}}<span class="muted">Not paid for {{$.Year}}</span> <input type="hidden" name="paid" value="1"><button class="mini">{{icon "check"}}Mark paid</button>{{end}}
+    </form>
+    {{if .WelcomePending}}<p class="muted small">Joined on the website: marking them paid sends their welcome email.</p>{{end}}
+    <p class="small">Years paid: {{range $i, $y := .PaidYears}}{{if $i}}, {{end}}{{$y}}{{else}}<span class="muted">none yet</span>{{end}}</p>
+    <h2 class="member-h">Waivers</h2>
+    {{if .Waivers}}<ul class="member-list">{{range .Waivers}}<li><a href="/admin/waivers/{{.ID}}">{{.Year}}</a> · {{if .Minor}}for {{.Rider}}, age {{.RiderAge}}{{else if .Household}}{{.Rider}}, on this family plan{{else}}their own{{end}} <span class="muted small">signed {{date .Signed}}</span></li>{{end}}</ul>
+    {{else}}<p class="muted small">No waivers signed yet.</p>{{end}}
+    {{with .Household}}<h2 class="member-h">Adults on this family plan</h2>
+    <ul class="member-list">{{range .}}<li>{{.Name}} · <a href="mailto:{{.Email}}">{{.Email}}</a>{{if not .LinkSent}} <span class="muted small">(waiver link not sent yet)</span>{{end}}</li>{{end}}</ul>{{end}}
+    <h2 class="member-h">Contact</h2>
+    <p class="small"><a href="mailto:{{.Email}}">Email {{.FirstName}}</a>{{with .Phone}} · <a href="tel:{{.}}">Call {{.}}</a>{{end}}{{with .EmergencyPhone}} · Emergency: <a href="tel:{{.}}">{{.}}</a>{{with $m.EmergencyName}} ({{.}}){{end}}{{end}}</p>
+    {{with .TermsAgreed}}<p class="muted small">Agreed to the club terms {{date .}}.</p>{{end}}
+  </div>
+</div>
+{{if $.CanManage}}<form class="footnote" method="post" action="/admin/members/{{.ID}}/delete" onsubmit="return confirm('Delete {{.Email}}? This can’t be undone.')"><button class="link danger">{{icon "trash"}}Delete this member</button></form>
+{{else}}<p class="muted small footnote">Only the president can delete members.</p>{{end}}
+{{end}}{{template "foot" .}}{{end}}
 
 {{define "waivers"}}{{template "head" .}}
 <div class="title-row">
@@ -555,7 +643,8 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
   <div class="send-row">
     <input type="email" name="test_to" value="{{.TestTo}}" aria-label="Send test to">
     <button class="ghost" formaction="/admin/email/test">{{icon "mail"}}Send test</button>
-    {{if or .Draft.Subject .Draft.Body}}<button class="link danger" formaction="/admin/email/discard" onclick="return confirm('Discard this draft?')">{{icon "trash"}}Discard draft</button>{{end}}
+    <button class="link danger draft-discard" formaction="/admin/email/discard" onclick="return confirm('Discard this draft?')"{{if not (or .Draft.Subject .Draft.Body)}} hidden{{end}}>{{icon "trash"}}Discard draft</button>
+    <span class="muted small draft-status" role="status"></span>
   </div>
   <div class="send-row">
     <label class="inline-label">Send to
@@ -568,6 +657,18 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
     <button formaction="/admin/email/send" onclick="return confirm('Send this email to: '+this.form.audience.selectedOptions[0].text+'?')">{{icon "send"}}Send email</button>
   </div>
 </form>
+<script>
+// The draft saves itself a couple of seconds after each change, and the
+// page asks before you leave while a change hasn't been saved yet.
+(function(){var f=document.querySelector('form.compose'),st=f.querySelector('.draft-status'),discard=f.querySelector('.draft-discard'),timer,unsaved=false,leaving=false;
+  function save(){clearTimeout(timer);var fd=new URLSearchParams();fd.set('subject',f.subject.value);fd.set('body',f.body.value);
+    st.textContent='Saving…';
+    fetch('/admin/email/draft',{method:'POST',body:fd}).then(function(r){if(!r.ok)throw r;unsaved=false;st.textContent='Draft saved';discard.hidden=!(f.subject.value.trim()||f.body.value.trim())})
+      .catch(function(){st.textContent='Not saved: check your connection. It tries again when you type.'})}
+  f.addEventListener('input',function(e){if(e.target.name!=='subject'&&e.target.name!=='body')return;unsaved=true;st.textContent='';clearTimeout(timer);timer=setTimeout(save,2000)});
+  f.addEventListener('submit',function(){leaving=true});
+  window.addEventListener('beforeunload',function(e){if(unsaved&&!leaving){save();e.preventDefault();e.returnValue=''}})})();
+</script>
 
 <div class="title-row section-row"><h2>Sent emails</h2><a href="/admin/stats">How many opened and clicked</a></div>
 <div class="table-wrap"><table>
@@ -623,7 +724,7 @@ function initMail(form){
     frame.style.maxWidth=b.dataset.w+'px';setTimeout(fit,50)})});
   function picked(){return ta.value.slice(ta.selectionStart,ta.selectionEnd)}
   // Types text where the cursor is (keeping undo working where the browser allows).
-  function put(text){ta.focus();if(!document.execCommand('insertText',false,text)){ta.setRangeText(text,ta.selectionStart,ta.selectionEnd,'end');later()}}
+  function put(text){ta.focus();if(!document.execCommand('insertText',false,text)){ta.setRangeText(text,ta.selectionStart,ta.selectionEnd,'end');ta.dispatchEvent(new Event('input',{bubbles:true}))}}
   // Puts something on lines of its own, with a blank line before and after.
   function block(text){var before=ta.value.slice(0,ta.selectionStart);
     put((before===''||/\n\n$/.test(before)?'':/\n$/.test(before)?'\n':'\n\n')+text+'\n\n')}

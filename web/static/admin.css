@@ -579,3 +579,19 @@ button:has(>.ic),.btn:has(>.ic){display:inline-flex;align-items:center;justify-c
 .strava-preview .sp-map{flex:0 0 auto;line-height:0}
 .strava-preview img{width:min(260px,100%);aspect-ratio:2/1;object-fit:cover;border:1px solid var(--line)}
 .strava-preview .sp-text{display:grid;gap:.15rem;min-width:12rem;flex:1;font-size:.9rem}
+
+/* Members: sortable headings, ticks for marking several paid, and each member's page */
+th button.sort{padding:0;border:0;background:none;color:inherit;font:inherit;cursor:pointer}
+th button.sort::after{content:" ↕";color:var(--muted);font-size:.8em}
+th[aria-sort=ascending] button.sort::after{content:" ↑";color:inherit}
+th[aria-sort=descending] button.sort::after{content:" ↓";color:inherit}
+.pick-col{width:2rem}
+.pick-col input{width:auto;margin:0}
+.member-link{font-weight:500;color:var(--ink)}
+.bulk-bar{position:sticky;top:0;z-index:3;display:flex;flex-wrap:wrap;align-items:center;gap:.6rem 1rem;margin-top:1rem;padding:.6rem 1rem;border:1px solid var(--ink);background:#fff;box-shadow:0 6px 18px rgba(0,0,0,.08)}
+.bulk-bar[hidden]{display:none}
+.bulk-n{font-weight:500}
+.member-h{margin:1.4rem 0 .4rem;font-size:1rem}
+.member-list{margin:0;padding-left:1.1rem;font-size:.9rem}
+.member-list li{margin:.2rem 0}
+@media (max-width:900px){.cards td.pick-col{padding-left:9.75rem}}
