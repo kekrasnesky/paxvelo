@@ -545,12 +545,12 @@ func TestPhotoPIN(t *testing.T) {
 		t.Error("Sent-in photos should say they were posted with the PIN")
 	}
 
-	// A new album they name is started; with no album, they wait for review.
+	// A new album they name is started; with no album, they go in "Member photos".
 	send(url.Values{"pin": {"Velo2026"}, "album": {"new"}, "album_name": {"Fall colors"}})
 	if albums := a.store.Albums(); len(albums) != 2 || albums[0].Title != "Fall colors" || len(a.store.AlbumPhotos(albums[0].ID)) != 2 {
 		t.Errorf("a new album with the PIN: %+v", albums)
 	}
-	if w := send(url.Values{"pin": {"Velo2026"}}); !strings.Contains(w.Body.String(), "an admin will put them in an album") || a.store.WaitingPhotos() != 2 {
+	if w := send(url.Values{"pin": {"Velo2026"}}); !strings.Contains(w.Body.String(), "in the gallery now, in “Member photos”") || a.store.WaitingPhotos() != 0 {
 		t.Errorf("no album picked: %s, %d waiting", w.Body, a.store.WaitingPhotos())
 	}
 

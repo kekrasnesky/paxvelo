@@ -214,8 +214,6 @@ func (a *App) sharePhotos(w http.ResponseWriter, r *http.Request) {
 		if n == 1 {
 			d.Detail = fmt.Sprintf("Your photo is in the gallery now, in “%s”.", al.Title)
 		}
-	case from.ViaPIN && from.Album == 0 && from.AlbumName == "":
-		d.Detail = fmt.Sprintf("We got your %d %s. You didn’t say which ride or event they’re from, so an admin will put them in an album.", n, them)
 	default:
 		d.Detail = fmt.Sprintf("We got your %d %s. An admin looks at every photo before it goes in the gallery, usually within a few days.", n, them)
 	}
@@ -225,18 +223,21 @@ func (a *App) sharePhotos(w http.ResponseWriter, r *http.Request) {
 	reply(http.StatusOK)
 }
 
+// memberPhotosAlbum is where PIN photos go when the sender picked no album.
+const memberPhotosAlbum = "Member photos"
+
 // postWithPIN puts photos sent with the club PIN straight into the
-// album picked for them (starting it if they named a new one), and returns
-// how many went in and the album. Without an album they wait for review, as
-// does any photo that couldn't be added.
+// album picked for them (starting it if they named a new one, or the
+// "Member photos" album if they named none), and returns how many went in
+// and the album. Any photo that couldn't be added waits for review.
 func (a *App) postWithPIN(photos []SubmittedPhoto, from SubmittedPhoto) (int, Album) {
-	if !from.ViaPIN || from.Album == 0 && from.AlbumName == "" {
+	if !from.ViaPIN {
 		return 0, Album{}
 	}
 	id := from.Album
 	if id == 0 {
 		var err error
-		if id, err = a.albumNamed(from.AlbumName); err != nil {
+		if id, err = a.albumNamed(or(from.AlbumName, memberPhotosAlbum)); err != nil {
 			log.Printf("photos with the PIN: %v", err)
 			return 0, Album{}
 		}
