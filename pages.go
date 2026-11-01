@@ -60,8 +60,8 @@ func (a *App) contentData() contentData {
 // rebuildContent re-renders every content page with the latest admin changes.
 func (a *App) rebuildContent() error { return a.site.renderContent(a.contentData()) }
 
-var boardTpl = template.Must(template.New("").Parse(`<ul class="board">
-{{range .}}<li>{{if .Photo}}<img class="avatar" src="{{.Photo}}" alt="" width="160" height="160" loading="lazy" decoding="async"{{with .Focus}} style="object-position:{{.}}"{{end}}>{{else}}<span class="avatar" aria-hidden="true"></span>{{end}}<strong>{{.Name}}</strong><span>{{.Role}}</span></li>
+var boardTpl = template.Must(template.New("").Funcs(template.FuncMap{"focusStyle": focusStyle}).Parse(`<ul class="board">
+{{range .}}<li>{{if .Photo}}<img class="avatar" src="{{.Photo}}" alt="" width="160" height="160" loading="lazy" decoding="async"{{with .Focus}} style="{{focusStyle .}}"{{end}}>{{else}}<span class="avatar" aria-hidden="true"></span>{{end}}<strong>{{.Name}}</strong><span>{{.Role}}</span></li>
 {{end}}</ul>
 `))
 

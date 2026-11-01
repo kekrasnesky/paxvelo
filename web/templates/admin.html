@@ -35,24 +35,111 @@ document.addEventListener('keydown',function(e){
   var b=[].filter.call(f.querySelectorAll('button:not([type=button]):not([formaction])'),function(b){return /\bsave\b/i.test(b.textContent)})[0];
   if(b){e.preventDefault();f.requestSubmit?f.requestSubmit(b):b.click()}});
 
-// Photo framing: click a photo to choose the spot every crop keeps in view.
+// ---- Photo framing ----
+// A photo that fills a box of another shape is cropped; its framing (focus.go)
+// says which part shows: a focus point and a zoom. Pressing "Adjust framing"
+// opens the framing tool: the photo in the box, with the parts cut off shown
+// faintly around it, to drag into place, zoom (slider, mouse wheel, two
+// fingers, + and −) and nudge (arrow keys), and beside it every shape the
+// photo appears in on the site, drawn with the site's own style as it changes.
+// FRAME_SHAPES lists those shapes for each kind of photo: a name, the box's
+// shape (width/height, as in site.css), and its corner radius.
+var FRAME_SHAPES={
+  home:[['Home page photo row','4/3','10px']],
+  board:[['Board page','1/1','50%']],
+  cover:[['Newsletter top, big screens','7/1'],['Newsletter top, tablets','16/7'],['Newsletter top, phones','4/3']],
+  story:[['Newsletter, computers','16/10'],['Newsletter, phones','4/3']],
+  strip:[['Newsletter photo strip','4/3']],
+  gallery:[['Album page','1/1','6px'],['Album cover','3/2','10px'],['Featured album, computers','21/9'],['Featured album, phones','4/3']],
+  page:[['Photo beside text','16/8','8px'],['Row of photos','4/3','10px']]
+};
+function parseFraming(v){var m=/^(\d+(?:\.\d+)?)% (\d+(?:\.\d+)?)%(?: (\d+(?:\.\d+)?))?$/.exec(v||'');return m?{x:+m[1],y:+m[2],z:m[3]?+m[3]:1}:{x:50,y:50,z:1}}
+function framingValue(f){var x=Math.round(f.x),y=Math.round(f.y),z=Math.round(f.z*100)/100;return x===50&&y===50&&z<=1?'':x+'% '+y+'%'+(z>1?' '+z:'')}
+// framingStyle is focusStyle in focus.go, so the tool shows what the site
+// shows: change both together.
+function framingStyle(f){var s='object-position:'+f.x+'% '+f.y+'%';
+  if(f.z>1){var k=1-1/f.z,p=function(v){return (v*k).toFixed(3)+'%'};
+    s+=';transform:scale('+f.z+');transform-origin:'+f.x+'% '+f.y+'%;clip-path:inset('+p(f.y)+' '+p(100-f.x)+' '+p(100-f.y)+' '+p(f.x)+' round calc(var(--r,0px) / '+f.z+'))'}
+  return s}
+// A page photo keeps its framing on its address: photos/ride.webp#focus=40,30,1.5
+function urlFraming(u){var m=/#focus=(\d+),(\d+)(?:,(\d+(?:\.\d+)?))?$/.exec(u||'');return m?m[1]+'% '+m[2]+'%'+(m[3]?' '+m[3]:''):''}
+function withFraming(u,v){u=u.replace(/#focus=.*$/,'');var f=parseFraming(v);return v?u+'#focus='+Math.round(f.x)+','+Math.round(f.y)+(f.z>1?','+f.z:''):u}
+
+// openFraming shows the framing tool for a photo (src), starting from a
+// framing (value), with the shapes it appears in; done gets the new framing.
+function openFraming(src,value,shapes,done){
+  var box=document.getElementById('frame-box');
+  if(!box){box=document.createElement('dialog');box.id='frame-box';box.className='card frame-box';box.setAttribute('aria-labelledby','frame-title');
+    box.innerHTML='<div class="fb-top"><h2 id="frame-title">Frame this photo</h2><p class="muted small">Drag the photo to choose what shows. Zoom in with the slider, your mouse wheel, or two fingers. Arrow keys nudge it.</p></div>'+
+      '<div class="fb-main"><div class="fb-stage" tabindex="0" aria-label="The photo in its frame. Drag to move it, arrow keys nudge it, plus and minus zoom."><div class="fb-frame"><img class="fb-ghost" alt=""><img class="fb-pic" alt=""></div></div>'+
+      '<div class="fb-side"><p class="fb-label">How it shows on the site</p><div class="fb-shapes"></div>'+
+      '<label class="fb-zoom">Zoom <input type="range" min="1" max="4" step="0.01" value="1"><output>1×</output></label>'+
+      '<button type="button" class="ghost fb-reset">Reset: whole photo, centered</button></div></div>'+
+      '<div class="send-row"><button type="button" class="fb-done">Done</button><button type="button" class="link fb-cancel">Cancel</button><span class="muted small">Saved with the rest of the page.</span></div>';
+    document.body.appendChild(box)}
+  var stage=box.querySelector('.fb-stage'),frame=box.querySelector('.fb-frame'),pic=box.querySelector('.fb-pic'),ghost=box.querySelector('.fb-ghost'),
+    list=box.querySelector('.fb-shapes'),zoom=box.querySelector('.fb-zoom input'),out=box.querySelector('.fb-zoom output'),
+    f=parseFraming(value),cur=0,nat={w:0,h:0},drag=null,pts={},pinch=null;
+  pic.src=ghost.src=src;
+  list.textContent='';
+  var pvs=shapes.map(function(s,i){var b=document.createElement('button'),wrap=document.createElement('span'),img=document.createElement('img'),t=document.createElement('span');
+    b.type='button';b.className='fb-shape';wrap.className='fb-pv';wrap.style.aspectRatio=s[1];var r=s[1].split('/');wrap.style.width='min(100%,'+Math.round(120*r[0]/r[1])+'px)';wrap.style.setProperty('--r',s[2]||'0px');wrap.style.borderRadius=s[2]||'0';
+    img.src=src;img.alt='';img.style.setProperty('--r',s[2]||'0px');t.textContent=s[0];wrap.appendChild(img);b.appendChild(wrap);b.appendChild(t);
+    b.addEventListener('click',function(){cur=i;size()});list.appendChild(b);return img});
+  list.hidden=false;
+  function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+  // Where the photo sits in a W×H box, as the site's style puts it: covering
+  // the box, placed by the focus point, then scaled around it.
+  function place(W,H){var c=Math.max(W/nat.w,H/nat.h),dw=nat.w*c,dh=nat.h*c,ox=W*f.x/100,oy=H*f.y/100;
+    return {l:ox+f.z*((W-dw)*f.x/100-ox),t:oy+f.z*((H-dh)*f.y/100-oy),w:dw*f.z,h:dh*f.z,dw:dw,dh:dh}}
+  function draw(){var st=framingStyle(f);pic.style.cssText=st;pvs.forEach(function(img){img.style.cssText=st+';--r:'+img.style.getPropertyValue('--r')});
+    zoom.value=f.z;out.textContent=(Math.round(f.z*10)/10)+'×';
+    if(nat.w){var W=frame.clientWidth,H=frame.clientHeight,p=place(W,H);ghost.style.cssText='left:'+p.l+'px;top:'+p.t+'px;width:'+p.w+'px;height:'+p.h+'px'}
+    [].forEach.call(list.children,function(b,i){b.setAttribute('aria-pressed',i===cur)})}
+  // The frame takes the chosen shape, as big as fits with room around it.
+  function size(){var s=shapes[cur][1].split('/'),a=s[0]/s[1],W=stage.clientWidth-48,H=stage.clientHeight-48,w=Math.min(W,H*a);
+    frame.style.width=w+'px';frame.style.height=w/a+'px';frame.style.setProperty('--r',shapes[cur][2]||'0px');frame.style.borderRadius=shapes[cur][2]||'0';
+    pic.style.setProperty('--r',shapes[cur][2]||'0px');draw()}
+  function move(dx,dy){var W=frame.clientWidth,H=frame.clientHeight,p=place(W,H),sx=W-f.z*p.dw,sy=H-f.z*p.dh;
+    if(Math.abs(sx)>.5)f.x=clamp(f.x+dx*100/sx,0,100);if(Math.abs(sy)>.5)f.y=clamp(f.y+dy*100/sy,0,100);draw()}
+  function setZoom(z){f.z=clamp(Math.round(z*100)/100,1,4);draw()}
+  pic.onload=function(){nat={w:pic.naturalWidth,h:pic.naturalHeight};draw()};
+  stage.onpointerdown=function(e){stage.setPointerCapture(e.pointerId);pts[e.pointerId]=[e.clientX,e.clientY];
+    var ids=Object.keys(pts);if(ids.length===2){var a=pts[ids[0]],b=pts[ids[1]];pinch={d:Math.hypot(a[0]-b[0],a[1]-b[1]),z:f.z};drag=null}else drag=[e.clientX,e.clientY];
+    stage.classList.add('dragging');e.preventDefault()};
+  stage.onpointermove=function(e){if(!pts[e.pointerId])return;pts[e.pointerId]=[e.clientX,e.clientY];var ids=Object.keys(pts);
+    if(pinch&&ids.length===2){var a=pts[ids[0]],b=pts[ids[1]];setZoom(pinch.z*Math.hypot(a[0]-b[0],a[1]-b[1])/pinch.d);return}
+    if(drag){move(e.clientX-drag[0],e.clientY-drag[1]);drag=[e.clientX,e.clientY]}};
+  stage.onpointerup=stage.onpointercancel=function(e){delete pts[e.pointerId];pinch=null;drag=Object.keys(pts).length?pts[Object.keys(pts)[0]].slice():null;if(!drag)stage.classList.remove('dragging')};
+  stage.onwheel=function(e){e.preventDefault();setZoom(f.z*Math.exp(-e.deltaY/400))};
+  stage.onkeydown=function(e){var n=e.shiftKey?40:10,k={ArrowLeft:[-n,0],ArrowRight:[n,0],ArrowUp:[0,-n],ArrowDown:[0,n]}[e.key];
+    if(k){e.preventDefault();move(k[0],k[1])}else if(e.key==='+'||e.key==='='){e.preventDefault();setZoom(f.z*1.1)}else if(e.key==='-'){e.preventDefault();setZoom(f.z/1.1)}};
+  zoom.oninput=function(){setZoom(+zoom.value)};
+  box.querySelector('.fb-reset').onclick=function(){f={x:50,y:50,z:1};draw()};
+  box.querySelector('.fb-cancel').onclick=function(){box.close()};
+  box.querySelector('.fb-done').onclick=function(){box.close();done(framingValue(f))};
+  window.onresize=function(){if(box.open)size()};
+  box.showModal();size();stage.focus();
+}
+
+// An "Adjust framing" button for a photo: the photo is shown in its first
+// shape, framed as it is now, and the framing goes in the hidden field.
 function initFramer(f){
-  var input=f.querySelector('input[type=hidden]'),pick=f.querySelector('.framer-pick'),dot=f.querySelector('.framer-dot'),pv=f.querySelectorAll('.framer-previews img');
-  function apply(v){var p=(v||'50% 50%').split(' ');dot.style.left=p[0];dot.style.top=p[1];pv.forEach(function(i){i.style.objectPosition=v||'50% 50%'})}
-  apply(input.value);
-  pick.addEventListener('click',function(e){var r=pick.querySelector('img').getBoundingClientRect();
-    var x=Math.max(0,Math.min(100,Math.round((e.clientX-r.left)/r.width*100))),y=Math.max(0,Math.min(100,Math.round((e.clientY-r.top)/r.height*100)));
-    input.value=x+'% '+y+'%';apply(input.value);input.dispatchEvent(new Event('change',{bubbles:true}))});
+  var input=f.querySelector('input[type=hidden]'),open=f.querySelector('.framer-open'),thumb=f.querySelector('.framer-thumb'),
+    img=thumb?thumb.querySelector('img'):f.closest('[data-framed]').querySelector('img'),shapes=FRAME_SHAPES[f.dataset.shapes]||FRAME_SHAPES.story;
+  if(thumb){thumb.style.aspectRatio=shapes[0][1];thumb.style.borderRadius=shapes[0][2]||'0';img.style.setProperty('--r',shapes[0][2]||'0px')}
+  function show(){img.style.cssText=framingStyle(parseFraming(input.value))+';--r:'+(thumb?shapes[0][2]||'0px':'0px');open.classList.toggle('framed',!!input.value)}
+  show();
+  open.addEventListener('click',function(){openFraming(f.dataset.src||img.getAttribute('src'),input.value,shapes,function(v){
+    if(v===input.value)return;input.value=v;show();input.dispatchEvent(new Event('change',{bubbles:true}))})});
 }
 document.querySelectorAll('.framer').forEach(initFramer);
 
 // The same markup as the "framer" and "strip-item" templates, for photos added on the page.
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return '&#'+c.charCodeAt(0)+';'})}
-function framerHTML(url,field,strip){url=esc(url);
-  var pv=strip?'<img src="'+url+'" alt="" class="pv-strip">':'<img src="'+url+'" alt="" class="pv-wide"><img src="'+url+'" alt="" class="pv-tall"><img src="'+url+'" alt="" class="pv-round">';
-  return '<div class="framer"><button type="button" class="framer-pick" aria-label="Click the spot to keep in view"><img src="'+url+'" alt=""><span class="framer-dot"></span></button>'+
-    '<div class="framer-previews" aria-hidden="true">'+pv+'</div><input type="hidden" name="'+esc(field)+'" value="">'+
-    (strip?'':'<p class="muted small">Click the spot to keep in view, like faces. The small previews show how it will be cropped.</p>')+'</div>'}
+function framerHTML(url,field,shapes){url=esc(url);
+  return '<div class="framer" data-shapes="'+esc(shapes)+'"><button type="button" class="framer-open"><span class="framer-thumb"><img src="'+url+'" alt=""></span>'+
+    '<span class="framer-cta">{{icon "crop"}}Adjust framing</span></button><input type="hidden" name="'+esc(field)+'" value=""></div>'}
 
 // Photos upload the moment they're picked or dropped, so they show right away.
 function uploadPhotos(files,status,done){
@@ -107,7 +194,7 @@ function pickFromGallery(max,done){
 function initPhotoBox(box){
   var p=box.dataset.photo,cur=box.querySelector('input[name="'+p+'photo_current"]'),shown=box.querySelector('.photo-shown'),
     rm=box.querySelector('.photo-remove'),st=box.querySelector('.photo-status'),file=box.querySelector('input[type=file]'),lab=box.querySelector('.drop strong');
-  function set(url){cur.value=url;shown.innerHTML=url?framerHTML(url,p+'photo_focus'):'';if(url)initFramer(shown.firstChild);
+  function set(url){cur.value=url;shown.innerHTML=url?framerHTML(url,p+'photo_focus',p==='cover.'?'cover':'story'):'';if(url)initFramer(shown.firstChild);
     rm.hidden=!url;lab.textContent=url?'Upload a different photo':'Upload a photo';changed(box)}
   function send(files){uploadPhotos([].slice.call(files,0,1),st,function(urls){if(urls[0])set(urls[0])})}
   file.addEventListener('change',function(){send(file.files);file.value=''});
@@ -125,7 +212,7 @@ function initStrip(strip){
     [].forEach.call(items,function(it,i){it.querySelector('[data-act=left]').disabled=i===0;it.querySelector('[data-act=right]').disabled=i===n-1});
     count.textContent=n?n+' of '+max+' photos':'No photos yet.';add.hidden=n>=max}
   function item(url){var d=document.createElement('div');d.className='strip-item';
-    d.innerHTML=framerHTML(url,p+'focus',true)+'<input type="hidden" name="'+esc(p)+'photos" value="'+esc(url)+'">'+
+    d.innerHTML=framerHTML(url,p+'focus','strip')+'<input type="hidden" name="'+esc(p)+'photos" value="'+esc(url)+'">'+
       '<div class="strip-tools"><button type="button" class="mini ghost" data-act="left" aria-label="Move left">←</button><button type="button" class="mini ghost" data-act="right" aria-label="Move right">→</button><button type="button" class="link danger small" data-act="remove">Remove</button></div>';
     initFramer(d.querySelector('.framer'));return d}
   function send(files){var room=max-strip.children.length;
@@ -989,10 +1076,11 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
     <div class="gal-tools-go ticked-acts" id="to-newsletter">{{if $.Issues}}<span class="send-row"><select name="issue" aria-label="Newsletter issue">{{range $.Issues}}<option value="{{.ID}}">{{.Label}}{{if not .IsPublished}} (draft){{end}}</option>{{end}}</select><button class="ghost" name="do" value="newsletter">{{icon "plus"}}Add to newsletter</button></span>
       <span class="muted small">They go in the issue’s photo strip.</span>{{else}}<span class="muted small">To put these photos in a newsletter, <a href="/admin/newsletter">start an issue</a> first.</span>{{end}}</div>
   </div>
-  <div class="sent-grid album-grid">{{range $al.Photos}}<div class="sent-photo{{if $al.Ticked .ID}} on{{end}}" draggable="true" data-id="{{.ID}}">
-    <label><img src="{{.Thumb}}" alt="{{.Alt}}" loading="lazy">
+  <div class="sent-grid album-grid">{{range $al.Photos}}<div class="sent-photo{{if $al.Ticked .ID}} on{{end}}" draggable="true" data-id="{{.ID}}" data-framed>
+    <label><img src="{{.Thumb}}" alt="{{.Alt}}" loading="lazy"{{with .Focus}} style="{{focusStyle .}}"{{end}}>
     <span><input type="checkbox" name="id" value="{{.ID}}"{{if $al.Ticked .ID}} checked{{end}}> By {{.By}}</span></label>
     <input name="caption-{{.ID}}" value="{{.Caption}}" maxlength="200" placeholder="Caption" aria-label="Caption">
+    <div class="framer framer-compact" data-shapes="gallery" data-src="{{.Src}}"><button type="button" class="framer-open link small">{{icon "crop"}}Adjust framing</button><input type="hidden" name="focus-{{.ID}}" value="{{.Focus}}"></div>
     {{if eq .ID $al.Cover}}<span class="cover-on">{{icon "star"}}Cover</span>{{else}}<button class="cover-btn" name="do" value="cover:{{.ID}}" title="Show this photo for the album on the gallery page">Make cover</button>{{end}}
   </div>{{end}}</div>
 </form>{{else}}<p class="empty">No photos in this album yet. Upload some above, or approve photos members shared into it on <a href="/admin/submitted">Photos to review</a>.</p>{{end}}
@@ -1070,7 +1158,7 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
       .catch(function(){status.textContent='Not saved: couldn’t reach the server.'});
   }
   grid.addEventListener('change',function(e){
-    if(e.target.name&&e.target.name.indexOf('caption-')===0)autosave([[e.target.name,e.target.value]]);
+    if(e.target.name&&/^(caption|focus)-/.test(e.target.name))autosave([[e.target.name,e.target.value]]);
   });
   grid.addEventListener('dragend',function(){if(order.value)autosave([['order',order.value]])});
   // How many are ticked.
@@ -1336,7 +1424,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
 
 {{define "photo"}}{{$p := .P}}{{$s := .S}}<div class="photo-field" data-photo="{{$p}}">
   <input type="hidden" name="{{$p}}photo_current" value="{{$s.Photo}}">
-  <div class="photo-shown">{{if $s.Photo}}{{template "framer" (framer $s.Photo $s.PhotoFocus (printf "%sphoto_focus" $p))}}{{end}}</div>
+  <div class="photo-shown">{{if $s.Photo}}{{template "framer" (framer $s.Photo $s.PhotoFocus (printf "%sphoto_focus" $p) (or (and (eq $p "cover.") "cover") "story"))}}{{end}}</div>
   <div class="photo-tools">
     <button type="button" class="ghost gal-choose">Choose from the gallery</button>
     <label class="drop"><input type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden><strong>{{if $s.Photo}}Upload a different photo{{else}}Upload a photo{{end}}</strong> <span class="muted small">Click, or drop one here</span></label>
@@ -1347,11 +1435,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
 </div>{{end}}
 
 {{define "strip-item"}}<div class="strip-item">
-  <div class="framer">
-    <button type="button" class="framer-pick" aria-label="Click the spot to keep in view"><img src="{{.URL}}" alt=""><span class="framer-dot"></span></button>
-    <div class="framer-previews" aria-hidden="true"><img src="{{.URL}}" alt="" class="pv-strip"></div>
-    <input type="hidden" name="{{.P}}focus" value="{{.Focus}}">
-  </div>
+  {{template "framer" (framer .URL .Focus (printf "%sfocus" .P) "strip")}}
   <input type="hidden" name="{{.P}}photos" value="{{.URL}}">
   <div class="strip-tools"><button type="button" class="mini ghost" data-act="left" aria-label="Move left">←</button><button type="button" class="mini ghost" data-act="right" aria-label="Move right">→</button><button type="button" class="link danger small" data-act="remove">Remove</button></div>
 </div>{{end}}
@@ -1696,11 +1780,11 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
 </div>{{end}}
 {{template "foot" .}}{{end}}
 
-{{define "framer"}}<div class="framer">
-  <button type="button" class="framer-pick" aria-label="Click the spot to keep in view"><img src="{{.URL}}" alt=""><span class="framer-dot"></span></button>
-  <div class="framer-previews" aria-hidden="true"><img src="{{.URL}}" alt="" class="pv-wide"><img src="{{.URL}}" alt="" class="pv-tall"><img src="{{.URL}}" alt="" class="pv-round"></div>
+{{/* A photo, as it shows on the site, and the button that opens the framing tool (openFraming) */}}
+{{define "framer"}}<div class="framer" data-shapes="{{.Shapes}}">
+  <button type="button" class="framer-open"><span class="framer-thumb"><img src="{{.URL}}" alt=""{{with .Focus}} style="{{focusStyle .}}"{{end}}></span>
+    <span class="framer-cta">{{icon "crop"}}Adjust framing</span></button>
   <input type="hidden" name="{{.Field}}" value="{{.Focus}}">
-  <p class="muted small">Click the spot to keep in view, like faces. The small previews show how it will be cropped.</p>
 </div>{{end}}
 
 {{define "home-photos"}}{{template "head" .}}
@@ -1716,7 +1800,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
     </div>
     <input type="hidden" name="order{{$i}}" value="{{inc $i}}" class="order">
     <div class="photo-field">
-      {{template "framer" (framer $p.Photo $p.Focus (printf "focus%d" $i))}}
+      {{template "framer" (framer $p.Photo $p.Focus (printf "focus%d" $i) "home")}}
       <input type="hidden" name="photo{{$i}}" value="{{$p.Photo}}">
       <div class="fields">
         <label>What’s in the photo <input name="alt{{$i}}" value="{{$p.Alt}}" maxlength="120" placeholder="Riders lined up at the start of the Thursday ride"></label>
@@ -2225,6 +2309,7 @@ var BODY={
       row.appendChild(el('figure',{'class':'ed-photo'},[img,
         field('Describe this photo',d),
         el('span',{'class':'ed-row'},[pick('Replace',function(u){p.url=u;edit(b);render(b)},msg,img),
+          btn('Adjust framing','Choose which part of the photo shows where it’s cropped',function(){openFraming(img.getAttribute('src').replace(/#.*$/,''),urlFraming(p.url),FRAME_SHAPES.page,function(v){p.url=withFraming(p.url,v);edit(b);render(b)})}),
           btn('Remove','Remove this photo',function(){if(b.photos.length===1){remove(arr,i,'photo');return}b.photos.splice(k,1);edit(b);render(b)})])]))});
     c.appendChild(row);c.appendChild(msg);c.appendChild(el('div',{'class':'ed-row'},[pick('＋ Add another photo',function(u){b.photos.push({alt:'',url:u});edit(b);render(b)},msg)]))},
   buttons:function(b,c,arr,i){b.links.forEach(function(l,k){var w=inp(l.label,function(v){l.label=v;edit(b)},{'class':'ed-btn-words','aria-label':'Words on the button',placeholder:dest(l.href)});if(!k)b._focus=function(){w.focus()};
@@ -2394,7 +2479,7 @@ try{if(localStorage.getItem('pagePreview')==='0')showPreview(false)}catch(e){}
     <h2>{{if $m.Name}}{{$m.Name}}{{else}}Add a board member{{end}}</h2>
     <div class="pair"><label>Name <input name="name{{$i}}" value="{{$m.Name}}" maxlength="60"></label><label>Role <input name="role{{$i}}" value="{{$m.Role}}" maxlength="60"></label></div>
     <div class="photo-field" data-board="{{$i}}">
-      {{if $m.Photo}}{{template "framer" (framer $m.Photo $m.Focus (printf "focus%d" $i))}}{{else}}<span></span>{{end}}
+      {{if $m.Photo}}{{template "framer" (framer $m.Photo $m.Focus (printf "focus%d" $i) "board")}}{{else}}<span></span>{{end}}
       <input type="hidden" name="photo_current{{$i}}" value="{{$m.Photo}}">
       <div class="fields">
         <button type="button" class="ghost gal-choose">Choose from the gallery</button>
@@ -2414,7 +2499,7 @@ document.querySelectorAll('[data-board]').forEach(function(box){
   var i=box.dataset.board,cur=box.querySelector('input[name="photo_current'+i+'"]'),file=box.querySelector('input[type=file]'),rm=box.querySelector('input[name="photo_remove'+i+'"]');
   box.querySelector('.gal-choose').addEventListener('click',function(){pickFromGallery(1,function(urls){if(!urls[0])return;
     cur.value=urls[0];file.value='';if(rm)rm.checked=false;
-    var t=document.createElement('div');t.innerHTML=framerHTML(urls[0],'focus'+i);box.replaceChild(t.firstChild,box.firstElementChild);initFramer(box.firstElementChild)})});
+    var t=document.createElement('div');t.innerHTML=framerHTML(urls[0],'focus'+i,'board');box.replaceChild(t.firstChild,box.firstElementChild);initFramer(box.firstElementChild)})});
 });
 </script>
 {{template "foot" .}}{{end}}

@@ -528,6 +528,10 @@ func (r *mdRenderer) inline(s string) (string, error) {
 		b.WriteString(t)
 		last = m[1]
 		isImg, label, raw := s[m[2]:m[3]] == "!", s[m[4]:m[5]], s[m[6]:m[7]]
+		focus := ""
+		if isImg {
+			raw, focus = splitPhotoFocus(raw)
+		}
 		href, err := r.url(raw)
 		if err != nil {
 			return "", err
@@ -536,7 +540,11 @@ func (r *mdRenderer) inline(s string) (string, error) {
 			if href == "" {
 				return "", fmt.Errorf("the photo %q has no file name", label)
 			}
-			fmt.Fprintf(&b, `<img src="%s" alt="%s" loading="lazy" decoding="async">`, html.EscapeString(href), html.EscapeString(label))
+			style := ""
+			if f := focusStyle(focus); f != "" {
+				style = ` style="` + html.EscapeString(string(f)) + `"`
+			}
+			fmt.Fprintf(&b, `<img src="%s" alt="%s" loading="lazy" decoding="async"%s>`, html.EscapeString(href), html.EscapeString(label), style)
 			continue
 		}
 		t, err = r.text(label)

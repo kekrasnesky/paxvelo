@@ -90,16 +90,39 @@ tr.off td{color:var(--muted)}
 .fields{display:grid;gap:.9rem}
 .pair{display:grid;grid-template-columns:2fr 1fr;gap:.9rem}
 .photo-field{display:grid;grid-template-columns:auto 1fr;gap:1rem;align-items:start}
-.framer{display:grid;gap:.5rem;max-width:260px}
-.framer-pick{position:relative;display:block;padding:0;border:1px solid var(--line);background:none;cursor:crosshair;justify-self:start}
-.framer-pick img{display:block;max-width:260px;max-height:220px;width:auto;height:auto}
-.framer-dot{position:absolute;width:18px;height:18px;margin:-9px 0 0 -9px;border:2px solid #fff;border-radius:50%;background:var(--red);box-shadow:0 0 0 1px rgba(0,0,0,.4);pointer-events:none}
-.framer-previews{display:flex;gap:.4rem;align-items:flex-end}
-.framer-previews img{height:56px;object-fit:cover;border:1px solid var(--line)}
-.pv-wide{width:90px}
-.pv-tall{width:42px}
-.pv-round{width:56px;border-radius:50%}
-.framer p{margin:0}
+.framer{display:grid;gap:.5rem;max-width:280px}
+.framer-open{display:grid;gap:.45rem;padding:0;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;justify-self:start}
+.framer-thumb{display:block;width:240px;max-width:100%;overflow:hidden;border:1px solid var(--line);background:#f1ece5}
+.framer-thumb img{display:block;width:100%;height:100%;object-fit:cover}
+.framer-cta{display:inline-flex;align-items:center;font-size:.85rem;font-weight:500;color:var(--red)}
+.framer-open:hover .framer-cta,.framer-open:focus-visible .framer-cta{text-decoration:underline}
+.framer-compact{max-width:none}
+.framer-compact .framer-open{display:inline-flex;color:var(--red)}
+.strip-item .framer-thumb{width:170px}
+/* The framing tool (openFraming) */
+.frame-box{width:min(1100px,calc(100vw - 2rem));max-height:calc(100vh - 2rem);padding:1.25rem 1.5rem;border:1px solid var(--line);overflow:auto}
+.frame-box:not([open]){display:none}
+.frame-box::backdrop{background:rgba(30,28,27,.6)}
+.frame-box h2{margin:0}
+.fb-top p{margin:.3rem 0 0}
+.fb-main{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:1.25rem;margin:1rem 0}
+.fb-stage{position:relative;display:grid;place-items:center;height:min(62vh,560px);overflow:hidden;background:#2a2725;cursor:grab;touch-action:none;user-select:none;outline-offset:3px}
+.fb-stage.dragging{cursor:grabbing}
+.fb-frame{position:relative;box-shadow:0 0 0 2px #fff,0 0 0 9999px rgba(20,18,17,.55)}
+.fb-ghost{position:absolute;max-width:none;opacity:.45;pointer-events:none}
+.fb-pic{position:relative;display:block;width:100%;height:100%;object-fit:cover;pointer-events:none}
+.fb-frame{z-index:0}.fb-ghost{z-index:-1}
+.fb-side{display:grid;gap:.8rem;align-content:start}
+.fb-label{margin:0;font-size:.85rem;font-weight:500}
+.fb-shapes{display:grid;gap:.6rem;max-height:min(46vh,420px);overflow:auto}
+.fb-shape{display:grid;gap:.3rem;padding:.4rem;border:2px solid transparent;background:#faf8f5;color:var(--ink);font:inherit;font-size:.78rem;text-align:left;cursor:pointer}
+.fb-shape[aria-pressed=true]{border-color:var(--red)}
+.fb-pv{display:block;overflow:hidden;background:#e9e2d8} /* as tall as 120px, keeping its shape (openFraming) */
+.fb-pv img{display:block;width:100%;height:100%;object-fit:cover}
+.fb-zoom{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:.6rem}
+.fb-zoom input{padding:0}
+.fb-zoom output{min-width:2.6rem;font-variant-numeric:tabular-nums;text-align:right}
+@media (max-width:760px){.fb-main{grid-template-columns:1fr}.fb-stage{height:48vh}.fb-shapes{grid-auto-flow:column;grid-auto-columns:150px;overflow-x:auto}}
 .trio{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1.5rem}
 .trio .pair,.trio .photo-field{grid-template-columns:1fr}
 .rides input{min-width:7rem;padding:.45rem .55rem;font-size:.85rem}
@@ -271,8 +294,6 @@ form:not(:has(input[name=virtual]:checked)) .zwift-check{display:none}
 .album-grid .sent-photo{cursor:grab;background:#fff}
 .album-grid .sent-photo.dragging{opacity:.4}
 .strip-item{display:grid;gap:.4rem;padding:.6rem;border:1px solid var(--line);background:#fff}
-.strip-item .framer-pick img{max-width:170px;max-height:130px}
-.pv-strip{width:96px;aspect-ratio:4/3;height:auto!important}
 .strip-tools{display:flex;align-items:center;gap:.35rem}
 .strip-tools .mini{padding:.3rem .55rem}
 .strip-tools button:disabled{opacity:.35;cursor:default}

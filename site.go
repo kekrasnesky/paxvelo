@@ -164,6 +164,7 @@ func newSite(cfg Config) (*Site, error) {
 		"story":        storyFields,
 		"photoStory":   photoStory,
 		"framer":       framer,
+		"focusStyle":   focusStyle,
 		"inc":          func(i int) int { return i + 1 },
 		"sub":          func(a, b int) int { return a - b },
 		"instagram":    func(posts []string) template.HTML { return instagramRow(posts, *s.instaFeed.Load(), 0) },

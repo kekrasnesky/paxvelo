@@ -127,6 +127,7 @@ type GalleryPhoto struct {
 	H       int       `json:"h,omitempty"`
 	Sized   bool      `json:"sized,omitempty"` // has its narrower copies
 	Caption string    `json:"caption,omitempty"`
+	Focus   string    `json:"focus,omitempty"` // its framing in the grid and as an album cover (focus.go)
 	By      string    `json:"by"`
 	From    int       `json:"from,omitempty"` // the sent-in photo it came from
 	Added   time.Time `json:"added"`

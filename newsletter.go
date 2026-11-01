@@ -1338,11 +1338,14 @@ type stripItem struct{ P, URL, Focus string }
 
 func stripPhoto(prefix, url, focus string) stripItem { return stripItem{prefix, url, focus} }
 
-// framerView feeds the "framer" admin template: a photo, its focus, and the
-// form field the focus is saved in.
-type framerView struct{ URL, Focus, Field string }
+// framerView feeds the "framer" admin template: a photo, its framing, the
+// form field the framing is saved in, and where the photo shows (the shapes
+// the framing tool previews: see FRAME_SHAPES in admin.html).
+type framerView struct{ URL, Focus, Field, Shapes string }
 
-func framer(url, focus, field string) framerView { return framerView{url, focus, field} }
+func framer(url, focus, field, shapes string) framerView {
+	return framerView{url, focus, field, shapes}
+}
 
 // or returns s, or def if s is empty.
 func or(s, def string) string {
@@ -1350,15 +1353,4 @@ func or(s, def string) string {
 		return def
 	}
 	return s
-}
-
-var focusRE = regexp.MustCompile(`^(100|[1-9]?[0-9])% (100|[1-9]?[0-9])%$`)
-
-// cleanFocus keeps a photo focus point ("50% 20%") or drops anything else.
-// The middle is the default, so it's stored as empty.
-func cleanFocus(f string) string {
-	if !focusRE.MatchString(f) || f == "50% 50%" {
-		return ""
-	}
-	return f
 }

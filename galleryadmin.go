@@ -286,10 +286,13 @@ func (a *App) albumAction(w http.ResponseWriter, r *http.Request) {
 	}
 
 	photos := a.store.AlbumPhotos(id)
-	captions := map[int]string{}
+	captions, focus := map[int]string{}, map[int]string{}
 	for _, p := range photos {
 		if c, ok := r.Form["caption-"+strconv.Itoa(p.ID)]; ok {
 			captions[p.ID] = cleanTitle(c[0], maxCaption)
+		}
+		if f, ok := r.Form["focus-"+strconv.Itoa(p.ID)]; ok {
+			focus[p.ID] = cleanFocus(f[0])
 		}
 	}
 	var order []int
@@ -298,7 +301,7 @@ func (a *App) albumAction(w http.ResponseWriter, r *http.Request) {
 			order = append(order, n)
 		}
 	}
-	if err := a.store.EditPhotos(captions, nil, ""); err != nil {
+	if err := a.store.EditPhotos(captions, nil, ""); err != nil || a.store.SetPhotoFocus(focus) != nil {
 		fail("save")
 		return
 	}

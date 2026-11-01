@@ -22,7 +22,7 @@
 </nav>{{end}}
 
 {{with .Cover}}<figure class="nl-cover">
-  <img src="{{.}}" alt="" fetchpriority="high" decoding="async"{{with $.Data.CoverFocus}} style="object-position:{{.}}"{{end}}>
+  <img src="{{.}}" alt="" fetchpriority="high" decoding="async"{{with $.Data.CoverFocus}} style="{{focusStyle .}}"{{end}}>
   {{with $.Data.CoverCaption}}<figcaption>{{.}}</figcaption>{{end}}
 </figure>{{end}}
 
@@ -104,7 +104,7 @@
 </section>
 {{end}}{{else if eq .Kind "gallery"}}
 <div class="nl-gallery">
-  {{range .Photos}}<img src="{{.URL}}" alt="" loading="lazy" decoding="async"{{with .Focus}} style="object-position:{{.}}"{{end}}>
+  {{range .Photos}}<img src="{{.URL}}" alt="" loading="lazy" decoding="async"{{with .Focus}} style="{{focusStyle .}}"{{end}}>
   {{end}}
 </div>
 {{end}}{{end}}
@@ -122,9 +122,9 @@
 {{end}}{{end}}
 
 {{define "nl-media"}}{{if or .Photo .VideoURL}}<figure class="nl-media">{{if .Photo}}{{if .VideoURL}}<a class="nl-video" href="{{.VideoURL}}" target="_blank" rel="noopener" aria-label="Watch the video{{with .Heading}}: {{.}}{{end}}">
-  <img src="{{.Photo}}" alt="" loading="lazy" decoding="async"{{with .PhotoFocus}} style="object-position:{{.}}"{{end}}>
+  <img src="{{.Photo}}" alt="" loading="lazy" decoding="async"{{with .PhotoFocus}} style="{{focusStyle .}}"{{end}}>
   <span class="nl-play" aria-hidden="true"></span>{{with .VideoLength}}<span class="nl-len">{{.}}</span>{{end}}
-</a>{{else}}<img src="{{.Photo}}" alt="" loading="lazy" decoding="async"{{with .PhotoFocus}} style="object-position:{{.}}"{{end}}>{{end}}{{else}}<p class="nl-more"><a href="{{.VideoURL}}" target="_blank" rel="noopener">Watch the video{{with .VideoLength}} ({{.}}){{end}}</a></p>{{end}}
+</a>{{else}}<img src="{{.Photo}}" alt="" loading="lazy" decoding="async"{{with .PhotoFocus}} style="{{focusStyle .}}"{{end}}>{{end}}{{else}}<p class="nl-more"><a href="{{.VideoURL}}" target="_blank" rel="noopener">Watch the video{{with .VideoLength}} ({{.}}){{end}}</a></p>{{end}}
   {{with .Caption}}<figcaption>{{.}}</figcaption>{{end}}
 </figure>{{end}}{{end}}
 
