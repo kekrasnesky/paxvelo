@@ -20,10 +20,11 @@ jobs:
     name: Check the site
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+          cache: false
       - name: Check the formatting
         run: test -z "$(gofmt -l .)" || { gofmt -l .; echo "Run gofmt -w . to fix the files above."; exit 1; }
       - name: Check the code
@@ -38,10 +39,11 @@ jobs:
     name: Check for data races
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+          cache: false
       - run: go test -race ./...
 
   publish:
@@ -55,12 +57,13 @@ jobs:
       - name: Skip if the server isn't connected yet
         if: env.DEPLOY_HOST == ''
         run: echo "::notice::The check passed, but nothing was published because the DEPLOY_HOST secret isn't set yet. See CLAUDE.md, Deploy."
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: env.DEPLOY_HOST != ''
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         if: env.DEPLOY_HOST != ''
         with:
           go-version-file: go.mod
+          cache: false
       - name: Build
         if: env.DEPLOY_HOST != ''
         run: GOOS=linux GOARCH="${{ vars.SERVER_ARCH || 'amd64' }}" CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o paxvelo-linux .

@@ -102,7 +102,10 @@ func TestHouseholdAdults(t *testing.T) {
 	}
 	jo := link("jo@example.com")
 	link("max@example.com")
-	if !strings.Contains(sent["jo@example.com"], "Pat Rider’s PaxVelo family membership") {
+	mu.Lock()
+	joEmail := sent["jo@example.com"]
+	mu.Unlock()
+	if !strings.Contains(joEmail, "Pat Rider’s PaxVelo family membership") {
 		t.Error("the email should say whose membership they're on")
 	}
 
