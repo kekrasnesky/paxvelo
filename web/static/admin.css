@@ -202,7 +202,7 @@ details.more[open]{display:grid;gap:.6rem;padding-bottom:.8rem}
 .sec-list details[open] summary::after{transform:rotate(90deg)}
 .sec-list details p{padding:0 0 .7rem}
 .zwift{display:inline-flex;align-items:center;gap:.25em;vertical-align:-.2em;font-weight:500;color:#c4500f;font-size:.85rem}
-.zwift svg{flex:none;width:1.15em;height:1.15em}
+.zwift svg{flex:none;width:1.2em;height:1.1em}
 .virtual-check .zwift-text{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
 .album-new{padding:1rem 1.5rem}
 .album-new summary{font-weight:500;cursor:pointer}
