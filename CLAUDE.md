@@ -23,6 +23,17 @@ Single Go program (stdlib only, no DB, no third-party code). Pages, templates, C
 - **Stats:** counts only by design; no per-member tracking. Weekly visitor codes are salted hashes kept until week end; emails use random per-copy tracking codes not tied to members.
 - **Email:** Brevo SMTP from `news@paxvelo.cc` (add DKIM/DMARC in Cloudflare DNS; SMTP login looks like `abc@smtp-brevo.com`). Bulk sends pause after 3 straight failures and resume with **Resume**. Failures: `journalctl -u paxvelo | grep failed`. Replies to `news@` need forwarding (Cloudflare Email Routing).
 
+## Calendar API
+```sh
+curl "https://www.paxvelo.club/api/rides?from=2026-11-01&to=2026-11-30"   # rides as JSON, leaders included
+# Add or update a ride; the id is your own name for it (send again to update).
+curl -X PUT https://www.paxvelo.club/api/rides/coffee-2026-11-07 -H "Authorization: Bearer $CALENDAR_API_KEY" \
+  -d '{"date":"2026-11-07","time":"08:30","name":"Coffee Ride","place":"Leonardtown Square","groups":["Fast","Social"],"strava_url":"https://www.strava.com/clubs/10197/group_events/123"}'
+curl -X DELETE https://www.paxvelo.club/api/rides/coffee-2026-11-07 -H "Authorization: Bearer $CALENDAR_API_KEY"   # or cancelled, if leaders signed up
+curl -X POST https://www.paxvelo.club/api/strava/sync -H "Authorization: Bearer $CALENDAR_API_KEY"   # import Strava events now
+```
+Ride fields: `date` (required), `name` (required), `time` (24-hour), `place`, `details`, `groups` (each gets a leader), `strava_url`, `cancelled`. API changes keep leaders who signed up on the website.
+
 ## Deploy
 - Ubuntu 24.04 server. DNS A records → server. `scp -r deploy root@SERVER:/root/ && ssh root@SERVER 'cd deploy && sh setup.sh'`; then `scp paxvelo.conf root@SERVER:/opt/paxvelo/` and `chown paxvelo` + `chmod 600` it. HTTPS via Caddy (`deploy/Caddyfile`, not copied by deploys: `scp` it to `/etc/caddy/Caddyfile` and `systemctl reload caddy`).
 - **CI:** `.github/workflows/publish.yml` runs on pushes to `main`: builds/tests, then uploads and restarts; auto-rolls back if the new version won't start. Needs secrets `DEPLOY_HOST`, `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS` (key authorised for the `deploy` user in `/home/deploy/.ssh/authorized_keys`); variable `SERVER_ARCH=arm64` for ARM. No `DEPLOY_HOST` = check only. Manual: `./deploy/deploy.sh root@SERVER`.

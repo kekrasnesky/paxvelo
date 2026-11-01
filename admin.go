@@ -311,7 +311,7 @@ var errorText = map[string]string{
 	"ends":            "The last date has to be a date after the weekly ride starts, or empty.",
 	"connect":         "Connecting to Strava didn’t work. Try again.",
 	"sync":            "Reading the club’s events from Strava didn’t work. See the error below.",
-	"nostrava":        "Add the Strava API settings to paxvelo.conf first (README.md, “Ride calendar”).",
+	"nostrava":        "Add the Strava API settings to paxvelo.conf first (CLAUDE.md, “Strava import”).",
 	"igfeed":          "That isn’t a Behold feed link. Copy it from the feed in Behold; it starts with https://feeds.behold.so/.",
 	"igconnect":       "Reading that feed didn’t work. Check the link in Behold and try again.",
 	"igsync":          "Reading the Instagram posts didn’t work. See the error below.",

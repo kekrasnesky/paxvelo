@@ -2,7 +2,7 @@
 # If the check fails (a missing photo, a typo in a page's settings), nothing is
 # published and GitHub emails whoever made the change with what went wrong.
 #
-# One-time setup is in README.md under "Automatic publishing".
+# One-time setup is in CLAUDE.md under "Deploy" (CI).
 name: Publish website
 
 on:
@@ -54,7 +54,7 @@ jobs:
     steps:
       - name: Skip if the server isn't connected yet
         if: env.DEPLOY_HOST == ''
-        run: echo "::notice::The check passed, but nothing was published because the DEPLOY_HOST secret isn't set yet. See README.md, Automatic publishing."
+        run: echo "::notice::The check passed, but nothing was published because the DEPLOY_HOST secret isn't set yet. See CLAUDE.md, Deploy."
       - uses: actions/checkout@v4
         if: env.DEPLOY_HOST != ''
       - uses: actions/setup-go@v5
