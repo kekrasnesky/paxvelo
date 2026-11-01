@@ -48,6 +48,14 @@ func TestPagesAndBoardAdmin(t *testing.T) {
 	if page.Code != 200 || !strings.Contains(page.Body.String(), "Group Ride Etiquette") {
 		t.Fatalf("new page: %d", page.Code)
 	}
+	// Its sample text shows the formatting the card editor offers, and the
+	// editor's link box offers the club links as well as the site's pages.
+	if !strings.Contains(page.Body.String(), "<strong>bold</strong>") {
+		t.Error("the new page's sample text should show bold words")
+	}
+	if w := do(t, h, admin, "GET", "/admin/pages/group-ride-etiquette.md", "", nil).Body.String(); !strings.Contains(w, `id="cards"`) || !strings.Contains(w, `<option value="{kit}">`) || !strings.Contains(w, `<option value="/rides">`) {
+		t.Error("the page editor should have the cards and the club links")
+	}
 	home := do(t, h, nil, "GET", "/", "", nil).Body.String()
 	menu := home[strings.Index(home, `id="info-menu"`):]
 	menu = menu[:strings.Index(menu, "</div>")]

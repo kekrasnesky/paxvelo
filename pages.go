@@ -165,7 +165,7 @@ func newPageText(title string, inMenu bool, order int) string {
 		fmt.Fprintf(&b, "---\nmenu: %s\norder: %d\n---\n\n", title, order)
 	}
 	fmt.Fprintf(&b, "# %s\n\nA sentence or two about what this page is for. Replace this text with your own.\n\n", title)
-	b.WriteString("## A section heading\n\nWrite the section here. Leave a blank line between paragraphs, put **two stars** around words for bold, and write links as [words to click](https://www.paxvelo.club).\n\n")
+	b.WriteString("## A section heading\n\nWrite the section here. To make words **bold** or turn them into a [link](https://www.paxvelo.club), select them and pick from the buttons that appear.\n\n")
 	b.WriteString("- A list item\n- Another list item\n")
 	return b.String()
 }
