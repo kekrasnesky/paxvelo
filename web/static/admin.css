@@ -282,70 +282,115 @@ details.more[open]{display:grid;gap:.6rem;padding-bottom:.8rem}
 .preview-box{position:relative;height:calc(60vh + 3rem);overflow:hidden;border:1px solid var(--line);background:#f5f2ec}
 .mail-preview .preview-box iframe{position:absolute;top:0;left:0;max-width:none;margin:0;border:0;transform-origin:0 0;background:#fff}
 .page-preview .flash{margin:0}
-/* The easy page editor: one card per part of the page, ＋ Add between them,
-   and Bold / Italic / Link over selected words. */
+/* The easy page editor. The cards read like the page itself: text sits
+   without boxes until it's pointed at or clicked, and each card's name and
+   ↑ ↓ ✕ buttons show on hover or while editing it (always on touch screens).
+   ＋ Add shows between cards on hover, and always at the very end. */
 .ed-mode{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem .9rem}
-.ed-cards{display:grid;gap:0;min-width:0}
+.ed-cards{display:grid;gap:0;min-width:0;padding:.5rem 0}
 .page-editor .ed-cards textarea{min-height:0}
-.ed-card{display:grid;gap:.6rem;min-width:0;padding:.9rem 1rem;border:1px solid var(--line);background:#fff}
-.ed-head{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem;min-height:1.8rem}
-.ed-name{margin-right:auto;color:var(--muted);font-size:.78rem;font-weight:500;letter-spacing:.04em;text-transform:uppercase}
-.ed-head select{width:auto;padding:.3rem .45rem;font-size:.82rem}
-.ed-tools{display:inline-flex;gap:.25rem}
-.ed-tools button,.ed-card .ed-row button,.ed-card .mail-photo,.ed-items button,.ed-fact button,.ed-button>button{padding:.38rem .6rem;font:500 .8rem/1 var(--font)}
-.ed-tools button:disabled{opacity:.35;cursor:default}
-.ed-field{display:grid;gap:.3rem;min-width:0;font-size:.88rem;font-weight:500}
-.ed-field input,.ed-field textarea,.ed-field select,.ed-field .rich{font-weight:300}
-.ed-big{font-size:1.5rem;font-weight:500;color:var(--red)}
-.ed-h2-input{font-size:1.2rem;font-weight:500}
-.ed-k-h2{margin-top:1rem;padding:.7rem 1rem;border:0;border-top:3px solid var(--ink);background:#fbf9f6;font-size:inherit}
-.ed-k-h2 input{background:#fff}
-.rich{min-height:2.6rem;padding:.6rem .75rem;border:1px solid #cfc6bd;background:#fff;white-space:pre-wrap;overflow-wrap:anywhere;outline:none;cursor:text}
-.rich:focus{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink)}
+.ed-card{position:relative;display:grid;grid-template-columns:minmax(0,1fr);gap:.5rem;min-width:0;padding:.55rem .75rem;border-left:3px solid transparent;background:#fff}
+.ed-card:hover{background:#fcfaf7}
+.ed-card:focus-within{border-left-color:var(--red);background:#fcfaf7}
+.ed-head{position:absolute;top:.25rem;right:.4rem;z-index:3;display:flex;align-items:center;gap:.35rem;padding:.15rem .2rem .15rem .5rem;background:#fcfaf7;opacity:0;pointer-events:none;transition:opacity .12s}
+.ed-card:hover>.ed-head,.ed-card:focus-within>.ed-head{opacity:1;pointer-events:auto}
+.ed-name{color:var(--muted);font-size:.72rem;font-weight:500;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}
+.ed-head select{width:auto;padding:.25rem .4rem;font-size:.8rem}
+.ed-tools{display:inline-flex;gap:.2rem}
+.ed-tools button{padding:.3rem .5rem;font:500 .78rem/1 var(--font)}
+.ed-tools button:disabled{opacity:.3;cursor:default}
+.ed-card .ed-row button,.ed-card .mail-photo,.ed-items button,.ed-fact button,.ed-button>button{padding:.32rem .55rem;font:500 .78rem/1 var(--font)}
+.ed-field{display:grid;gap:.2rem;min-width:0;color:var(--muted);font-size:.78rem;font-weight:500}
+.ed-field input,.ed-field textarea,.ed-field select,.ed-field .rich{color:var(--ink);font-size:.95rem;font-weight:300}
+/* Words and headings look like text until pointed at. */
+.ed-card input:not([type=checkbox]),.ed-card textarea,.rich{border:1px solid transparent;background:transparent;box-shadow:none}
+.ed-card:hover input:not([type=checkbox]),.ed-card:hover textarea,.ed-card:hover .rich{border-color:var(--line)}
+.ed-card input:focus,.ed-card textarea:focus,.rich:focus{border-color:#a39a92;background:#fff;outline:none}
+.ed-card select{width:auto;max-width:100%;padding:.3rem .45rem;font-size:.85rem}
+.ed-big{padding:.2rem .4rem;font-size:1.75rem;font-weight:500;color:var(--red)}
+.ed-k-title{padding-top:.3rem;padding-bottom:.3rem}
+.ed-h2-input{padding:.2rem .4rem;font-size:1.3rem;font-weight:500}
+.ed-k-h2{margin-top:1.4rem;padding-top:.8rem;border-top:2px solid var(--ink)}
+.rich{min-height:1.6em;padding:.3rem .4rem;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;cursor:text}
 .rich:empty::before{content:attr(data-empty);color:#a39a92}
 .rich a{color:var(--red);text-decoration:underline}
-.rich .ph,.ed-piece{display:inline-block;padding:0 .35rem;border-radius:.3rem;background:#efe9e1;color:var(--ink);font-size:.9em;user-select:all}
-.ed-piece{display:block;margin:0;padding:.8rem 1rem;border:1px dashed #cfc6bd;border-radius:0;font-weight:500}
-.ed-photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(12rem,1fr));gap:.8rem}
-.ed-photo{display:grid;gap:.5rem;align-content:start;margin:0}
-.ed-photo img{width:100%;aspect-ratio:4/3;object-fit:cover;border:1px solid var(--line);background:#f1ece5}
+.rich .ph{display:inline-block;padding:0 .35rem;border-radius:.3rem;background:#efe9e1;color:var(--ink);font-size:.9em;user-select:all}
+.ed-piece{margin:0;padding:.6rem .8rem;border:1px dashed #cfc6bd;background:#faf8f5;color:var(--muted);font-size:.88rem}
+.ed-piece strong{margin-right:.4rem;color:var(--ink);font-weight:500}
+.ed-card .ed-piece select{margin:-.2rem 0;font-size:.85rem}
+.ed-photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(10rem,14rem));gap:.8rem}
+.ed-photo{display:grid;gap:.35rem;align-content:start;margin:0}
+.ed-photo img{width:100%;aspect-ratio:4/3;object-fit:cover;background:#f1ece5}
 .ed-photo img.uploading{opacity:.45}
+.ed-photo .ed-field input{font-size:.85rem}
 .ed-status{margin:0}
 .ed-status:empty{display:none}
 .ed-row{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem .8rem}
-.ed-button{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;align-items:end;gap:.6rem}
-.ed-dest{display:grid;gap:.35rem}
-.ed-items{display:grid;gap:.4rem;margin:0;padding-left:1.4rem}
-.ed-items li{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:.4rem}
-.ed-facts{display:grid;gap:.4rem}
-.ed-fact{display:grid;grid-template-columns:minmax(6rem,11rem) minmax(0,1fr) auto;align-items:start;gap:.4rem}
-.ed-fact input{font-weight:500}
-.ed-k-note{border-color:#e6cf6e;background:#fff8d6}
-.ed-k-note textarea{border-color:#e6cf6e;background:#fffbe8;resize:vertical}
-.ed-k-text textarea{font:14px/1.5 ui-monospace,Consolas,monospace;resize:vertical}
-.ed-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));gap:.8rem}
-.ed-col{display:grid;align-content:start;gap:.5rem;min-width:0;padding:.7rem;border:1px solid var(--line);background:#faf8f5}
-.ed-col .ed-card{padding:.7rem}
-.ed-settings{padding:0}
-.ed-settings summary{padding:.8rem 1rem;cursor:pointer}
+.ed-button{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem .6rem}
+.ed-card input.ed-btn-words{width:auto;min-width:9rem;field-sizing:content;padding:.6rem 1rem;border-color:var(--red);background:var(--red);color:#fff;font-weight:500}
+.ed-card input.ed-btn-words::placeholder{color:#f3d6d5}
+.ed-card:hover input.ed-btn-words,.ed-card input.ed-btn-words:focus{border-color:var(--ink);background:var(--red)}
+.ed-dest{display:flex;flex-wrap:wrap;align-items:center;flex:1 1 12rem;gap:.35rem;min-width:0;color:var(--muted);font-size:.82rem}
+.ed-dest .ed-dest{flex:1 1 10rem}
+.ed-card .ed-dest select{flex:1 1 10rem;min-width:0;max-width:20rem}
+.ed-card .ed-dest input{flex:1 1 10rem;width:auto;min-width:0;max-width:20rem;padding:.3rem .45rem;border-color:var(--line);font-size:.85rem}
+.ed-items{display:grid;gap:.1rem;margin:0;padding-left:1.6rem}
+.ed-items li{padding-left:.2rem}
+.ed-items li>div{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:.3rem}
+.ed-items li button,.ed-fact button{opacity:0}
+.ed-items li:hover button,.ed-items li:focus-within button,.ed-fact:hover button,.ed-fact:focus-within button{opacity:1}
+.ed-facts{display:grid;gap:.1rem}
+.ed-fact{display:grid;grid-template-columns:minmax(6rem,10rem) minmax(0,1fr) auto;align-items:start;gap:.3rem}
+.ed-card .ed-fact input{padding:.3rem .4rem;font-weight:500}
+.ed-k-note{border:1px solid #e6cf6e;border-left-width:3px;background:#fff8d6}
+.ed-k-note:hover,.ed-k-note:focus-within{background:#fff4c4}
+.ed-k-note>.ed-head{background:#fff4c4}
+.ed-card.ed-k-note textarea{border-color:#e6cf6e;background:#fffbe8;resize:vertical}
+.ed-label{margin:0;color:#7a6418;font-size:.75rem;font-weight:500}
+.ed-card.ed-k-text textarea{border-color:var(--line);font:14px/1.5 ui-monospace,Consolas,monospace;resize:vertical}
+.ed-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));gap:0 1rem}
+.ed-col{position:relative;display:grid;grid-template-columns:minmax(0,1fr);align-content:start;gap:.1rem;min-width:0;padding:.3rem 0 .3rem .6rem;border-left:1px dashed #cfc6bd}
+.ed-col>.ed-head{top:.1rem;right:0}
+.ed-col:hover>.ed-head,.ed-col:focus-within>.ed-head{opacity:1;pointer-events:auto}
+.ed-col>input{font-size:1.05rem;font-weight:500}
+.ed-col .ed-card{padding:.4rem .5rem}
+.ed-settings{margin-bottom:.4rem;padding:0;border:1px solid var(--line)}
+.ed-settings:hover,.ed-settings:focus-within{background:#fff}
+.ed-settings summary{padding:.6rem .9rem;cursor:pointer}
 .ed-settings summary .muted{margin-left:.4rem}
-.ed-fields{display:grid;gap:.8rem;padding:0 1rem 1rem}
+.ed-fields{display:grid;gap:.8rem;padding:0 .9rem .9rem}
+.ed-fields .ed-field{color:var(--ink);font-size:.88rem}
+.ed-card .ed-fields input:not([type=checkbox]),.ed-card .ed-fields textarea{border:1px solid #cfc6bd;background:#fff}
 .ed-sub{display:grid;gap:.8rem;padding-left:1.6rem}
-.ed-gap{position:relative;display:flex;justify-content:center;padding:.3rem 0}
-.ed-add{padding:.2rem .7rem;border:1px dashed #cfc6bd;border-radius:1rem;background:transparent;color:var(--muted);font:500 .78rem/1.4 var(--font);opacity:.75;justify-self:center}
-.ed-add:hover,.ed-add:focus-visible,.ed-add[aria-expanded="true"],.ed-gap:hover .ed-add{border-color:var(--red);color:var(--red);opacity:1;background:#fff}
+.ed-gap{position:relative;display:flex;justify-content:center;align-items:center;height:.9rem}
+.ed-gap::before{content:"";position:absolute;left:.75rem;right:.75rem;top:50%;border-top:1px dashed transparent}
+.ed-gap:hover::before{border-top-color:#e1c4c2}
+.ed-add{position:relative;z-index:1;padding:.05rem .6rem;border:1px solid #cfc6bd;border-radius:1rem;background:#fff;color:var(--muted);font:500 .72rem/1.4 var(--font);opacity:0;transition:opacity .12s}
+.ed-gap:hover .ed-add,.ed-add:focus-visible,.ed-add[aria-expanded="true"],.ed-gap:last-child .ed-add{opacity:1}
+.ed-add:hover,.ed-add:focus-visible,.ed-add[aria-expanded="true"]{border-color:var(--red);color:var(--red)}
+.ed-cards>.ed-gap:last-child{height:auto;margin-top:.8rem}
+.ed-cards>.ed-gap:last-child .ed-add{padding:.45rem 1rem;font-size:.85rem}
 .ed-menu{position:absolute;top:100%;left:50%;z-index:5;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.3rem;width:min(26rem,calc(100vw - 2rem));padding:.6rem;border:1px solid var(--line);background:#fff;box-shadow:0 8px 24px rgba(0,0,0,.12);transform:translateX(-50%)}
 .ed-menu button{padding:.55rem .6rem;font:500 .85rem/1.2 var(--font);text-align:left;justify-self:stretch}
 .fmt-bar{position:absolute;z-index:20;display:flex;gap:.25rem;padding:.3rem;border:1px solid var(--ink);background:#fff;box-shadow:0 6px 18px rgba(0,0,0,.15)}
 .fmt-bar [hidden],#link-box [hidden],.fmt-bar[hidden],.ed-toast[hidden],.page-bar[hidden],.ed-mode[hidden],.ed-cards[hidden],.text-ed[hidden],.ed-sub[hidden],.ed-fields [hidden]{display:none}
 .fmt-bar button{padding:.42rem .65rem;font:500 .82rem/1 var(--font)}
 .ed-toast{position:fixed;left:50%;bottom:1.2rem;z-index:30;display:flex;align-items:center;gap:.8rem;padding:.7rem 1rem;background:var(--ink);color:var(--paper);transform:translateX(-50%);box-shadow:0 6px 18px rgba(0,0,0,.2)}
+/* Touch screens can't hover: the buttons stay showing, small, above each card,
+   and the fields keep a light outline so it's clear they can be typed in. */
+@media (hover:none){
+  .ed-head{position:static;justify-content:flex-end;padding:0;background:none;opacity:1;pointer-events:auto}
+  .ed-name{margin-right:auto}
+  .ed-card input:not([type=checkbox]),.ed-card textarea,.rich{border-color:var(--line)}
+  .ed-items li button,.ed-fact button,.ed-add{opacity:1}
+  .ed-gap{height:auto;padding:.2rem 0}
+}
 @media (max-width:700px){
-  .ed-card{padding:.75rem}
-  .ed-button,.ed-fact{grid-template-columns:minmax(0,1fr) auto}
-  .ed-button .ed-field:nth-child(2){grid-column:1}
+  .ed-card{padding:.5rem}
+  .ed-fact{grid-template-columns:minmax(0,1fr) auto}
   .ed-fact .rich{grid-column:1}
   .ed-fact button{grid-row:1;grid-column:2}
+  .ed-cols{gap:.6rem}
   .ed-menu{position:fixed;top:auto;bottom:0;left:0;width:100%;transform:none;padding:1rem;box-shadow:0 -8px 24px rgba(0,0,0,.2)}
   .ed-menu button{padding:.75rem .6rem}
 }
