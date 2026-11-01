@@ -55,6 +55,7 @@ type Block struct {
 	Photos []string          `json:"photos,omitempty"` // a photo strip
 	Focus  map[string]string `json:"focus,omitempty"`  // photo address → focus, for a photo strip
 	Posts  []string          `json:"posts,omitempty"`  // Instagram post links
+	Event  string            `json:"event,omitempty"`  // an event's calendar key, like "r12"
 }
 
 type blockKind struct{ Kind, Name, Help string }
@@ -63,6 +64,7 @@ var blockKinds = []blockKind{
 	{"big", "Big story", "A story with a large photo or video beside it. Good for the lead story."},
 	{"story", "Story", "A column with a photo. Stories next to each other share a row, up to three across."},
 	{"rides", "Rides from the calendar", "The club’s rides for the 5 weeks after the issue is published, filled in from the calendar. Rides that need leaders get a sign-up link."},
+	{"event", "Event from the calendar", "A meeting, party or other club event from the calendar: its day, time, place and host, with buttons to add it to a calendar. It follows the calendar if the event moves or is cancelled."},
 	{"banner", "Banner", "A dark band across the page with a button. For one-off asks, like a kit order, a fundraiser, or volunteers."},
 	{"gallery", "Photo strip", "A row of up to 8 photos."},
 	{"share", "Share your photos", "A box asking readers to send in their ride photos, with a button to the upload page. It goes under the photo strip."},
@@ -368,9 +370,18 @@ func (a *App) rideWindow(is Issue) (time.Time, time.Time) {
 func (a *App) issueRides(is Issue) ridesView {
 	from, to := a.rideWindow(is)
 	today := a.today().Format("2006-01-02")
-	v := ridesView{From: from.Format("Jan 2"), To: to.Format("Jan 2"), CalendarURL: "/calendar?m=" + from.Format("2006-01")}
+	v := ridesView{From: from.Format("Jan 2"), To: to.Format("Jan 2"), CalendarURL: "/calendar?m=" + from.Format("2006-01"),
+		Events: map[string]shownEvent{}}
+	// Events with a block of their own aren't listed again with the rides.
+	for _, b := range is.Blocks {
+		if b.Kind == "event" && b.Event != "" {
+			if o, ok := a.store.Ride(b.Event); ok && !o.Held {
+				v.Events[b.Event] = eventShown(o, today)
+			}
+		}
+	}
 	for _, o := range a.store.Rides(from, to) {
-		if o.Cancelled {
+		if _, own := v.Events[o.Key]; o.Cancelled || own {
 			continue
 		}
 		t, _ := time.Parse("2006-01-02", o.Date)
@@ -405,7 +416,74 @@ type ridesView struct {
 	From, To    string // like "Oct 24"
 	CalendarURL string
 	Rides       []shownRide
-	Need        int // rides still to come that need a leader
+	Need        int                   // rides still to come that need a leader
+	Events      map[string]shownEvent // the issue's Event blocks, by calendar key
+}
+
+// shownEvent is a calendar event in an issue's Event block.
+type shownEvent struct {
+	Key, Kind, Name      string
+	Month, Day, When     string // When is like "Thursday, November 20 · 6:00 PM"
+	Place, Host, Details string
+	Cancelled, Past      bool
+}
+
+func eventShown(o RideOcc, today string) shownEvent {
+	t, _ := time.Parse("2006-01-02", o.Date)
+	e := shownEvent{Key: o.Key, Kind: o.KindName(), Name: o.Name, Month: strings.ToUpper(t.Format("Jan")), Day: t.Format("2"),
+		When: t.Format("Monday, January 2"), Place: o.PublicPlace(), Details: o.Details, Cancelled: o.Cancelled, Past: o.Date < today}
+	if o.Time != "" {
+		e.When += " · " + o.TimeLabel()
+	}
+	if l := o.leaderFor(""); l != nil && !o.IsRide() {
+		e.Host = o.HostLabel() + ": " + l.Name
+	}
+	return e
+}
+
+// eventChoice is one event to pick in an Event block.
+type eventChoice struct{ Key, Label string }
+
+// eventChoices are the events an issue's Event blocks can show: club events
+// (not rides) from a month back to six months ahead, and any already picked.
+func (a *App) eventChoices(is Issue) []eventChoice {
+	today := a.today()
+	var out []eventChoice
+	label := func(o RideOcc) string {
+		t, _ := time.Parse("2006-01-02", o.Date)
+		s := t.Format("Mon Jan 2") + " · " + o.KindName() + ": " + o.Name
+		if o.Cancelled {
+			s += " (cancelled)"
+		}
+		return s
+	}
+	for _, o := range a.store.Rides(today.AddDate(0, -1, 0), today.AddDate(0, 6, 0)) {
+		if !o.IsRide() {
+			out = append(out, eventChoice{o.Key, label(o)})
+		}
+	}
+	for _, b := range is.Blocks {
+		if b.Kind == "event" && b.Event != "" && !slices.ContainsFunc(out, func(c eventChoice) bool { return c.Key == b.Event }) {
+			if o, ok := a.store.Ride(b.Event); ok {
+				out = append(out, eventChoice{o.Key, label(o)})
+			}
+		}
+	}
+	return out
+}
+
+// addEventBlock puts an event in an issue, after its rides if it has them.
+// It reports false when the event is in the issue already.
+func addEventBlock(is *Issue, key string) bool {
+	if slices.ContainsFunc(is.Blocks, func(b Block) bool { return b.Kind == "event" && b.Event == key }) {
+		return false
+	}
+	at := len(is.Blocks)
+	if i := slices.IndexFunc(is.Blocks, func(b Block) bool { return b.Kind == "rides" }); i >= 0 {
+		at = i + 1
+	}
+	is.Blocks = slices.Insert(is.Blocks, at, Block{ID: randHex(4), Kind: "event", Event: key})
+	return true
 }
 
 type shownRide struct {
@@ -438,10 +516,11 @@ type shownPhoto struct{ URL, Focus string }
 
 // newsPart is one piece of the page: a block, or a row of stories side by side.
 type newsPart struct {
-	Kind   string // big, row, rides, banner, gallery, instagram
+	Kind   string // big, row, rides, event, banner, gallery, instagram
 	Story  shownStory
 	Row    []shownStory
 	Rides  ridesView
+	Event  shownEvent
 	Photos []shownPhoto
 	Posts  []string
 }
@@ -515,6 +594,17 @@ func (s *Site) newsView(is Issue, archive []Issue, rides ridesView) (newsView, e
 			p := newsPart{Kind: "rides", Story: shownStory{Story: b.Story, ID: "s-" + b.ID}, Rides: rides}
 			v.Parts = append(v.Parts, p)
 			v.Contents = append(v.Contents, tocItem{p.Story.ID, or(b.Heading, ridesHeading)})
+		case "event":
+			e, ok := rides.Events[b.Event]
+			if !ok {
+				continue
+			}
+			st, err := story(b)
+			if err != nil {
+				return v, err
+			}
+			v.Parts = append(v.Parts, newsPart{Kind: "event", Story: st, Event: e})
+			v.Contents = append(v.Contents, tocItem{st.ID, e.Name})
 		case "gallery":
 			p := newsPart{Kind: "gallery"}
 			for _, g := range b.Photos {
@@ -861,7 +951,7 @@ func (a *App) editIssuePage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) renderIssueForm(w http.ResponseWriter, r *http.Request, is Issue, problem string) {
-	v := adminView{Title: is.Label() + " newsletter", Tab: "newsletter", Issue: is, Months: months, IssueRides: a.issueRides(is)}
+	v := adminView{Title: is.Label() + " newsletter", Tab: "newsletter", Issue: is, Months: months, IssueRides: a.issueRides(is), EventChoices: a.eventChoices(is)}
 	if live, ok := a.store.LiveFor(is.Month, is.Year, is.ID); ok {
 		v.MonthLive = &live
 	}
@@ -958,6 +1048,13 @@ func (a *App) saveIssue(w http.ResponseWriter, r *http.Request) {
 			b.Story = story(p, cur.Story)
 		case "rides":
 			b.Kicker, b.Heading = val(p+"kicker"), val(p+"heading")
+		case "event":
+			if o, ok := a.store.Ride(val(p + "event")); ok {
+				b.Event = o.Key
+			} else {
+				b.Event = cur.Event
+			}
+			b.Body = strings.ReplaceAll(val(p+"body"), "\r\n", "\n")
 		case "share":
 			b.Heading, b.LinkLabel = val(p+"heading"), val(p+"link_label")
 			b.Body = strings.ReplaceAll(val(p+"body"), "\r\n", "\n")
@@ -1123,6 +1220,14 @@ func (a *App) emailIssue(w http.ResponseWriter, r *http.Request) {
 		hasRides = hasRides || b.Kind == "rides"
 		asksPhotos = asksPhotos || b.Kind == "share"
 	}
+	var events []string
+	today := a.today().Format("2006-01-02")
+	for _, b := range is.Blocks {
+		if o, ok := a.store.Ride(b.Event); b.Kind == "event" && ok && !o.Cancelled && !o.Held && o.Date >= today {
+			e := eventShown(o, today)
+			events = append(events, fmt.Sprintf("- %s: %s\n  %s/calendar/ride/%s", e.When, e.Name, a.cfg.SiteURL, e.Key))
+		}
+	}
 	if len(headings) > 0 {
 		body += "\n\nIn this issue: " + strings.Join(headings, ", ")
 		if hasRides {
@@ -1144,6 +1249,9 @@ func (a *App) emailIssue(w http.ResponseWriter, r *http.Request) {
 		if len(need) > 0 {
 			body += "\n\nThese rides still need a leader. Open one and type your name to lead it:\n" + strings.Join(need, "\n")
 		}
+	}
+	if len(events) > 0 {
+		body += "\n\nComing up:\n" + strings.Join(events, "\n")
 	}
 	if asksPhotos {
 		body += "\n\nGot photos from a club ride? Share them in the club’s photo gallery, where we pick photos for the newsletter, straight from your phone:\n" + a.cfg.SiteURL + "/share-photos"
@@ -1214,14 +1322,15 @@ func photoStory(photo, focus, caption string) Story {
 // blockForm feeds the "block" admin template: one block on the edit page.
 type blockForm struct {
 	Block
-	P     string // its form fields' prefix
-	Kind  blockKind
-	Rides ridesView
+	P      string // its form fields' prefix
+	Kind   blockKind
+	Rides  ridesView
+	Events []eventChoice // for an Event block
 }
 
-func blockFields(b Block, rides ridesView) blockForm {
+func blockFields(b Block, rides ridesView, events []eventChoice) blockForm {
 	k, _ := kindOf(b.Kind)
-	return blockForm{Block: b, P: "b." + b.ID + ".", Kind: k, Rides: rides}
+	return blockForm{Block: b, P: "b." + b.ID + ".", Kind: k, Rides: rides, Events: events}
 }
 
 // stripItem feeds the "strip-item" admin template: one photo in a photo strip.

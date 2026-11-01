@@ -98,9 +98,36 @@ func (a *App) rideEditPage(w http.ResponseWriter, r *http.Request) {
 		back(w, r, "/admin/calendar?err=noride")
 		return
 	}
-	v := adminView{Title: o.Name, Tab: "calendar", RideForm: a.rideFormFor(o, false)}
+	v := adminView{Title: o.Name, Tab: "calendar", RideForm: a.rideFormFor(o, false), Issues: a.store.Issues()}
 	v.Flash, v.Error = flashFrom(r)
 	a.renderAdmin(w, r, http.StatusOK, "ride", v)
+}
+
+// eventToNewsletter puts a club event in a newsletter issue, after its rides,
+// and opens the issue to add a few words.
+func (a *App) eventToNewsletter(w http.ResponseWriter, r *http.Request) {
+	o, ok := a.store.Ride(r.PathValue("key"))
+	if !ok {
+		back(w, r, "/admin/calendar?err=noride")
+		return
+	}
+	id, _ := strconv.Atoi(r.FormValue("issue"))
+	is, ok := a.store.Issue(id)
+	if !ok {
+		back(w, r, "/admin/rides/"+o.Key+"?err=gone")
+		return
+	}
+	if addEventBlock(&is, o.Key) {
+		saved, err := a.store.SaveIssue(is)
+		if err != nil {
+			back(w, r, "/admin/rides/"+o.Key+"?err=save")
+			return
+		}
+		if saved.IsPublished() {
+			a.refreshNewsletter()
+		}
+	}
+	back(w, r, "/admin/newsletter/"+strconv.Itoa(is.ID)+"?ok=event-added")
 }
 
 func (a *App) newRideAdminPage(w http.ResponseWriter, r *http.Request) {

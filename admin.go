@@ -69,13 +69,14 @@ type adminView struct {
 	TestTo        string
 	Live, Sending bool
 	// Newsletter tab
-	Issues     []Issue
-	Issue      Issue
-	MonthLive  *Issue    // another issue already published for Issue's month
-	IssueRides ridesView // what the issue's rides block shows right now
-	Months     []monthOption
-	NewMonth   int
-	NewYear    int
+	Issues       []Issue
+	Issue        Issue
+	MonthLive    *Issue        // another issue already published for Issue's month
+	IssueRides   ridesView     // what the issue's rides block shows right now
+	EventChoices []eventChoice // what its Event blocks can show
+	Months       []monthOption
+	NewMonth     int
+	NewYear      int
 	// Minutes tab
 	Minutes []Minutes
 	// Instagram tab
@@ -373,6 +374,8 @@ func flashFrom(r *http.Request) (flash, errMsg string) {
 		if welcomes > 0 {
 			flash += fmt.Sprintf(" %d welcome %s on the way.", welcomes, plural(welcomes, "email is", "emails are"))
 		}
+	} else if code == "event-added" {
+		flash = "The event is in this issue, after the rides. Add a few words if you like, then save."
 	} else if code == "newsletter-added" {
 		flash = newsletterAdded(q)
 	} else if code == "gallery-added" {

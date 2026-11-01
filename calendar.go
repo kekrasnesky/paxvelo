@@ -168,7 +168,7 @@ func (a *App) calendarPage(w http.ResponseWriter, r *http.Request) {
 	m := a.month(r.URL.Query().Get("m"))
 	v.MonthLabel, v.Prev, v.Next, v.Weeks, v.Days, v.NoDays = m.MonthLabel, m.Prev, m.Next, m.Weeks, m.Days, m.NoDays
 	v.Upcoming, v.UpcomingNote = a.upcomingRides()
-	a.renderCal(w, http.StatusOK, "calendar", "/calendar", "Ride Calendar", v)
+	a.renderCal(w, http.StatusOK, "calendar", "/calendar", "Club Calendar", v)
 }
 
 // upcomingRides returns the next few rides that aren't cancelled. When there
@@ -518,7 +518,7 @@ func (a *App) newRidePage(w http.ResponseWriter, r *http.Request) {
 	if _, err := time.Parse("2006-01-02", v.Form.Date); err != nil {
 		v.Form.Date = a.today().Format("2006-01-02")
 	}
-	a.renderCal(w, http.StatusOK, "ride-new", "/calendar", "Add a Ride", v)
+	a.renderCal(w, http.StatusOK, "ride-new", "/calendar", "Add to the Calendar", v)
 }
 
 func (a *App) addRide(w http.ResponseWriter, r *http.Request) {
@@ -531,10 +531,13 @@ func (a *App) addRide(w http.ResponseWriter, r *http.Request) {
 		Date: strings.TrimSpace(r.FormValue("date")), Time: strings.TrimSpace(r.FormValue("time")),
 		Name: cleanName(r.FormValue("name")), Place: cleanName(r.FormValue("place")),
 		Details: cleanName(r.FormValue("details")), StravaURL: strings.TrimSpace(r.FormValue("strava_url")), AddedBy: name,
-		Groups: groupsFor(r.FormValue("pace"), nil),
+		Groups: groupsFor(r.FormValue("pace"), nil), Kind: kindFor(r.FormValue("kind")),
 		// Anyone can type a name here, so unless they typed the club PIN
 		// (which says they're in the club) an admin approves the ride first.
 		Held: true,
+	}
+	if !c.IsRide() { // nobody leads pace groups at a meeting or a party
+		c.Groups = nil
 	}
 	v := a.calBase(r)
 	v.Form, v.FormName = c, r.FormValue("leader_name")
@@ -561,7 +564,7 @@ func (a *App) addRide(w http.ResponseWriter, r *http.Request) {
 		v.Error = pinProblem
 	}
 	if v.Error != "" {
-		a.renderCal(w, http.StatusBadRequest, "ride-new", "/calendar", "Add a Ride", v)
+		a.renderCal(w, http.StatusBadRequest, "ride-new", "/calendar", "Add to the Calendar", v)
 		return
 	}
 	lead := r.FormValue("lead") != ""
@@ -570,32 +573,34 @@ func (a *App) addRide(w http.ResponseWriter, r *http.Request) {
 	}
 	o, err := a.store.AddRide(c)
 	if err != nil {
-		v.Error = "Couldn’t save the ride. Try again."
-		a.renderCal(w, http.StatusInternalServerError, "ride-new", "/calendar", "Add a Ride", v)
+		v.Error = "Couldn’t save it. Try again."
+		a.renderCal(w, http.StatusInternalServerError, "ride-new", "/calendar", "Add to the Calendar", v)
 		return
 	}
 	if o.Held {
-		a.mailer.Notify(fmt.Sprintf("Ride waiting for approval: %s on %s", o.Name, shortDate(o.Date)),
+		a.mailer.Notify(fmt.Sprintf("%s waiting for approval: %s on %s", strings.ToUpper(o.Noun()[:1])+o.Noun()[1:], o.Name, shortDate(o.Date)),
 			fmt.Sprintf("%s added %s on %s without the club PIN. It isn't on the calendar until an admin approves it: %s/admin/calendar\n\nTo delete it instead, open it there.",
 				name, o.Name, rideWhen(o), a.cfg.SiteURL))
 		http.Redirect(w, r, "/calendar?ok=held", http.StatusSeeOther)
 		return
 	}
-	body := fmt.Sprintf("%s added a ride to the calendar: %s on %s.", name, o.Name, rideWhen(o))
+	body := fmt.Sprintf("%s added %s to the calendar: %s on %s.", name, map[bool]string{true: "a ride", false: "an event"}[o.IsRide()], o.Name, rideWhen(o))
 	if len(o.Groups) > 0 {
 		body += " Pace groups: " + strings.Join(o.Groups, ", ") + "."
 	}
-	if lead {
+	if lead && !o.IsRide() {
+		body += fmt.Sprintf(" %s is hosting.", name)
+	} else if lead {
 		if g := c.groupNames()[0]; g != "" {
 			body += fmt.Sprintf(" %s is leading the %s.", name, g)
 		} else {
 			body += fmt.Sprintf(" %s is leading it.", name)
 		}
 	}
-	if o.Status() != "led" {
+	if o.IsRide() && o.Status() != "led" {
 		body += " It still needs leaders: sign up on the ride page."
 	}
-	a.notifyRide(fmt.Sprintf("New ride: %s on %s", o.Name, shortDate(o.Date)), body, o, c.groupNames()[0])
+	a.notifyRide(fmt.Sprintf("New %s: %s on %s", o.Noun(), o.Name, shortDate(o.Date)), body, o, c.groupNames()[0])
 	rideBack(w, r, o.Key, "ok=added")
 }
 

@@ -609,7 +609,7 @@ func TestStravaImportAndAPI(t *testing.T) {
 func TestCalendarUpcomingRides(t *testing.T) {
 	a, h, _ := rideApp(t)
 	page := do(t, h, nil, "GET", "/calendar?m=2031-01", "", nil).Body.String()
-	if !strings.Contains(page, "Upcoming rides") || !strings.Contains(page, `class="cal-up-list"`) || !strings.Contains(page, "Night Ride") {
+	if !strings.Contains(page, "Coming up") || !strings.Contains(page, `class="cal-up-list"`) || !strings.Contains(page, "Night Ride") {
 		t.Error("the calendar should list upcoming rides, even when another month is shown")
 	}
 	up, note := a.upcomingRides()

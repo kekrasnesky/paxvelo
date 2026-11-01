@@ -1134,7 +1134,7 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
 
   <input type="hidden" name="blocks_form" value="1">
   <div class="blocks" id="blocks">
-  {{range $is.Blocks}}{{template "block" (editBlock . $.IssueRides)}}{{end}}
+  {{range $is.Blocks}}{{template "block" (editBlock . $.IssueRides $.EventChoices)}}{{end}}
   </div>
 
   <section class="card add-block">
@@ -1152,7 +1152,7 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
     {{if and (not $is.IsPublished) (not .MonthLive)}}<button formaction="/admin/newsletter/{{$is.ID}}?then=publish" onclick="return confirm('Save and publish {{$is.Label}} on the website?')">{{icon "globe"}}Save and publish</button>{{end}}
   </div>
 </form>
-{{range blockKinds}}<template id="tpl-{{.Kind}}">{{template "block" (editBlock (newBlock .Kind) $.IssueRides)}}</template>
+{{range blockKinds}}<template id="tpl-{{.Kind}}">{{template "block" (editBlock (newBlock .Kind) $.IssueRides $.EventChoices)}}</template>
 {{end}}
 <script>
 // Warn before leaving the page with changes that haven't been saved.
@@ -1193,6 +1193,11 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
     <p class="muted small">Filled in from the ride calendar, and kept up to date: the rides for the {{rideWeeks}} weeks after the issue is published (cancelled rides are left out). Rides that need a leader get a link to sign up. To change a ride or its leaders, use the <a href="/admin/calendar" target="_blank" rel="noopener">Calendar tab</a>.</p>
     <p class="rides-now">Right now that’s <strong>{{len $r.Rides}} {{if eq (len $r.Rides) 1}}ride{{else}}rides{{end}}</strong> from {{$r.From}} to {{$r.To}}{{if $r.Need}}, and <strong class="danger">{{$r.Need}} still {{if eq $r.Need 1}}needs{{else}}need{{end}} a leader</strong>{{end}}.</p>
     <label>Heading <input name="{{$p}}heading" value="{{.Heading}}" maxlength="120" placeholder="{{ridesHeading}}"></label>
+  {{else if eq .Kind.Kind "event"}}{{$ev := .Event}}
+    <p class="muted small">Shows the event’s day, time, place and host from the calendar, with buttons to add it to a calendar and see more. If the event moves or is cancelled, the newsletter shows that. To put a new event on the calendar, use <a href="/admin/rides/new" target="_blank" rel="noopener">Add to the calendar</a>.</p>
+    {{if .Events}}<label>Event <select name="{{$p}}event">{{if not $ev}}<option value="">Pick an event…</option>{{end}}{{range .Events}}<option value="{{.Key}}"{{if eq .Key $ev}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>
+    {{else}}<p class="flash warn">There are no club events on the calendar yet. <a href="/admin/rides/new" target="_blank" rel="noopener">Add one</a> (pick Club meeting, Social or party, or another kind), then come back.</p>{{end}}
+    <label>A few words (optional) <textarea name="{{$p}}body" rows="3" placeholder="Shown instead of the event’s description from the calendar">{{.Body}}</textarea></label>
   {{else if eq .Kind.Kind "gallery"}}
     <p class="muted small">Up to {{maxGallery}} photos in a row, best chosen from the gallery. Each shows cropped like the small preview under it: click a photo to choose the spot to keep in view. Use the arrows to change the order.</p>
     <div class="strip" data-p="{{$p}}" data-max="{{maxGallery}}">{{range $g := .Photos}}{{template "strip-item" (stripPhoto $p $g (index $.Focus $g))}}{{end}}</div>
@@ -1537,7 +1542,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   <h1>{{if $f.New}}Add to the calendar{{else}}{{$f.Name}}{{end}}</h1>
   {{if not $f.New}}<p>{{if $f.Cancelled}}<span class="tag">Cancelled</span> {{end}}{{if $f.Custom}}One-off{{else}}Weekly · <a href="/admin/weekly/{{$f.SeriesID}}">change every week</a>{{end}} · <a href="/calendar/ride/{{$f.Key}}" target="_blank" rel="noopener">Public page</a></p>{{end}}
 </div>
-{{if $f.Past}}<p class="flash warn">This ride has already happened.</p>{{end}}
+{{if $f.Past}}<p class="flash warn">This {{$f.Noun}} has already happened.</p>{{end}}
 <form class="card new-issue ride-form" method="post" action="{{if $f.New}}/admin/rides/new{{else}}/admin/rides/{{$f.Key}}{{end}}" data-kinds>
   {{template "kind-pick" $f.Kind}}
   <div class="ride-cols"><div class="ride-col">
@@ -1570,9 +1575,15 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   </div></div>
   <button>{{if $f.New}}{{icon "plus"}}Add to the calendar{{else}}{{icon "save"}}Save changes{{end}}</button>
 </form>
+{{if and (not $f.New) (not $f.IsRide)}}<form method="post" action="/admin/rides/{{$f.Key}}/newsletter" class="card send-row event-news">
+  <strong>In the newsletter</strong>
+  {{if $.Issues}}<select name="issue" aria-label="Newsletter issue">{{range $.Issues}}<option value="{{.ID}}">{{.Label}}{{if not .IsPublished}} (draft){{end}}</option>{{end}}</select>
+  <button class="ghost">{{icon "plus"}}Add to newsletter</button>
+  <span class="muted small">It shows with its day, time and place, and follows any change made here.</span>{{else}}<span class="muted small"><a href="/admin/newsletter">Start a newsletter issue</a> to put this event in it.</span>{{end}}
+</form>{{end}}
 {{if not $f.New}}<div class="send-row footnote">
-  <form method="post" action="/admin/rides/{{$f.Key}}/cancel" class="inline">{{if $f.Cancelled}}<input type="hidden" name="cancel" value="0"><button class="ghost">{{icon "undo"}}Put it back on the calendar</button>{{else}}<input type="hidden" name="cancel" value="1"><button class="ghost" onclick="return confirm('Cancel {{$f.Name}} on {{$f.DateLabel}}? The club will be emailed.')">{{icon "ban"}}Cancel this ride</button>{{end}}</form>
-  {{if $f.Custom}}<form method="post" action="/admin/rides/{{$f.Key}}/delete" class="inline" onsubmit="return confirm('Delete {{$f.Name}} for good? To keep it on the calendar as cancelled, use Cancel instead.')"><button class="link danger">{{icon "trash"}}Delete this ride</button></form>{{end}}
+  <form method="post" action="/admin/rides/{{$f.Key}}/cancel" class="inline">{{if $f.Cancelled}}<input type="hidden" name="cancel" value="0"><button class="ghost">{{icon "undo"}}Put it back on the calendar</button>{{else}}<input type="hidden" name="cancel" value="1"><button class="ghost" onclick="return confirm('Cancel {{$f.Name}} on {{$f.DateLabel}}? The club will be emailed.')">{{icon "ban"}}Cancel this {{$f.Noun}}</button>{{end}}</form>
+  {{if $f.Custom}}<form method="post" action="/admin/rides/{{$f.Key}}/delete" class="inline" onsubmit="return confirm('Delete {{$f.Name}} for good? To keep it on the calendar as cancelled, use Cancel instead.')"><button class="link danger">{{icon "trash"}}Delete this {{$f.Noun}}</button></form>{{end}}
 </div>{{end}}
 {{template "foot" .}}{{end}}
 

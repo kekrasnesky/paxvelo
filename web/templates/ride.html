@@ -1,7 +1,7 @@
 {{define "head"}}<meta name="robots" content="noindex">{{end}}
 {{define "content"}}{{with .Data}}{{$r := .Ride}}{{$d := .}}
 <article class="page">
-  <p class="cal-back"><a href="/calendar?m={{slice $r.Date 0 7}}">← Ride calendar</a></p>
+  <p class="cal-back"><a href="/calendar?m={{slice $r.Date 0 7}}">← Club calendar</a></p>
   <h1>{{$r.Name}}</h1>
   <p class="lead">{{$r.DateLabel}}{{with $r.Time}} · {{timeLabel .}}{{end}}</p>
   {{template "rider-bar" .}}

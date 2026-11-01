@@ -153,6 +153,12 @@ func (s *Store) upsertExternal(x ExternalRide, matchSeries bool) (RideOcc, strin
 	}
 	s.d.NextRide++
 	apply(r)
+	// A meeting or party posted on Strava isn't a ride. Only new ones are
+	// guessed, so an admin's change to the kind sticks.
+	r.Kind = guessKind(x.Name)
+	if !r.IsRide() {
+		r.Groups = nil
+	}
 	s.d.CalRides = append(s.d.CalRides, r)
 	return occOf(r), "added"
 }

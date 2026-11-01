@@ -69,6 +69,17 @@
   </ol>{{else}}<p>No rides on the calendar for these weeks yet.</p>{{end}}
   <p class="nl-more"><a href="{{$r.CalendarURL}}">See the full ride calendar</a></p>
 </section>
+{{else if eq .Kind "event"}}{{$e := .Event}}
+<section class="nl-event{{if $e.Cancelled}} off{{end}}" id="{{.Story.ID}}">
+  <span class="nl-date"><span>{{$e.Month}}</span>{{$e.Day}}</span>
+  <div class="nl-event-text">
+    <p class="nl-kicker">{{$e.Kind}}{{if $e.Cancelled}} · Cancelled{{end}}</p>
+    <h2 class="nl-h">{{$e.Name}}</h2>
+    <p class="nl-event-when">{{$e.When}}{{with $e.Place}}<br>{{.}}{{end}}{{with $e.Host}}<br>{{.}}{{end}}</p>
+    {{if .Story.Body}}<div class="nl-body">{{.Story.Body}}</div>{{else}}{{with $e.Details}}<p class="nl-event-about">{{.}}</p>{{end}}{{end}}
+    <p class="nl-event-act">{{if not (or $e.Cancelled $e.Past)}}<a class="btn" href="/calendar/ride/{{$e.Key}}/calendar.ics">Add to my calendar</a> {{end}}<a class="btn btn-quiet" href="/calendar/ride/{{$e.Key}}">More details</a></p>
+  </div>
+</section>
 {{else if eq .Kind "banner"}}{{with .Story}}
 <section class="nl-notice" id="{{.ID}}">
   <div class="nl-notice-text">

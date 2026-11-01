@@ -271,6 +271,7 @@ func (a *App) routes() http.Handler {
 	mux.Handle("POST /admin/rides/{key}/cancel", a.auth(a.cancelRideAdmin))
 	mux.Handle("POST /admin/rides/{key}/approve", a.auth(a.approveRide))
 	mux.Handle("POST /admin/rides/{key}/delete", a.auth(a.deleteRideAdmin))
+	mux.Handle("POST /admin/rides/{key}/newsletter", a.auth(a.eventToNewsletter))
 	mux.Handle("POST /admin/weekly", a.auth(a.addSeries))
 	mux.Handle("GET /admin/weekly/{id}", a.auth(a.seriesEditPage))
 	mux.Handle("POST /admin/weekly/{id}", a.auth(a.saveSeries))

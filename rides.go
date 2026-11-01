@@ -143,7 +143,7 @@ var eventKinds = []eventKind{
 	{"", "Group ride", "Leader"},
 	{"clinic", "Clinic or skills session", "Instructor"},
 	{"meeting", "Club meeting", "Host"},
-	{"social", "Social", "Host"},
+	{"social", "Social or party", "Host"},
 	{"other", "Other event", "Host"},
 }
 
@@ -158,6 +158,35 @@ func kindFor(choice string) string {
 }
 
 func (c CalRide) IsRide() bool { return c.Kind == "" }
+
+// Noun is what to call it in a sentence: "ride" or "event".
+func (c CalRide) Noun() string {
+	if c.IsRide() {
+		return "ride"
+	}
+	return "event"
+}
+
+// kindWords tell an event from a ride by its name, for events imported from
+// Strava, where everything is an "event". The first match wins.
+var kindWords = []struct{ kind, words string }{
+	{"meeting", "meeting agm board"},
+	{"clinic", "clinic skills workshop class maintenance lesson"},
+	{"social", "party social potluck picnic banquet dinner happy-hour happy celebration holiday awards cookout"},
+}
+
+// guessKind is the kind of event a name sounds like, or "" for a ride.
+func guessKind(name string) string {
+	words := strings.FieldsFunc(strings.ToLower(name), func(r rune) bool { return !(r >= 'a' && r <= 'z' || r == '-') })
+	for _, k := range kindWords {
+		for _, w := range words {
+			if slices.Contains(strings.Fields(k.words), w) {
+				return k.kind
+			}
+		}
+	}
+	return ""
+}
 
 func (c CalRide) kind() eventKind {
 	for _, k := range eventKinds {
@@ -358,6 +387,18 @@ func (o RideOcc) Status() string {
 		return "partial"
 	}
 	return "open"
+}
+
+// HostLine is the line under an event on the public calendar, whose kind is
+// already on its label: who's hosting, or "Cancelled", or "".
+func (o RideOcc) HostLine() string {
+	if o.Cancelled {
+		return "Cancelled"
+	}
+	if l := o.leaderFor(""); l != nil {
+		return o.HostLabel() + ": " + l.Name
+	}
+	return ""
 }
 
 // LeaderSummary is the short line under a ride on the calendar.

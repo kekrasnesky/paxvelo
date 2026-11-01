@@ -252,6 +252,18 @@ strong{font-weight:500}
 .nl-go{font-size:1.5rem;line-height:1;color:var(--red);text-decoration:none}
 @media (max-width:600px){.nl-cal>li{grid-template-columns:2.6rem minmax(0,1fr)}.nl-cal>li>.nl-lead,.nl-cal>li>.nl-go{grid-column:2;justify-self:start}}
 
+/* An event from the calendar: a dated notice with buttons to save it */
+.nl-event{display:grid;grid-template-columns:4rem minmax(0,1fr);gap:1.2rem;align-items:start;margin:clamp(22px,2.6vw,34px) 0;padding:1.1rem 1.3rem 1.2rem;border:1px solid #1f1a18;border-left-width:5px;background:#fbf7f0}
+.nl-event .nl-date{font-size:2.2rem}
+.nl-event .nl-kicker{margin:0 0 .2rem}
+.nl-event .nl-h{margin:0}
+.nl-event-when{margin:.4rem 0 0;font-size:.9rem;line-height:1.5}
+.nl-event-about{margin:.6rem 0 0;white-space:pre-line}
+.nl-event-act{display:flex;flex-wrap:wrap;gap:.6rem;margin:.9rem 0 0}
+.nl-event.off .nl-h{text-decoration:line-through}
+.nl-event.off .nl-date{color:#999}
+@media (max-width:600px){.nl-event{grid-template-columns:2.8rem minmax(0,1fr);gap:.8rem}.nl-event .nl-date{font-size:1.6rem}}
+
 /* A banner: a boxed notice, like an ad in a printed newsletter */
 .nl-notice{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:clamp(20px,3vw,40px);align-items:center;margin:clamp(22px,2.6vw,34px) 0;padding:clamp(18px,2.4vw,30px);border:3px double #1f1a18;text-align:left}
 .nl-notice:not(:has(figure)){grid-template-columns:minmax(0,40rem);justify-content:center;text-align:center}
@@ -316,6 +328,14 @@ strong{font-weight:500}
 .cal-up-date{display:block;font-size:.78rem;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--ink)}
 .cal-none{margin:0!important;color:var(--ink)}
 .cal-place{display:block;color:#6b625b;font-size:.85rem;font-weight:400}
+.cal-kind{display:inline-block;padding:0 .35rem;border-radius:3px;background:#5b7f95;color:#fff;font-size:.68rem;font-weight:500;letter-spacing:.03em;vertical-align:.1em}
+.cal-ride.cancelled .cal-kind{background:#999}
+/* Add to the calendar: a ride's pace groups and wording only for a ride. */
+.kind-pick{display:grid;gap:.3rem;margin:0;padding:0;border:0}
+.kind-pick legend{margin-bottom:.3rem;font-weight:500}
+.event-word{display:none}
+form:has(.kind-pick input:checked:not([value=""])) .ride-word,form:has(.kind-pick input:checked:not([value=""])) .ride-only{display:none!important}
+form:has(.kind-pick input:checked:not([value=""])) .event-word{display:inline}
 /* The home page's next rides ({upcoming-rides}); phones show three */
 .next-rides{margin:16px 0 0}
 .next-rides .cal-ride{height:100%;margin:0;padding:.65rem .9rem;border-radius:8px;border-left-width:5px;background:var(--card);box-shadow:0 1px 3px rgba(45,45,45,.08)}

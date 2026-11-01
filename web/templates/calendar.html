@@ -1,20 +1,20 @@
 {{define "content"}}{{with .Data}}
 <article class="page page-cal">
   <div class="cal-top">
-    <h1>Ride Calendar</h1>
-    <p class="cal-actions"><a class="btn" href="/calendar/new">Add a ride</a></p>
+    <h1>Club Calendar</h1>
+    <p class="cal-actions"><a class="btn" href="/calendar/new">Add a ride or event</a></p>
   </div>
-  <p class="lead">Every club ride and who’s leading it. See a ride with no leader? Sign up to lead it, or add a ride of your own.</p>
+  <p class="lead">Every club ride and who’s leading it, plus meetings, parties and other club events. See a ride with no leader? Sign up to lead it, or add one of your own.</p>
   {{template "rider-bar" .}}
 
-  <section class="cal-up" aria-label="Upcoming rides">
-    <h2>Upcoming rides</h2>
+  <section class="cal-up" aria-label="Coming up">
+    <h2>Coming up</h2>
     <p class="lvl-key">{{range rideLevels}}<span><span class="lvl lvl-{{.Key}}">{{.Name}}</span> {{.MPH}}</span>{{end}}</p>
     {{if .Upcoming}}<ul class="cal-up-list">
       {{range .Upcoming}}<li><a class="cal-ride {{.Status}}" href="/calendar/ride/{{.Key}}">
         {{with .Route}}{{if and .Shown .Map}}<img class="cal-up-map" src="{{.Map}}" alt="" loading="lazy">{{end}}{{end}}
         <span class="cal-up-date">{{.ShortDate}}</span>
-        <span class="cal-time">{{.TimeLabel}}</span> {{.Name}}
+        <span class="cal-time">{{.TimeLabel}}</span> {{.Name}}{{if not .IsRide}} <span class="cal-kind">{{.KindName}}</span>{{end}}
         {{with .PublicPlace}}<span class="cal-place">{{.}}</span>{{end}}
         <span class="lvls">{{range .Levels}}<span class="lvl lvl-{{.Key}}">{{.Name}}</span>{{end}}</span>
         {{template "cal-lead" .}}
@@ -29,7 +29,7 @@
       <h2>{{.MonthLabel}}</h2>
       <a href="/calendar?m={{.Next}}" aria-label="Next month">›</a>
     </nav>
-    <p class="cal-key"><span class="cal-hint-hover">Point at a ride for details.</span><span class="cal-hint-touch">Tap a ride for details.</span></p>
+    <p class="cal-key"><span class="cal-hint-hover">Point at a ride or event for details.</span><span class="cal-hint-touch">Tap a ride or event for details.</span></p>
   </div>
 
   <table class="cal-grid">
@@ -40,7 +40,7 @@
         <div class="cal-day"><span>{{.Day}}</span>{{if and .InMonth (not .Past)}}<a class="cal-add" href="/calendar/new?date={{.Date}}" aria-label="Add a ride on {{.Date}}">+</a>{{end}}</div>
         {{range .Rides}}<div class="cal-item">
           <a class="cal-ride {{.Status}}" href="/calendar/ride/{{.Key}}" aria-describedby="pop-{{.Key}}">
-            <span class="cal-time">{{.TimeLabel}}</span> {{.Name}}
+            <span class="cal-time">{{.TimeLabel}}</span> {{.Name}}{{if not .IsRide}} <span class="cal-kind">{{.KindName}}</span>{{end}}
             <span class="lvls">{{range .Levels}}<span class="lvl lvl-{{.Key}}">{{.Name}}</span>{{end}}</span>
             {{template "cal-lead" .}}
           </a>
@@ -49,9 +49,9 @@
             <span class="cal-pop-when">{{.ShortDate}} · {{.TimeLabel}}</span>
             {{with .PublicPlace}}<span class="cal-pop-where">{{.}}</span>{{end}}
             {{with .Levels}}<span class="cal-pop-lvls">{{range .}}<span><span class="lvl lvl-{{.Key}}">{{.Name}}</span> {{.MPH}}</span>{{end}}</span>{{end}}
-            {{if .Cancelled}}<span class="cal-pop-off">This ride is cancelled.</span>{{else if not .IsRide}}<span class="cal-pop-off">{{.LeaderSummary}}</span>{{else}}<ul class="cal-pop-slots">{{range .Slots}}<li>{{with .Group}}<span class="cal-pop-group">{{.}}</span> {{end}}{{with .Leader}}{{.Name}}{{else}}<span class="cal-need">Needs a leader</span>{{end}}</li>{{end}}</ul>{{end}}
+            {{if .Cancelled}}<span class="cal-pop-off">This {{.Noun}} is cancelled.</span>{{else if not .IsRide}}<span class="cal-pop-off">{{.LeaderSummary}}</span>{{else}}<ul class="cal-pop-slots">{{range .Slots}}<li>{{with .Group}}<span class="cal-pop-group">{{.}}</span> {{end}}{{with .Leader}}{{.Name}}{{else}}<span class="cal-need">Needs a leader</span>{{end}}</li>{{end}}</ul>{{end}}
             {{with .Meta}}<span class="cal-meta">{{.}}</span>{{end}}
-            <a class="cal-pop-go" href="/calendar/ride/{{.Key}}">{{if or (eq .Status "open") (eq .Status "partial")}}View ride or sign up to lead{{else}}View ride{{end}} →</a>
+            <a class="cal-pop-go" href="/calendar/ride/{{.Key}}">{{if not .IsRide}}View event{{else if or (eq .Status "open") (eq .Status "partial")}}View ride or sign up to lead{{else}}View ride{{end}} →</a>
           </div>
         </div>{{end}}
       </td>{{end}}
@@ -63,7 +63,7 @@
     {{range .Days}}<li>
       <h3>{{(index .Rides 0).DateLabel}}</h3>
       {{range .Rides}}<a class="cal-ride {{.Status}}" href="/calendar/ride/{{.Key}}">
-        <span class="cal-time">{{.TimeLabel}}</span> {{.Name}}
+        <span class="cal-time">{{.TimeLabel}}</span> {{.Name}}{{if not .IsRide}} <span class="cal-kind">{{.KindName}}</span>{{end}}
         {{with .PublicPlace}}<span class="cal-place">{{.}}</span>{{end}}
         <span class="lvls">{{range .Levels}}<span class="lvl lvl-{{.Key}}">{{.Name}}</span>{{end}}</span>
         {{template "cal-lead" .}}
@@ -77,4 +77,4 @@
 {{end}}{{end}}
 
 {{/* The leader line under a ride: who's leading it, or a badge asking for one */}}
-{{define "cal-lead"}}{{if or (eq .Status "open") (eq .Status "partial")}}<span class="cal-lead"><span class="cal-need">{{.LeaderSummary}}</span></span>{{else if eq .Status "led"}}<span class="cal-lead">Led by {{.LeaderSummary}}</span>{{else}}<span class="cal-lead">{{.LeaderSummary}}</span>{{end}}{{end}}
+{{define "cal-lead"}}{{if not .IsRide}}{{with .HostLine}}<span class="cal-lead">{{.}}</span>{{end}}{{else if or (eq .Status "open") (eq .Status "partial")}}<span class="cal-lead"><span class="cal-need">{{.LeaderSummary}}</span></span>{{else if eq .Status "led"}}<span class="cal-lead">Led by {{.LeaderSummary}}</span>{{else}}<span class="cal-lead">{{.LeaderSummary}}</span>{{end}}{{end}}
