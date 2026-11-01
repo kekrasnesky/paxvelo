@@ -1,4 +1,4 @@
 {{define "content"}}
-<article class="page{{if .Data.Wide}} page-wide{{end}}">
+<article class="page{{if .Data.Wide}} page-wide{{end}}{{if .Data.People}} page-people{{end}}">
 {{.Data.Intro}}{{.Data.Body}}</article>
 {{end}}
