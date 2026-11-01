@@ -1452,7 +1452,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   <tbody>
   {{range .Upcoming}}<tr{{if .Cancelled}} class="off"{{end}}>
     <td class="nowrap">{{.DateLabel}}<br><span class="muted small">{{.TimeLabel}}</span></td>
-    <td><a href="/admin/rides/{{.Key}}">{{.Name}}</a>{{if not .IsRide}} <span class="tag">{{.KindName}}</span>{{end}}{{if .Custom}} <span class="tag">One-off</span>{{end}}{{if .Cancelled}} <span class="tag">Cancelled</span>{{end}}</td>
+    <td><a href="/admin/rides/{{.Key}}">{{.Name}}</a>{{if .IsVirtual}} {{template "zwift"}}{{end}}{{if not .IsRide}} <span class="tag">{{.KindName}}</span>{{end}}{{if .Custom}} <span class="tag">One-off</span>{{end}}{{if .Cancelled}} <span class="tag">Cancelled</span>{{end}}</td>
     <td>{{if not .IsRide}}{{with .Leaders}}{{(index . 0).Name}}{{else}}<span class="muted">–</span>{{end}}{{else}}{{range .Slots}}<span class="leader-line">{{with .Group}}<span class="muted">{{.}}:</span> {{end}}{{with .Leader}}{{.Name}}{{else}}<span class="danger">needs a leader</span>{{end}}</span>{{end}}{{end}}</td>
     <td class="right nowrap row-acts"><a class="btn mini ghost" href="/admin/rides/{{.Key}}">{{icon "pencil"}}Edit</a>
       <form method="post" action="/admin/rides/{{.Key}}/cancel" class="inline"><input type="hidden" name="return" value="rides">{{if .Cancelled}}<input type="hidden" name="cancel" value="0"><button class="link small">{{icon "undo"}}Put back</button>{{else}}<input type="hidden" name="cancel" value="1"><button class="link danger small" onclick="return confirm('Cancel {{.Name}} on {{.ShortDate}}? It shows as cancelled on the calendar and the club is emailed.')">{{icon "ban"}}Cancel</button>{{end}}</form></td>
@@ -1467,7 +1467,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   <thead><tr><th>Ride</th><th>When</th><th>Season</th><th>Start</th><th><span class="sr">Actions</span></th></tr></thead>
   <tbody>
   {{range .Series}}<tr>
-    <td><a href="/admin/weekly/{{.ID}}"><strong>{{.Name}}</strong></a>{{with .Details}}<br><span class="muted small">{{firstLine .}}</span>{{end}}{{with .Groups}}<br><span class="muted small">Groups: {{join . ", "}}</span>{{end}}</td>
+    <td><a href="/admin/weekly/{{.ID}}"><strong>{{.Name}}</strong></a>{{if .IsVirtual}} {{template "zwift"}}{{end}}{{with .Details}}<br><span class="muted small">{{firstLine .}}</span>{{end}}{{with .Groups}}<br><span class="muted small">Groups: {{join . ", "}}</span>{{end}}</td>
     <td class="nowrap">{{.WeekdayName}}s, {{timeLabel .Time}}</td>
     <td class="nowrap">{{.SeasonLabel}}</td>
     <td>{{.Place}}</td>
@@ -1557,6 +1557,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
     <label>Start location (optional) <input name="place" value="{{.Place}}" maxlength="100" placeholder="Leonardtown Square"></label>
   </div>
   <label>Description (optional) <textarea name="details" rows="3" maxlength="1000" placeholder="Route, pace, coffee stop, what to bring…">{{.Details}}</textarea></label>
+  {{template "virtual-check" .}}
   <div class="ride-only" data-ride-only>
     {{template "pace-select" .Groups}}
     {{template "level-select" .Level}}
@@ -1569,6 +1570,12 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   <p class="muted small">The season repeats every year (only the month and day count). Leave both empty for a ride that runs all year.</p>
   <label>Last date (optional) <input type="date" name="ends" value="{{.Ends}}"></label>
   <p class="muted small">{{with .Starts}}It started {{.}}. {{end}}After the last date it stops for good. Leave it empty to keep it going.</p>{{end}}
+
+{{/* A virtual ride's badge: Zwift's orange Z, with the word beside it where there's room */}}
+{{define "zwift"}}<span class="zwift" title="Virtual: on Zwift"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"><rect width="24" height="24" rx="6" fill="#fc6719"/><path d="M6.6 6.2h10.8v2.7l-6.6 6.6h6.6v2.3H6.6v-2.7l6.6-6.6H6.6z" fill="#fff"/></svg><span class="zwift-text">Zwift</span></span>{{end}}
+{{define "virtual-check"}}<label class="check virtual-check"><input type="checkbox" name="virtual"{{if .IsVirtual}} checked{{end}}> {{template "zwift"}} Virtual: on Zwift or an indoor trainer</label>
+  <input type="hidden" name="virtual_was" value="{{if .IsVirtual}}1{{else}}0{{end}}">
+  <p class="muted small">Ticked by itself when the name, start location or description mentions Zwift, a trainer ride or virtual. Untick it if that’s wrong.</p>{{end}}
 
 {{define "kind-pick"}}{{$kind := .}}<fieldset class="kinds">
     <legend>What is it?</legend>
@@ -1651,6 +1658,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   </div>{{end}}
   <label>Start location (optional) <input name="place" value="{{$f.Place}}" maxlength="100" placeholder="Leonardtown Square"></label>
   <label>Description (optional) <textarea name="details" rows="3" maxlength="1000" placeholder="Route, pace, coffee stop, what to bring…">{{$f.Details}}</textarea></label>
+  {{template "virtual-check" $f}}
   </div><div class="ride-col">
   <div class="ride-only" data-ride-only>
     {{$pace := $f.Pace}}<label>Pace groups <select name="pace" data-leaders>{{range paceChoices}}<option value="{{.Value}}"{{if eq .Value $pace}} selected{{end}}>{{.Label}}</option>{{end}}{{if eq $pace "keep"}}<option value="keep" selected>Keep: {{join $f.Groups ", "}}</option>{{end}}</select></label>

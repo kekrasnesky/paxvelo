@@ -35,6 +35,7 @@ type apiRide struct {
 	Groups    []string    `json:"groups,omitempty"`
 	Leaders   []apiLeader `json:"leaders"`
 	Cancelled bool        `json:"cancelled,omitempty"`
+	Virtual   bool        `json:"virtual,omitempty"` // on Zwift or an indoor trainer
 	URL       string      `json:"url"`
 }
 
@@ -45,7 +46,7 @@ type apiLeader struct {
 
 func (a *App) apiRideOf(o RideOcc) apiRide {
 	out := apiRide{Key: o.Key, ID: strings.TrimPrefix(o.External, "api:"), Date: o.Date, Time: o.Time, Name: o.Name, Place: o.PublicPlace(),
-		Details: o.Details, StravaURL: o.StravaURL, Groups: o.Groups, Cancelled: o.Cancelled, URL: a.cfg.SiteURL + "/calendar/ride/" + o.Key,
+		Details: o.Details, StravaURL: o.StravaURL, Groups: o.Groups, Cancelled: o.Cancelled, Virtual: o.IsVirtual(), URL: a.cfg.SiteURL + "/calendar/ride/" + o.Key,
 		Leaders: []apiLeader{}}
 	if strings.HasPrefix(o.External, "strava:") {
 		out.ID = ""

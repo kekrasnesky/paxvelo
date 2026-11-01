@@ -148,6 +148,7 @@ func readRide(r *http.Request, c *CalRide, dateEditable bool) string {
 	c.Place, c.Details = cleanName(r.FormValue("place")), cleanText(r.FormValue("details"))
 	c.StravaURL = strings.TrimSpace(r.FormValue("strava_url"))
 	c.Kind = kindFor(r.FormValue("kind"))
+	c.Virtual = readVirtual(r, c.Virtual, c.Name, c.Place, c.Details)
 	c.Groups = groupsFor(r.FormValue("pace"), c.Groups)
 	c.Level = levelFor(r.Form["level"])
 	if !c.IsRide() { // one host, no pace groups or level
@@ -167,6 +168,22 @@ func readRide(r *http.Request, c *CalRide, dateEditable bool) string {
 		return "Paste the event’s Strava link, starting with https://www.strava.com/."
 	}
 	return ""
+}
+
+// readVirtual reads the Virtual box on a ride form. Left as it was shown,
+// the setting stays as it was (so automatic stays automatic); changed, it's
+// saved, unless it now matches what the ride's words say anyway.
+func readVirtual(r *http.Request, setting string, texts ...string) string {
+	on, was := r.FormValue("virtual") != "", r.FormValue("virtual_was") == "1"
+	switch {
+	case on == was:
+		return setting
+	case on == guessVirtual(texts...):
+		return ""
+	case on:
+		return "yes"
+	}
+	return "no"
 }
 
 // readLeaders sets each group's leader from the ride page.
@@ -300,7 +317,7 @@ func (a *App) addRideAdmin(w http.ResponseWriter, r *http.Request) {
 func (a *App) addWeeklyFromRide(w http.ResponseWriter, r *http.Request, c CalRide, until, me string) {
 	d, _ := time.Parse("2006-01-02", c.Date)
 	se := RideSeries{Name: c.Name, Weekday: int(d.Weekday()), Time: c.Time, Place: c.Place, Details: c.Details,
-		StravaURL: c.StravaURL, Groups: c.Groups, Level: c.Level, Kind: c.Kind, Starts: c.Date, Ends: until}
+		StravaURL: c.StravaURL, Groups: c.Groups, Level: c.Level, Kind: c.Kind, Virtual: c.Virtual, Starts: c.Date, Ends: until}
 	id, err := a.store.AddSeries(se)
 	if err != nil {
 		back(w, r, "/admin/calendar?err=save")
@@ -372,6 +389,7 @@ func readSeries(r *http.Request, se *RideSeries) string {
 	se.Place, se.Details = cleanName(r.FormValue("place")), cleanText(r.FormValue("details"))
 	se.StravaURL = strings.TrimSpace(r.FormValue("strava_url"))
 	se.Kind = kindFor(r.FormValue("kind"))
+	se.Virtual = readVirtual(r, se.Virtual, se.Name, se.Place, se.Details)
 	se.Groups = groupsFor(r.FormValue("pace"), se.Groups)
 	se.Level = levelFor(r.Form["level"])
 	if se.Kind != "" {

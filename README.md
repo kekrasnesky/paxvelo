@@ -13,7 +13,7 @@ The club's website: public pages, membership signup with PayPal dues, a ride cal
 | **Board** | Change board members, roles and photos. |
 | **Members** | See who has joined and paid. Press **Mark paid** when PayPal emails you a payment (this also sends the member a welcome email). Import or export lists. |
 | **Members → Waivers** | See who has signed this year's insurance waiver. Each January, email members asking them to sign again. |
-| **Rides / Calendar** | Set up weekly rides, add one-off events, change leaders, cancel rides. Approve rides that members submit. |
+| **Rides / Calendar** | Set up weekly rides, add one-off events, change leaders, cancel rides. Approve rides that members submit. Tick **Virtual** for a Zwift ride (rides mentioning Zwift, virtual or a trainer ride are ticked automatically). |
 | **Newsletter** | Build the monthly issue from blocks, preview it, publish it, then email members about it. |
 | **Email** | Send email to all members or a group (such as only those who haven't paid). Always **Send test** to yourself first. |
 | **Website → Gallery** | Albums of ride photos. This is where the club's photos live: the newsletter picks its photos from here. Drag albums into order, **Feature** one to show it first and big, or **Hide** one to take it off the website without deleting it. |

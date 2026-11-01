@@ -14,7 +14,7 @@
       {{range .Upcoming}}<li><a class="cal-ride {{.Status}}" href="/calendar/ride/{{.Key}}">
         {{with .Route}}{{if and .Shown .Map}}<img class="cal-up-map" src="{{.Map}}" alt="" loading="lazy">{{end}}{{end}}
         <span class="cal-up-date">{{.ShortDate}}</span>
-        <span class="cal-time">{{.TimeLabel}}</span> {{.Name}}{{if not .IsRide}} <span class="cal-kind">{{.KindName}}</span>{{end}}
+        {{if .IsVirtual}}{{template "zwift"}} {{end}}<span class="cal-time">{{.TimeLabel}}</span> {{.Name}}{{if not .IsRide}} <span class="cal-kind">{{.KindName}}</span>{{end}}
         {{with .PublicPlace}}<span class="cal-place">{{.}}</span>{{end}}
         <span class="lvls">{{range .Levels}}<span class="lvl lvl-{{.Key}}">{{.Name}}</span>{{end}}</span>
         {{template "cal-lead" .}}
@@ -40,13 +40,13 @@
         <div class="cal-day"><span>{{.Day}}</span>{{if and .InMonth (not .Past)}}<a class="cal-add" href="/calendar/new?date={{.Date}}" aria-label="Add a ride on {{.Date}}">+</a>{{end}}</div>
         {{range .Rides}}<div class="cal-item">
           <a class="cal-ride {{.Status}}" href="/calendar/ride/{{.Key}}" aria-describedby="pop-{{.Key}}">
-            <span class="cal-time">{{.TimeLabel}}</span> {{.Name}}{{if not .IsRide}} <span class="cal-kind">{{.KindName}}</span>{{end}}
+            {{if .IsVirtual}}{{template "zwift"}} {{end}}<span class="cal-time">{{.TimeLabel}}</span> {{.Name}}{{if not .IsRide}} <span class="cal-kind">{{.KindName}}</span>{{end}}
             <span class="lvls">{{range .Levels}}<span class="lvl lvl-{{.Key}}">{{.Name}}</span>{{end}}</span>
             {{template "cal-lead" .}}
           </a>
           <div class="cal-pop" id="pop-{{.Key}}" role="tooltip">
             <strong class="cal-pop-name">{{.Name}}</strong>
-            <span class="cal-pop-when">{{.ShortDate}} · {{.TimeLabel}}</span>
+            <span class="cal-pop-when">{{.ShortDate}} · {{.TimeLabel}}{{if .IsVirtual}} · {{template "zwift"}} Virtual ride{{end}}</span>
             {{with .PublicPlace}}<span class="cal-pop-where">{{.}}</span>{{end}}
             {{with .Levels}}<span class="cal-pop-lvls">{{range .}}<span><span class="lvl lvl-{{.Key}}">{{.Name}}</span> {{.MPH}}</span>{{end}}</span>{{end}}
             {{if .Cancelled}}<span class="cal-pop-off">This {{.Noun}} is cancelled.</span>{{else if not .IsRide}}<span class="cal-pop-off">{{.LeaderSummary}}</span>{{else}}<ul class="cal-pop-slots">{{range .Slots}}<li>{{with .Group}}<span class="cal-pop-group">{{.}}</span> {{end}}{{with .Leader}}{{.Name}}{{else}}<span class="cal-need">Needs a leader</span>{{end}}</li>{{end}}</ul>{{end}}
@@ -63,7 +63,7 @@
     {{range .Days}}<li>
       <h3>{{(index .Rides 0).DateLabel}}</h3>
       {{range .Rides}}<a class="cal-ride {{.Status}}" href="/calendar/ride/{{.Key}}">
-        <span class="cal-time">{{.TimeLabel}}</span> {{.Name}}{{if not .IsRide}} <span class="cal-kind">{{.KindName}}</span>{{end}}
+        {{if .IsVirtual}}{{template "zwift"}} {{end}}<span class="cal-time">{{.TimeLabel}}</span> {{.Name}}{{if not .IsRide}} <span class="cal-kind">{{.KindName}}</span>{{end}}
         {{with .PublicPlace}}<span class="cal-place">{{.}}</span>{{end}}
         <span class="lvls">{{range .Levels}}<span class="lvl lvl-{{.Key}}">{{.Name}}</span>{{end}}</span>
         {{template "cal-lead" .}}

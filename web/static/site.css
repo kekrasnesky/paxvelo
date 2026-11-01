@@ -332,6 +332,13 @@ strong{font-weight:500}
 .cal-up-date{display:block;font-size:.78rem;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--ink)}
 .cal-none{margin:0!important;color:var(--ink)}
 .cal-place{display:block;color:#6b625b;font-size:.85rem;font-weight:400}
+/* A virtual ride's Zwift badge. In the calendar's day boxes only the Z shows. */
+.zwift{display:inline-flex;align-items:center;gap:.25em;vertical-align:-.2em;font-weight:500;color:#c4500f;white-space:nowrap}
+.zwift svg{flex:none;width:1.05em;height:1.05em}
+.cal-grid .zwift-text,.cal-pop .zwift-text,.virtual-where .zwift-text,.virtual-pick .zwift-text{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.cal-grid .zwift svg{width:1.15em;height:1.15em}
+.cal-ride.cancelled .zwift{filter:grayscale(1);opacity:.6}
+.virtual-where{display:flex;align-items:center;gap:.4rem}
 .cal-kind{display:inline-block;padding:0 .35rem;border-radius:3px;background:#5b7f95;color:#fff;font-size:.68rem;font-weight:500;letter-spacing:.03em;vertical-align:.1em}
 .cal-ride.cancelled .cal-kind{background:#999}
 /* Add to the calendar: a ride's pace groups and wording only for a ride. */

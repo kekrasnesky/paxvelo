@@ -19,6 +19,8 @@
     <label>Name <input name="name" value="{{.Form.Name}}" required maxlength="80" placeholder="Saturday coffee ride, or Holiday party"></label>
     <label><span>Where <span class="opt">optional</span></span> <input name="place" value="{{.Form.Place}}" maxlength="100" placeholder="Leonardtown Square"></label>
     <label><span><span class="ride-word">Pace or distance</span><span class="event-word">What it’s about</span> <span class="opt">optional</span></span> <input name="details" value="{{.Form.Details}}" maxlength="100" placeholder="Casual · 30 mi"></label>
+    <label class="check-row virtual-pick"><input type="checkbox" name="virtual"{{if .Form.IsVirtual}} checked{{end}}> <span>{{template "zwift"}} Virtual, on Zwift or an indoor trainer</span></label>
+    <input type="hidden" name="virtual_was" value="{{if .Form.IsVirtual}}1{{else}}0{{end}}"><input type="hidden" name="virtual_set" value="{{.Form.Virtual}}">
     <label class="ride-only"><span>Pace groups <span class="opt">each group gets its own leader</span></span> <select name="pace">{{$pace := paceOf .Form.Groups}}{{range paceChoices}}<option value="{{.Value}}"{{if eq .Value $pace}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>
     <label><span>Strava event link <span class="opt">optional, add it later if you like</span></span> <input type="url" name="strava_url" value="{{.Form.StravaURL}}" placeholder="https://www.strava.com/clubs/10197/group_events/…"></label>
     {{if .PINOn}}<label><span>Club PIN <span class="opt">optional</span></span> <input name="pin" maxlength="40" autocomplete="off" autocapitalize="off" spellcheck="false">
