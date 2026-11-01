@@ -70,7 +70,7 @@
         {{with .Meta}}<span class="cal-meta">{{.}}</span>{{end}}
       </a>{{end}}
     </li>
-    {{else}}{{with $.Data.NoDays}}<li class="cal-none">{{.}}</li>{{end}}
+    {{else}}{{with $.Data.NoDays}}<li class="cal-none">{{.}} <a href="/calendar?m={{$.Data.Next}}">Next month ›</a></li>{{end}}
     {{end}}
   </ol>
 </article>

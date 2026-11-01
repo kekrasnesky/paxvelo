@@ -25,8 +25,8 @@ main{flex:1 0 auto}
 
 /* Each page's content fades in gently as it opens; the header stays put. A page
    loaded ahead in the background waits to fade until it's shown (layout.html). */
-@keyframes pv-fade{from{opacity:0}}
-@media (prefers-reduced-motion:no-preference){main{animation:pv-fade .25s ease-out backwards}}
+@keyframes pv-fade{from{opacity:.4}}
+@media (prefers-reduced-motion:no-preference){main{animation:pv-fade .18s ease-out backwards}}
 .pre main{animation-play-state:paused}
 img,svg{display:block;max-width:100%}
 a{color:inherit;text-underline-offset:3px}
@@ -50,7 +50,7 @@ strong{font-weight:500}
 .nav>a,.dd-btn{padding:.4rem .7rem;border-radius:8px;white-space:nowrap;transition:background .15s}
 .nav a[aria-current],.dd-btn[data-current]{background:rgba(245,242,236,.14)}
 @media (hover:hover){.nav>a:hover,.dd-btn:hover{background:rgba(245,242,236,.14)}}
-.nav .nav-join{margin-left:6px;background:var(--red);font-weight:500}
+.nav .nav-join,.nav .nav-join[aria-current]{margin-left:6px;background:var(--red);font-weight:500}
 @media (hover:hover){.nav .nav-join:hover{background:#b3322f}}
 .nav .nav-admin{margin-left:4px;font-size:13px;opacity:.7}
 .dd{position:relative;align-self:stretch;display:flex;align-items:center}
@@ -73,6 +73,8 @@ strong{font-weight:500}
 .sponsors img{display:block;height:clamp(48px,6vw,64px);width:auto;max-width:180px}
 .ftr-mail{justify-self:end;font-size:.9rem;font-weight:500;text-decoration:none}
 .ftr-mail:hover{text-decoration:underline}
+.ftr-admin{display:none}
+.join-back{margin:.9rem 0 0!important;font-size:.95rem}
 .ftr .social a{width:34px;height:34px;border-width:1.5px}
 .ftr .social svg{width:16px;height:16px}
 
@@ -613,14 +615,19 @@ html:has(.gal-view[open]){overflow:hidden} /* the page behind stays put */
   .no-js .nav{flex-wrap:wrap;justify-content:flex-end;gap:.3rem .6rem;font-size:.9rem}
   .js .nav>a,.js .dd-btn{padding:.2rem .8rem}
   .js .nav .nav-join{margin:.4rem 0 0;padding:.5rem 1.6rem}
-  .js .nav .nav-admin{margin:0;font-size:1rem}
+  .js .nav .nav-admin{display:none}
+  .ftr-admin{display:inline-block;padding:.6rem 1rem;font-size:.85rem;opacity:.7;text-decoration:none}
+  .ftr-mail{display:inline-block;padding:.6rem 0}
+  .ftr .social a{width:44px;height:44px}
+  .join .btn,.lead-form .btn,.ride-manage-acts .btn{justify-self:stretch;width:100%}
+  .lead-form input[name=leader_name]{flex:1 1 100%}
   .dd{display:flex;flex-direction:column;align-items:center;align-self:auto}
   .dd-btn{gap:10px}
   .dd-btn svg{width:14px;height:9px}
   .dd-menu{position:static;min-width:0;padding:.3rem 0 0;border-radius:0;background:none;box-shadow:none;font-size:1.05rem;text-align:center}
   .dd:hover .dd-menu{display:none}
   .dd.open .dd-menu{display:block}
-  .dd-menu a{padding:.3rem 0}
+  .dd-menu a{padding:.65rem 0}
   .hero{min-height:360px}
   .hero-in{padding:48px var(--pad) 20px}
   .hero h1{font-size:2.1rem}

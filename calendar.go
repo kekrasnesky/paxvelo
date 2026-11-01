@@ -139,7 +139,7 @@ func (a *App) month(m string) calMonth {
 	switch {
 	case first.Before(today) && !thisMonth:
 		cm.NoDays = "No rides this month."
-	case thisMonth: // the upcoming rides above already show what's next
+	case thisMonth: // said below, once it's clear nothing's left this month
 	default:
 		cm.NoDays = "No rides on the calendar this month yet."
 	}
@@ -155,6 +155,9 @@ func (a *App) month(m string) calMonth {
 		if len(week) == 7 {
 			cm.Weeks, week = append(cm.Weeks, week), nil
 		}
+	}
+	if thisMonth && len(cm.Days) == 0 {
+		cm.NoDays = "Nothing else on the calendar this month."
 	}
 	return cm
 }
