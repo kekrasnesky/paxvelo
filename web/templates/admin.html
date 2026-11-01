@@ -254,7 +254,12 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
     <li><details><summary><span>Setup password</span><span class="sec-on">On</span></summary>
       <p class="muted small"><code>ADMIN_PASSWORD</code> in paxvelo.conf logs in as any admin: the emergency key for whoever runs the server. Change it there if it might be known.</p></details></li>
     <li><details><summary><span>Calendar API key</span><span class="sec-on{{if not .APIOn}} off{{end}}">{{if .APIOn}}On{{else}}Off{{end}}</span></summary>
-      <p class="muted small"><code>CALENDAR_API_KEY</code> in paxvelo.conf lets another program change rides. Anyone can read the calendar without it.</p></details></li>
+      <p class="muted small"><code>CALENDAR_API_KEY</code> in paxvelo.conf lets another program change rides. Anyone can read the calendar without it. The key is never shown here; use the value from paxvelo.conf in place of <code>$CALENDAR_API_KEY</code>.</p>
+      <p class="muted small">Import the club’s Strava events now (the same as <a href="/admin/rides">Import now</a> on the Rides tab):</p>
+      <pre class="small">curl -X POST {{.SiteURL}}/api/strava/sync -H "Authorization: Bearer $CALENDAR_API_KEY"</pre>
+      <p class="muted small">Read the rides as JSON (no key needed):</p>
+      <pre class="small">curl "{{.SiteURL}}/api/rides?from=2026-11-01&amp;to=2026-11-30"</pre>
+      <p class="muted small">Adding, changing and deleting rides is in README.md, “Calendar API”.</p></details></li>
     <li><details><summary><span>Members’ own links</span><span class="sec-on">On</span></summary>
       <p class="muted small">The private link in every club email opens only that member’s own details and dues.</p></details></li>
   </ul>
@@ -1438,6 +1443,23 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
 </div>
 {{if not .StravaReady}}<p class="flash warn">The Strava settings aren’t in paxvelo.conf yet, so the club’s Strava events aren’t imported. Rides added here or on the calendar still work. README.md, “Ride calendar”, explains the setup.</p>{{end}}
 
+<h2 class="section">Strava import</h2>
+{{with .StravaLink}}
+<div class="card">
+  <p>Connected as <strong>{{.Athlete}}</strong>. The club’s upcoming Strava events are added to the calendar every hour. Events that match a weekly ride (same day, and the same name or start time) are linked to it instead of added twice.</p>
+  <p class="small">{{with .LastSync}}Last checked {{datetime .}}.{{end}} {{with .LastResult}}{{.}}.{{end}}</p>
+  {{with .LastError}}<p class="flash err">The last import didn’t work: {{.}}</p>{{end}}
+  <div class="send-row">
+    <form method="post" action="/admin/strava/sync"><button>Import now</button></form>
+    <form method="post" action="/admin/strava/disconnect" onsubmit="return confirm('Stop importing Strava events? Events already on the calendar stay.')"><button class="link danger">Disconnect</button></form>
+  </div>
+</div>
+{{else}}
+<div class="card">
+  <p>Connect a Strava account that’s in the PaxVelo club (a club admin is best), and the club’s upcoming Strava events show up on the calendar automatically, every hour. Members can then sign up to lead them here.</p>
+  {{if .StravaReady}}<form method="post" action="/admin/strava/connect"><button>Connect Strava</button></form>{{else}}<p class="muted small">First add the Strava API settings to paxvelo.conf (README.md, “Ride calendar”).</p>{{end}}
+</div>
+{{end}}
 <h2 class="section">Coming up</h2>
 {{if .Held}}<div class="card held">
   <h2>Waiting for approval</h2>
@@ -1483,24 +1505,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   <button>{{icon "plus"}}Add weekly ride</button>
 </form>
 
-<h2 class="section">Import the club’s Strava events</h2>
-{{with .StravaLink}}
-<div class="card">
-  <p>Connected as <strong>{{.Athlete}}</strong>. The club’s upcoming Strava events are added to the calendar every hour. Events that match a weekly ride (same day, and the same name or start time) are linked to it instead of added twice.</p>
-  <p class="small">{{with .LastSync}}Last checked {{datetime .}}.{{end}} {{with .LastResult}}{{.}}.{{end}}</p>
-  {{with .LastError}}<p class="flash err">The last import didn’t work: {{.}}</p>{{end}}
-  <div class="send-row">
-    <form method="post" action="/admin/strava/sync"><button>Import now</button></form>
-    <form method="post" action="/admin/strava/disconnect" onsubmit="return confirm('Stop importing Strava events? Events already on the calendar stay.')"><button class="link danger">Disconnect</button></form>
-  </div>
-</div>
-{{else}}
-<div class="card">
-  <p>Connect a Strava account that’s in the PaxVelo club (a club admin is best), and the club’s upcoming Strava events show up on the calendar automatically, every hour. Members can then sign up to lead them here.</p>
-  {{if .StravaReady}}<form method="post" action="/admin/strava/connect"><button>Connect Strava</button></form>{{else}}<p class="muted small">First add the Strava API settings to paxvelo.conf (README.md, “Ride calendar”).</p>{{end}}
-</div>
-{{end}}
-<p class="muted small">Scripts can also add rides through the calendar API{{if not .APIEnabled}} (turned off until CALENDAR_API_KEY is set){{end}}. README.md, “Calendar API”, has examples.</p>
+<p class="muted small">Scripts can also add rides, or run the Strava import, through the calendar API{{if not .APIEnabled}} (turned off until CALENDAR_API_KEY is set){{end}}: the commands are under <a href="/admin/security">Security → Calendar API key</a>.</p>
 
 {{template "foot" .}}{{end}}
 
@@ -1509,7 +1514,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   <h1>Ride history</h1>
   <p class="muted">{{$h.Total}} club events from Strava{{with $h.Since}}. Who joined is saved from {{.}} on{{end}}.</p>
 </div>
-{{if not $h.Total}}<p class="flash warn">{{if $h.Connected}}The history is read from Strava once a day. Check back after the next import.{{else}}Connect Strava on the <a href="/admin/rides">Weekly rides</a> tab, and the club’s past events show here.{{end}}</p>
+{{if not $h.Total}}<p class="flash warn">{{if $h.Connected}}The history is read from Strava once a day. Check back after the next import.{{else}}Connect Strava on the <a href="/admin/rides">Rides</a> tab, and the club’s past events show here.{{end}}</p>
 {{else}}
 <p class="muted small">“Joined” means the rider pressed Join on the Strava event: a sign-up, not proof they rode. Strava keeps who joined for about 16 months, so the site saves each list after the ride and keeps it.{{if $h.Pending}} {{$h.Pending}} recent rides are still to be saved; that takes a few hours.{{end}} Only admins see this page.</p>
 <nav class="filter" aria-label="Year">
