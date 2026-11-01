@@ -40,14 +40,20 @@ type RideSeries struct {
 	SeasonEnd   string `json:"season_end,omitempty"`
 	// Its first and last dates (2026-11-04), for one added from the Add a ride
 	// page with "Repeat every week". Empty means no limit.
-	Starts  string `json:"starts,omitempty"`
-	Ends    string `json:"ends,omitempty"`
-	Kind    string `json:"kind,omitempty"`    // like CalRide.Kind
-	Virtual string `json:"virtual,omitempty"` // like CalRide.Virtual
+	Starts    string `json:"starts,omitempty"`
+	Ends      string `json:"ends,omitempty"`
+	Kind      string `json:"kind,omitempty"`       // like CalRide.Kind
+	Virtual   string `json:"virtual,omitempty"`    // like CalRide.Virtual
+	ZwiftLogo string `json:"zwift_logo,omitempty"` // like CalRide.ZwiftLogo
 }
 
-// IsVirtual reports whether the weekly ride is on Zwift (see CalRide.Virtual).
+// IsVirtual reports whether the weekly ride is virtual (see CalRide.Virtual).
 func (s RideSeries) IsVirtual() bool { return isVirtual(s.Virtual, s.Name, s.Place, s.Details) }
+
+// OnZwift reports whether it shows the Zwift logo (see CalRide.ZwiftLogo).
+func (s RideSeries) OnZwift() bool {
+	return s.IsVirtual() && isSetting(s.ZwiftLogo, guessZwift(s.Name, s.Place, s.Details))
+}
 
 // WeekdayName is the series' day, like Tuesday.
 func (s RideSeries) WeekdayName() string { return time.Weekday(s.Weekday).String() }
@@ -113,7 +119,11 @@ type CalRide struct {
 	// Virtual says whether it's ridden on Zwift or an indoor trainer: "yes"
 	// or "no" when someone ticked or unticked the box, and empty for
 	// automatic, from what its name and description say (see guessVirtual).
-	Virtual   string    `json:"virtual,omitempty"`
+	Virtual string `json:"virtual,omitempty"`
+	// ZwiftLogo says whether a virtual ride shows the Zwift logo: "no" for
+	// one on another app (Rouvy, a Zoom meeting), "yes", or empty for
+	// automatic (see guessZwift).
+	ZwiftLogo string    `json:"zwift_logo,omitempty"`
 	Leaders   []Leader  `json:"leaders,omitempty"`
 	External  string    `json:"external,omitempty"` // "strava:<event>:<date>", or an ID sent through the calendar API
 	Cancelled bool      `json:"cancelled,omitempty"`
@@ -221,23 +231,54 @@ func guessVirtual(texts ...string) bool {
 	return false
 }
 
-func isVirtual(setting string, texts ...string) bool {
+// otherApps are where a virtual ride can be instead of Zwift.
+var otherApps = []string{"rouvy", "mywhoosh", "whoosh", "trainerroad", "systm", "fulgaz", "kinomap", "bkool", "indievelo", "zoom", "teams", "meet"}
+
+// guessZwift reports whether a virtual ride is on Zwift: it is unless its
+// words name another app and not Zwift.
+func guessZwift(texts ...string) bool {
+	words := strings.FieldsFunc(strings.ToLower(strings.Join(texts, " ")), func(r rune) bool { return r < 'a' || r > 'z' })
+	if slices.Contains(words, "zwift") {
+		return true
+	}
+	for _, app := range otherApps {
+		if slices.Contains(words, app) {
+			return false
+		}
+	}
+	return true
+}
+
+// isSetting is a yes/no setting: "yes", "no", or empty for automatic.
+func isSetting(setting string, auto bool) bool {
 	switch setting {
 	case "yes":
 		return true
 	case "no":
 		return false
 	}
-	return guessVirtual(texts...)
+	return auto
+}
+
+func isVirtual(setting string, texts ...string) bool {
+	return isSetting(setting, guessVirtual(texts...))
 }
 
 // IsVirtual reports whether it's ridden on Zwift or an indoor trainer.
-func (c CalRide) IsVirtual() bool {
+func (c CalRide) IsVirtual() bool { return isVirtual(c.Virtual, c.texts()...) }
+
+// texts are the words it's guessed from.
+func (c CalRide) texts() []string {
 	texts := []string{c.Name, c.Place, c.Details}
 	if c.Strava != nil {
 		texts = append(texts, c.Strava.Description)
 	}
-	return isVirtual(c.Virtual, texts...)
+	return texts
+}
+
+// OnZwift reports whether a virtual ride shows the Zwift logo.
+func (c CalRide) OnZwift() bool {
+	return c.IsVirtual() && isSetting(c.ZwiftLogo, guessZwift(c.texts()...))
 }
 
 func (c CalRide) kind() eventKind {
@@ -572,7 +613,7 @@ func (s *Store) Rides(from, to time.Time) []RideOcc {
 			date := d.Format("2006-01-02")
 			if key := seriesKey(se.ID, date); !stored[key] {
 				out = append(out, RideOcc{Key: key, CalRide: CalRide{SeriesID: se.ID, Date: date, Time: se.Time,
-					Name: se.Name, Place: se.Place, Details: se.Details, StravaURL: se.StravaURL, Groups: append([]string(nil), se.Groups...), Level: se.Level, Kind: se.Kind, Virtual: se.Virtual}})
+					Name: se.Name, Place: se.Place, Details: se.Details, StravaURL: se.StravaURL, Groups: append([]string(nil), se.Groups...), Level: se.Level, Kind: se.Kind, Virtual: se.Virtual, ZwiftLogo: se.ZwiftLogo}})
 			}
 		}
 	}
@@ -629,7 +670,7 @@ func (s *Store) ride(key string, create bool) (*CalRide, error) {
 		return nil, errNoRide
 	}
 	r := &CalRide{SeriesID: id, Date: date, Time: se.Time, Name: se.Name, Place: se.Place, Details: se.Details, StravaURL: se.StravaURL,
-		Groups: append([]string(nil), se.Groups...), Level: se.Level, Kind: se.Kind, Virtual: se.Virtual, Added: time.Now().UTC()}
+		Groups: append([]string(nil), se.Groups...), Level: se.Level, Kind: se.Kind, Virtual: se.Virtual, ZwiftLogo: se.ZwiftLogo, Added: time.Now().UTC()}
 	if create {
 		s.d.NextRide = max(s.d.NextRide, 1)
 		r.ID = s.d.NextRide
@@ -756,6 +797,7 @@ func (s *Store) UpdateSeries(se RideSeries, from string) error {
 				follow(&r.Level, old.Level, se.Level)
 				follow(&r.Kind, old.Kind, se.Kind)
 				follow(&r.Virtual, old.Virtual, se.Virtual)
+				follow(&r.ZwiftLogo, old.ZwiftLogo, se.ZwiftLogo)
 				if slices.Equal(r.Groups, old.Groups) {
 					r.Groups = append([]string(nil), se.Groups...)
 					r.fitLeaders()

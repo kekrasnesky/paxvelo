@@ -203,7 +203,10 @@ details.more[open]{display:grid;gap:.6rem;padding-bottom:.8rem}
 .sec-list details p{padding:0 0 .7rem}
 .zwift{display:inline-flex;align-items:center;gap:.25em;vertical-align:-.2em;font-weight:500;color:#c4500f;font-size:.85rem}
 .zwift svg{flex:none;width:1.2em;height:1.1em}
-.virtual-check .zwift-text{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.virtual-tag{display:inline-block;padding:0 .35rem;border-radius:3px;background:#3d6f8f;color:#fff;font-size:.7rem;font-weight:500;vertical-align:.1em}
+.zwift-check{margin-left:1.6rem}
+form:not(:has(input[name=virtual]:checked)) .zwift-check{display:none}
+.zwift-check .zwift-text,.virtual-check .zwift-text{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
 .album-new{padding:1rem 1.5rem}
 .album-new summary{font-weight:500;cursor:pointer}
 .album-new .gal-tools{margin:.4rem 0 0}

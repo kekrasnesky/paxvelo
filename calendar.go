@@ -532,7 +532,7 @@ func (a *App) addRide(w http.ResponseWriter, r *http.Request) {
 		Name: cleanName(r.FormValue("name")), Place: cleanName(r.FormValue("place")),
 		Details: cleanName(r.FormValue("details")), StravaURL: strings.TrimSpace(r.FormValue("strava_url")), AddedBy: name,
 		Groups: groupsFor(r.FormValue("pace"), nil), Kind: kindFor(r.FormValue("kind")),
-		Virtual: r.FormValue("virtual_set"),
+		Virtual: r.FormValue("virtual_set"), ZwiftLogo: r.FormValue("zwift_set"),
 		// Anyone can type a name here, so unless they typed the club PIN
 		// (which says they're in the club) an admin approves the ride first.
 		Held: true,
@@ -540,10 +540,13 @@ func (a *App) addRide(w http.ResponseWriter, r *http.Request) {
 	if !c.IsRide() { // nobody leads pace groups at a meeting or a party
 		c.Groups = nil
 	}
-	if c.Virtual != "yes" && c.Virtual != "no" {
-		c.Virtual = ""
+	for _, s := range []*string{&c.Virtual, &c.ZwiftLogo} {
+		if *s != "yes" && *s != "no" {
+			*s = ""
+		}
 	}
 	c.Virtual = readVirtual(r, c.Virtual, c.Name, c.Place, c.Details)
+	c.ZwiftLogo = readZwiftLogo(r, c.ZwiftLogo, c.Name, c.Place, c.Details)
 	v := a.calBase(r)
 	v.Form, v.FormName = c, r.FormValue("leader_name")
 	var pinProblem string

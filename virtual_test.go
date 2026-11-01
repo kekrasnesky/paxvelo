@@ -45,7 +45,7 @@ func TestVirtualRides(t *testing.T) {
 	if n := strings.Count(cal, `class="zwift"`); n < 2 { // in its day, and in the list
 		t.Errorf("the calendar should show the Zwift badge: %d", n)
 	}
-	if page := do(t, h, nil, "GET", "/calendar/ride/"+z.Key, "", nil).Body.String(); !strings.Contains(page, "Virtual: ride it on Zwift") {
+	if page := do(t, h, nil, "GET", "/calendar/ride/"+z.Key, "", nil).Body.String(); !strings.Contains(page, "Virtual, on Zwift") {
 		t.Error("the ride page should say it's virtual")
 	}
 	if page := do(t, h, nil, "GET", "/calendar/ride/"+road.Key, "", nil).Body.String(); strings.Contains(page, `class="zwift"`) {
@@ -113,6 +113,32 @@ func TestVirtualRides(t *testing.T) {
 	}
 	if c := add("Thursday spin", true); !c.IsVirtual() || c.Virtual != "yes" {
 		t.Errorf("the box should make it virtual: %+v", c.Virtual)
+	}
+
+	// A virtual ride on another app shows "Virtual" without the Zwift logo:
+	// by itself when it names the app, or when the logo box is unticked.
+	rouvy, _ := a.store.AddRide(CalRide{Date: wed, Time: "19:30", Name: "Virtual ride on Rouvy"})
+	if o, _ := a.store.Ride(rouvy.Key); !o.IsVirtual() || o.OnZwift() {
+		t.Error("a Rouvy ride is virtual, without the Zwift logo")
+	}
+	if page := do(t, h, nil, "GET", "/calendar/ride/"+rouvy.Key, "", nil).Body.String(); strings.Contains(page, `class="zwift"`) || !strings.Contains(page, "Virtual: online or on an indoor trainer") {
+		t.Error("the Rouvy ride's page shouldn't show the Zwift logo")
+	}
+	v = base("Coffee Ride")
+	v.Set("virtual", "on")
+	v.Set("virtual_was", "1")
+	v.Set("zwift_was", "1") // the logo box unticked
+	if c := save(road.Key, v); c.ZwiftLogo != "no" || c.OnZwift() || !c.IsVirtual() {
+		t.Errorf("unticking the logo: %q", c.ZwiftLogo)
+	}
+	cal = do(t, h, nil, "GET", "/calendar?m="+wed[:7], "", nil).Body.String()
+	if !strings.Contains(cal, `class="virtual-tag"`) {
+		t.Error("a virtual ride without the logo should say Virtual on the calendar")
+	}
+	v.Set("zwift", "on")
+	v.Set("zwift_was", "0")
+	if c := save(road.Key, v); !c.OnZwift() {
+		t.Errorf("ticking the logo again: %q", c.ZwiftLogo)
 	}
 
 	// Weekly rides: the box is there too, and its dates follow.

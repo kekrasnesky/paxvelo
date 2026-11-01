@@ -339,6 +339,12 @@ strong{font-weight:500}
 .cal-grid .zwift svg{width:1.2em;height:1.1em}
 .cal-ride.cancelled .zwift{filter:grayscale(1);opacity:.6}
 .virtual-where{display:flex;align-items:center;gap:.4rem}
+.virtual-tag{display:inline-block;padding:0 .35rem;border-radius:3px;background:#3d6f8f;color:#fff;font-size:.68rem;font-weight:500;letter-spacing:.03em;vertical-align:.1em}
+.cal-ride.cancelled .virtual-tag{background:#999}
+/* The Zwift logo choice only matters for a virtual ride */
+.zwift-pick{margin-left:1.6rem}
+.zwift-pick .zwift-text{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+form:not(:has(input[name=virtual]:checked)) .zwift-pick{display:none!important}
 .cal-kind{display:inline-block;padding:0 .35rem;border-radius:3px;background:#5b7f95;color:#fff;font-size:.68rem;font-weight:500;letter-spacing:.03em;vertical-align:.1em}
 .cal-ride.cancelled .cal-kind{background:#999}
 /* Add to the calendar: a ride's pace groups and wording only for a ride. */
