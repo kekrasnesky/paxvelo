@@ -709,6 +709,39 @@ html:has(.gal-view[open]){overflow:hidden} /* the page behind stays put */
   .nl-dateline{font-size:.62rem;letter-spacing:.14em}
   .nl-cover img{aspect-ratio:4/3}
 }
+/* Wide screens (laptops and 16:9 monitors): the newsletter spreads out and
+   tightens up so more of an issue is on screen at once. */
+@media (min-width:1200px){
+  .nl{--np:40px;max-width:min(1480px,calc(100% - 32px));margin:20px auto;padding:20px var(--np) 32px}
+  .nl-mast{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;column-gap:2rem;padding-bottom:.6rem;text-align:left}
+  .nl-dateline{grid-column:1/-1}
+  .nl-name{margin:.3rem 0 0;font-size:clamp(2.6rem,3.6vw,3.6rem)}
+  .nl-tagline{margin:0 0 .35rem!important;max-width:34rem;text-align:right}
+  .nl-toc{padding:.5rem 0;font-size:.84rem}
+  .nl-cover{margin:.9rem 0 0!important}
+  .nl-cover img{aspect-ratio:auto;height:clamp(160px,20vh,240px)}
+  .nl-h{font-size:1.3rem}
+  .nl-h-big{font-size:clamp(1.7rem,2.2vw,2.1rem)}
+  .nl-sub{margin:.3rem 0 .6rem!important;font-size:1.05rem}
+  .nl-body{font-size:.98rem;line-height:1.5}
+  .nl p{margin-bottom:.7rem}
+  .nl-more{margin-top:.6rem!important}
+  .nl-feature{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:32px;padding:20px 0}
+  .nl-feature .nl-media img,.nl-notice .nl-media img{aspect-ratio:16/10;max-height:300px}
+  .nl-row{padding:20px 0}
+  .nl-row .nl-media img{aspect-ratio:16/10;max-height:200px}
+  .nl-card .nl-h{margin-bottom:.5rem}
+  .nl-card .nl-media{margin-bottom:.7rem}
+  .nl-sched,.nl-event,.nl-notice,.nl-share,.nl-gallery,.nl-insta{margin-top:20px;margin-bottom:20px}
+  .nl-sched{padding:.8rem 1.1rem .9rem}
+  .nl-cal{grid-template-columns:repeat(3,minmax(0,1fr));gap:0 1.6rem}
+  .nl-cal>li{padding:.5rem 0}
+  .nl-notice{padding:18px 24px}
+  .nl-event{padding:.8rem 1.1rem}
+  .nl-gallery{grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:6px}
+  .nl-insta{padding-top:20px}
+  .nl-close{margin-top:20px;padding-top:.8rem}
+}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 
 /* ---------- Button icons (icons.go) ---------- */
