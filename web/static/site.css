@@ -214,7 +214,9 @@ strong{font-weight:500}
 .nl figure{margin:0}
 .nl figcaption{margin-top:.45rem;font-family:var(--serif);font-size:.86rem;font-style:italic;line-height:1.45;color:#625955}
 .nl-cover{margin:1.4rem 0 0!important}
-.nl-cover img{display:block;width:100%;aspect-ratio:16/7;object-fit:cover;background:#e8e1d8}
+/* Photo shapes: close to what cameras take, so little is cut off. The admin's
+   framing tool previews these same shapes (FRAME_SHAPES in admin.html). */
+.nl-cover img{display:block;width:100%;aspect-ratio:2/1;object-fit:cover;background:#e8e1d8}
 .nl-media img,.nl-video{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;background:#e8e1d8}
 .nl-video{position:relative;color:#fff}
 .nl-video img{height:100%}
@@ -719,7 +721,7 @@ html:has(.gal-view[open]){overflow:hidden} /* the page behind stays put */
   .nl-tagline{margin:0 0 .35rem!important;max-width:34rem;text-align:right}
   .nl-toc{padding:.5rem 0;font-size:.84rem}
   .nl-cover{margin:.9rem 0 0!important}
-  .nl-cover img{aspect-ratio:auto;height:clamp(160px,20vh,240px)}
+  .nl-cover img{aspect-ratio:5/2;width:min(100%,125vh);margin:0 auto} /* at most half the screen tall, keeping its shape */
   .nl-h{font-size:1.3rem}
   .nl-h-big{font-size:clamp(1.7rem,2.2vw,2.1rem)}
   .nl-sub{margin:.3rem 0 .6rem!important;font-size:1.05rem}
@@ -727,9 +729,8 @@ html:has(.gal-view[open]){overflow:hidden} /* the page behind stays put */
   .nl p{margin-bottom:.7rem}
   .nl-more{margin-top:.6rem!important}
   .nl-feature{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:32px;padding:20px 0}
-  .nl-feature .nl-media img,.nl-notice .nl-media img{aspect-ratio:16/10;max-height:300px}
+  .nl-feature .nl-media img,.nl-notice .nl-media img,.nl-row .nl-media img,.nl-media .nl-video{aspect-ratio:3/2}
   .nl-row{padding:20px 0}
-  .nl-row .nl-media img{aspect-ratio:16/10;max-height:200px}
   .nl-card .nl-h{margin-bottom:.5rem}
   .nl-card .nl-media{margin-bottom:.7rem}
   .nl-sched,.nl-event,.nl-notice,.nl-share,.nl-gallery,.nl-insta{margin-top:20px;margin-bottom:20px}
