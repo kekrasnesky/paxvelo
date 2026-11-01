@@ -22,6 +22,22 @@ func TestPagesAndBoardAdmin(t *testing.T) {
 	if w := do(t, h, admin, "POST", "/admin/pages/rides.md", ct, body); !strings.Contains(w.Body.String(), "Not saved yet") {
 		t.Error("broken page edit wasn't refused")
 	}
+	// The live preview draws unsaved text in the site's layout, and says what's
+	// wrong with text that can't be saved, without changing the page.
+	ct, body = form(url.Values{"text": {"# Our Rides\n\nJust **typed**, not saved."}})
+	if w := do(t, h, admin, "POST", "/admin/pages/rides.md/preview", ct, body); w.Code != 200 || !strings.Contains(w.Body.String(), "<strong>typed</strong>") || !strings.Contains(w.Body.String(), `id="info-menu"`) || strings.Contains(w.Body.String(), "<script") {
+		t.Errorf("preview: %d", w.Code)
+	}
+	ct, body = form(url.Values{"text": {"no title"}})
+	if w := do(t, h, admin, "POST", "/admin/pages/rides.md/preview", ct, body); w.Code != 422 || w.Body.Len() == 0 {
+		t.Errorf("preview of a broken page: %d %q", w.Code, w.Body.String())
+	}
+	if strings.Contains(do(t, h, nil, "GET", "/rides", "", nil).Body.String(), "not saved") {
+		t.Error("the preview changed the page")
+	}
+	if w := do(t, h, nil, "POST", "/admin/pages/rides.md/preview", ct, body); w.Code != 401 {
+		t.Errorf("preview without logging in: %d", w.Code)
+	}
 	// Adding a page: it's live at its address straight away (no restart), last
 	// in the Info menu, and can be deleted again.
 	ct, body = form(url.Values{"title": {"Group Ride Etiquette"}, "menu": {"on"}})

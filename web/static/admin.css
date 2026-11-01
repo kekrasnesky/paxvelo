@@ -267,6 +267,24 @@ details.more[open]{display:grid;gap:.6rem;padding-bottom:.8rem}
 .seg button+button{border-left:0}
 .seg button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
 .mail-preview iframe{display:block;width:100%;max-width:600px;height:420px;margin:0 auto;border:1px solid var(--line);background:#f5f2ec}
+/* The page editor: the newsletter's toolbar and preview, with the page drawn
+   at full computer width and scaled down to fit (or at phone width). */
+.page-bar{gap:.4rem .8rem;padding:.5rem 0;background:#fff}
+@media (min-width:700px){.page-bar{position:sticky;top:0;z-index:2}}
+.page-bar>span{display:inline-flex;flex-wrap:wrap;gap:.25rem}
+.page-bar .ic{margin-right:.3rem}
+.page-bar .mail-photo{display:inline-flex;align-items:center}
+.page-bar select{width:auto;padding:.38rem .5rem;font:500 .82rem/1 var(--font);cursor:pointer}
+.page-editor textarea{min-height:60vh}
+.page-editor details summary{cursor:pointer}
+.page-editor details p{margin:.4rem 0 0}
+.preview-box{position:relative;height:calc(60vh + 3rem);overflow:hidden;border:1px solid var(--line);background:#f5f2ec}
+.mail-preview .preview-box iframe{position:absolute;top:0;left:0;max-width:none;margin:0;border:0;transform-origin:0 0;background:#fff}
+.page-preview .flash{margin:0}
+#link-box{width:min(30rem,calc(100vw - 2rem));padding:1.5rem;border:1px solid var(--line)}
+#link-box::backdrop{background:rgba(45,45,45,.45)}
+#link-box form{display:grid;gap:.75rem}
+#link-box .check{margin-top:.25rem}
 .tag-pres{border-color:var(--red);color:var(--red)}
 .opt{font-weight:300;color:var(--muted)}
 /* Tables with many columns: actions stack instead of running off the edge,

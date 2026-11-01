@@ -252,7 +252,7 @@ func (a *App) editPagePage(w http.ResponseWriter, r *http.Request) {
 		back(w, r, "/admin/pages")
 		return
 	}
-	v := adminView{Title: "Edit " + row.Title, Tab: "pages", Page: row, PageText: a.pageSource(row.File)}
+	v := adminView{Title: "Edit " + row.Title, Tab: "pages", Page: row, PageText: a.pageSource(row.File), Links: a.editorLinks()}
 	v.Flash, v.Error = flashFrom(r)
 	a.renderAdmin(w, r, http.StatusOK, "page-edit", v)
 }
@@ -265,7 +265,7 @@ func (a *App) savePage(w http.ResponseWriter, r *http.Request) {
 	}
 	text := strings.ReplaceAll(r.FormValue("text"), "\r\n", "\n")
 	if err := a.site.checkPage(row.File, text); err != nil {
-		v := adminView{Title: "Edit " + row.Title, Tab: "pages", Page: row, PageText: text,
+		v := adminView{Title: "Edit " + row.Title, Tab: "pages", Page: row, PageText: text, Links: a.editorLinks(),
 			Error: "Not saved yet, so the page is unchanged. Fix this and save again: " + err.Error()}
 		a.renderAdmin(w, r, http.StatusOK, "page-edit", v)
 		return
@@ -280,6 +280,53 @@ func (a *App) savePage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	back(w, r, "/admin/pages/"+row.File+"?ok=page-saved")
+}
+
+// previewPage answers the editor's live preview: the page as the site would
+// show it with the text typed so far (nothing is saved), or what's wrong with
+// the text. The editor shows it in a frame that runs no scripts.
+func (a *App) previewPage(w http.ResponseWriter, r *http.Request) {
+	row, ok := a.pageRow(r.PathValue("file"))
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+	text := strings.ReplaceAll(r.FormValue("text"), "\r\n", "\n")
+	b, err := a.site.previewPage(row.File, text, a.contentData())
+	if err != nil {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		w.Write([]byte(err.Error()))
+		return
+	}
+	// No scripts, and no fade-in: the preview redraws as people type. It's
+	// drawn as for a browser that runs scripts (the phone menu folded away),
+	// like nearly every visitor's.
+	b = scriptTag.ReplaceAll(b, nil)
+	b = bytes.Replace(b, []byte(`<html lang="en" class="no-js">`), []byte(`<html lang="en" class="js">`), 1)
+	b = bytes.Replace(b, []byte("</head>"), []byte("<style>*,*::before,*::after{animation:none!important;transition:none!important}</style></head>"), 1)
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write(b)
+}
+
+// scriptTag finds a page's scripts, which the preview leaves out.
+var scriptTag = regexp.MustCompile(`(?s)<script\b.*?</script>`)
+
+// editorLink is a page offered in the editor's link box.
+type editorLink struct{ Path, Title string }
+
+// editorLinks are the site's pages, for the editor's link box.
+func (a *App) editorLinks() []editorLink {
+	var out []editorLink
+	for _, p := range a.pageRows() {
+		if p.Path == "/" {
+			p.Title = "Home page"
+		}
+		out = append(out, editorLink{p.Path, p.Title})
+	}
+	return append(out, editorLink{"/calendar", "Ride Calendar"}, editorLink{"/routes", "Club Routes"}, editorLink{"/gallery", "Photo Gallery"},
+		editorLink{"/share-photos", "Share Your Photos"}, editorLink{"/membership", "Join / Membership"}, editorLink{"/newsletter", "Newsletter"})
 }
 
 func (a *App) resetPage(w http.ResponseWriter, r *http.Request) {

@@ -82,6 +82,7 @@ type adminView struct {
 	InstaFeed     []InstaPost
 	// Pages and Board tabs
 	Pages    []pageRow
+	Links    []editorLink // the page editor's link box
 	Page     pageRow
 	PageText string
 	Board    []BoardMember

@@ -319,23 +319,42 @@ func (s *Site) renderContent(d contentData) error {
 	s.pageList.Store(&list)
 	pages := map[string]*Page{}
 	for _, p := range list {
-		t := s.pageTpl["page"]
-		if p.Path == "/" {
-			t = s.pageTpl["home"]
+		b, err := s.pageHTML(p, d)
+		if err != nil {
+			return err
 		}
-		v := s.view(p.Path, p.Title, p)
-		v.Desc = p.Desc
-		if p.Path == "/" || p.People {
-			v.LD = s.clubLD(d.Board)
-		}
-		var buf bytes.Buffer
-		if err := t.ExecuteTemplate(&buf, "layout", v); err != nil {
-			return fmt.Errorf("content/%s: %w", p.File, err)
-		}
-		pages[p.Path] = &Page{Path: p.Path, html: buf.Bytes(), gz: gzipBytes(buf.Bytes()), etag: etag(buf.Bytes())}
+		pages[p.Path] = &Page{Path: p.Path, html: b, gz: gzipBytes(b), etag: etag(b)}
 	}
 	s.pages.Store(&pages)
 	return nil
+}
+
+// pageHTML draws one content page in the site's layout.
+func (s *Site) pageHTML(p *contentPage, d contentData) ([]byte, error) {
+	t := s.pageTpl["page"]
+	if p.Path == "/" {
+		t = s.pageTpl["home"]
+	}
+	v := s.view(p.Path, p.Title, p)
+	v.Desc = p.Desc
+	if p.Path == "/" || p.People {
+		v.LD = s.clubLD(d.Board)
+	}
+	var buf bytes.Buffer
+	if err := t.ExecuteTemplate(&buf, "layout", v); err != nil {
+		return nil, fmt.Errorf("content/%s: %w", p.File, err)
+	}
+	return buf.Bytes(), nil
+}
+
+// previewPage draws a page from text that hasn't been saved, exactly as the
+// site would show it, for the editor's live preview.
+func (s *Site) previewPage(file, text string, d contentData) ([]byte, error) {
+	p, err := parsePage(file, text, s.renderer(d))
+	if err != nil {
+		return nil, err
+	}
+	return s.pageHTML(p, d)
 }
 
 // serveContent serves the current version of a content page.

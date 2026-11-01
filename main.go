@@ -274,6 +274,7 @@ func (a *App) routes() http.Handler {
 	mux.Handle("POST /admin/pages/{file}/delete", a.auth(a.deletePage))
 	mux.Handle("POST /admin/pages/{file}", a.auth(a.savePage))
 	mux.Handle("POST /admin/pages/{file}/reset", a.auth(a.resetPage))
+	mux.Handle("POST /admin/pages/{file}/preview", a.auth(a.previewPage))
 	mux.Handle("GET /admin/board", a.auth(a.boardAdmin))
 	mux.Handle("POST /admin/board", a.auth(a.saveBoard))
 	mux.Handle("GET /admin/home-photos", a.auth(a.homePhotosAdmin))

@@ -1482,18 +1482,156 @@ t.addEventListener('input',function(){if(!own)a.value=t.value.toLowerCase().repl
 {{define "page-edit"}}{{template "head" .}}
 <p class="crumb"><a href="/admin/pages">← All pages</a></p>
 <div class="title-row"><h1>{{.Page.Title}}</h1><p><a href="{{.Page.Path}}" target="_blank" rel="noopener">View page</a></p></div>
-<form class="card new-issue" method="post" action="/admin/pages/{{.Page.File}}">
-  <label>Page text <textarea name="text" rows="24" id="page-text">{{.PageText}}</textarea></label>
-  <p class="muted small"># Title, ## section, **bold**, [link words](https://…), - list item. Leave a blank line between paragraphs.</p>
-  <div class="send-row"><button>{{icon "save"}}Save</button><label class="inline-label">Add a photo <input type="file" id="page-photo" accept="image/jpeg,image/png,image/webp"></label></div>
+<form class="card page-editor" method="post" action="/admin/pages/{{.Page.File}}" id="page-form">
+  <div class="mail-bar page-bar" role="toolbar" aria-label="Formatting" hidden>
+    <span><button type="button" class="ghost" data-do="bold" title="Bold (Ctrl+B)"><strong>B</strong></button><button type="button" class="ghost" data-do="italic" title="Italics (Ctrl+I)"><em>I</em></button></span>
+    <span><button type="button" class="ghost" data-do="h2" title="Starts a new section of the page">Section heading</button><button type="button" class="ghost" data-do="h3" title="A smaller heading. Several in a row sit side by side as columns">Small heading</button></span>
+    <span><button type="button" class="ghost" data-do="ul" title="Bulleted list">• List</button><button type="button" class="ghost" data-do="ol" title="Numbered list">1. List</button></span>
+    <span><button type="button" class="ghost" data-do="link" title="Link (Ctrl+K)">Link</button><label class="ghost mail-photo" title="Upload a photo and put it where the cursor is">Photo<input type="file" id="page-photo" accept="image/jpeg,image/png,image/webp"></label>
+      <select data-do="insert" aria-label="Insert" title="Ready-made pieces to fill in">
+        <option value="">Insert…</option>
+        <option value="columns">Two columns side by side</option>
+        <option value="facts">Ride details (Pace, Start…)</option>
+        <option value="button">A big button</option>
+        <option value="join">Join boxes with prices</option>
+        <option value="social">Social media icons</option>
+        <option value="instagram">Instagram posts</option>
+        <option value="note">A note only editors see</option>
+      </select></span>
+    <span><button type="button" class="ghost" data-do="undo" title="Undo (Ctrl+Z)">{{icon "undo"}}Undo</button><button type="button" class="ghost" data-do="redo" title="Redo (Ctrl+Y)">Redo</button></span>
+  </div>
+  <div class="mail-edit">
+    <div class="mail-write">
+      <label>Page text <textarea name="text" rows="26" id="page-text">{{.PageText}}</textarea></label>
+      <details class="muted small"><summary>Typing the marks yourself</summary>
+        <p><code># Title</code> (once, at the top) · <code>## Section</code> · <code>### Column</code> · <code>**bold**</code> · <code>*italics*</code> · <code>[words to click](https://…)</code> · <code>- list item</code> · <code>1. numbered item</code>. Leave a blank line between paragraphs. A link on a line by itself becomes a big button.</p>
+        <p>At the top, between the --- lines: <strong>menu:</strong> adds the page to the Info menu with that label (delete the line to take it out), and <strong>order:</strong> sets its place in the menu (a number).</p>
+      </details>
+    </div>
+    <div class="mail-preview page-preview" hidden>
+      <div class="mail-preview-top"><strong>Preview <span class="muted small">(updates as you type)</span></strong>
+        <span class="seg" role="group" aria-label="Preview size"><button type="button" class="ghost" data-size="desktop" aria-pressed="true">Computer</button><button type="button" class="ghost" data-size="phone" aria-pressed="false">Phone</button></span></div>
+      <p class="flash err" id="preview-err" hidden></p>
+      <div class="preview-box"><iframe id="preview" title="Preview of the page" sandbox="allow-same-origin"></iframe></div>
+    </div>
+  </div>
+  <div class="send-row"><button>{{icon "save"}}Save</button><span class="muted small" id="save-state" role="status"></span></div>
 </form>
+<dialog id="link-box" class="card">
+  <form method="dialog">
+    <h2>Add a link</h2>
+    <label>Words to click <input id="link-words" placeholder="Find a ride"></label>
+    <label class="check"><input type="radio" name="link-kind" value="page" checked> A page on this site</label>
+    <select id="link-page" aria-label="Page">{{range .Links}}<option value="{{.Path}}">{{.Title}}</option>{{end}}</select>
+    <label class="check"><input type="radio" name="link-kind" value="web"> Another website</label>
+    <input id="link-url" inputmode="url" autocomplete="off" placeholder="https://www.example.com" aria-label="Web address">
+    <label class="check"><input type="checkbox" id="link-button"> Show it as a big button</label>
+    <div class="send-row"><button value="ok">{{icon "check"}}Add link</button><button value="" class="link">Cancel</button></div>
+  </form>
+</dialog>
 {{if .Page.New}}<form class="footnote" method="post" action="/admin/pages/{{.Page.File}}/delete" onsubmit="return confirm('Delete the {{.Page.Title}} page? It comes off the website, and this can’t be undone.')"><button class="link danger">{{icon "trash"}}Delete this page</button></form>
 {{else if .Page.Edit}}<form class="footnote" method="post" action="/admin/pages/{{.Page.File}}/reset" onsubmit="return confirm('Undo all edits made here and go back to the GitHub version?')"><button class="link danger">{{icon "undo"}}Go back to the GitHub version</button></form>{{end}}
-<p class="muted small">At the top, between the --- lines: <strong>menu:</strong> adds the page to the Info menu with that label (delete the line to take it out), and <strong>order:</strong> sets its place in the menu (a number).</p>
 <script>
-document.getElementById('page-photo').addEventListener('change',function(){var f=this.files[0];if(!f)return;var fd=new FormData();fd.append('photo',f);
-fetch('/admin/pages/photo',{method:'POST',body:fd}).then(function(r){return r.json()}).then(function(j){if(j.error){alert(j.error);return}
-var t=document.getElementById('page-text'),p=t.selectionStart;t.value=t.value.slice(0,p)+'\n\n'+j.markdown+'\n\n'+t.value.slice(p);t.focus()})});
+// The page editor: a toolbar that types the formatting marks for you, a link
+// box, and a live preview drawn by the site itself (nothing is saved until Save).
+(function(){
+var form=document.getElementById('page-form'),t=document.getElementById('page-text'),tools=form.querySelector('.page-bar'),
+  state=document.getElementById('save-state'),saved=t.value,saving=false;
+tools.hidden=false;
+
+// Typing through execCommand keeps the browser's own undo (Ctrl+Z) working.
+function put(text,selFrom,selTo){t.focus();var s=t.selectionStart;
+  if(!document.execCommand||!document.execCommand('insertText',false,text))t.setRangeText(text,t.selectionStart,t.selectionEnd,'end');
+  if(selFrom!=null)t.setSelectionRange(s+selFrom,s+(selTo==null?selFrom:selTo));changed()}
+function sel(){return t.value.slice(t.selectionStart,t.selectionEnd)}
+// wrap puts marks around the selected words (or a sample to type over), or
+// takes them off again if they're already there.
+function wrap(mark,sample){var a=t.selectionStart,b=t.selectionEnd,v=t.value,m=mark.length;
+  if(a>=m&&v.slice(a-m,a)===mark&&v.slice(b,b+m)===mark&&(mark!=='*'||v.slice(a-2,a)!=='**')){t.setSelectionRange(a-m,b+m);put(v.slice(a,b),0,b-a);return}
+  var w=sel()||sample,lead=w.match(/^\s*/)[0],trail=w.match(/\s*$/)[0];w=w.trim();
+  put(lead+mark+w+mark+trail,lead.length+m,lead.length+m+w.length)}
+// wholeLines widens the selection to whole lines.
+function wholeLines(){var v=t.value,a=v.lastIndexOf('\n',t.selectionStart-1)+1,b=v.indexOf('\n',t.selectionEnd-(t.selectionEnd>t.selectionStart&&v[t.selectionEnd-1]==='\n'?1:0));
+  if(b<0)b=v.length;t.setSelectionRange(a,b);return v.slice(a,b)}
+function lines(fn){var out=wholeLines().split('\n').map(fn).join('\n');put(out,out.length)}
+function heading(hashes,sample){var text=wholeLines().replace(/^#+\s*/,'').trim()||sample;
+  var before=t.value.slice(0,t.selectionStart),gap=before===''||/\n\n$/.test(before)?'':/\n$/.test(before)?'\n':'\n\n';
+  put(gap+hashes+' '+text,gap.length+hashes.length+1,gap.length+hashes.length+1+text.length)}
+// block puts a ready-made piece on its own lines after the cursor's line.
+function block(text,pick){var v=t.value,e=v.indexOf('\n',t.selectionEnd);if(e<0)e=v.length;t.setSelectionRange(e,e);
+  var before=v.slice(0,e),gap=before===''?'':/\n\n$/.test(before)?'':/\n$/.test(before)?'\n':'\n\n',
+    after=/^\n\n/.test(v.slice(e))||e===v.length?'':v[e]==='\n'?'\n':'\n\n',i=pick?text.indexOf(pick):-1;
+  put(gap+text+after,i<0?gap.length+text.length:gap.length+i,i<0?null:gap.length+i+pick.length)}
+
+var inserts={
+  columns:'### First column\n\nWrite the first column here.\n\n### Second column\n\nWrite the second column here.',
+  facts:'- **Pace:** 18–20 mph\n- **Start:** Leonardtown Square\n- **Distance:** 30 miles',
+  join:'{membership-plans}',social:'{social-links}',instagram:'{instagram}',note:'<'+'!-- A note for other editors. It doesn’t show on the page. -->'};
+var acts={
+  bold:function(){wrap('**','bold words')},italic:function(){wrap('*','words in italics')},
+  h2:function(){heading('##','Section heading')},h3:function(){heading('###','Small heading')},
+  ul:function(){lines(function(l,i,all){return !l.trim()&&all.length>1?l:/^- /.test(l)?l.slice(2):'- '+l.replace(/^\d+\.\s+/,'')})},
+  ol:function(){var n=0;lines(function(l,i,all){return !l.trim()&&all.length>1?l:/^\d+\.\s/.test(l)?l.replace(/^\d+\.\s+/,''):(++n)+'. '+l.replace(/^- /,'')})},
+  link:openLink,
+  undo:function(){t.focus();document.execCommand('undo');changed()},redo:function(){t.focus();document.execCommand('redo');changed()}};
+tools.addEventListener('click',function(e){var b=e.target.closest('button[data-do]');if(b)acts[b.dataset.do]()});
+tools.querySelector('select[data-do=insert]').addEventListener('change',function(){var k=this.value;this.value='';if(!k)return;
+  if(k==='button'){openLink(true);return}
+  block(inserts[k],{columns:'First column',facts:'18–20 mph',note:'A note for other editors. It doesn’t show on the page.'}[k])});
+t.addEventListener('keydown',function(e){if(!(e.ctrlKey||e.metaKey)||e.altKey)return;var k=e.key.toLowerCase();
+  if(k==='b'){e.preventDefault();acts.bold()}else if(k==='i'){e.preventDefault();acts.italic()}else if(k==='k'){e.preventDefault();openLink()}});
+document.addEventListener('keydown',function(e){if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();form.requestSubmit?form.requestSubmit():form.submit()}});
+
+// The link box.
+var box=document.getElementById('link-box'),words=document.getElementById('link-words'),page=document.getElementById('link-page'),
+  url=document.getElementById('link-url'),asButton=document.getElementById('link-button'),kinds=box.querySelectorAll('input[name=link-kind]'),range;
+function kind(){return box.querySelector('input[name=link-kind]:checked').value}
+url.addEventListener('focus',function(){kinds[1].checked=true});page.addEventListener('focus',function(){kinds[0].checked=true});
+function openLink(button){range=[t.selectionStart,t.selectionEnd];words.value=sel().trim();url.value='';asButton.checked=button===true;kinds[0].checked=true;
+  if(!box.showModal){var w=prompt('Web address for the link','https://');if(w){words.value=words.value||w;url.value=w;kinds[1].checked=true;addLink()}return}
+  box.returnValue='';box.showModal();words.focus()}
+function addLink(){var href=kind()==='page'?page.value:url.value.trim(),label=words.value.trim();if(!href)return;
+  if(kind()==='web'&&!/^[a-z]+:/i.test(href))href=(href.indexOf('@')>0?'mailto:':'https://')+href;
+  if(!label)label=kind()==='page'?page.options[page.selectedIndex].text:href.replace(/^(https?:\/\/|mailto:)(www\.)?/,'').replace(/\/$/,'');
+  t.focus();t.setSelectionRange(range[0],range[1]);var md='['+label+']('+href+')';
+  if(asButton.checked)block(md);else put(md,md.length)}
+box.addEventListener('close',function(){if(box.returnValue==='ok')addLink();else t.focus()});
+
+// Photos upload right away and go in where the cursor is.
+document.getElementById('page-photo').addEventListener('change',function(){var f=this.files[0],input=this;if(!f)return;var fd=new FormData();fd.append('photo',f);
+  state.textContent='Uploading the photo…';
+  fetch('/admin/pages/photo',{method:'POST',body:fd}).then(function(r){return r.json()}).then(function(j){input.value='';if(j.error){state.textContent='';alert(j.error);return}
+    block(j.markdown,'Describe the photo');state.textContent='Photo added. Type a few words about what it shows in place of “Describe the photo”.'})
+  .catch(function(){input.value='';state.textContent='The photo didn’t upload. Check your connection and try again.'})});
+
+// Unsaved changes: say so, and warn before leaving the page.
+function changed(){var dirty=t.value!==saved;state.textContent=dirty?'Not saved yet':'';schedule()}
+t.addEventListener('input',changed);
+form.addEventListener('submit',function(){saving=true});
+window.addEventListener('beforeunload',function(e){if(!saving&&t.value!==saved){e.preventDefault();e.returnValue=''}});
+
+// The live preview, a moment after typing stops. It runs no scripts and
+// links in it don't go anywhere.
+var pane=form.querySelector('.page-preview'),frame=document.getElementById('preview'),err=document.getElementById('preview-err'),
+  holder=pane.querySelector('.preview-box'),timer,asked=0,size='desktop';
+if(!window.fetch||!('srcdoc' in frame))return;
+pane.hidden=false;
+function schedule(){clearTimeout(timer);timer=setTimeout(refresh,500)}
+function refresh(){var n=++asked,fd=new FormData();fd.append('text',t.value);
+  fetch(form.action+'/preview',{method:'POST',body:fd}).then(function(r){return r.text().then(function(b){return{ok:r.ok,body:b}})}).then(function(r){if(n!==asked)return;
+    if(!r.ok){err.textContent='This won’t save yet: '+r.body;err.hidden=false;return}
+    err.hidden=true;var d=frame.contentDocument,y=d&&d.defaultView?d.defaultView.scrollY:0;
+    frame.onload=function(){var d=frame.contentDocument;if(!d)return;d.defaultView.scrollTo(0,y);
+      d.addEventListener('click',function(e){if(e.target.closest('a,button'))e.preventDefault()},true);
+      d.addEventListener('submit',function(e){e.preventDefault()},true)};
+    frame.srcdoc=r.body}).catch(function(){})}
+function fit(){var w=holder.clientWidth,s=size==='phone'?Math.min(1,w/390):w/1200;
+  frame.style.width=(size==='phone'?390:1200)+'px';frame.style.transform='scale('+s+')';frame.style.height=(holder.clientHeight/s)+'px';
+  frame.style.left=size==='phone'?Math.max(0,(w-390*s)/2)+'px':'0'}
+pane.querySelector('.seg').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;size=b.dataset.size;
+  this.querySelectorAll('button').forEach(function(x){x.setAttribute('aria-pressed',x===b)});fit()});
+window.addEventListener('resize',fit);fit();refresh();
+})();
 </script>
 {{template "foot" .}}{{end}}
 
