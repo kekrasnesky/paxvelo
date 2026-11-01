@@ -607,6 +607,7 @@ func parseImport(r io.Reader) (rows []importRow, bad int, err error) {
 		"emergency contact": "ename", "emergency contact name": "ename",
 		"emergency phone": "ephone", "emergency contact phone": "ephone",
 		"years paid": "years", "last order date": "lastorder",
+		"customer since": "firstorder", "order count": "orders",
 		"joined": "joined", "member since": "joined", "created on": "created",
 		"status": "status", "accepts email marketing": "consent",
 	}
@@ -678,7 +679,7 @@ func parseImport(r io.Reader) (rows []importRow, bad int, err error) {
 		}
 		row.membership = plan != ""
 		seen := map[int]bool{}
-		for _, y := range yearRe.FindAllString(get("years")+" "+get("lastorder"), -1) {
+		for _, y := range yearRe.FindAllString(get("years")+" "+get("lastorder")+" "+get("firstorder"), -1) {
 			n, _ := strconv.Atoi(y)
 			if !seen[n] {
 				seen[n] = true
@@ -686,6 +687,18 @@ func parseImport(r io.Reader) (rows []importRow, bad int, err error) {
 			}
 		}
 		sort.Ints(row.PaidYears)
+		// Squarespace gives only the first and last order dates, but members
+		// pay once a year: when the order count covers every year between
+		// them, each of those years was paid.
+		if n, _ := strconv.Atoi(get("orders")); len(row.PaidYears) > 0 {
+			first, last := row.PaidYears[0], row.PaidYears[len(row.PaidYears)-1]
+			if n == last-first+1 && n > len(row.PaidYears) {
+				row.PaidYears = row.PaidYears[:0]
+				for y := first; y <= last; y++ {
+					row.PaidYears = append(row.PaidYears, y)
+				}
+			}
+		}
 		row.paidBefore = len(row.PaidYears) > 0
 		if row.Joined = importDate(get("joined")); row.Joined.IsZero() {
 			row.Joined = importDate(get("created"))
