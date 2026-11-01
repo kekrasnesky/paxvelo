@@ -110,6 +110,17 @@
     d.addEventListener('keydown',function(e){if(e.key==='Escape')closePop()});
   }
 
+  // A ride's Share button: the phone's share sheet, or else the link copied
+  var rideShare=d.querySelector('.ride-share');
+  if(rideShare&&(navigator.share||navigator.clipboard)){
+    rideShare.hidden=false;
+    rideShare.addEventListener('click',function(){
+      var url=location.href.split(/[?#]/)[0];
+      if(navigator.share)navigator.share({title:d.querySelector('h1').textContent,url:url}).catch(function(){});
+      else navigator.clipboard.writeText(url).then(function(){rideShare.lastChild.textContent='Link copied'});
+    });
+  }
+
   // Forms that ask first (step down, cancel a ride): the question is in
   // data-confirm, on the form or the button pressed, since the page's
   // security policy won't run onsubmit=""

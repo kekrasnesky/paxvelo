@@ -22,7 +22,7 @@
 {{with .LD}}<script type="application/ld+json">{{.}}</script>
 {{end}}{{block "head" .}}{{end}}
 <style>{{.CSS}}</style>
-<script type="speculationrules">{"prerender":[{"where":{"and":[{"href_matches":"/*"},{"not":{"href_matches":"/admin*"}},{"not":{"href_matches":"/unsubscribe*"}},{"not":{"href_matches":"/strava*"}},{"not":{"href_matches":"/calendar/new*"}},{"not":{"href_matches":"/files/*"}}]},"eagerness":"moderate"}]}</script>
+<script type="speculationrules">{"prerender":[{"where":{"and":[{"href_matches":"/*"},{"not":{"href_matches":"/admin*"}},{"not":{"href_matches":"/unsubscribe*"}},{"not":{"href_matches":"/strava*"}},{"not":{"href_matches":"/calendar/new*"}},{"not":{"href_matches":"/files/*"}},{"not":{"href_matches":"/*.ics"}}]},"eagerness":"moderate"}]}</script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>

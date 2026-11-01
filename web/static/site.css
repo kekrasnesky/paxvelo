@@ -313,6 +313,14 @@ strong{font-weight:500}
 .cal-up-map{display:block;width:100%;aspect-ratio:16/9;margin:0 0 .5rem;border-radius:6px;object-fit:cover;background:#f1ece5}
 .cal-up-date{display:block;font-size:.78rem;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--ink)}
 .cal-none{margin:0!important;color:var(--ink)}
+.cal-place{display:block;color:#6b625b;font-size:.85rem;font-weight:400}
+/* The home page's next rides ({upcoming-rides}); phones show three */
+.next-rides{margin:16px 0 0}
+.next-rides .cal-ride{height:100%;margin:0;padding:.65rem .9rem;border-radius:8px;border-left-width:5px;background:var(--card);box-shadow:0 1px 3px rgba(45,45,45,.08)}
+.next-rides .more{margin:.9rem 0 0}
+@media (max-width:767px){.next-rides li:nth-child(n+4){display:none}}
+.ride-tools{display:flex;flex-wrap:wrap;gap:.6rem;margin:1rem 0 0!important}
+@media (max-width:767px){.ride-tools .btn{flex:1 1 10rem}}
 .rider-bar{margin:0 0 1rem;padding:.5rem .9rem;border-radius:0 8px 8px 0;border-left:4px solid #fc4c02;background:#fff;color:var(--ink);font-size:.95rem}
 .cal-msg{margin:0 0 .8rem!important;padding:.6rem .9rem;border-radius:0 8px 8px 0;border-left:4px solid #2f6b3a;background:#fff;color:var(--ink);font-weight:500}
 .cal-err{border-color:var(--red)}

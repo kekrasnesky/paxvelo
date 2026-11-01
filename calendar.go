@@ -2,8 +2,10 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 	"net/url"
@@ -195,6 +197,54 @@ func (a *App) upcomingRides() ([]RideOcc, string) {
 	return nil, "No rides are scheduled yet."
 }
 
+// upcomingTpl is the home page's next rides, wherever a page says
+// {upcoming-rides}: the same cards as the calendar's upcoming rides, with
+// where each one starts. Phones show three (site.css).
+var upcomingTpl = template.Must(template.New("").Parse(`<div class="next-rides">
+{{if .Rides}}<ul class="cal-up-list">
+{{range .Rides}}<li><a class="cal-ride {{.Status}}" href="/calendar/ride/{{.Key}}">
+<span class="cal-up-date">{{.ShortDate}}</span>
+<span class="cal-time">{{.TimeLabel}}</span> {{.Name}}
+{{with .PublicPlace}}<span class="cal-place">{{.}}</span>{{end}}
+<span class="lvls">{{range .Levels}}<span class="lvl lvl-{{.Key}}">{{.Name}}</span>{{end}}</span>
+{{if or (eq .Status "open") (eq .Status "partial")}}<span class="cal-lead"><span class="cal-need">{{.LeaderSummary}}</span></span>{{end}}
+</a></li>
+{{end}}</ul>{{else}}<p class="cal-none">{{.Note}}</p>{{end}}
+<p class="more"><a href="/calendar">Full ride calendar</a></p>
+</div>`))
+
+func upcomingWidget(rides []RideOcc, note string) template.HTML {
+	var b bytes.Buffer
+	upcomingTpl.Execute(&b, struct {
+		Rides []RideOcc
+		Note  string
+	}{rides, note})
+	return template.HTML(b.String())
+}
+
+// upcomingLoop keeps the home page's next rides current. The content pages
+// are drawn ahead of time, so once a minute it draws them again if the list
+// has changed: a ride added or cancelled, a leader signed up, or a ride
+// rolled out.
+func (a *App) upcomingLoop(ctx context.Context) {
+	t := time.NewTicker(time.Minute)
+	defer t.Stop()
+	last := upcomingWidget(a.upcomingRides())
+	for {
+		select {
+		case <-t.C:
+			if now := upcomingWidget(a.upcomingRides()); now != last {
+				last = now
+				if err := a.rebuildContent(); err != nil {
+					log.Printf("redrawing the pages for the next rides: %v", err)
+				}
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
 // ridePage shows one ride and what the visitor can do with it.
 func (a *App) ridePage(w http.ResponseWriter, r *http.Request) {
 	o, ok := a.store.Ride(r.PathValue("key"))
@@ -205,6 +255,53 @@ func (a *App) ridePage(w http.ResponseWriter, r *http.Request) {
 	v := a.calBase(r)
 	a.rideRights(&v, o)
 	a.renderCal(w, http.StatusOK, "ride", "/calendar", o.Name, v)
+}
+
+// rideICS is one ride as a calendar file, for "Add to my calendar": phones
+// open it straight into their calendar app. A ride without a start time is
+// an all-day event; one with a time is down for two hours.
+func (a *App) rideICS(w http.ResponseWriter, r *http.Request) {
+	o, ok := a.store.Ride(r.PathValue("key"))
+	if !ok || (o.Held && !a.loggedIn(r)) {
+		a.site.notFound(w, r)
+		return
+	}
+	day, err := time.ParseInLocation("2006-01-02", o.Date, a.cfg.Location)
+	if err != nil {
+		a.site.notFound(w, r)
+		return
+	}
+	link := a.cfg.SiteURL + "/calendar/ride/" + o.Key
+	host := strings.TrimPrefix(strings.TrimPrefix(a.cfg.SiteURL, "https://"), "http://")
+	lines := []string{"BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//PaxVelo Cycling Club//Ride calendar//EN", "METHOD:PUBLISH", "BEGIN:VEVENT",
+		"UID:" + o.Key + "@" + host, "DTSTAMP:" + time.Now().UTC().Format("20060102T150405Z")}
+	if t, err := time.ParseInLocation("2006-01-02 15:04", o.Date+" "+o.Time, a.cfg.Location); err == nil {
+		lines = append(lines, "DTSTART:"+t.UTC().Format("20060102T150405Z"), "DTEND:"+t.Add(2*time.Hour).UTC().Format("20060102T150405Z"))
+	} else {
+		lines = append(lines, "DTSTART;VALUE=DATE:"+day.Format("20060102"), "DTEND;VALUE=DATE:"+day.AddDate(0, 0, 1).Format("20060102"))
+	}
+	lines = append(lines, "SUMMARY:"+icsText(o.Name))
+	member := a.loggedIn(r)
+	if p := o.PlaceFor(member); p != "" {
+		lines = append(lines, "LOCATION:"+icsText(p))
+	}
+	desc := link
+	if d := strings.TrimSpace(o.Details); d != "" {
+		desc = d + "\n\n" + link
+	}
+	lines = append(lines, "DESCRIPTION:"+icsText(desc), "URL:"+link)
+	if o.Cancelled {
+		lines = append(lines, "STATUS:CANCELLED")
+	}
+	lines = append(lines, "END:VEVENT", "END:VCALENDAR")
+	var b strings.Builder
+	for _, l := range lines {
+		b.WriteString(icsFold(l))
+	}
+	w.Header().Set("Content-Type", "text/calendar; charset=utf-8")
+	w.Header().Set("Content-Disposition", `inline; filename="paxvelo-ride.ics"`)
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Write([]byte(b.String()))
 }
 
 // spotView is one leader's spot on the ride page.
@@ -581,4 +678,26 @@ func (a *App) notifyRide(subject, body string, o RideOcc, group string) {
 		body += fmt.Sprintf("\n\n%s signed up on the website. If riders should RSVP on Strava, make sure the ride is posted there (%s).", l.Name, a.cfg.StravaURL)
 	}
 	a.mailer.Notify(subject, body)
+}
+
+// icsText escapes words for a calendar file.
+func icsText(s string) string {
+	return strings.NewReplacer(`\`, `\`, ";", `\;`, ",", `\,`, "\r\n", `\n`, "\n", `\n`, "\r", "").Replace(s)
+}
+
+// icsFold ends a calendar file line, folding it every 75 bytes as the format
+// asks, without splitting a character.
+func icsFold(l string) string {
+	var b strings.Builder
+	n := 0
+	for _, c := range l {
+		if k := len(string(c)); n+k > 75 {
+			b.WriteString("\r\n ")
+			n = 1
+		}
+		b.WriteRune(c)
+		n += len(string(c))
+	}
+	b.WriteString("\r\n")
+	return b.String()
 }

@@ -391,6 +391,15 @@ func (o RideOcc) LeaderSummary() string {
 	return fmt.Sprintf("Needs %d leaders", missing)
 }
 
+// PublicAddedBy is who added a one-off ride, for its public page: a
+// person's name or Strava, never "the calendar API".
+func (o RideOcc) PublicAddedBy() string {
+	if o.AddedBy == "the calendar API" {
+		return ""
+	}
+	return o.AddedBy
+}
+
 // ShortDate is the date as "Thu, Mar 4", for compact lists.
 func (o RideOcc) ShortDate() string {
 	t, err := time.Parse("2006-01-02", o.Date)

@@ -112,6 +112,7 @@ These words in curly brackets are filled in automatically from the club's settin
 | `{membership-plans}` | On a line by itself: the two Join boxes with prices |
 | `{social-links}` | On a line by itself: the Discord, Strava, Facebook, and Instagram icons |
 | `{instagram}` | On a line by itself: the Instagram posts picked on the admin's Instagram tab, and a Follow button |
+| `{upcoming-rides}` | On a line by itself: the next few rides from the calendar, with where they start and a link to the calendar |
 | `{level-social}`, `{level-intermediate}`, `{level-elite}`, `{level-intermediate-elite}` | On a line by itself: the ride's colored level tags with their speeds, like the calendar shows. `{level-intermediate-elite}` adds "depending on who turns out" |
 
 The dues amounts, PayPal links, and Strava and kit addresses themselves are server settings. Ask whoever looks after the server to change those.

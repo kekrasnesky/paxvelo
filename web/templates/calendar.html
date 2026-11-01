@@ -15,6 +15,7 @@
         {{with .Route}}{{if and .Shown .Map}}<img class="cal-up-map" src="{{.Map}}" alt="" loading="lazy">{{end}}{{end}}
         <span class="cal-up-date">{{.ShortDate}}</span>
         <span class="cal-time">{{.TimeLabel}}</span> {{.Name}}
+        {{with .PublicPlace}}<span class="cal-place">{{.}}</span>{{end}}
         <span class="lvls">{{range .Levels}}<span class="lvl lvl-{{.Key}}">{{.Name}}</span>{{end}}</span>
         {{template "cal-lead" .}}
         {{with .Meta}}<span class="cal-meta">{{.}}</span>{{end}}
@@ -63,6 +64,7 @@
       <h3>{{(index .Rides 0).DateLabel}}</h3>
       {{range .Rides}}<a class="cal-ride {{.Status}}" href="/calendar/ride/{{.Key}}">
         <span class="cal-time">{{.TimeLabel}}</span> {{.Name}}
+        {{with .PublicPlace}}<span class="cal-place">{{.}}</span>{{end}}
         <span class="lvls">{{range .Levels}}<span class="lvl lvl-{{.Key}}">{{.Name}}</span>{{end}}</span>
         {{template "cal-lead" .}}
         {{with .Meta}}<span class="cal-meta">{{.}}</span>{{end}}

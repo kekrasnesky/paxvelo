@@ -1643,7 +1643,7 @@ var host=document.getElementById('cards'),modeBar=form.querySelector('.ed-mode')
 try{if(localStorage.getItem('page-editor')==='text')mode='text'}catch(e){}
 var PIECES={'membership-plans':['Join boxes','The two Join boxes with the dues prices'],'social-links':['Social icons','The Discord, Strava, Facebook, and Instagram icons'],
   instagram:['Instagram posts','The Instagram posts picked on the Instagram tab, and a Follow button'],board:['Board members','The board members, edited on the Board tab'],
-  'home-photos':['Home page photos','The photo slideshow, edited on the Home photos tab']};
+  'home-photos':['Home page photos','The photo slideshow, edited on the Home photos tab'],'upcoming-rides':['Next rides','The next few rides from the calendar, with a link to it']};
 var LEVELS=[['level-social','Social'],['level-intermediate','Intermediate'],['level-elite','Elite'],['level-intermediate-elite','Intermediate or Elite, depending on who turns out']];
 var PH={strava:'the club’s Strava page',kit:'the team kit store',donate:'the donation link','dues-individual':'Individual dues amount','dues-family':'Family dues amount'};
 var linkG=/(!?)\[([^\]]*)\]\(\s*([^)\s]*)\s*\)/g,FACT=/^\*\*([^*]+?)(?::\*\*|\*\*:)\s*(.*)$/;
@@ -1846,7 +1846,7 @@ function caret(e,end){e.focus();var r=document.createRange();r.selectNodeContent
 
 // ---- Drawing the cards ----
 var KINDS=[['p','Paragraph'],['h2','Section heading',1],['photo','Photo'],['button','Button'],['list','List'],['facts','Ride details'],['cols','Columns',1],
-  ['membership-plans','Join boxes',1],['social-links','Social icons'],['instagram','Instagram posts',1],['level','Ride level'],['note','Note for editors']];
+  ['membership-plans','Join boxes',1],['social-links','Social icons'],['instagram','Instagram posts',1],['upcoming-rides','Next rides',1],['level','Ride level'],['note','Note for editors']];
 function render(focus,where){host.textContent='';host.appendChild(settingsCard());cards(doc.blocks,host,true);
   if(focus&&focus._focus){focus._focus(where);var c=focus._card;if(c&&c.scrollIntoView){var r=c.getBoundingClientRect();if(r.top<0||r.bottom>innerHeight)c.scrollIntoView({block:'center'})}}}
 function cards(arr,into,top){arr.forEach(function(b,i){if(b.type!=='title')into.appendChild(gap(arr,i,top));into.appendChild(card(arr,i,top))});into.appendChild(gap(arr,arr.length,top))}

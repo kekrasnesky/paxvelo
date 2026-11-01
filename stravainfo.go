@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"net/url"
 	"regexp"
 	"sort"
 	"strings"
@@ -143,13 +144,27 @@ func (o RideOcc) HiddenNotes(member bool) bool {
 	return o.Strava != nil && o.Strava.Description != "" && o.NotesFor(member) == ""
 }
 
-// DirectionsFor links to directions to the start, for this visitor.
+// DirectionsFor links to directions to the start, for this visitor: to the
+// exact spot when the Strava event has one, or else a map search for the
+// start's name, in Maryland unless it says where.
 func (o RideOcc) DirectionsFor(member bool) string {
-	if o.Strava == nil || o.Strava.Lat == 0 || (o.homeStart() && !member) {
+	if o.homeStart() && !member {
 		return ""
 	}
-	return fmt.Sprintf("https://www.google.com/maps/dir/?api=1&destination=%.6f,%.6f", o.Strava.Lat, o.Strava.Lng)
+	if o.Strava != nil && o.Strava.Lat != 0 {
+		return fmt.Sprintf("https://www.google.com/maps/dir/?api=1&destination=%.6f,%.6f", o.Strava.Lat, o.Strava.Lng)
+	}
+	place := strings.TrimSpace(o.Place)
+	if place == "" {
+		return ""
+	}
+	if !inStateRE.MatchString(place) {
+		place += ", Maryland"
+	}
+	return "https://www.google.com/maps/search/?api=1&query=" + url.QueryEscape(place)
 }
+
+var inStateRE = regexp.MustCompile(`(?i)\b(MD|Maryland|VA|Virginia|DC|DE|Delaware|PA)\b`)
 
 // Meta is the short line of facts under a ride in calendar lists.
 func (o RideOcc) Meta() string {

@@ -42,10 +42,15 @@ type contentData struct {
 	Board      []BoardMember
 	HomePhotos []HomePhoto
 	Pages      map[string]string // file name → text edited in the admin
+	// Upcoming is the next few rides, for {upcoming-rides}, and what to say
+	// when there are none.
+	Upcoming     []RideOcc
+	UpcomingNote string
 }
 
 func (a *App) contentData() contentData {
 	d := contentData{Instagram: a.store.Instagram(), InstaFeed: a.store.InstaFeed(), Board: a.store.Board(), HomePhotos: a.store.HomePhotos(), Pages: map[string]string{}}
+	d.Upcoming, d.UpcomingNote = a.upcomingRides()
 	for file, e := range a.store.PageEdits() {
 		d.Pages[file] = e.Text
 	}

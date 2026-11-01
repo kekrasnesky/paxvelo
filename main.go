@@ -67,6 +67,7 @@ func main() {
 	go app.stravaSyncLoop(ctx)
 	go app.instagramSyncLoop(ctx)
 	go app.stats.run(ctx)
+	go app.upcomingLoop(ctx)
 	go app.sizeOldPhotos()
 
 	srv := &http.Server{
@@ -160,6 +161,7 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("GET /calendar/new", a.newRidePage)
 	mux.HandleFunc("POST /calendar/new", a.addRide)
 	mux.HandleFunc("GET /calendar/ride/{key}", a.ridePage)
+	mux.HandleFunc("GET /calendar/ride/{key}/calendar.ics", a.rideICS)
 	mux.HandleFunc("POST /calendar/ride/{key}/lead", a.leadRide)
 	mux.HandleFunc("POST /calendar/ride/{key}/stepdown", a.stepDown)
 	mux.HandleFunc("POST /calendar/ride/{key}/strava", a.setRideStrava)

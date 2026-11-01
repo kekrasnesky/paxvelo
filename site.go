@@ -231,6 +231,7 @@ func newSite(cfg Config) (*Site, error) {
 	md.widgets["instagram"] = instagramWidget(nil, nil)
 	md.widgets["board"] = boardWidget(nil)
 	md.widgets["home-photos"] = homePhotosWidget(defaultHomePhotos())
+	md.widgets["upcoming-rides"] = upcomingWidget(nil, "No rides are scheduled yet.")
 	s.md, s.content = md, content
 	pages, err := loadContent(content, nil, md)
 	if err != nil {
@@ -280,6 +281,9 @@ func (s *Site) renderer(d contentData) *mdRenderer {
 	md.widgets["instagram"] = instagramWidget(d.Instagram, d.InstaFeed)
 	md.widgets["board"] = boardWidget(d.Board)
 	md.widgets["home-photos"] = homePhotosWidget(d.HomePhotos)
+	if d.Upcoming != nil || d.UpcomingNote != "" {
+		md.widgets["upcoming-rides"] = upcomingWidget(d.Upcoming, d.UpcomingNote)
+	}
 	return &md
 }
 
