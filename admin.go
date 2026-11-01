@@ -31,6 +31,7 @@ type adminView struct {
 	Guide                             *guideView     // the How the site works page
 	Stats                             *statsView     // the Stats page
 	CSS                               template.CSS
+	PhotoJS                           template.JS // photos.js: photos shrink before they upload
 	Year                              int
 	// Members tab
 	Q, Dues       string // search text; dues filter: "", "paid", "unpaid"
@@ -202,7 +203,7 @@ func (a *App) auth(h http.HandlerFunc) http.Handler {
 }
 
 func (a *App) renderAdmin(w http.ResponseWriter, r *http.Request, status int, name string, v adminView) {
-	v.CSS, v.SiteURL = a.site.adminCSS, a.cfg.SiteURL
+	v.CSS, v.SiteURL, v.PhotoJS = a.site.adminCSS, a.cfg.SiteURL, a.site.photoJS
 	v.Me, _ = a.adminName(r)
 	if v.Tab != "" {
 		v.Nav = adminNavFor(v.Tab, len(a.attention()))

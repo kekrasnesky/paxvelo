@@ -22,6 +22,9 @@
 {{end}}
 
 {{define "foot"}}</main>
+<script>{{.PhotoJS}}
+shrinkPicked();
+</script>
 <script>
 // Ctrl+S (Cmd+S on a Mac) presses the Save button of the form you're typing
 // in. Only Save buttons, so it never sends or deletes anything; pages with
@@ -55,10 +58,12 @@ function framerHTML(url,field,strip){url=esc(url);
 function uploadPhotos(files,status,done){
   files=Array.prototype.filter.call(files,function(f){return /^image\//.test(f.type)});
   if(!files.length){status.textContent='Choose a JPG, PNG, or WebP photo.';return}
+  status.textContent='Getting '+(files.length>1?'the photos':'the photo')+' ready…';
+  Promise.all(files.map(function(f){return shrinkPhoto(f)})).then(function(files){ // dropped photos haven't been made smaller yet
   var fd=new FormData();files.forEach(function(f){fd.append('photos',f)});
   status.textContent='Uploading '+(files.length>1?files.length+' photos':'the photo')+'…';
   fetch('/admin/newsletter/photos',{method:'POST',body:fd}).then(function(r){return r.json()}).then(function(j){
-    status.textContent=j.error||'';done(j.urls||[])}).catch(function(){status.textContent='The upload didn’t work. Check your connection and try again.'})}
+    status.textContent=j.error||'';done(j.urls||[])}).catch(function(){status.textContent='The upload didn’t work. Check your connection and try again.'})})}
 function dropZone(el,onFiles){
   el.addEventListener('dragover',function(e){e.preventDefault();el.classList.add('dragging')});
   el.addEventListener('dragleave',function(e){if(!el.contains(e.relatedTarget))el.classList.remove('dragging')});
@@ -888,18 +893,7 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
   var f=document.querySelector('.gal-upload');
   if(!f||!window.FormData||!window.fetch)return;
   var input=f.querySelector('input[type=file]'),btn=f.querySelector('button'),msg=f.querySelector('.gal-up-msg'),MAX=200,SIDE=2000,EACH=10;
-  function shrink(file){
-    return new Promise(function(done){
-      if(!/^image\/(jpeg|png|webp)$/.test(file.type)||!window.createImageBitmap)return done(file);
-      createImageBitmap(file,{imageOrientation:'from-image'}).then(function(bmp){
-        var k=Math.min(1,SIDE/Math.max(bmp.width,bmp.height));
-        if(k===1&&file.size<1.5e6){if(bmp.close)bmp.close();return done(file)}
-        var c=document.createElement('canvas');c.width=Math.round(bmp.width*k);c.height=Math.round(bmp.height*k);
-        c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);if(bmp.close)bmp.close();
-        c.toBlob(function(b){done(b&&b.size<file.size?new File([b],file.name.replace(/\.\w+$/,'')+'.jpg',{type:'image/jpeg'}):file)},'image/jpeg',.85);
-      }).catch(function(){done(file)});
-    });
-  }
+  function shrink(file){return shrinkPhoto(file,SIDE)}
   f.addEventListener('submit',function(e){
     e.preventDefault();
     var files=[].slice.call(input.files),added=0,skipped=[],i=0,here=location.pathname;
@@ -2088,7 +2082,7 @@ function pick(label,done,msg,img){var f=el('input',{type:'file',accept:'image/jp
 function upload(file,done,msg,failed){var fd=new FormData();fd.append('photo',file);say('Uploading the photo…');
   function say(text,bad){var m=msg||state;m.textContent=text;m.classList.toggle('err-text',!!bad);if(bad&&!msg)alert(text)}
   function fail(text){say(text,true);if(failed)failed()}
-  if(file.size>8<<20){fail('That photo is over 8 MB. Make it smaller at squoosh.app and try again.');return}
+  if(file.size>20<<20){fail('That photo is over 20 MB. Make it smaller at squoosh.app and try again.');return}
   fetch('/admin/pages/photo',{method:'POST',body:fd}).then(function(r){
       if((r.headers.get('Content-Type')||'').indexOf('json')<0)throw new Error(r.redirected?'login':'server');return r.json()})
     .then(function(j){if(j.error){fail('That photo didn’t upload: '+j.error);return}say('');done(/\]\(([^)]*)\)$/.exec(j.markdown)[1])})

@@ -60,6 +60,7 @@ type Site struct {
 	newsDay     time.Time        // and the day, since rides move into the past
 	css         template.CSS
 	js          template.JS
+	photoJS     template.JS // photos.js, for the admin pages
 	adminCSS    template.CSS
 	version     string
 	notFound404 []byte
@@ -136,6 +137,12 @@ func newSite(cfg Config) (*Site, error) {
 	if err != nil {
 		return nil, err
 	}
+	photoJS, err := read("photos.js") // shrinking photos before upload, for the public pages and the admin
+	if err != nil {
+		return nil, err
+	}
+	js = photoJS + "\n" + js
+	s.photoJS = template.JS(photoJS)
 	adminCSS, err := read("admin.css")
 	if err != nil {
 		return nil, err

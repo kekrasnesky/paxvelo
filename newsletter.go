@@ -629,7 +629,9 @@ func (a *App) newsletterPage(w http.ResponseWriter, r *http.Request) {
 
 // ---- Photos uploaded in the admin ----
 
-const maxPhoto = 8 << 20
+// maxPhoto is the most one photo can be. Pages shrink photos before they
+// upload (web/static/photos.js), so this is for the rare one that couldn't be.
+const maxPhoto = 20 << 20
 
 var photoTypes = map[string]string{"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/gif": ".gif"}
 
@@ -661,7 +663,7 @@ func readPhotoFile(hdr *multipart.FileHeader) ([]byte, string, error) {
 		return nil, "", err
 	}
 	if len(b) > maxPhoto {
-		return nil, "", fmt.Errorf("%s is over 8 MB. Make it smaller at squoosh.app and try again", hdr.Filename)
+		return nil, "", fmt.Errorf("%s is over 20 MB. Make it smaller at squoosh.app and try again", hdr.Filename)
 	}
 	ext, ok := photoTypes[http.DetectContentType(b)]
 	if !ok {

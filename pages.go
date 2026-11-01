@@ -352,7 +352,7 @@ func (a *App) pagePhoto(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(m)
 	}
 	if err := r.ParseMultipartForm(maxPhoto + (1 << 20)); err != nil {
-		reply(http.StatusBadRequest, map[string]string{"error": "That photo is over 8 MB. Make it smaller at squoosh.app and try again."})
+		reply(http.StatusBadRequest, map[string]string{"error": "That photo is over 20 MB. Make it smaller at squoosh.app and try again."})
 		return
 	}
 	u, err := a.savePhoto(r, "photo")

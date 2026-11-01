@@ -281,18 +281,7 @@
     // "Something else…" asks for the new album's name
     function showNew(){named.hidden=album.value!=='new'}
     if(album&&named){album.addEventListener('change',function(){showNew();if(!named.hidden)named.querySelector('input').focus()});showNew()}
-    function shrink(file){
-      return new Promise(function(done){
-        if(!/^image\/(jpeg|png|webp)$/.test(file.type)||!window.createImageBitmap)return done(file);
-        createImageBitmap(file,{imageOrientation:'from-image'}).then(function(bmp){
-          var k=Math.min(1,SIDE/Math.max(bmp.width,bmp.height));
-          if(k===1&&file.size<1.5e6){if(bmp.close)bmp.close();return done(file)}
-          var c=d.createElement('canvas');c.width=Math.round(bmp.width*k);c.height=Math.round(bmp.height*k);
-          c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);if(bmp.close)bmp.close();
-          c.toBlob(function(b){done(b&&b.size<file.size?new File([b],file.name.replace(/\.\w+$/,'')+'.jpg',{type:'image/jpeg'}):file)},'image/jpeg',.85);
-        }).catch(function(){done(file)});
-      });
-    }
+    function shrink(file){return shrinkPhoto(file,SIDE)} // photos.js
     share.addEventListener('submit',function(e){
       e.preventDefault();
       if(busy)return;
