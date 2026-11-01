@@ -395,6 +395,7 @@ details.more[open]{display:grid;gap:.6rem;padding-bottom:.8rem}
   .ed-menu button{padding:.75rem .6rem}
 }
 #link-box{width:min(30rem,calc(100vw - 2rem));padding:1.5rem;border:1px solid var(--line)}
+#link-box:not([open]){display:none}
 #link-box::backdrop{background:rgba(45,45,45,.45)}
 #link-box form{display:grid;gap:.75rem}
 #link-box .check{margin-top:.25rem}
