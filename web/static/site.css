@@ -440,8 +440,17 @@ td:hover .cal-add,.cal-add:focus-visible{opacity:1}
 }
 
 /* ---------- Buttons and forms ---------- */
-.btn{display:inline-block;padding:.75rem 1.3rem;border:0;border-radius:8px;background:var(--red);color:var(--paper);font:500 .95rem/1.2 var(--font);text-decoration:none;cursor:pointer;transition:background .15s}
-.btn:hover{background:#82211f}
+.btn{display:inline-block;padding:.75rem 1.3rem;border:0;border-radius:8px;background:var(--red);color:var(--paper);font:500 .95rem/1.2 var(--font);text-decoration:none;cursor:pointer;transition:background .15s,transform .1s}
+@media (hover:hover){.btn:hover{background:#82211f}}
+.btn:focus-visible{outline-color:var(--ink)} /* the text color, cream, would vanish against the page */
+/* Tap feedback: phones never show hover, so buttons press in and links in
+   lists darken for the moment a finger is on them */
+.btn,.plan,.nav a,.dd-btn,.cal-nav a,.cal-add,.cal-ride,.social a,.strip-btn,.share-x,.gal-view button,.gal-view a,.albums a,.gal a{-webkit-tap-highlight-color:transparent}
+.btn:active,.plan:active,.cal-nav a:active,.cal-add:active,.social a:active,.share-x:active,.gal-view button:active,.gal-view a:active{transform:scale(.96)}
+.nav>a:active,.dd-btn:active,.dd-menu a:active{background:rgba(245,242,236,.22)}
+.cal-ride:active{background:#efe4d8}
+.albums a:active img,.gal a:active img{opacity:.75}
+.strip-btn:active{background:var(--red)}
 .btn:disabled{opacity:.6;cursor:wait}
 .join{display:grid;gap:.9rem;max-width:36rem;margin-top:1.2rem}
 .pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(13rem,1fr));gap:.9rem}
