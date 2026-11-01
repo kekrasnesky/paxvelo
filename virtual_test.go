@@ -154,3 +154,26 @@ func TestVirtualRides(t *testing.T) {
 		t.Error("a weekly Zwift ride's dates are virtual")
 	}
 }
+
+// A virtual ride is open to every level, and the admin calendar shows the
+// same badge and levels as the public one.
+func TestVirtualRideLevelsAndAdminCalendar(t *testing.T) {
+	a, h, _ := rideApp(t)
+	rec := httptest.NewRecorder()
+	a.setSession(rec, "Board Member", 3600)
+	admin := rec.Result().Cookies()[0]
+	wed := nextWeekday(a, time.Wednesday)
+	z, _ := a.store.AddRide(CalRide{Date: wed, Time: "18:00", Name: "Wednesday Night Zwift"})
+	set, _ := a.store.AddRide(CalRide{Date: wed, Time: "19:00", Name: "Zwift race", Level: "elite"})
+	o, _ := a.store.Ride(z.Key)
+	if got := len(o.Levels()); got != 3 {
+		t.Errorf("a virtual ride is for all levels: %d", got)
+	}
+	if o, _ := a.store.Ride(set.Key); len(o.Levels()) != 1 {
+		t.Error("a level set by an admin still wins")
+	}
+	page := do(t, h, admin, "GET", "/admin/calendar?m="+wed[:7], "", nil).Body.String()
+	if !strings.Contains(page, `class="zwift"`) || !strings.Contains(page, `lvl lvl-social`) {
+		t.Error("the admin calendar should show the Zwift badge and levels")
+	}
+}

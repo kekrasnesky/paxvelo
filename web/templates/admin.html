@@ -1595,7 +1595,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
 {{define "level-select"}}<fieldset class="levels">
     <legend>Level</legend>
     <div class="level-opts">{{range levelBoxes .}}<label class="check"><input type="checkbox" name="level" value="{{.Key}}"{{if .Checked}} checked{{end}}><span class="lvl lvl-{{.Key}}">{{.Name}}</span><span class="muted small">{{.MPH}}</span></label>{{end}}</div>
-    <p class="muted small">Tick one, or two if it depends on who turns out. Tick none and it’s worked out from the ride’s name (like ThNR or SuMR), then the pace on its Strava event, and otherwise Intermediate.</p>
+    <p class="muted small">Tick one, or two if it depends on who turns out. Tick none and it’s all three for a virtual ride, otherwise worked out from the ride’s name (like ThNR or SuMR), then the pace on its Strava event, and otherwise Intermediate.</p>
   </fieldset>{{end}}
 
 {{define "series"}}{{template "head" .}}{{$f := .SeriesForm}}
@@ -1631,11 +1631,11 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   <thead><tr><th>Sun</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th></tr></thead>
   <tbody>{{range $m.Weeks}}<tr>{{range .}}<td class="{{if not .InMonth}}out {{end}}{{if .Today}}today {{end}}{{if .Past}}past{{end}}">
     <div class="cal-day"><span>{{.Day}}</span>{{if not .Past}}<a href="/admin/rides/new?date={{.Date}}" aria-label="Add a ride on {{.Date}}">+</a>{{end}}</div>
-    {{range .Rides}}<a class="cal-ride {{.Status}}" href="/admin/rides/{{.Key}}"><span class="muted">{{.TimeLabel}}</span> {{.Name}}<span class="cal-lead">{{.LeaderSummary}}</span></a>{{end}}
+    {{range .Rides}}<a class="cal-ride {{.Status}}" href="/admin/rides/{{.Key}}">{{if .IsVirtual}}{{template "virtual-badge" .}} {{end}}<span class="muted">{{.TimeLabel}}</span> {{.Name}}{{if not .IsRide}} <span class="cal-kind">{{.KindName}}</span>{{end}}<span class="lvls">{{range .Levels}}<span class="lvl lvl-{{.Key}}">{{.Name}}</span>{{end}}</span><span class="cal-lead">{{.LeaderSummary}}</span></a>{{end}}
   </td>{{end}}</tr>{{end}}</tbody>
 </table></div>
 <ol class="cal-list">{{range $m.Days}}<li><h3>{{(index .Rides 0).DateLabel}}</h3>
-  {{range .Rides}}<a class="cal-ride {{.Status}}" href="/admin/rides/{{.Key}}"><span class="muted">{{.TimeLabel}}</span> {{.Name}}<span class="cal-lead">{{.LeaderSummary}}</span></a>{{end}}</li>
+  {{range .Rides}}<a class="cal-ride {{.Status}}" href="/admin/rides/{{.Key}}">{{if .IsVirtual}}{{template "virtual-badge" .}} {{end}}<span class="muted">{{.TimeLabel}}</span> {{.Name}}{{if not .IsRide}} <span class="cal-kind">{{.KindName}}</span>{{end}}<span class="lvls">{{range .Levels}}<span class="lvl lvl-{{.Key}}">{{.Name}}</span>{{end}}</span><span class="cal-lead">{{.LeaderSummary}}</span></a>{{end}}</li>
   {{else}}<li class="empty">{{$m.NoDays}}</li>{{end}}</ol>
 {{template "foot" .}}{{end}}
 

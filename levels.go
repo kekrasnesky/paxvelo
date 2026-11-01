@@ -12,7 +12,7 @@ import (
 // how fast it goes: Social, Intermediate, or Elite. An admin can set a ride's
 // level (on a weekly ride, or one date). Otherwise the club's regular rides
 // have theirs by name, a Strava event's pace sets the rest, and anything else
-// counts as Intermediate.
+// counts as Intermediate. A virtual ride is open to all three.
 
 type rideLevel struct{ Key, Name, MPH string }
 
@@ -93,6 +93,9 @@ func (o RideOcc) Levels() []rideLevel {
 		return nil
 	}
 	keys := o.Level
+	if keys == "" && o.IsVirtual() { // anyone can join online
+		keys = "social intermediate elite"
+	}
 	if keys == "" {
 		for _, n := range levelNames {
 			if n.re.MatchString(o.Name) {
