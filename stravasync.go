@@ -169,7 +169,8 @@ func (r *CalRide) withStrava(st *StravaInfo) {
 	}
 }
 
-// RemoveExternal takes an outside ride off the calendar. One that has
+// RemoveExternal takes an outside ride off the calendar. A weekly ride's date
+// just loses its link (the weekly ride still runs). A one-off ride with
 // leaders signed up is marked cancelled instead, so nobody's sign-up vanishes.
 func (s *Store) RemoveExternal(external string) (bool, error) {
 	s.mu.Lock()
@@ -184,10 +185,10 @@ func (s *Store) removeExternal(external string) bool {
 			continue
 		}
 		switch {
-		case len(r.Leaders) > 0:
-			r.Cancelled = true
 		case r.SeriesID != 0:
 			r.External, r.StravaURL = "", ""
+		case len(r.Leaders) > 0:
+			r.Cancelled = true
 		default:
 			s.d.CalRides = append(s.d.CalRides[:i], s.d.CalRides[i+1:]...)
 		}
@@ -197,7 +198,9 @@ func (s *Store) removeExternal(external string) bool {
 }
 
 // ImportStrava replaces the calendar's Strava events between from and to
-// with the ones just read from Strava.
+// with the ones just read from Strava. Events on from (today) that Strava no
+// longer lists are left alone: Strava stops listing an event as upcoming once
+// it has started, which doesn't mean it was called off.
 func (s *Store) ImportStrava(rides []ExternalRide, from, to string) (importResult, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -216,7 +219,7 @@ func (s *Store) ImportStrava(rides []ExternalRide, from, to string) (importResul
 	}
 	var gone []string
 	for _, r := range s.d.CalRides {
-		if strings.HasPrefix(r.External, "strava:") && !seen[r.External] && r.Date >= from && r.Date <= to {
+		if strings.HasPrefix(r.External, "strava:") && !seen[r.External] && r.Date > from && r.Date <= to {
 			gone = append(gone, r.External)
 		}
 	}

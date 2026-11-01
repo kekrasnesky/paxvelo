@@ -1722,6 +1722,7 @@ t.addEventListener('input',function(){if(!own)a.value=t.value.toLowerCase().repl
         <option value="note">A note only editors see</option>
       </select></span>
     <span><button type="button" class="ghost" data-do="undo" title="Undo (Ctrl+Z)">{{icon "undo"}}Undo</button><button type="button" class="ghost" data-do="redo" title="Redo (Ctrl+Y)">Redo</button></span>
+    <span><button type="button" class="ghost" id="preview-toggle" aria-pressed="true" hidden>{{icon "eye"}}Preview</button></span>
   </div>
   <div class="mail-edit">
     <div class="mail-write">
@@ -2252,6 +2253,15 @@ function fit(){var w=holder.clientWidth,s=size==='phone'?Math.min(1,w/390):w/120
 pane.querySelector('.seg').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;size=b.dataset.size;
   this.querySelectorAll('button').forEach(function(x){x.setAttribute('aria-pressed',x===b)});fit()});
 window.addEventListener('resize',fit);fit();refresh();
+// Preview: on or off, remembered in this browser. Off gives the words the
+// whole width.
+var toggle=document.getElementById('preview-toggle'),edit=pane.parentNode;
+function showPreview(on){edit.classList.toggle('no-preview',!on);toggle.setAttribute('aria-pressed',on);
+  toggle.title=on?'Hide the preview to give the words the whole width':'Show the preview';
+  try{localStorage.setItem('pagePreview',on?'1':'0')}catch(e){}if(on)fit()}
+toggle.hidden=false;
+toggle.addEventListener('click',function(){showPreview(edit.classList.contains('no-preview'))});
+try{if(localStorage.getItem('pagePreview')==='0')showPreview(false)}catch(e){}
 })();
 </script>
 {{template "foot" .}}{{end}}

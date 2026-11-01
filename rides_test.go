@@ -969,3 +969,35 @@ func TestRideWithClubPIN(t *testing.T) {
 		t.Errorf("no PIN typed: held as before: %s", w.Header().Get("Location"))
 	}
 }
+
+// Strava stops listing an event as upcoming once it starts. That isn't a
+// cancellation: today's rides stay as they are, and a weekly ride whose
+// Strava event goes away keeps running, just without the link.
+func TestStravaImportDoesNotCancelStartedRides(t *testing.T) {
+	a, _, _ := rideApp(t)
+	today := a.today().Format("2006-01-02")
+	tue := nextWeekday(a, time.Tuesday)
+	if tue == today {
+		tue = a.today().AddDate(0, 0, 7).Format("2006-01-02")
+	}
+	to := a.today().Add(importWindow).Format("2006-01-02")
+	lead := func(key string) {
+		a.store.UpdateRide(key, func(c *CalRide) error { c.setLeader("", &Leader{Name: "Pat"}); return nil })
+	}
+	morning, _, _ := a.store.UpsertExternal(ExternalRide{External: "strava:1:" + today, Date: today, Time: "08:00", Name: "Cafe Ride"}, false)
+	lead(morning.Key)
+	weekly, _, _ := a.store.UpsertExternal(ExternalRide{External: "strava:2:" + tue, Date: tue, Time: "18:00", Name: "Tuesday Night Ride"}, true)
+	if weekly.SeriesID == 0 {
+		t.Fatalf("the Tuesday ride should link to the weekly ride: %+v", weekly)
+	}
+	lead(weekly.Key)
+	if _, err := a.store.ImportStrava(nil, today, to); err != nil {
+		t.Fatal(err)
+	}
+	if o, _ := a.store.Ride(morning.Key); o.Cancelled {
+		t.Error("a ride that has started today shouldn't be cancelled")
+	}
+	if o, _ := a.store.Ride(weekly.Key); o.Cancelled || o.External != "" || len(o.Leaders) == 0 {
+		t.Errorf("the weekly ride should keep running, unlinked, with its leader: %+v", o)
+	}
+}

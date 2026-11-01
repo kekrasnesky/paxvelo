@@ -301,7 +301,13 @@ details.more[open]{display:grid;gap:.6rem;padding-bottom:.8rem}
    at full computer width and scaled down to fit (or at phone width). */
 .page-bar{gap:.4rem .8rem;padding:.5rem 0;background:#fff}
 @media (min-width:700px){.page-bar{position:sticky;top:0;z-index:2}}
-@media (min-width:1100px){.page-editor .page-preview{position:sticky;top:.5rem}}
+@media (min-width:1100px){
+  .page-editor .page-preview{position:sticky;top:.5rem}
+  /* More room for the words than for the preview, or all of it. */
+  .page-editor .mail-edit{grid-template-columns:minmax(0,3fr) minmax(0,2fr)}
+  .page-editor .mail-edit.no-preview{grid-template-columns:minmax(0,1fr)}
+}
+.page-editor .no-preview>.page-preview{display:none}
 .page-bar>span{display:inline-flex;flex-wrap:wrap;gap:.25rem}
 .page-bar .ic{margin-right:.3rem}
 .page-bar .mail-photo{display:inline-flex;align-items:center}
@@ -322,8 +328,11 @@ details.more[open]{display:grid;gap:.6rem;padding-bottom:.8rem}
 .ed-card{position:relative;display:grid;grid-template-columns:minmax(0,1fr);gap:.5rem;min-width:0;padding:.55rem .75rem;border-left:3px solid transparent;background:#fff}
 .ed-card:hover{background:#fcfaf7}
 .ed-card:focus-within{border-left-color:var(--red);background:#fcfaf7}
-.ed-head{position:absolute;top:.25rem;right:.4rem;z-index:3;display:flex;align-items:center;gap:.35rem;padding:.15rem .2rem .15rem .5rem;background:#fcfaf7;opacity:0;pointer-events:none;transition:opacity .12s}
-.ed-card:hover>.ed-head,.ed-card:focus-within>.ed-head{opacity:1;pointer-events:auto}
+/* A card's name and buttons sit on their own row above the card you're in,
+   never on top of the words being typed. */
+.ed-head{display:none;align-items:center;justify-content:flex-end;gap:.35rem}
+.ed-card:focus-within>.ed-head{display:flex}
+.ed-head .ed-name{margin-right:auto}
 .ed-name{color:var(--muted);font-size:.72rem;font-weight:500;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}
 .ed-head select{width:auto;padding:.25rem .4rem;font-size:.8rem}
 .ed-tools{display:inline-flex;gap:.2rem}
@@ -374,14 +383,13 @@ details.more[open]{display:grid;gap:.6rem;padding-bottom:.8rem}
 .ed-card .ed-fact input{padding:.3rem .4rem;font-weight:500}
 .ed-k-note{border:1px solid #e6cf6e;border-left-width:3px;background:#fff8d6}
 .ed-k-note:hover,.ed-k-note:focus-within{background:#fff4c4}
-.ed-k-note>.ed-head{background:#fff4c4}
+.ed-k-note>.ed-head{background:none}
 .ed-card.ed-k-note textarea{border-color:#e6cf6e;background:#fffbe8;resize:vertical}
 .ed-label{margin:0;color:#7a6418;font-size:.75rem;font-weight:500}
 .ed-card.ed-k-text textarea{border-color:var(--line);font:14px/1.5 ui-monospace,Consolas,monospace;resize:vertical}
 .ed-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));gap:0 1rem}
 .ed-col{position:relative;display:grid;grid-template-columns:minmax(0,1fr);align-content:start;gap:.1rem;min-width:0;padding:.3rem 0 .3rem .6rem;border-left:1px dashed #cfc6bd}
-.ed-col>.ed-head{top:.1rem;right:0}
-.ed-col:hover>.ed-head,.ed-col:focus-within>.ed-head{opacity:1;pointer-events:auto}
+.ed-col:focus-within>.ed-head{display:flex}
 .ed-col>input{font-size:1.05rem;font-weight:500}
 .ed-col .ed-card{padding:.4rem .5rem}
 .ed-settings{margin-bottom:.4rem;padding:0;border:1px solid var(--line)}
@@ -409,7 +417,7 @@ details.more[open]{display:grid;gap:.6rem;padding-bottom:.8rem}
 /* Touch screens can't hover: the buttons stay showing, small, above each card,
    and the fields keep a light outline so it's clear they can be typed in. */
 @media (hover:none){
-  .ed-head{position:static;justify-content:flex-end;padding:0;background:none;opacity:1;pointer-events:auto}
+  .ed-head{display:flex}
   .ed-name{margin-right:auto}
   .ed-card input:not([type=checkbox]),.ed-card textarea,.rich{border-color:var(--line)}
   .ed-items li button,.ed-fact button,.ed-add{opacity:1}
