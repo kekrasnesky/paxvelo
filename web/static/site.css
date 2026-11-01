@@ -163,9 +163,10 @@ strong{font-weight:500}
 .rules{margin:1.2rem 0;padding-left:1.6rem}
 .rules li{margin-bottom:.7rem;padding-left:.4rem}
 .rules li::marker{font-weight:500}
-.page .board{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:1.4rem 1.2rem;margin:1.4rem 0 0;padding:0;list-style:none;text-align:center}
-.board li{display:grid;justify-items:center;gap:.1rem}
-.board .avatar{width:120px;height:120px;margin-bottom:.6rem;border-radius:50%;background:#e8e1d8;object-fit:cover}
+/* Board members: the columns share the page's width, and the photos grow with them */
+.page .board{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,clamp(140px,22vw,220px)),1fr));gap:clamp(1.4rem,3vw,2.4rem) clamp(1rem,2.5vw,2rem);margin:1.6rem 0 0;padding:0;list-style:none;text-align:center}
+.board li{display:grid;justify-items:center;align-content:start;gap:.1rem}
+.board .avatar{display:block;width:min(100%,260px);height:auto;aspect-ratio:1;margin-bottom:.7rem;border-radius:50%;background:#e8e1d8;object-fit:cover}
 .board strong{font-size:1rem}
 
 /* ---------- The Newsletter ----------
