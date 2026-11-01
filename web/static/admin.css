@@ -201,18 +201,59 @@ details.more[open]{display:grid;gap:.6rem;padding-bottom:.8rem}
 .sec-list summary span:first-child{flex:1}
 .sec-list details[open] summary::after{transform:rotate(90deg)}
 .sec-list details p{padding:0 0 .7rem}
-.album-new h2{margin:0}
-.album-new .gal-tools{margin:0}
+.album-new{padding:1rem 1.5rem}
+.album-new summary{font-weight:500;cursor:pointer}
+.album-new .gal-tools{margin:.4rem 0 0}
+/* The album list: drag to order; Feature and Hide work in place */
+#albums.busy{opacity:.55;pointer-events:none}
+#albums .sent-done{margin:1rem 0 0}
 .album-list{display:grid;gap:.5rem;margin:1rem 0;padding:0;list-style:none}
-.album-list li{display:grid;grid-template-columns:5.5rem 1fr auto;align-items:center;gap:1rem;padding:.6rem;border:1px solid var(--line);background:#fff}
-.album-list img,.album-empty{display:grid;place-items:center;width:5.5rem;aspect-ratio:3/2;object-fit:cover;background:#f1ece5;color:#8a8079;font-size:.75rem}
+.album-list li{display:grid;grid-template-columns:auto 5.5rem minmax(0,1fr) auto;align-items:center;gap:1rem;padding:.6rem .8rem .6rem .4rem;border:1px solid var(--line);border-left:4px solid var(--line);background:#fff}
+.album-list li.is-featured{border-left-color:#c8961e;background:#fffbf1}
+.album-list li.is-hidden{border-left-color:#b8b0a8;background:#f7f5f2}
+.album-list li.is-hidden .album-thumb{opacity:.5}
+.album-list li.dragging{opacity:.5;outline:2px dashed var(--red)}
+.album-grip{width:.75rem;height:1.6rem;cursor:grab;background:radial-gradient(circle,#b8b0a8 1.5px,transparent 1.6px) 0 0/6px 6px}
+.album-thumb img,.album-empty{display:grid;place-items:center;width:5.5rem;aspect-ratio:3/2;object-fit:cover;background:#f1ece5;color:#8a8079;font-size:.75rem}
 .album-list a{text-decoration:none}
+.album-info{display:grid;gap:.15rem;min-width:0}
+.album-tags:empty{display:none}
+.album-tags{display:flex;flex-wrap:wrap;gap:.3rem}
+.album-tag{display:inline-flex;align-items:center;padding:.05rem .45rem;border-radius:999px;background:#f1ece5;color:var(--muted);font-size:.72rem;font-weight:500}
+.album-tag .ic{width:.95em;height:.95em;margin-right:.3em}
+.album-tag.star{background:#f6e7bf;color:#7a5a0c}
+.album-acts{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:.4rem}
+.album-acts button,.album-acts .btn{display:inline-flex;align-items:center;padding:.5rem .75rem;font-size:.85rem}
+.album-acts .on{border-color:#c8961e;background:#f6e7bf;color:#5f4609}
+.album-acts .on .ic{fill:currentColor}
 .album-move{display:flex;gap:.3rem}
-.album-move button{padding:.45rem .7rem}
+.album-move button{padding:.5rem .7rem}
 .album-move button:disabled{opacity:.35;cursor:default}
-.album-edit{margin:1rem 0;gap:.6rem}
-.album-edit summary{font-weight:500;cursor:pointer}
-.album-edit .gal-tools{margin:.4rem 0 0}
+@media (max-width:700px){
+  .album-list li{grid-template-columns:4.5rem minmax(0,1fr);gap:.5rem .8rem;padding:.6rem}
+  .album-grip{display:none}
+  .album-thumb img,.album-empty{width:4.5rem}
+  .album-acts{grid-column:1/-1;justify-content:flex-start}
+}
+/* An album's page: its name, whether it's featured or hidden, and its photos */
+.album-settings{margin:1rem 0;gap:.6rem;border-left:4px solid var(--line)}
+.album-settings.is-featured{border-left-color:#c8961e}
+.album-settings.is-hidden{border-left-color:#b8b0a8;background:#f7f5f2}
+.album-settings .gal-tools{margin:0}
+.album-switches{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.6rem;padding-top:.8rem;border-top:1px solid var(--line)}
+.album-switches p{display:flex;align-items:flex-start;gap:.1rem;margin:0}
+.album-switches p .ic{margin-top:.15rem}
+.album-delete{margin:2rem 0 1rem;padding:1rem 1.5rem}
+.album-delete summary{display:flex;align-items:center;color:var(--red);font-weight:500;cursor:pointer}
+.album-delete .gal-tools{margin:.6rem 0 0}
+.album-delete .gal-tools p{grid-column:1/-1;margin:0}
+.cover-on{display:inline-flex;align-items:center;justify-self:start;padding:.25rem .5rem;background:#f6e7bf;color:#5f4609;font-size:.78rem;font-weight:500}
+.cover-on .ic{fill:currentColor;width:.95em;height:.95em;margin-right:.3em}
+.cover-btn{justify-self:start;padding:.25rem .5rem;border-color:#cfc6bd;background:#fff;color:var(--ink);font-size:.78rem;font-weight:400}
+.cover-btn:hover{background:#f6e7bf}
+@media (hover:hover){.sent-photo:not(:hover):not(:focus-within) .cover-btn{opacity:0}}
+.album-status{color:#3c7a46;align-self:center}
+.album-status:empty,.album-save[hidden],.none-ticked .ticked-acts{display:none}
 .album-tools{gap:.7rem;margin:1rem 0;padding:1rem 1.2rem}
 .album-tools .gal-tools-go{align-items:center}
 .album-tools button{padding:.55rem .85rem}

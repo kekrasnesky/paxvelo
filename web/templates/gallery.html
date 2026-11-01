@@ -5,6 +5,14 @@
     <a class="btn" href="/share-photos">Share your photos</a>
   </div>
   <p class="lead">Photos from our rides and events, taken by members.</p>
+  {{with .Featured}}<a class="album-featured" href="{{.Href}}">
+    <img src="{{.Cover.Src}}"{{with .Cover.Srcset}} srcset="{{.}}" sizes="(min-width:1200px) 1100px, 100vw"{{end}} alt="" decoding="async"{{if .Cover.W}} width="{{.Cover.W}}" height="{{.Cover.H}}"{{end}}>
+    <span class="album-featured-text">
+      <span class="album-kicker">Featured album</span>
+      <span class="album-title">{{.Title}}</span>
+      <span class="album-meta">{{with .DateLabel}}{{.}} · {{end}}{{.Count}} {{if eq .Count 1}}photo{{else}}photos{{end}}</span>
+    </span>
+  </a>{{end}}
   {{if .Albums}}<ul class="albums">
     {{range .Albums}}<li>
       <a href="{{.Href}}">
@@ -14,7 +22,7 @@
       </a>
     </li>{{end}}
   </ul>
-  {{else}}
+  {{else if not .Featured}}
   <p>The gallery is just getting started. <a href="/share-photos">Share your photos</a> and they could be the first ones here.</p>
   {{end}}
 </article>

@@ -94,13 +94,17 @@ func dateLabel(date string) string {
 }
 
 // Album is a set of gallery photos, like one ride's. Albums show in the
-// order admins put them in, newest added first.
+// order admins put them in, newest added first, except that the featured
+// one (at most one) shows first and big. A hidden album is kept for admins
+// (the newsletter can still use its photos) but isn't on the website.
 type Album struct {
-	ID      int       `json:"id"`
-	Title   string    `json:"title"`
-	Date    string    `json:"date,omitempty"`  // of the ride or event, 2026-10-28
-	Cover   int       `json:"cover,omitempty"` // a photo's ID; the album's first photo when 0 or gone
-	Created time.Time `json:"created"`
+	ID       int       `json:"id"`
+	Title    string    `json:"title"`
+	Date     string    `json:"date,omitempty"`  // of the ride or event, 2026-10-28
+	Cover    int       `json:"cover,omitempty"` // a photo's ID; the album's first photo when 0 or gone
+	Featured bool      `json:"featured,omitempty"`
+	Hidden   bool      `json:"hidden,omitempty"`
+	Created  time.Time `json:"created"`
 }
 
 // Href is the album's address, like /gallery/12-halloween-ride. Only the
@@ -194,16 +198,25 @@ type albumCard struct {
 }
 
 type galleryView struct {
-	Albums []albumCard
+	Featured *albumCard // shown first, big
+	Albums   []albumCard
 }
 
-// galleryPage is the albums, as a grid of covers.
+// galleryPage is the albums, as a grid of covers, the featured one first.
 func (a *App) galleryPage(w http.ResponseWriter, r *http.Request) {
 	if r.URL.RawQuery != "" { // the old ride and tag filters
 		http.Redirect(w, r, "/gallery", http.StatusMovedPermanently)
 		return
 	}
-	a.site.render(w, http.StatusOK, "gallery", "/gallery", "Photo Gallery — "+siteName, galleryView{Albums: a.store.AlbumCards()})
+	var v galleryView
+	for _, c := range a.store.AlbumCards(false) {
+		if c.Featured && v.Featured == nil {
+			v.Featured = &c
+		} else {
+			v.Albums = append(v.Albums, c)
+		}
+	}
+	a.site.render(w, http.StatusOK, "gallery", "/gallery", "Photo Gallery — "+siteName, v)
 }
 
 type albumView struct {
@@ -215,13 +228,15 @@ type albumView struct {
 }
 
 // albumFrom finds the album in an address like /gallery/12-halloween-ride.
+// A hidden album isn't found.
 func (a *App) albumFrom(r *http.Request) (Album, bool) {
 	n, _, _ := strings.Cut(r.PathValue("album"), "-")
 	id, err := strconv.Atoi(n)
 	if err != nil {
 		return Album{}, false
 	}
-	return a.store.Album(id)
+	al, ok := a.store.Album(id)
+	return al, ok && !al.Hidden
 }
 
 // albumPage is one album's photos, a page at a time.
@@ -423,13 +438,16 @@ func (s *Store) Album(id int) (Album, bool) {
 	return Album{}, false
 }
 
-// AlbumCards lists each album with photos, with its cover and count. With
-// empty set, empty albums are listed too (for admins).
-func (s *Store) AlbumCards(empty ...bool) []albumCard {
+// AlbumCards lists the albums on the website (with photos, not hidden),
+// with each one's cover and count. For admins, it lists them all.
+func (s *Store) AlbumCards(admin bool) []albumCard {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var out []albumCard
 	for _, al := range s.d.Albums {
+		if al.Hidden && !admin {
+			continue
+		}
 		c := albumCard{Album: *al}
 		for _, p := range s.d.Gallery {
 			if p.Album != al.ID {
@@ -440,7 +458,7 @@ func (s *Store) AlbumCards(empty ...bool) []albumCard {
 			}
 			c.Count++
 		}
-		if c.Count > 0 || len(empty) > 0 {
+		if c.Count > 0 || admin {
 			out = append(out, c)
 		}
 	}
@@ -468,6 +486,64 @@ func (s *Store) SaveAlbum(id int, title, date string) error {
 		}
 	}
 	return errNotFound
+}
+
+// FeatureAlbum makes an album the featured one (on) or stops featuring it.
+// Only one is featured, and a featured album isn't hidden.
+func (s *Store) FeatureAlbum(id int, on bool) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !slices.ContainsFunc(s.d.Albums, func(al *Album) bool { return al.ID == id }) {
+		return errNotFound
+	}
+	for _, al := range s.d.Albums {
+		if al.ID == id {
+			al.Featured = on
+			if on {
+				al.Hidden = false
+			}
+		} else if on {
+			al.Featured = false
+		}
+	}
+	return s.save()
+}
+
+// HideAlbum takes an album off the website (on) or puts it back. A hidden
+// album isn't featured.
+func (s *Store) HideAlbum(id int, on bool) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, al := range s.d.Albums {
+		if al.ID == id {
+			al.Hidden = on
+			if on {
+				al.Featured = false
+			}
+			return s.save()
+		}
+	}
+	return errNotFound
+}
+
+// OrderAlbums puts the albums in a new order: ids first, in that order,
+// then the rest as they were.
+func (s *Store) OrderAlbums(ids []int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var picked, rest []*Album
+	for _, id := range ids {
+		if i := slices.IndexFunc(s.d.Albums, func(al *Album) bool { return al.ID == id }); i >= 0 && !slices.Contains(picked, s.d.Albums[i]) {
+			picked = append(picked, s.d.Albums[i])
+		}
+	}
+	for _, al := range s.d.Albums {
+		if !slices.Contains(picked, al) {
+			rest = append(rest, al)
+		}
+	}
+	s.d.Albums = append(picked, rest...)
+	return s.save()
 }
 
 // MoveAlbum moves an album one place up (-1) or down (+1) the list.

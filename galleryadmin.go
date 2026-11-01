@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,7 +15,8 @@ import (
 	"time"
 )
 
-// Website → Gallery: admins start, rename, reorder and delete albums, and in
+// Website → Gallery: admins start, rename, reorder (by dragging), feature,
+// hide and delete albums, and in
 // each album upload photos, caption them, put them in order (by dragging, or
 // by date or photographer), pick the cover, and move photos to other albums.
 // Photos members share are approved into albums on Website → Photos to
@@ -35,14 +37,98 @@ type albumAdmin struct {
 func (al albumAdmin) Ticked(id int) bool { return slices.Contains(al.Tick, id) }
 
 func (a *App) galleryAdminPage(w http.ResponseWriter, r *http.Request) {
-	v := adminView{Title: "Gallery", Tab: "gallery", AlbumCards: a.store.AlbumCards(true)}
+	v := adminView{Title: "Gallery", Tab: "gallery", AlbumList: &albumListView{Cards: a.store.AlbumCards(true)}}
 	v.Flash, v.Error = flashFrom(r)
 	a.renderAdmin(w, r, http.StatusOK, "gallery", v)
 }
 
-// galleryAction starts an album, or moves one up or down the list.
+// albumListView is the album list on Website → Gallery, with what was just
+// done and how to undo it.
+type albumListView struct {
+	Cards []albumCard
+	Note  *reviewNote
+}
+
+// albumSwitch features, hides or shows an album, for do values like
+// "feature:12", and says what it did and how to undo it.
+func (a *App) albumSwitch(do string) (reviewNote, error) {
+	what, n, _ := strings.Cut(do, ":")
+	id, _ := strconv.Atoi(n)
+	var before Album
+	prior := 0 // the album featured before
+	for _, al := range a.store.Albums() {
+		if al.ID == id {
+			before = al
+		}
+		if al.Featured {
+			prior = al.ID
+		}
+	}
+	if before.ID == 0 {
+		return reviewNote{}, errNotFound
+	}
+	var err error
+	var text string
+	switch what {
+	case "feature":
+		err, text = a.store.FeatureAlbum(id, true), "“%s” is the featured album now: it shows first, and big, on the gallery page."
+	case "unfeature":
+		err, text = a.store.FeatureAlbum(id, false), "“%s” isn’t featured any more."
+	case "hide":
+		err, text = a.store.HideAlbum(id, true), "“%s” is hidden from the website. Its photos can still go in the newsletter."
+	case "show":
+		err, text = a.store.HideAlbum(id, false), "“%s” is on the website again."
+	default:
+		return reviewNote{}, errNotFound
+	}
+	if err != nil {
+		return reviewNote{}, err
+	}
+	// Undo puts things back as they were, including which album was featured.
+	var undo []string
+	switch {
+	case before.Hidden && what != "hide":
+		undo = append(undo, "hide:"+n)
+	case before.Featured && what != "feature":
+		undo = append(undo, "feature:"+n)
+	case what == "feature" && !before.Featured:
+		undo = append(undo, "unfeature:"+n)
+	case what == "hide" && !before.Hidden:
+		undo = append(undo, "show:"+n)
+	}
+	if what == "feature" && prior != 0 && prior != id {
+		undo = append(undo, "feature:"+strconv.Itoa(prior))
+	}
+	return reviewNote{Text: fmt.Sprintf(text, before.Title), Undo: strings.Join(undo, " ")}, nil
+}
+
+// galleryAction starts an album; puts the albums in order (dragged, or one
+// place up or down); or features, hides or shows one. With JavaScript it
+// answers with the album list as it is now.
 func (a *App) galleryAction(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
+	asJSON := strings.Contains(r.Header.Get("Accept"), "application/json")
+	answer := func(note *reviewNote, code string) {
+		if !asJSON {
+			if code != "" {
+				back(w, r, "/admin/gallery?err="+code)
+			} else if note != nil {
+				back(w, r, "/admin/gallery?ok="+note.code)
+			} else {
+				back(w, r, "/admin/gallery")
+			}
+			return
+		}
+		if code != "" {
+			replyJSON(w, http.StatusOK, map[string]any{"ok": false, "error": errorText[code]})
+			return
+		}
+		var buf bytes.Buffer
+		if err := a.site.admin.ExecuteTemplate(&buf, "album-list", albumListView{a.store.AlbumCards(true), note}); err != nil {
+			log.Printf("album list: %v", err)
+		}
+		replyJSON(w, http.StatusOK, map[string]any{"ok": true, "html": buf.String()})
+	}
 	if m := r.FormValue("move"); m != "" { // like "12:up"
 		id, dir, _ := strings.Cut(m, ":")
 		n, _ := strconv.Atoi(id)
@@ -51,10 +137,48 @@ func (a *App) galleryAction(w http.ResponseWriter, r *http.Request) {
 			by = -1
 		}
 		if err := a.store.MoveAlbum(n, by); err != nil {
-			back(w, r, "/admin/gallery?err=save")
+			answer(nil, "save")
 			return
 		}
-		back(w, r, "/admin/gallery")
+		answer(nil, "")
+		return
+	}
+	if o := r.FormValue("order"); o != "" { // dragged, like "12,4,9"
+		var ids []int
+		for _, s := range strings.Split(o, ",") {
+			if n, err := strconv.Atoi(s); err == nil {
+				ids = append(ids, n)
+			}
+		}
+		if err := a.store.OrderAlbums(ids); err != nil {
+			answer(nil, "save")
+			return
+		}
+		answer(nil, "")
+		return
+	}
+	do, undo := r.FormValue("do"), r.FormValue("undo")
+	if undo != "" {
+		do = undo
+	}
+	if do != "" { // like "hide:12", or several for an undo
+		var note reviewNote
+		for i, d := range strings.Fields(do) {
+			n, err := a.albumSwitch(d)
+			if err != nil {
+				answer(nil, "album-gone")
+				return
+			}
+			if i == 0 {
+				note = n
+				note.code, _, _ = strings.Cut(d, ":")
+				note.code = "album-" + note.code
+			}
+		}
+		if undo != "" {
+			note = reviewNote{Text: "Undone.", code: "album-undone"}
+		}
+		answer(&note, "")
 		return
 	}
 	title := cleanTitle(r.FormValue("title"), maxAlbumTitle)
@@ -122,8 +246,16 @@ func (a *App) albumAction(w http.ResponseWriter, r *http.Request) {
 	fail := func(code string) { back(w, r, here+"?err="+code) }
 	done := func(code string) { back(w, r, here+"?ok="+code) }
 	do := r.FormValue("do")
+	asJSON := strings.Contains(r.Header.Get("Accept"), "application/json")
 
-	switch do {
+	switch what, _, _ := strings.Cut(do, ":"); what {
+	case "feature", "unfeature", "hide", "show": // the album's switches
+		if _, err := a.albumSwitch(what + ":" + strconv.Itoa(id)); err != nil {
+			fail("save")
+		} else {
+			done("album-" + what)
+		}
+		return
 	case "rename":
 		title := cleanTitle(r.FormValue("title"), maxAlbumTitle)
 		date, err := a.cleanRideDate(r.FormValue("date"))
@@ -138,6 +270,10 @@ func (a *App) albumAction(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	case "delete":
+		if r.FormValue("move_to") == "" { // say what happens to its photos
+			fail("album-photos")
+			return
+		}
 		moveTo, _ := strconv.Atoi(r.FormValue("move_to"))
 		files, err := a.store.DeleteAlbum(id, moveTo)
 		if err != nil {
@@ -200,7 +336,20 @@ func (a *App) albumAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if do == "save" {
+		if asJSON { // a caption or the order, saved as it changes
+			replyJSON(w, http.StatusOK, map[string]any{"ok": true})
+			return
+		}
 		done("album-saved")
+		return
+	}
+	if c, ok := strings.CutPrefix(do, "cover:"); ok { // the photo's own button
+		n, _ := strconv.Atoi(c)
+		if a.store.SetCover(id, n) != nil {
+			fail("save")
+			return
+		}
+		done("album-cover")
 		return
 	}
 
@@ -551,7 +700,10 @@ func (a *App) galleryPick(w http.ResponseWriter, r *http.Request) {
 		Cover string `json:"cover"`
 	}
 	out := []album{}
-	for _, c := range a.store.AlbumCards() {
+	for _, c := range a.store.AlbumCards(true) {
+		if c.Count == 0 {
+			continue
+		}
 		label := fmt.Sprintf("%d %s", c.Count, plural(c.Count, "photo", "photos"))
 		if d := c.DateLabel(); d != "" {
 			label = d + " · " + label

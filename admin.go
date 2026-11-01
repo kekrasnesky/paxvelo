@@ -49,13 +49,13 @@ type adminView struct {
 	Waiver      *Waiver
 	WaiverHTML  template.HTML // the text that Waiver's member signed
 	// Photos to review and Gallery tabs
-	Batches    []submittedBatch // with photos waiting for review
-	Reviewed   []submittedBatch
-	Albums     []Album
-	AlbumCards []albumCard
-	ClubPIN    string
-	APIOn      bool // the calendar API key is set
-	Album      *albumAdmin
+	Batches   []submittedBatch // with photos waiting for review
+	Reviewed  []submittedBatch
+	Albums    []Album
+	AlbumList *albumListView
+	ClubPIN   string
+	APIOn     bool // the calendar API key is set
+	Album     *albumAdmin
 	// CanManage: the logged-in admin may delete members and remove admins
 	// (the president, or whoever has the server's setup password).
 	CanManage bool
@@ -259,6 +259,12 @@ var flashText = map[string]string{
 	"gallery-removed":      "Taken out of the gallery.",
 	"album-new":            "Album started. Upload photos into it below, or approve shared photos into it on Photos to review.",
 	"album-saved":          "Saved.",
+	"album-cover":          "That photo is the album’s cover now.",
+	"album-feature":        "This is the featured album now: it shows first, and big, on the gallery page.",
+	"album-unfeature":      "This album isn’t featured any more.",
+	"album-hide":           "Hidden from the website. Its photos can still go in the newsletter.",
+	"album-show":           "On the website again.",
+	"album-undone":         "Undone.",
 	"album-deleted":        "Album deleted.",
 	"photos-moved":         "Moved to the other album.",
 	"pin-saved":            "Saved. Members who type this PIN skip the review for photos and rides.",
@@ -343,6 +349,7 @@ var errorText = map[string]string{
 	"gone":            "That issue was deleted.",
 	"gallery-date":    "That date isn’t right. Fix it or clear it, then try again.",
 	"album-title":     "Give the album a name.",
+	"album-photos":    "Choose what happens to the album’s photos first.",
 	"pin-short":       "Make the PIN 4 to 40 characters.",
 	"album-pick":      "Pick an album for the photos, or type a name for a new one.",
 	"album-gone":      "That album was deleted.",

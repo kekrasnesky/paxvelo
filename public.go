@@ -360,7 +360,7 @@ func (a *App) sitemap(w http.ResponseWriter, r *http.Request) {
 			urls = append(urls, loc{a.cfg.SiteURL + is.Path()})
 		}
 	}
-	for _, c := range a.store.AlbumCards() {
+	for _, c := range a.store.AlbumCards(false) {
 		urls = append(urls, loc{a.cfg.SiteURL + c.Href()})
 	}
 	w.Header().Set("Content-Type", "application/xml; charset=utf-8")

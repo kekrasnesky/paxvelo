@@ -89,8 +89,11 @@ const shareAlbums = 12 // albums to pick from on the share page
 
 func (a *App) shareData(d shareData) shareData {
 	d.Token, d.Max, d.PINOn = a.formToken(), maxSharePhotos, a.store.ClubPIN() != ""
-	d.Albums = a.store.Albums()
-	d.Albums = d.Albums[:min(len(d.Albums), shareAlbums)]
+	for _, al := range a.store.Albums() {
+		if !al.Hidden && len(d.Albums) < shareAlbums {
+			d.Albums = append(d.Albums, al)
+		}
+	}
 	return d
 }
 
@@ -363,6 +366,7 @@ type reviewNote struct {
 	Text  string
 	Undo  string // the action that undoes it, like "unapprove:12,13"
 	Links []noteLink
+	code  string // its flash, without JavaScript
 }
 
 type noteLink struct{ Label, Href string }

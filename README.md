@@ -16,7 +16,7 @@ The club's website: public pages, membership signup with PayPal dues, a ride cal
 | **Rides / Calendar** | Set up weekly rides, add one-off events, change leaders, cancel rides. Approve rides that members submit. |
 | **Newsletter** | Build the monthly issue from blocks, preview it, publish it, then email members about it. |
 | **Email** | Send email to all members or a group (such as only those who haven't paid). Always **Send test** to yourself first. |
-| **Website → Gallery** | Albums of ride photos. This is where the club's photos live: the newsletter picks its photos from here. |
+| **Website → Gallery** | Albums of ride photos. This is where the club's photos live: the newsletter picks its photos from here. Drag albums into order, **Feature** one to show it first and big, or **Hide** one to take it off the website without deleting it. |
 | **Website → Photos to review** | Photos members shared wait here. Each person's photos are one card: press **Approve** to put them in the gallery, or **Reject**. Both can be undone. |
 | **Instagram** | Choose which club posts show on the home page. |
 | **Minutes** | Upload meeting minutes (PDF or Word). They aren't listed publicly; anyone with the link can open them. |

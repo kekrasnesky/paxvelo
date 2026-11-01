@@ -854,42 +854,105 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
 
 {{define "gallery"}}{{template "head" .}}
 <div class="title-row"><h1>Gallery</h1><a class="btn ghost" href="/gallery" target="_blank" rel="noopener">View the gallery</a></div>
-<p class="muted small">The public <a href="/gallery" target="_blank" rel="noopener">photo gallery</a> is a set of albums, one for each ride or event, shown in this order. This is where the club’s photos live: the newsletter picks its photos from here. Open an album to upload photos, caption them, put them in order, pick its cover, move photos to another album, or add them to a newsletter. Photos members share wait on <a href="/admin/submitted">Photos to review</a> until you approve them into an album. An album shows on the website once it has photos. The club PIN, which lets members post without review, is under <a href="/admin/security">Security</a>.</p>
-<form method="post" action="/admin/gallery" class="card album-new">
-  <h2>Start an album</h2>
-  <div class="gal-tools">
+<p class="muted small">Albums show on the <a href="/gallery" target="_blank" rel="noopener">photo gallery</a> in this order: drag them, or use the arrows. <strong>Feature</strong> one to show it first, and big. <strong>Hide</strong> one to take it off the website without deleting it; the newsletter can still use its photos. Open an album with <strong>Edit</strong> to rename it, upload photos, caption them and pick its cover. Photos members share wait on <a href="/admin/submitted">Photos to review</a>.</p>
+<details class="card album-new"{{if not .AlbumList.Cards}} open{{end}}>
+  <summary>{{icon "plus"}}Start an album</summary>
+  <form method="post" action="/admin/gallery" class="gal-tools">
     <label>Name <input name="title" required maxlength="80" placeholder="Halloween ride 2026"></label>
     <label>Date (optional) <input type="date" name="date"></label>
     <div><button>{{icon "plus"}}Start album</button></div>
-  </div>
-</form>
-{{if .AlbumCards}}<form method="post" action="/admin/gallery"><ul class="album-list">
-  {{range $i, $c := .AlbumCards}}<li>
-    <a href="/admin/gallery/{{.ID}}">{{if .Count}}<img src="{{.Cover.Thumb}}" alt="" loading="lazy">{{else}}<span class="album-empty">No photos</span>{{end}}</a>
-    <div><a href="/admin/gallery/{{.ID}}"><strong>{{.Title}}</strong></a><br><span class="muted small">{{with .DateLabel}}{{.}} · {{end}}{{.Count}} {{if eq .Count 1}}photo{{else}}photos{{end}}{{if not .Count}} · not on the website yet{{end}}</span></div>
-    <span class="album-move">
-      <button class="ghost" name="move" value="{{.ID}}:up" aria-label="Move {{.Title}} up"{{if eq $i 0}} disabled{{end}}>↑</button>
-      <button class="ghost" name="move" value="{{.ID}}:down" aria-label="Move {{.Title}} down"{{if eq (inc $i) (len $.AlbumCards)}} disabled{{end}}>↓</button>
+  </form>
+</details>
+<div id="albums">{{if .AlbumList.Cards}}{{template "album-list" .AlbumList}}{{else}}<p class="empty">No albums yet. Start one above.</p>{{end}}</div>
+<script>
+// Feature, Hide and the arrows work in place, and albums can be dragged into
+// order (saved when dropped). The server sends the list back as it is now.
+(function(){
+  var box=document.getElementById('albums');
+  if(!box||!window.fetch)return;
+  function send(fd){
+    box.classList.add('busy');
+    fetch('/admin/gallery',{method:'POST',body:new URLSearchParams(fd),headers:{Accept:'application/json'},credentials:'same-origin'})
+      .then(function(r){return r.json()}).then(function(j){
+        if(j.ok&&j.html){box.innerHTML=j.html;var n=box.querySelector('.sent-done');if(n)n.focus()}
+        else alert(j.error||'Something went wrong. Try again.');
+      }).catch(function(){alert('Couldn’t reach the server. Check your connection and try again.')})
+      .then(function(){box.classList.remove('busy')});
+  }
+  box.addEventListener('submit',function(e){
+    e.preventDefault();
+    var b=e.submitter,fd=new FormData();
+    if(b&&b.name)fd.append(b.name,b.value);
+    send(fd);
+  });
+  var dragged=null,start='';
+  function order(){return [].map.call(box.querySelectorAll('.album-list>li'),function(li){return li.getAttribute('data-id')}).join(',')}
+  box.addEventListener('dragstart',function(e){
+    dragged=e.target.closest&&e.target.closest('.album-list>li');
+    if(!dragged)return;
+    start=order();dragged.classList.add('dragging');e.dataTransfer.effectAllowed='move';
+  });
+  box.addEventListener('dragover',function(e){
+    var over=e.target.closest&&e.target.closest('.album-list>li');
+    if(!dragged||!over||over===dragged)return;
+    e.preventDefault();
+    var r=over.getBoundingClientRect();
+    over.parentNode.insertBefore(dragged,e.clientY>r.top+r.height/2?over.nextSibling:over);
+  });
+  box.addEventListener('drop',function(e){if(dragged)e.preventDefault()});
+  box.addEventListener('dragend',function(){
+    if(!dragged)return;
+    dragged.classList.remove('dragging');dragged=null;
+    var now=order();
+    if(now!==start){var fd=new FormData();fd.append('order',now);send(fd)}
+  });
+})();
+</script>
+{{template "foot" .}}{{end}}
+
+{{define "album-list"}}<form method="post" action="/admin/gallery">
+{{with .Note}}<p class="sent-done" role="status" tabindex="-1">{{icon "check"}}<span>{{.Text}}{{if .Undo}} <button class="link" name="undo" value="{{.Undo}}">Undo</button>{{end}}</span></p>{{end}}
+<ul class="album-list">
+  {{range $i, $c := .Cards}}<li data-id="{{.ID}}" draggable="true" class="{{if .Featured}}is-featured{{end}}{{if .Hidden}} is-hidden{{end}}">
+    <span class="album-grip" title="Drag to move" aria-hidden="true"></span>
+    <a href="/admin/gallery/{{.ID}}" class="album-thumb" draggable="false">{{if .Count}}<img src="{{.Cover.Thumb}}" alt="" loading="lazy" draggable="false">{{else}}<span class="album-empty">No photos</span>{{end}}</a>
+    <div class="album-info">
+      <a href="/admin/gallery/{{.ID}}" draggable="false"><strong>{{.Title}}</strong></a>
+      <span class="muted small">{{with .DateLabel}}{{.}} · {{end}}{{.Count}} {{if eq .Count 1}}photo{{else}}photos{{end}}</span>
+      <span class="album-tags">{{if .Featured}}<span class="album-tag star">{{icon "star"}}Featured</span>{{end}}{{if .Hidden}}<span class="album-tag off">{{icon "eye-off"}}Hidden from the website</span>{{else if not .Count}}<span class="album-tag off">Not on the website until it has photos</span>{{end}}</span>
+    </div>
+    <span class="album-acts">
+      {{if .Featured}}<button class="ghost on" name="do" value="unfeature:{{.ID}}" aria-pressed="true" title="Stop featuring this album">{{icon "star"}}<span>Featured</span></button>{{else}}<button class="ghost" name="do" value="feature:{{.ID}}" aria-pressed="false" title="Show this album first, and big, on the gallery page">{{icon "star"}}<span>Feature</span></button>{{end}}
+      {{if .Hidden}}<button class="ghost" name="do" value="show:{{.ID}}" title="Put it back on the website">{{icon "eye"}}<span>Show</span></button>{{else}}<button class="ghost" name="do" value="hide:{{.ID}}" title="Take it off the website; nothing is deleted">{{icon "eye-off"}}<span>Hide</span></button>{{end}}
+      <a class="btn ghost" href="/admin/gallery/{{.ID}}">{{icon "pencil"}}<span>Edit</span></a>
+      <span class="album-move">
+        <button class="ghost" name="move" value="{{.ID}}:up" aria-label="Move {{.Title}} up"{{if eq $i 0}} disabled{{end}}>↑</button>
+        <button class="ghost" name="move" value="{{.ID}}:down" aria-label="Move {{.Title}} down"{{if eq (inc $i) (len $.Cards)}} disabled{{end}}>↓</button>
+      </span>
     </span>
   </li>{{end}}
-</ul></form>{{else}}<p class="empty">No albums yet. Start one above.</p>{{end}}
-{{template "foot" .}}{{end}}
+</ul></form>{{end}}
 
 {{define "album"}}{{template "head" .}}{{$al := .Album}}
 <p class="crumb"><a href="/admin/gallery">← All albums</a></p>
-<div class="title-row"><h1>{{$al.Title}}</h1>{{if $al.Photos}}<a class="btn ghost" href="{{$al.Href}}" target="_blank" rel="noopener">View on the website</a>{{end}}</div>
-<details class="card album-edit"{{if not $al.Photos}} open{{end}}>
-  <summary>Rename or delete this album</summary>
+<div class="title-row"><h1>{{$al.Title}}</h1>{{if and $al.Photos (not $al.Hidden)}}<a class="btn ghost" href="{{$al.Href}}" target="_blank" rel="noopener">View on the website</a>{{end}}</div>
+<div class="card album-settings{{if $al.Featured}} is-featured{{end}}{{if $al.Hidden}} is-hidden{{end}}">
   <form method="post" action="/admin/gallery/{{$al.ID}}" class="gal-tools">
     <label>Name <input name="title" required maxlength="80" value="{{$al.Title}}"></label>
     <label>Date (optional) <input type="date" name="date" value="{{$al.Date}}"></label>
     <div><button name="do" value="rename">{{icon "check"}}Save</button></div>
   </form>
-  <form method="post" action="/admin/gallery/{{$al.ID}}" class="gal-tools" onsubmit="return confirm('Delete this album? This can’t be undone.')">
-    <label>Its photos <select name="move_to">{{if $al.Photos}}<option value="0">Delete them too</option>{{range $.Albums}}<option value="{{.ID}}">Move them to “{{.Title}}”</option>{{end}}{{else}}<option value="0">(none)</option>{{end}}</select></label>
-    <div><button class="ghost danger" name="do" value="delete">{{icon "trash"}}Delete album</button></div>
+  <form method="post" action="/admin/gallery/{{$al.ID}}" class="album-switches">
+    <p class="small">{{if $al.Hidden}}{{icon "eye-off"}}<span><strong>Hidden from the website.</strong> Only admins see it. Its photos can still go in the newsletter.</span>
+    {{else if $al.Featured}}{{icon "star"}}<span><strong>Featured:</strong> it shows first, and big, on the gallery page.{{if not $al.Photos}} It will show once it has photos.{{end}}</span>
+    {{else if $al.Photos}}{{icon "globe"}}<span><strong>On the website</strong>, in its place in the <a href="/admin/gallery">album list</a>.</span>
+    {{else}}{{icon "globe"}}<span>It goes on the website once it has photos.</span>{{end}}</p>
+    <span class="album-acts">
+      {{if $al.Featured}}<button class="ghost on" name="do" value="unfeature" aria-pressed="true">{{icon "star"}}<span>Stop featuring</span></button>{{else}}<button class="ghost" name="do" value="feature">{{icon "star"}}<span>Feature it</span></button>{{end}}
+      {{if $al.Hidden}}<button class="ghost" name="do" value="show">{{icon "eye"}}<span>Show on the website</span></button>{{else}}<button class="ghost" name="do" value="hide">{{icon "eye-off"}}<span>Hide from the website</span></button>{{end}}
+    </span>
   </form>
-</details>
+</div>
 <form method="post" action="/admin/gallery/upload?album={{$al.ID}}" enctype="multipart/form-data" class="card gal-upload">
   <h2>Upload photos</h2>
   <p class="muted small">Up to 200 at a time. They go straight into this album, at the end, made smaller to load quickly and without where they were taken.</p>
@@ -904,30 +967,38 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
   <input type="hidden" name="order" value="">
   <div class="card album-tools">
     <div class="gal-tools-go">
-      <button name="do" value="save">{{icon "check"}}Save captions and order</button>
+      <button name="do" value="save" class="album-save">{{icon "check"}}Save captions and order</button>
       <span class="muted small">Drag photos to put them in order, or sort:</span>
       <button class="ghost" name="do" value="sort-old">Oldest first</button>
       <button class="ghost" name="do" value="sort-new">Newest first</button>
       <button class="ghost" name="do" value="sort-by">By photographer</button>
     </div>
-    <p class="muted small album-ticked">With the ticked photos: <label class="tick-all"><input type="checkbox"> Tick all</label></p>
-    <div class="gal-tools-go">
-      <button class="ghost" name="do" value="cover">Make cover</button>
+    <p class="muted small album-ticked"><span class="album-count">With the ticked photos:</span> <label class="tick-all"><input type="checkbox"> Tick all</label></p>
+    <div class="gal-tools-go ticked-acts">
       <button class="ghost" name="do" value="first">Move to start</button>
       <button class="ghost" name="do" value="last">Move to end</button>
       {{if $.Albums}}<span class="send-row"><select name="to" aria-label="Album to move them to">{{range $.Albums}}<option value="{{.ID}}">{{.Title}}</option>{{end}}</select><button class="ghost" name="do" value="move">Move to album</button></span>{{end}}
       <span class="send-row"><input name="by" maxlength="100" placeholder="Photographer’s name" aria-label="Photographer’s name"><button class="ghost" name="do" value="credit">Set credit</button></span>
       <button class="ghost danger" name="do" value="remove" onclick="return confirm('Take the ticked photos out of the gallery? Photos members shared can be approved again from Photos to review.')">{{icon "trash"}}Take out</button>
     </div>
-    <div class="gal-tools-go" id="to-newsletter">{{if $.Issues}}<span class="send-row"><select name="issue" aria-label="Newsletter issue">{{range $.Issues}}<option value="{{.ID}}">{{.Label}}{{if not .IsPublished}} (draft){{end}}</option>{{end}}</select><button class="ghost" name="do" value="newsletter">{{icon "plus"}}Add to newsletter</button></span>
+    <div class="gal-tools-go ticked-acts" id="to-newsletter">{{if $.Issues}}<span class="send-row"><select name="issue" aria-label="Newsletter issue">{{range $.Issues}}<option value="{{.ID}}">{{.Label}}{{if not .IsPublished}} (draft){{end}}</option>{{end}}</select><button class="ghost" name="do" value="newsletter">{{icon "plus"}}Add to newsletter</button></span>
       <span class="muted small">They go in the issue’s photo strip.</span>{{else}}<span class="muted small">To put these photos in a newsletter, <a href="/admin/newsletter">start an issue</a> first.</span>{{end}}</div>
   </div>
   <div class="sent-grid album-grid">{{range $al.Photos}}<div class="sent-photo{{if $al.Ticked .ID}} on{{end}}" draggable="true" data-id="{{.ID}}">
     <label><img src="{{.Thumb}}" alt="{{.Alt}}" loading="lazy">
-    <span><input type="checkbox" name="id" value="{{.ID}}"{{if $al.Ticked .ID}} checked{{end}}> {{if eq .ID $al.Cover}}<strong>Cover</strong> · {{end}}By {{.By}}</span></label>
+    <span><input type="checkbox" name="id" value="{{.ID}}"{{if $al.Ticked .ID}} checked{{end}}> By {{.By}}</span></label>
     <input name="caption-{{.ID}}" value="{{.Caption}}" maxlength="200" placeholder="Caption" aria-label="Caption">
+    {{if eq .ID $al.Cover}}<span class="cover-on">{{icon "star"}}Cover</span>{{else}}<button class="cover-btn" name="do" value="cover:{{.ID}}" title="Show this photo for the album on the gallery page">Make cover</button>{{end}}
   </div>{{end}}</div>
 </form>{{else}}<p class="empty">No photos in this album yet. Upload some above, or approve photos members shared into it on <a href="/admin/submitted">Photos to review</a>.</p>{{end}}
+<details class="card album-delete">
+  <summary>{{icon "trash"}}Delete this album</summary>
+  <form method="post" action="/admin/gallery/{{$al.ID}}" class="gal-tools" onsubmit="return confirm('Delete this album? This can’t be undone.')">
+    <p class="muted small">To take it off the website but keep it, use <strong>Hide from the website</strong> above instead.</p>
+    <label>Its photos <select name="move_to" required>{{if $al.Photos}}<option value="">Choose…</option>{{range $.Albums}}<option value="{{.ID}}">Move them to “{{.Title}}”</option>{{end}}<option value="0">Delete them too</option>{{else}}<option value="0">(none)</option>{{end}}</select></label>
+    <div><button class="ghost danger" name="do" value="delete">{{icon "trash"}}Delete album</button></div>
+  </form>
+</details>
 <script>
 // Bulk upload: each photo is made smaller in the browser first, then they go
 // up 10 at a time with a running count, so a big album doesn't time out.
@@ -980,6 +1051,27 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
     order.value=[].map.call(grid.children,function(p){return p.getAttribute('data-id')}).join(',');
   });
   grid.addEventListener('drop',function(e){e.preventDefault()});
+
+  // With JavaScript, captions and the order save as they change.
+  var form=grid.closest('form'),save=form.querySelector('.album-save'),status=document.createElement('span');
+  status.className='album-status small';status.setAttribute('role','status');
+  save.parentNode.insertBefore(status,save);save.hidden=true;
+  function autosave(extra){
+    var fd=new URLSearchParams();fd.append('do','save');
+    extra.forEach(function(kv){fd.append(kv[0],kv[1])});
+    status.textContent='Saving…';
+    fetch(form.action,{method:'POST',body:fd,headers:{Accept:'application/json'},credentials:'same-origin'})
+      .then(function(r){return r.json()}).then(function(j){status.textContent=j.ok?'Saved':'Not saved. Try again.'})
+      .catch(function(){status.textContent='Not saved: couldn’t reach the server.'});
+  }
+  grid.addEventListener('change',function(e){
+    if(e.target.name&&e.target.name.indexOf('caption-')===0)autosave([[e.target.name,e.target.value]]);
+  });
+  grid.addEventListener('dragend',function(){if(order.value)autosave([['order',order.value]])});
+  // How many are ticked.
+  var count=document.querySelector('.album-count');
+  function ticked(){var n=grid.querySelectorAll('.sent-photo input[type=checkbox]:checked').length;count.textContent=n?n+' ticked:':'Tick photos to move, credit, take out or add them to a newsletter.';count.closest('.album-tools').classList.toggle('none-ticked',!n)}
+  grid.addEventListener('change',ticked);document.querySelector('.tick-all input').addEventListener('change',ticked);ticked();
 })();
 </script>
 {{template "foot" .}}{{end}}

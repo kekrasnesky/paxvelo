@@ -204,7 +204,7 @@ func TestAlbumAdmin(t *testing.T) {
 	if albums := a.store.Albums(); albums[0].ID != spring.ID {
 		t.Errorf("moving up: %+v", albums)
 	}
-	if page := do(t, h, admin, "GET", "/admin/gallery", "", nil).Body.String(); !strings.Contains(page, "not on the website yet") {
+	if page := do(t, h, admin, "GET", "/admin/gallery", "", nil).Body.String(); !strings.Contains(page, "Not on the website until it has photos") {
 		t.Error("an empty album should say it isn't public")
 	}
 	if page := do(t, h, nil, "GET", "/gallery", "", nil).Body.String(); strings.Contains(page, "Summer") {
@@ -217,7 +217,7 @@ func TestAlbumAdmin(t *testing.T) {
 	ids := albumIDs(a, summer.ID)
 	here := albumAdminHref(summer.ID)
 	page := do(t, h, admin, "GET", here, "", nil).Body.String()
-	for _, want := range []string{`action="/admin/gallery/upload?album=` + strconv.Itoa(summer.ID) + `"`, `name="caption-` + strconv.Itoa(ids[0]) + `"`, `draggable="true"`, "<strong>Cover</strong>", `>Spring</option>`} {
+	for _, want := range []string{`action="/admin/gallery/upload?album=` + strconv.Itoa(summer.ID) + `"`, `name="caption-` + strconv.Itoa(ids[0]) + `"`, `draggable="true"`, `class="cover-on"`, `value="cover:` + strconv.Itoa(ids[1]) + `"`, `>Spring</option>`} {
 		if !strings.Contains(page, want) {
 			t.Errorf("the album page should have %s", want)
 		}
@@ -249,8 +249,10 @@ func TestAlbumAdmin(t *testing.T) {
 	if to := post(here, url.Values{"do": {"cover"}}); !strings.Contains(to, "err=none-ticked") {
 		t.Errorf("nothing ticked: %s", to)
 	}
-	post(here, url.Values{"do": {"cover"}, "id": {id(2)}})
-	if c := a.store.AlbumCards()[0]; c.Cover.ID != ids[2] || c.Count != 4 {
+	if to := post(here, url.Values{"do": {"cover:" + id(2)}}); !strings.Contains(to, "ok=album-cover") {
+		t.Errorf("make cover: %s", to)
+	}
+	if c := a.store.AlbumCards(false)[0]; c.Cover.ID != ids[2] || c.Count != 4 {
 		t.Errorf("cover %+v", c)
 	}
 	post(here, url.Values{"do": {"credit"}, "id": {id(0), id(1)}, "by": {"Club photographer"}})
@@ -278,6 +280,9 @@ func TestAlbumAdmin(t *testing.T) {
 	}
 
 	// Deleting Spring moves its photo back; deleting Summer deletes its photos.
+	if to := post(albumAdminHref(spring.ID), url.Values{"do": {"delete"}}); !strings.Contains(to, "err=album-photos") {
+		t.Errorf("deleting should say what happens to the photos: %s", to)
+	}
 	post(albumAdminHref(spring.ID), url.Values{"do": {"delete"}, "move_to": {strconv.Itoa(summer.ID)}})
 	if _, ok := a.store.Album(spring.ID); ok || len(a.store.AlbumPhotos(summer.ID)) != 4 {
 		t.Errorf("deleting an album can move its photos: %v", albumIDs(a, summer.ID))

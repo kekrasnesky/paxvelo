@@ -575,6 +575,17 @@ td:hover .cal-add,.cal-add:focus-visible{opacity:1}
 .albums a{display:grid;gap:.15rem;color:var(--ink);text-decoration:none}
 .albums img{width:100%;height:auto;aspect-ratio:3/2;object-fit:cover;border-radius:var(--radius);background:#e9e2d8;margin-bottom:.45rem;transition:opacity .15s}
 .album-title{font-weight:500;font-size:1.05rem;line-height:1.3}
+/* The featured album: first, as wide as the page */
+.album-featured{position:relative;display:block;margin:1.4rem 0 2rem;overflow:hidden;border-radius:var(--radius);color:#fff;text-decoration:none;background:#2d2d2d;-webkit-tap-highlight-color:transparent}
+.album-featured img{display:block;width:100%;height:auto;aspect-ratio:21/9;object-fit:cover;transition:transform .4s,opacity .15s}
+.album-featured-text{position:absolute;inset:auto 0 0 0;display:grid;gap:.2rem;padding:clamp(1rem,3vw,2rem);background:linear-gradient(transparent,rgba(0,0,0,.72))}
+.album-featured .album-kicker{font-size:.75rem;font-weight:500;letter-spacing:.08em;text-transform:uppercase;opacity:.9}
+.album-featured .album-title{font-size:clamp(1.3rem,3vw,2rem);line-height:1.2}
+.album-featured .album-meta{color:rgba(255,255,255,.85)}
+@media (hover:hover){.album-featured:hover img{transform:scale(1.02)}}
+.album-featured:focus-visible{outline:2px solid var(--red);outline-offset:3px}
+.album-featured:active img{opacity:.85}
+@media (max-width:600px){.album-featured img{aspect-ratio:4/3}}
 .album-meta{color:#6b625b;font-size:.88rem;font-weight:300}
 @media (hover:hover){.albums a:hover img{opacity:.88}.albums a:hover .album-title{color:var(--red)}}
 .albums a:focus-visible img{outline:2px solid var(--red);outline-offset:2px}
