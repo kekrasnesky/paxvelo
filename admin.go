@@ -61,6 +61,7 @@ type adminView struct {
 	// CanNamePresident: the logged-in admin may choose who is president.
 	CanNamePresident bool
 	// Email tab
+	Audiences     []audienceOption
 	Campaigns     []Campaign
 	Draft         EmailDraft
 	Welcome       WelcomeEmail
@@ -83,7 +84,7 @@ type adminView struct {
 	InstaFeed     []InstaPost
 	// Pages and Board tabs
 	Pages    []pageRow
-	Links    []editorLink // the page editor's link box
+	Links    []editorLink // the page editor's and email editor's link box
 	Page     pageRow
 	PageText string
 	Board    []BoardMember
@@ -759,6 +760,7 @@ func (a *App) emailView(r *http.Request) adminView {
 			v.Sending = true
 		}
 	}
+	v.Audiences, v.Links = a.store.emailAudiences(v.Year), a.editorLinks()
 	v.Flash, v.Error = flashFrom(r)
 	return v
 }

@@ -23,6 +23,7 @@ func (a *App) ridesAdmin(w http.ResponseWriter, r *http.Request) {
 		v.StravaLink = &l
 	}
 	v.APIEnabled = a.cfg.CalendarAPIKey != ""
+	v.Held = a.store.HeldRides()
 	v.Flash, v.Error = flashFrom(r)
 	a.renderAdmin(w, r, http.StatusOK, "rides", v)
 }
@@ -315,11 +316,15 @@ func (a *App) cancelRideAdmin(w http.ResponseWriter, r *http.Request) {
 
 // approveRide puts a ride someone added on the website onto the calendar.
 func (a *App) approveRide(w http.ResponseWriter, r *http.Request) {
+	to := "/admin/calendar"
+	if r.FormValue("return") == "rides" {
+		to = "/admin/rides"
+	}
 	if _, err := a.store.UpdateRide(r.PathValue("key"), func(c *CalRide) error { c.Held = false; return nil }); err != nil {
-		back(w, r, "/admin/calendar?err=noride")
+		back(w, r, to+"?err=noride")
 		return
 	}
-	back(w, r, "/admin/calendar?ok=ride-approved")
+	back(w, r, to+"?ok=ride-approved")
 }
 
 func (a *App) deleteRideAdmin(w http.ResponseWriter, r *http.Request) {

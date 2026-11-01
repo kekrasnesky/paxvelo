@@ -595,3 +595,17 @@ th[aria-sort=descending] button.sort::after{content:" ↓";color:inherit}
 .member-list{margin:0;padding-left:1.1rem;font-size:.9rem}
 .member-list li{margin:.2rem 0}
 @media (max-width:900px){.cards td.pick-col{padding-left:9.75rem}}
+
+/* Email link box, folded help, Rides list actions, and the ride form's two columns */
+.link-dialog{width:min(30rem,calc(100vw - 2rem));padding:1.5rem;border:1px solid var(--line)}
+.link-dialog:not([open]){display:none}
+.link-dialog::backdrop{background:rgba(45,45,45,.45)}
+.link-dialog form{display:grid;gap:.75rem}
+.howto{margin-top:1rem}
+.howto summary{cursor:pointer;color:var(--muted);font-size:.85rem;font-weight:500}
+.howto[open] summary{margin-bottom:.4rem}
+.row-acts{display:flex;justify-content:flex-end;align-items:center;gap:.6rem}
+.row-acts form{margin:0}
+.held{margin:1rem 0 0;border-left:4px solid #c98a1b}
+.ride-cols,.ride-col{display:grid;gap:1rem;align-content:start}
+@media (min-width:1100px){.ride-cols{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:1rem 2.5rem}}
