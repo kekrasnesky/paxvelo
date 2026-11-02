@@ -715,3 +715,10 @@ th[aria-sort=descending] button.sort::after{content:" ↓";color:inherit}
 .held{margin:1rem 0 0;border-left:4px solid #c98a1b}
 .ride-cols,.ride-col{display:grid;gap:1rem;align-content:start}
 @media (min-width:1100px){.ride-cols{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:1rem 2.5rem}}
+
+/* Sent log */
+.log-nums{margin-top:1rem}
+.log-nums .bad dd,.log-nums .bad a{color:var(--red)}
+.log-filter .search{flex-wrap:wrap;max-width:none}
+.log-filter select{width:auto}
+tr.log-fail{background:#fdf2f1}

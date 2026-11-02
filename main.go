@@ -232,6 +232,7 @@ func (a *App) routes() http.Handler {
 	mux.Handle("POST /admin/email/{id}/resume", a.auth(a.resumeCampaign))
 	mux.Handle("POST /admin/email/discard", a.auth(a.discardDraft))
 	mux.Handle("POST /admin/email/draft", a.auth(a.saveDraft))
+	mux.Handle("GET /admin/email/log", a.auth(a.sentLogPage))
 	mux.Handle("POST /admin/welcome", a.auth(a.saveWelcome))
 	mux.Handle("GET /admin/newsletter", a.auth(a.newsletterAdmin))
 	mux.Handle("POST /admin/newsletter", a.auth(a.createIssue))

@@ -412,7 +412,7 @@ func (a *App) sendPasswordLink(u AdminUser, invite bool, by string) (string, err
 			"Hi %s,\n\n%s made you an admin of the PaxVelo website. Choose your password here (the link works for 7 days):\n%s\n\nAfter that, log in at %s/admin with this email address. If you forget your password, press “Forgot your password?” on the login page.\n\nPaxVelo",
 			first, or(by, "Another admin"), link, a.cfg.SiteURL)
 	}
-	return link, a.mailer.SendDirect(u.Name, u.Email, subject, body)
+	return link, a.mailer.SendDirect(mailPassword, u.Name, u.Email, subject, body)
 }
 
 func (a *App) passwordPage(w http.ResponseWriter, r *http.Request) {

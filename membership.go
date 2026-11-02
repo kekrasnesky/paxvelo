@@ -181,7 +181,7 @@ func (a *App) sendMembershipLink(w http.ResponseWriter, r *http.Request) {
 		if m, found := a.store.MemberByEmail(email); found {
 			body := fmt.Sprintf("Hi %s,\n\nHere's the link to your PaxVelo membership page. Check your %d dues, and update your phone and emergency contact:\n\n[[My membership](%s)]\n\nKeep this email: the link is just for you, and it doesn't expire.",
 				or(m.FirstName(), "there"), a.cfg.ThisYear(), a.cfg.membershipURL(m.Token))
-			if err := a.mailer.SendDirect(m.Name, m.Email, "Your PaxVelo membership link", body); err != nil {
+			if err := a.mailer.SendDirect(mailMyLink, m.Name, m.Email, "Your PaxVelo membership link", body); err != nil {
 				d.Message = "The email didn’t send. Try again later."
 				break
 			}

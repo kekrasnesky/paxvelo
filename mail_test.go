@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 // A password link that can't be sent (here, nothing is listening on the mail
@@ -25,7 +26,7 @@ func TestFailedEmailIsLogged(t *testing.T) {
 	log.SetOutput(&buf)
 	defer log.SetOutput(os.Stderr)
 
-	if err := a.mailer.SendDirect("Pat", "pat@example.com", "Reset your PaxVelo admin password", "Hi"); err == nil {
+	if err := a.mailer.SendDirect(mailPassword, "Pat", "pat@example.com", "Reset your PaxVelo admin password", "Hi"); err == nil {
 		t.Fatal("sending should fail with no mail server")
 	}
 	got := buf.String()
@@ -33,6 +34,14 @@ func TestFailedEmailIsLogged(t *testing.T) {
 		if !strings.Contains(got, want) {
 			t.Errorf("log should mention %q, got: %s", want, got)
 		}
+	}
+	// The sent log has it too, as failed, with the reason.
+	sent := a.mailer.log.All()
+	if len(sent) != 1 || sent[0].Kind != mailPassword || !sent[0].Failed() || sent[0].Error == "" || sent[0].To != "pat@example.com" {
+		t.Errorf("sent log: %+v", sent)
+	}
+	if n := a.mailer.log.FailedSince(time.Now().Add(-time.Hour)); n != 1 {
+		t.Errorf("failed in the last hour = %d", n)
 	}
 }
 

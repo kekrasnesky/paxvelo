@@ -101,7 +101,7 @@ func (a *App) emailHousehold(m Member, adults []HouseholdAdult) []string {
 func (a *App) sendHouseholdLink(m Member, h HouseholdAdult) error {
 	body := fmt.Sprintf("Hi %s,\n\nYou’re on %s’s PaxVelo family membership. The club’s insurance, through the League of American Bicyclists, needs every adult who rides to sign its waiver once a year. Here’s your link to sign the %d waiver:\n\n[[Sign my waiver](%s)]\n\nIt takes a minute. Keep this email: the link is just for you, and it’s where you’ll sign each new year’s waiver.",
 		or(h.FirstName(), "there"), m.Name, a.cfg.ThisYear(), a.cfg.membershipURL(h.Token))
-	return a.mailer.SendDirect(h.Name, h.Email, "Sign your PaxVelo insurance waiver", body)
+	return a.mailer.SendDirect(mailWaiverLink, h.Name, h.Email, "Sign your PaxVelo insurance waiver", body)
 }
 
 // householdStatus is an adult on a member's Family plan, with this year's

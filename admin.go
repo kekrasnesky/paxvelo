@@ -36,7 +36,8 @@ type adminView struct {
 	// Members tab
 	Q, Dues       string // search text; dues filter: "", "paid", "unpaid"
 	Members       []Member
-	MemberPage    *memberView // one member's page
+	MemberPage    *memberView  // one member's page
+	Signed        map[int]bool // members who signed their own waiver for Year
 	Active, Unsub int
 	Paid, Unpaid  int // active members paid / not paid for Year
 	Allowance     emailAllowance
@@ -62,6 +63,7 @@ type adminView struct {
 	// CanNamePresident: the logged-in admin may choose who is president.
 	CanNamePresident bool
 	// Email tab
+	SentLog       *sentLogView // Email → Sent log
 	Audiences     []audienceOption
 	Campaigns     []Campaign
 	Draft         EmailDraft
@@ -419,6 +421,7 @@ func (a *App) membersPage(w http.ResponseWriter, r *http.Request) {
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
 	dues := r.URL.Query().Get("dues")
 	v := adminView{Title: "Members", Tab: "members", Q: q, Dues: dues, Year: a.cfg.ThisYear(), CanManage: a.canManage(r)}
+	v.Signed = a.store.SignedWaivers(v.Year)
 	v.Flash, v.Error = flashFrom(r)
 	lq := strings.ToLower(q)
 	for _, m := range a.store.Members() {

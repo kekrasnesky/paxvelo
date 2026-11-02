@@ -21,6 +21,7 @@ import (
 // Mailer sends email through any SMTP server (Brevo, in the standard setup).
 // Switching providers later is a config change, not a code change.
 type Mailer struct {
+	log   *EmailLog // every email sent or tried (emaillog.go)
 	cfg   Config
 	store *Store
 	site  *Site
@@ -32,7 +33,7 @@ type Mailer struct {
 }
 
 func newMailer(cfg Config, store *Store, site *Site) *Mailer {
-	return &Mailer{cfg: cfg, store: store, site: site, wake: make(chan struct{}, 1)}
+	return &Mailer{cfg: cfg, store: store, site: site, wake: make(chan struct{}, 1), log: openEmailLog(cfg.DataDir)}
 }
 
 func (m *Mailer) live() bool { return m.cfg.SMTPHost != "" }
@@ -115,11 +116,6 @@ func (m *Mailer) personalize(s string, mem Member) string {
 
 var extraBlankLines = regexp.MustCompile(`\n{3,}`)
 
-// SendTo sends one personalized email to a member.
-func (m *Mailer) SendTo(mem Member, subject, body string) error {
-	return m.sendTo(mem, subject, body, nil)
-}
-
 // sendCampaign sends a member their copy of an email to members, marked so
 // its opens and clicks are counted without saying whose it is (stats.go).
 func (m *Mailer) sendCampaign(id int, mem Member, subject, body string) error {
@@ -127,16 +123,17 @@ func (m *Mailer) sendCampaign(id int, mem Member, subject, body string) error {
 	if m.stats != nil {
 		track = newEmailTrack(m.stats, m.cfg.SiteURL, id, mem)
 	}
-	return m.sendTo(mem, subject, body, track)
+	return m.sendTo(mailCampaign, id, mem, subject, body, track)
 }
 
-func (m *Mailer) sendTo(mem Member, subject, body string, track *emailTrack) error {
+// sendTo sends one personalized email to a member, of a kind for the sent log.
+func (m *Mailer) sendTo(kind string, campaign int, mem Member, subject, body string, track *emailTrack) error {
 	links := memberLinks{Mine: m.cfg.membershipURL(mem.Token), Unsub: m.cfg.SiteURL + "/unsubscribe?t=" + url.QueryEscape(mem.Token), Track: track}
-	return m.send(mem.Name, mem.Email, m.personalize(subject, mem), m.personalize(body, mem), links)
+	return m.send(kind, campaign, mem.Name, mem.Email, m.personalize(subject, mem), m.personalize(body, mem), links)
 }
 
 func (m *Mailer) SendTest(to, subject, body string) error {
-	return m.SendTo(Member{Email: to, Token: "test"}, "[Test] "+subject, body)
+	return m.sendTo(mailTest, 0, Member{Email: to, Token: "test"}, "[Test] "+subject, body, nil)
 }
 
 // Notify emails a notice to the club (RIDES_EMAIL) in the background.
@@ -148,13 +145,13 @@ func (m *Mailer) Notify(subject, body string) {
 	if to == "" {
 		return
 	}
-	go m.send(m.cfg.FromName, to, subject, body, memberLinks{}) // a failure is logged by send
+	go m.send(mailClub, 0, m.cfg.FromName, to, subject, body, memberLinks{}) // a failure is logged by send
 }
 
 // SendDirect sends one email that isn't to the member list, like an admin's
-// password link, so it has no unsubscribe link.
-func (m *Mailer) SendDirect(toName, toEmail, subject, body string) error {
-	return m.send(toName, toEmail, subject, body, memberLinks{})
+// password link, so it has no unsubscribe link. kind names it in the sent log.
+func (m *Mailer) SendDirect(kind, toName, toEmail, subject, body string) error {
+	return m.send(kind, 0, toName, toEmail, subject, body, memberLinks{})
 }
 
 // NotifySignup tells every admin that someone joined on the website, so the
@@ -182,7 +179,7 @@ func (m *Mailer) NotifySignup(mem Member) {
 		"When their PayPal payment comes in, find them on the Members page and press **Mark paid**. That sends their welcome email.\n\n" +
 		"[Open the Members page](" + m.cfg.SiteURL + "/admin/members?q=" + url.QueryEscape(mem.Email) + ")"
 	for _, u := range to {
-		m.SendDirect(u.Name, u.Email, subject, body) // a failure is logged by send
+		m.SendDirect(mailSignup, u.Name, u.Email, subject, body) // a failure is logged by send
 	}
 }
 
@@ -201,7 +198,7 @@ func (m *Mailer) SendWelcome(mem Member) {
 			body = body[:i] + "\n\n{ride_tips}" + body[i:]
 		}
 	}
-	m.SendTo(mem, w.Subject, body) // a failure is logged by send
+	m.sendTo(mailWelcome, 0, mem, w.Subject, body, nil) // a failure is logged by send
 }
 
 // memberLinks are the member's own links at the foot of a club email: their
@@ -215,9 +212,13 @@ type memberLinks struct {
 // send sends one email. links are empty for an email that isn't to the member
 // list (a password link, a ride notice), which then has no unsubscribe link or
 // one-click Unsubscribe button.
-func (m *Mailer) send(toName, toEmail, subject, text string, links memberLinks) error {
+// Each one, sent or not, goes in the sent log (emaillog.go).
+func (m *Mailer) send(kind string, campaign int, toName, toEmail, subject, text string, links memberLinks) error {
+	entry := sentEmail{Time: time.Now().UTC(), Kind: kind, Campaign: campaign, To: toEmail, Name: toName, Subject: subject, Result: "sent"}
 	htmlBody, err := m.site.renderEmail(subject, text, links, m.cfg.SiteURL)
 	if err != nil {
+		entry.Result, entry.Error = "failed", err.Error()
+		m.log.Add(entry)
 		return err
 	}
 	if m.onSend != nil {
@@ -229,6 +230,8 @@ func (m *Mailer) send(toName, toEmail, subject, text string, links memberLinks) 
 	}
 	if !m.live() {
 		log.Printf("[test mode, not sent] To: %s | Subject: %s\n%s\n", toEmail, subject, text)
+		entry.Result = "test mode"
+		m.log.Add(entry)
 		return nil
 	}
 	msg := m.build(toName, toEmail, subject, plain, htmlBody, links.Unsub)
@@ -236,9 +239,12 @@ func (m *Mailer) send(toName, toEmail, subject, text string, links memberLinks) 
 	// a password link, a ride notice) shows in the server log with the reason.
 	if err := m.deliver(toEmail, msg); err != nil {
 		log.Printf("email to %s failed (%q): %v", toEmail, subject, err)
+		entry.Result, entry.Error = "failed", err.Error()
+		m.log.Add(entry)
 		return err
 	}
 	m.store.CountEmail()
+	m.log.Add(entry)
 	return nil
 }
 

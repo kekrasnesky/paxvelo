@@ -779,6 +779,13 @@ func audienceLabel(audience string, year int) string {
 	return "Everyone"
 }
 
+// SignedWaivers is which members signed their own waiver for a year.
+func (s *Store) SignedWaivers(year int) map[int]bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.signedWaivers(year)
+}
+
 // signedWaivers is who signed their own waiver for a year. Callers hold s.mu.
 func (s *Store) signedWaivers(year int) map[int]bool {
 	signed := map[int]bool{}

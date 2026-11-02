@@ -562,9 +562,9 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
   <button type="button" class="link small bulk-clear">Clear</button>
 </form>
 <div class="table-wrap"><table class="tight cards members">
-  <thead><tr><th class="pick-col"><input type="checkbox" class="pick-all" aria-label="Tick everyone shown who hasn’t paid"></th><th><button type="button" class="sort" data-sort="name">Name</button></th><th>Email</th><th>Phone</th><th><button type="button" class="sort" data-sort="plan">Plan</button></th><th>Riding</th><th><button type="button" class="sort" data-sort="paid">{{.Year}} dues</button></th><th><button type="button" class="sort" data-sort="joined">Joined</button></th></tr></thead>
+  <thead><tr><th class="pick-col"><input type="checkbox" class="pick-all" aria-label="Tick everyone shown who hasn’t paid"></th><th><button type="button" class="sort" data-sort="name">Name</button></th><th>Email</th><th>Phone</th><th><button type="button" class="sort" data-sort="plan">Plan</button></th><th>Riding</th><th><button type="button" class="sort" data-sort="paid">{{.Year}} dues</button></th><th><button type="button" class="sort" data-sort="waiver">{{.Year}} waiver</button></th><th><button type="button" class="sort" data-sort="joined">Joined</button></th></tr></thead>
   <tbody>
-  {{range .Members}}{{$paid := .PaidFor $.Year}}<tr id="m{{.ID}}" data-name="{{.Name}}" data-plan="{{.Plan}}" data-paid="{{if $paid}}1{{else}}0{{end}}" data-joined="{{.Joined.Format "2006-01-02T15:04:05"}}" data-find="{{.Name}} {{.Email}} {{.Phone}}"{{if not .Active}} class="off"{{end}}>
+  {{range .Members}}{{$paid := .PaidFor $.Year}}<tr id="m{{.ID}}" data-name="{{.Name}}" data-plan="{{.Plan}}" data-paid="{{if $paid}}1{{else}}0{{end}}" data-waiver="{{if index $.Signed .ID}}1{{else}}0{{end}}" data-joined="{{.Joined.Format "2006-01-02T15:04:05"}}" data-find="{{.Name}} {{.Email}} {{.Phone}}"{{if not .Active}} class="off"{{end}}>
     <td class="pick-col" data-label="Tick">{{if not $paid}}<input type="checkbox" name="id" value="{{.ID}}" form="bulk" aria-label="Tick {{.Name}}">{{end}}</td>
     <td data-label="Name"><a class="member-link" href="/admin/members/{{.ID}}">{{.Name}}</a>{{with .Household}}<br><span class="muted small">With {{range $i, $h := .}}{{if $i}}, {{end}}{{$h.Name}}{{end}}</span>{{end}}</td>
     <td class="email" data-label="Email"><a href="mailto:{{.Email}}">{{.Email}}</a>{{if not .Active}} <span class="tag">Unsubscribed</span>{{end}}</td>
@@ -576,11 +576,12 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
       {{if $paid}}<span class="paid">Paid</span> <input type="hidden" name="paid" value="0"><button class="link small">{{icon "undo"}}Undo</button>
       {{else}}<input type="hidden" name="paid" value="1"><button class="mini ghost">{{icon "check"}}Mark paid</button>{{if .WelcomePending}}<span class="muted small welcome-note">Sends their welcome email</span>{{end}}{{end}}
     </form></td>
+    <td class="nowrap" data-label="{{$.Year}} waiver">{{if index $.Signed .ID}}<span class="paid">Signed</span>{{else}}<span class="muted">Not signed</span>{{end}}</td>
     <td class="nowrap" data-label="Joined">{{date .Joined}}</td>
   </tr>
-  {{else}}<tr><td colspan="8" class="empty">{{if or $.Q $.Dues}}Nobody matches that.{{else}}No members yet. Share the join page: <a href="{{$.SiteURL}}/join">{{$.SiteURL}}/join</a>{{end}}</td></tr>
+  {{else}}<tr><td colspan="9" class="empty">{{if or $.Q $.Dues}}Nobody matches that.{{else}}No members yet. Share the join page: <a href="{{$.SiteURL}}/join">{{$.SiteURL}}/join</a>{{end}}</td></tr>
   {{end}}
-  <tr class="no-match" hidden><td colspan="8" class="empty">Nobody matches that.</td></tr>
+  <tr class="no-match" hidden><td colspan="9" class="empty">Nobody matches that.</td></tr>
   </tbody>
 </table></div>
 <details class="howto"><summary>How this works</summary><p class="muted small">Admins get an email when someone joins on the website. When PayPal emails the club about their payment, find them here and press <strong>Mark paid</strong>: the first time, that sends their welcome email. Tick several to mark them paid together. Everyone shows as not paid again on January 1. Click a name to see everything about a member, fix their details{{if .CanManage}}, or delete them{{end}}. Members who joined before the phone and emergency contact fields existed show a dash: if they fill in the join form again with the same email, their details are added.</p></details>
@@ -693,6 +694,41 @@ body.addEventListener('submit',function(e){var f=e.target;if(!f.classList.contai
 </div>
 {{if $.CanManage}}<form class="footnote" method="post" action="/admin/members/{{.ID}}/delete" onsubmit="return confirm('Delete {{.Email}}? This can’t be undone.')"><button class="link danger">{{icon "trash"}}Delete this member</button></form>
 {{else}}<p class="muted small footnote">Only the president can delete members.</p>{{end}}
+{{end}}{{template "foot" .}}{{end}}
+
+{{define "sent-log"}}{{template "head" .}}{{with .SentLog}}
+<div class="title-row">
+  <h1>Sent log</h1>
+  <p class="muted">Every email the site sent or tried to send, newest first: emails to members, welcome emails, notices, and links.</p>
+</div>
+{{if not .Live}}<p class="flash warn">Test mode: emails are written to the server log instead of being sent, so they show here as “test mode”.</p>{{end}}
+<dl class="nums log-nums">
+  <div><dt>Today</dt><dd>{{.Today}}</dd></div>
+  <div><dt>Last 7 days</dt><dd>{{.Week}}</dd></div>
+  <div{{if .WeekFails}} class="bad"{{end}}><dt><a href="/admin/email/log?result=failed">Failed, last 7 days</a></dt><dd><a href="/admin/email/log?result=failed">{{.WeekFails}}</a></dd></div>
+</dl>
+<form class="tools log-filter" method="get" action="/admin/email/log">
+  <div class="search"><input type="search" name="q" value="{{.Q}}" placeholder="Search address, name, or subject" aria-label="Search the sent log">
+  <select name="kind" aria-label="Kind of email"><option value="">Every kind</option>{{$k := .Kind}}{{range .Kinds}}<option{{if eq . $k}} selected{{end}}>{{.}}</option>{{end}}</select>
+  <label class="check"><input type="checkbox" name="result" value="failed"{{if eq .Result "failed"}} checked{{end}}> Failed only</label>
+  <button class="ghost">{{icon "search"}}Show</button>{{if or .Q .Kind .Result}} <a href="/admin/email/log">Clear</a>{{end}}</div>
+</form>
+<div class="table-wrap"><table class="tight cards">
+  <thead><tr><th>When</th><th>Kind</th><th>To</th><th>Subject</th><th>Result</th></tr></thead>
+  <tbody>
+  {{range .Rows}}<tr{{if .Failed}} class="log-fail"{{end}}>
+    <td class="nowrap" data-label="When">{{stamp .Time}}</td>
+    <td data-label="Kind">{{.Kind}}</td>
+    <td class="email" data-label="To">{{with .Name}}{{.}}<br>{{end}}<span class="muted small">{{.To}}</span></td>
+    <td data-label="Subject">{{.Subject}}</td>
+    <td data-label="Result">{{if .Failed}}<strong class="err-text">Failed</strong>{{with .Error}}<br><span class="muted small">{{.}}</span>{{end}}{{else if eq .Result "sent"}}<span class="paid">Sent</span>{{else}}<span class="muted">Test mode, not sent</span>{{end}}</td>
+  </tr>
+  {{else}}<tr><td colspan="5" class="empty">{{if or .Q .Kind .Result}}No emails match that.{{else}}No emails logged yet. Each one shows here from now on.{{end}}</td></tr>
+  {{end}}
+  </tbody>
+</table></div>
+{{if .More}}<p class="muted small">Showing the newest {{len .Rows}} of {{.Shown}}. Search or filter to find older ones.</p>{{end}}
+<details class="howto"><summary>How this works</summary><p class="muted small">“Sent” means the email service (Brevo) accepted the email; it can still land in spam or bounce later, which only Brevo’s own log shows. “Failed” gives the reason the site got back. An email to members has one line per member. The log keeps who, when, and the subject, never what the email said: some carry private links, like a password link. It started on November 2, 2026, so emails from before aren’t in it. Sending is paused after 3 failures in a row; resume it on Email members.</p></details>
 {{end}}{{template "foot" .}}{{end}}
 
 {{define "waivers"}}{{template "head" .}}

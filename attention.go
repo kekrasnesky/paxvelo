@@ -21,7 +21,7 @@ type adminGroup struct {
 var adminGroups = []adminGroup{
 	{"Home", "/admin", []adminSection{{"attention", "Overview", "/admin"}, {"guide", "How the site works", "/admin/guide"}}},
 	{"Members", "/admin/members", []adminSection{{"members", "Members", "/admin/members"}, {"waivers", "Waivers", "/admin/waivers"}}},
-	{"Email", "/admin/email", []adminSection{{"email", "Email members", "/admin/email"}, {"newsletter", "Newsletter", "/admin/newsletter"}}},
+	{"Email", "/admin/email", []adminSection{{"email", "Email members", "/admin/email"}, {"newsletter", "Newsletter", "/admin/newsletter"}, {"sent-log", "Sent log", "/admin/email/log"}}},
 	{"Rides", "/admin/calendar", []adminSection{{"calendar", "Calendar", "/admin/calendar"}, {"rides", "Weekly rides", "/admin/rides"}, {"history", "History", "/admin/history"}}},
 	{"Website", "/admin/pages", []adminSection{{"pages", "Pages", "/admin/pages"}, {"home-photos", "Home photos", "/admin/home-photos"}, {"gallery", "Gallery", "/admin/gallery"}, {"submitted", "Photos to review", "/admin/submitted"},
 		{"board", "Board", "/admin/board"}, {"instagram", "Instagram", "/admin/instagram"}, {"minutes", "Minutes", "/admin/minutes"}}},
@@ -157,6 +157,13 @@ func (a *App) attention() []attentionItem {
 		out = append(out, attentionItem{
 			Text: fmt.Sprintf("%s, %s, %s.", o.Name, o.DateLabel(), need),
 			Href: "/admin/rides/" + o.Key, Link: "Open",
+		})
+	}
+
+	if n := a.mailer.log.FailedSince(time.Now().Add(-7 * 24 * time.Hour)); n > 0 {
+		out = append(out, attentionItem{
+			Text: fmt.Sprintf("%d %s didn’t send in the last 7 days.", n, plural(n, "email", "emails")),
+			Href: "/admin/email/log?result=failed", Link: "See which",
 		})
 	}
 

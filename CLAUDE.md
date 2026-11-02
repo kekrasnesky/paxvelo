@@ -25,6 +25,7 @@ Single Go program (stdlib only, no DB, no third-party code). Pages, templates, C
 - **Instagram:** via Behold JSON feed (Meta's API route was abandoned). Admin Instagram tab → paste feed URL → Connect. Polled every 3 h (free plan: 6 posts, 1,200 reads/month). Falls back to Instagram embeds for posts outside the feed.
 - **Dues:** PayPal payment links only; the site never touches card data. Admins press Mark paid; first Mark paid for a website joiner sends the welcome email. Waivers are yearly (Jan–Dec), drawn or typed signature, minors signed by a parent/guardian, Family members' other adults get private `/membership?t=` links.
 - **Stats:** counts only by design; no per-member tracking. Weekly visitor codes are salted hashes kept until week end; emails use random per-copy tracking codes not tied to members.
+- **Sent log** (`emaillog.go`): every send (`Mailer.send`) is appended to `data/email-log.jsonl` with kind, recipient, subject and result (never the body); halves itself past 4 MB. Admin Email → Sent log (search, kind, failed only); Home warns about failures in the last 7 days.
 - **Email:** Brevo SMTP from `news@paxvelo.cc` (add DKIM/DMARC in Cloudflare DNS; SMTP login looks like `abc@smtp-brevo.com`). Bulk sends pause after 3 straight failures and resume with **Resume**. Failures: `journalctl -u paxvelo | grep failed`. Replies to `news@` need forwarding (Cloudflare Email Routing).
 
 ## Calendar API
