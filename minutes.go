@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -26,8 +27,9 @@ type Minutes struct {
 	Date       string    `json:"date"` // the meeting date, 2006-01-02
 	Title      string    `json:"title"`
 	Summary    string    `json:"summary,omitempty"`
-	File       string    `json:"file"`      // /files/<random>.pdf
-	FileName   string    `json:"file_name"` // the name it was uploaded with
+	File       string    `json:"file"`               // /files/<random>.pdf
+	FileName   string    `json:"file_name"`          // the name it was uploaded with
+	Original   string    `json:"original,omitempty"` // the Word file a PDF was made from
 	Size       int64     `json:"size"`
 	UploadedBy string    `json:"uploaded_by,omitempty"`
 	Updated    time.Time `json:"updated"`
@@ -103,19 +105,22 @@ const maxMinutesFile = 20 << 20
 
 func (a *App) filesDir() string { return filepath.Join(a.cfg.DataDir, "files") }
 
-// saveDocument stores an uploaded PDF or Word file under a random name.
-func (a *App) saveDocument(hdr *multipart.FileHeader) (path string, size int64, err error) {
+// saveDocument stores an uploaded PDF or Word file under a random name. A
+// Word file is turned into a PDF (docpdf.go), so anyone can read it in their
+// browser, and the Word file is kept as the original; without the converter
+// it stays a Word file.
+func (a *App) saveDocument(hdr *multipart.FileHeader) (path, original string, size int64, err error) {
 	f, err := hdr.Open()
 	if err != nil {
-		return "", 0, err
+		return "", "", 0, err
 	}
 	defer f.Close()
 	b, err := io.ReadAll(io.LimitReader(f, maxMinutesFile+1))
 	if err != nil {
-		return "", 0, err
+		return "", "", 0, err
 	}
 	if len(b) > maxMinutesFile {
-		return "", 0, errors.New("that file is over 20 MB")
+		return "", "", 0, errors.New("that file is over 20 MB")
 	}
 	var ext string
 	switch {
@@ -124,16 +129,28 @@ func (a *App) saveDocument(hdr *multipart.FileHeader) (path string, size int64, 
 	case bytes.HasPrefix(b, []byte("PK\x03\x04")) && strings.HasSuffix(strings.ToLower(hdr.Filename), ".docx"):
 		ext = ".docx"
 	default:
-		return "", 0, errors.New("upload the minutes as a PDF or a Word (.docx) file")
+		return "", "", 0, errors.New("upload the minutes as a PDF or a Word (.docx) file")
 	}
 	if err := os.MkdirAll(a.filesDir(), 0o755); err != nil {
-		return "", 0, err
+		return "", "", 0, err
 	}
-	name := randHex(8) + ext
-	if err := os.WriteFile(filepath.Join(a.filesDir(), name), b, 0o644); err != nil {
-		return "", 0, err
+	name := randHex(8)
+	if err := os.WriteFile(filepath.Join(a.filesDir(), name+ext), b, 0o644); err != nil {
+		return "", "", 0, err
 	}
-	return "/files/" + name, int64(len(b)), nil
+	if ext == ".docx" {
+		pdf, err := a.wordToPDF(b)
+		if err == nil {
+			err = os.WriteFile(filepath.Join(a.filesDir(), name+".pdf"), pdf, 0o644)
+		}
+		if err == nil {
+			return "/files/" + name + ".pdf", "/files/" + name + ".docx", int64(len(pdf)), nil
+		}
+		if err != errNoConverter {
+			log.Printf("minutes %s: %v", hdr.Filename, err)
+		}
+	}
+	return "/files/" + name + ext, "", int64(len(b)), nil
 }
 
 // serveFiles serves uploaded minutes. Word files download instead of opening
@@ -157,7 +174,7 @@ func (a *App) minutesPage(w http.ResponseWriter, r *http.Request) {
 // ---- Admin ----
 
 func (a *App) minutesAdmin(w http.ResponseWriter, r *http.Request) {
-	v := adminView{Title: "Meeting minutes", Tab: "minutes", Minutes: a.store.AllMinutes()}
+	v := adminView{Title: "Meeting minutes", Tab: "minutes", Minutes: a.store.AllMinutes(), CanConvert: officeProgram() != ""}
 	v.Flash, v.Error = flashFrom(r)
 	a.renderAdmin(w, r, http.StatusOK, "minutes", v)
 }
@@ -178,7 +195,7 @@ func (a *App) addMinutes(w http.ResponseWriter, r *http.Request) {
 		back(w, r, "/admin/minutes?err=nofile")
 		return
 	}
-	path, size, err := a.saveDocument(files[0])
+	path, original, size, err := a.saveDocument(files[0])
 	if err != nil {
 		v := adminView{Title: "Meeting minutes", Tab: "minutes", Minutes: a.store.AllMinutes(), Error: "Not uploaded: " + err.Error() + "."}
 		a.renderAdmin(w, r, http.StatusOK, "minutes", v)
@@ -190,12 +207,19 @@ func (a *App) addMinutes(w http.ResponseWriter, r *http.Request) {
 	}
 	me, _ := a.adminName(r)
 	m := Minutes{Date: date, Title: title, Summary: strings.TrimSpace(r.FormValue("summary")), File: path,
-		FileName: filepath.Base(files[0].Filename), Size: size, UploadedBy: me}
+		FileName: filepath.Base(files[0].Filename), Original: original, Size: size, UploadedBy: me}
 	if _, err := a.store.AddMinutes(m); err != nil {
 		back(w, r, "/admin/minutes?err=save")
 		return
 	}
-	back(w, r, "/admin/minutes?ok=minutes-added")
+	switch {
+	case original != "":
+		back(w, r, "/admin/minutes?ok=minutes-converted")
+	case strings.HasSuffix(path, ".docx"):
+		back(w, r, "/admin/minutes?ok=minutes-word")
+	default:
+		back(w, r, "/admin/minutes?ok=minutes-added")
+	}
 }
 
 func (a *App) deleteMinutes(w http.ResponseWriter, r *http.Request) {
@@ -205,8 +229,10 @@ func (a *App) deleteMinutes(w http.ResponseWriter, r *http.Request) {
 		back(w, r, "/admin/minutes?err=save")
 		return
 	}
-	if name := strings.TrimPrefix(m.File, "/files/"); name != "" && name != m.File && !strings.ContainsAny(name, `/\`) {
-		os.Remove(filepath.Join(a.filesDir(), name))
+	for _, file := range []string{m.File, m.Original} {
+		if name := strings.TrimPrefix(file, "/files/"); name != "" && name != file && !strings.ContainsAny(name, `/\`) {
+			os.Remove(filepath.Join(a.filesDir(), name))
+		}
 	}
 	back(w, r, "/admin/minutes?ok=minutes-deleted")
 }

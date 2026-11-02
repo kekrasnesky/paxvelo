@@ -69,6 +69,7 @@ func main() {
 	go app.stats.run(ctx)
 	go app.upcomingLoop(ctx)
 	go app.sizeOldPhotos()
+	go app.convertOldMinutes() // Word minutes from before LibreOffice was installed
 
 	srv := &http.Server{
 		Addr:              cfg.Listen,

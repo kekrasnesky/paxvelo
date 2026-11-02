@@ -78,7 +78,8 @@ type adminView struct {
 	NewMonth     int
 	NewYear      int
 	// Minutes tab
-	Minutes []Minutes
+	Minutes    []Minutes
+	CanConvert bool // LibreOffice is on the server, so Word files become PDFs
 	// Instagram tab
 	Instagram     []string
 	InstagramText string
@@ -296,7 +297,9 @@ var flashText = map[string]string{
 	"password-changed":     "Password changed. Any other devices you were logged in on are logged out.",
 	"series-deleted":       "Weekly ride removed. Dates that already had a leader stay on the calendar.",
 	"leader":               "Saved.",
-	"minutes-added":        "Minutes uploaded. They aren’t listed on the website.",
+	"minutes-added":        "Minutes uploaded.",
+	"minutes-converted":    "Uploaded, and turned into a PDF so anyone can read it in their browser. The Word file is kept too.",
+	"minutes-word":         "Uploaded as a Word file: the server can’t turn it into a PDF yet, so people need Word to open it.",
 	"minutes-deleted":      "Minutes deleted.",
 	"created":              "New draft started. Replace the text and photos, then preview and publish.",
 	"saved":                "Saved. It isn’t public until you publish it.",

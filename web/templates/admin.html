@@ -1450,7 +1450,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   <tbody>
   {{range .Minutes}}<tr>
     <td><strong>{{.Title}}</strong><br><span class="muted small">{{.DateLabel}}</span></td>
-    <td><a href="{{.File}}" target="_blank" rel="noopener">{{.FileName}}</a><br><span class="muted small">{{.Kind}}, {{.SizeLabel}}</span></td>
+    <td><a href="{{.File}}" target="_blank" rel="noopener">{{.FileName}}</a><br><span class="muted small">{{.Kind}}, {{.SizeLabel}}{{with .Original}} · made from the <a href="{{.}}">Word file</a>{{else}}{{if eq .Kind "Word"}} · {{if $.CanConvert}}becomes a PDF when the site next restarts{{else}}stays a Word file until LibreOffice is on the server{{end}}{{end}}{{end}}</span></td>
     <td>{{or .UploadedBy "—"}}</td>
     <td class="right nowrap row-acts">
       <button type="button" class="mini ghost copy-link" data-copy="{{$.SiteURL}}/minutes#m{{.ID}}">{{icon "copy"}}Copy link</button>
@@ -1469,7 +1469,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   </div>
   <label>Short summary (optional) <textarea name="summary" rows="3" maxlength="600" placeholder="Approved the 2027 ride calendar and the new kit order."></textarea></label>
   <label>Minutes file <input type="file" name="file" accept=".pdf,.docx,application/pdf" required></label>
-  <p class="muted small">PDF or Word (.docx), up to 20 MB. PDF is best: anyone can open it in their browser. In Word or Google Docs, use File → Download → PDF.</p>
+  <p class="muted small">PDF or Word (.docx), up to 20 MB. {{if .CanConvert}}Word files are turned into PDFs automatically, so anyone can open them in their browser; the Word file is kept too.{{else}}PDF is best: anyone can open it in their browser. (Word files can’t be turned into PDFs until LibreOffice is installed on the server.){{end}}</p>
   <button>{{icon "upload"}}Upload</button>
 </form>
 <script>
