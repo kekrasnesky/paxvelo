@@ -137,6 +137,7 @@ type Campaign struct {
 	Failed    int        `json:"failed"`
 	LastError string     `json:"last_error,omitempty"`
 	Pending   []int      `json:"pending,omitempty"` // member IDs still to send to
+	Issue     int        `json:"issue,omitempty"`   // the newsletter issue it is, when it's one
 }
 
 type EmailDraft struct {
@@ -608,9 +609,19 @@ func (s *Store) campaign(id int) *Campaign {
 // "unpaid" (for the given dues year). The background sender picks it up from
 // there, and resumes automatically after a restart.
 func (s *Store) StartCampaign(subject, body, audience string, year int) (Campaign, error) {
+	return s.startCampaign(0, subject, body, audience, year)
+}
+
+// StartIssueCampaign queues a newsletter issue's email, like StartCampaign,
+// but leaves the draft on Email members alone.
+func (s *Store) StartIssueCampaign(issue int, subject, body, audience string, year int) (Campaign, error) {
+	return s.startCampaign(issue, subject, body, audience, year)
+}
+
+func (s *Store) startCampaign(issue int, subject, body, audience string, year int) (Campaign, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	c := &Campaign{ID: s.d.NextCampaign, Subject: subject, Body: body, Created: time.Now().UTC(), Status: "sending", Audience: audienceLabel(audience, year)}
+	c := &Campaign{ID: s.d.NextCampaign, Subject: subject, Body: body, Created: time.Now().UTC(), Status: "sending", Audience: audienceLabel(audience, year), Issue: issue}
 	signed := s.signedWaivers(year)
 	for _, m := range s.d.Members {
 		if m.Active() && inAudience(*m, audience, year, signed) {
@@ -623,7 +634,9 @@ func (s *Store) StartCampaign(subject, body, audience string, year int) (Campaig
 	}
 	s.d.NextCampaign++
 	s.d.Campaigns = append(s.d.Campaigns, c)
-	s.d.Draft = EmailDraft{}
+	if issue == 0 {
+		s.d.Draft = EmailDraft{}
+	}
 	return *c, s.save()
 }
 

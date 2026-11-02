@@ -722,3 +722,11 @@ th[aria-sort=descending] button.sort::after{content:" ↓";color:inherit}
 .log-filter .search{flex-wrap:wrap;max-width:none}
 .log-filter select{width:auto}
 tr.log-fail{background:#fdf2f1}
+
+/* Emailing a newsletter issue */
+.issue-email{margin-top:2rem}
+.issue-email h2,.issue-email h3{margin:0}
+.issue-email h3{font-size:1rem}
+.issue-email-form{display:grid;gap:.8rem}
+.issue-email-frame iframe{display:block;width:100%;max-width:640px;height:600px;margin:0 auto;border:1px solid var(--line);background:#f5f2ec}
+.issue-sends{margin:0;font-size:.9rem}

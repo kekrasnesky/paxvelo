@@ -1335,7 +1335,7 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
 <div class="issue-actions">
   {{if $is.IsPublished}}
   <a class="btn ghost" href="{{$is.Path}}" target="_blank" rel="noopener">View live</a>
-  <form method="post" action="/admin/newsletter/{{$is.ID}}/email"><button class="ghost">{{icon "mail"}}Email members about it</button></form>
+  <a class="btn ghost" href="#email-it">{{icon "mail"}}Email this issue</a>
   <form method="post" action="/admin/newsletter/{{$is.ID}}/unpublish" onsubmit="return confirm('Take this issue off the website?')"><button class="ghost">{{icon "eye-off"}}Unpublish</button></form>
   {{end}}
   <form method="post" action="/admin/newsletter/{{$is.ID}}/copy"><button class="ghost">{{icon "copy"}}Make another draft from this</button></form>
@@ -1400,6 +1400,34 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   refresh()})();
 </script>
 
+<section class="card issue-email" id="email-it">
+  <h2>Email this issue</h2>
+  <p class="muted small">The whole issue goes out as an email: its stories, photos, rides and buttons, ending with a button to read it on the website. It uses what’s saved, so save your changes first. Send yourself a test, check it, then send it to members.</p>
+  {{if not .Live}}<p class="flash warn">Test mode: emails are written to the server log instead of being sent.</p>{{end}}
+  <form class="issue-email-form" method="post" action="/admin/newsletter/{{$is.ID}}/email-send">
+    <label>Subject <input name="subject" maxlength="200" value="{{issueSubject $is}}"></label>
+    <div class="send-row">
+      <input type="email" name="test_to" value="{{.TestTo}}" aria-label="Send the test to">
+      <button class="ghost" formaction="/admin/newsletter/{{$is.ID}}/email-test">{{icon "mail"}}Send a test</button>
+      <button type="button" class="link issue-email-preview">{{icon "eye"}}Preview</button>
+    </div>
+    <div class="send-row">
+      {{if $is.IsPublished}}<label class="inline-label">Send to <select name="audience">{{range .Audiences}}<option value="{{.Value}}">{{.Label}}</option>{{end}}</select></label>
+      <button onclick="return confirm('Email the {{$is.Label}} newsletter to: '+this.form.audience.selectedOptions[0].text+'?{{with .IssueSends}} It was already emailed {{len .}} time{{if gt (len .) 1}}s{{end}}.{{end}}')">{{icon "send"}}Send to members</button>
+      {{else}}<span class="muted small">Publish the issue to send it to members. You can send tests now.</span>{{end}}
+    </div>
+  </form>
+  <div class="issue-email-frame" hidden><iframe title="Email preview" sandbox="allow-same-origin"></iframe></div>
+  {{with .IssueSends}}<h3>Emailed</h3>
+  <ul class="plain issue-sends">{{range .}}<li>{{stamp .Created}} · {{or .Audience "Everyone"}} · {{.Sent}} of {{.Total}} sent{{if .Failed}}, <span class="err-text">{{.Failed}} failed</span>{{end}} · {{statusLabel .Status}}</li>{{end}}</ul>
+  <p class="small"><a href="/admin/email/log?kind=Email+to+members">See each email in the sent log</a></p>{{end}}
+</section>
+<script>
+// Preview: the email as a member gets it, with the subject typed.
+(function(){var sec=document.getElementById('email-it'),btn=sec.querySelector('.issue-email-preview'),box=sec.querySelector('.issue-email-frame'),frame=box.querySelector('iframe'),subj=sec.querySelector('input[name=subject]');
+  btn.addEventListener('click',function(){box.hidden=false;frame.src='/admin/newsletter/{{$is.ID}}/email-preview?subject='+encodeURIComponent(subj.value);btn.lastChild.textContent='Refresh preview'});
+  frame.addEventListener('load',function(){try{frame.style.height=frame.contentDocument.documentElement.scrollHeight+'px'}catch(e){}})})();
+</script>
 <form class="footnote" method="post" action="/admin/newsletter/{{$is.ID}}/delete" onsubmit="return confirm('Delete the {{$is.Label}} issue? This can’t be undone.')"><button class="link danger">{{icon "trash"}}Delete this issue</button></form>
 {{template "foot" .}}{{end}}
 

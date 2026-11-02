@@ -64,6 +64,7 @@ type adminView struct {
 	CanNamePresident bool
 	// Email tab
 	SentLog       *sentLogView // Email → Sent log
+	IssueSends    []Campaign   // the times a newsletter issue was emailed
 	Audiences     []audienceOption
 	Campaigns     []Campaign
 	Draft         EmailDraft
@@ -325,6 +326,10 @@ var errorText = map[string]string{
 	"empty":           "Add a subject and a message first.",
 	"welcome":         "The welcome email needs a subject and a message.",
 	"save":            "Couldn’t save. Check the server log.",
+	"test-to":         "Type the email address to send the test to.",
+	"test-failed":     "The test didn’t send. Email → Sent log says why.",
+	"not-published":   "Publish the issue first: the email links to it on the website.",
+	"nobody":          "Nobody is in that group, so nothing was sent.",
 	"no-member":       "That member isn’t on the list anymore.",
 	"email-taken":     "Another member already has that email. Nothing was changed.",
 	"month":           "Choose a month and year.",
@@ -379,6 +384,11 @@ func flashFrom(r *http.Request) (flash, errMsg string) {
 		if b > 0 {
 			flash += fmt.Sprintf(" %d %s skipped (no valid email).", b, plural(b, "row", "rows"))
 		}
+	} else if code == "issue-tested" {
+		flash = "Test sent to " + q.Get("to") + ". Check that inbox: it’s the email members get, marked [Test]."
+	} else if code == "issue-sending" {
+		n, _ := strconv.Atoi(q.Get("n"))
+		flash = fmt.Sprintf("Sending the newsletter to %d %s. It keeps going in the background; follow it below or on Email → Sent log.", n, plural(n, "member", "members"))
 	} else if code == "paid-many" {
 		n, _ := strconv.Atoi(q.Get("n"))
 		welcomes, _ := strconv.Atoi(q.Get("w"))

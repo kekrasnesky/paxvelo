@@ -13,6 +13,8 @@ import (
 //	**bold words**              [words to click](https://…)
 //	## A heading                - a list item
 //	![Photo](/media/…jpg)       [[Button words](https://…)]
+//	*italics*                   ^^ a small red line over a heading
+//	---                         (on its own: a dividing line)
 //
 // A blank line starts a new paragraph, and plain web addresses become links.
 // The toolbar above the message box types these marks for you. emailHTML
@@ -25,7 +27,8 @@ var (
 	// Every inline mark in one pattern, so they're found left to right:
 	// button, photo, link, bold, then a plain web address.
 	headingRe = regexp.MustCompile(`^#{1,3} +`)
-	inlineRe  = regexp.MustCompile(`\[\[([^\]]+)\]\(([^)\s]+)\)\]|!\[([^\]]*)\]\(([^)\s]+)\)|\[([^\]]+)\]\(([^)\s]+)\)|\*\*(.+?)\*\*|` + urlRe.String())
+	kickerRe  = regexp.MustCompile(`^\^\^ +`)
+	inlineRe  = regexp.MustCompile(`\[\[([^\]]+)\]\(([^)\s]+)\)\]|!\[([^\]]*)\]\(([^)\s]+)\)|\[([^\]]+)\]\(([^)\s]+)\)|\*\*(.+?)\*\*|\*([^*\s](?:[^*\n]*[^*\s])?)\*|` + urlRe.String())
 )
 
 const (
@@ -33,6 +36,8 @@ const (
 	emailButton  = `display:inline-block;padding:12px 22px;background:#9a2b29;color:#ffffff;font-weight:bold;text-decoration:none;border-radius:3px`
 	emailPhoto   = `display:block;width:100%;max-width:552px;height:auto;margin:4px 0;border:0`
 	emailHeading = `margin:8px 0 12px;font-size:20px;line-height:1.3;font-weight:bold;color:#9a2b29`
+	emailKicker  = `margin:0 0 4px;font-size:12px;line-height:1.4;font-weight:bold;letter-spacing:2px;text-transform:uppercase;color:#9a2b29`
+	emailRule    = `margin:28px 0;border:0;border-top:1px solid #e2dacf`
 )
 
 // emailHTML turns an email typed in the admin into the HTML body. Addresses
@@ -44,6 +49,10 @@ func emailHTML(s, base string) template.HTML {
 		switch {
 		case len(lines) == 1 && headingRe.MatchString(para):
 			b.WriteString(`<h2 style="` + emailHeading + `">` + emailInline(headingRe.ReplaceAllString(para, ""), base) + "</h2>\n")
+		case len(lines) == 1 && kickerRe.MatchString(para):
+			b.WriteString(`<p style="` + emailKicker + `">` + emailInline(kickerRe.ReplaceAllString(para, ""), base) + "</p>\n")
+		case para == "---":
+			b.WriteString(`<hr style="` + emailRule + `">` + "\n")
 		case allListItems(lines):
 			b.WriteString(`<ul style="margin:0 0 16px;padding-left:22px">`)
 			for _, l := range lines {
@@ -69,6 +78,12 @@ func emailText(s, base string) string {
 		for i, l := range lines {
 			if len(lines) == 1 {
 				l = headingRe.ReplaceAllString(l, "")
+				if kickerRe.MatchString(l) {
+					l = strings.ToUpper(kickerRe.ReplaceAllString(l, ""))
+				}
+				if l == "---" {
+					l = "————————"
+				}
 			}
 			lines[i] = inlineRe.ReplaceAllStringFunc(l, func(m string) string {
 				g := inlineRe.FindStringSubmatch(m)
@@ -84,6 +99,8 @@ func emailText(s, base string) string {
 					return g[5]
 				case g[7] != "":
 					return g[7]
+				case g[8] != "":
+					return g[8]
 				}
 				return m
 			})
@@ -140,6 +157,8 @@ func emailInline(s, base string) string {
 			b.WriteString(emailAnchor(g(6), base, emailLink, html.EscapeString(g(5)), whole))
 		case g(7) != "":
 			b.WriteString("<strong>" + emailInline(g(7), base) + "</strong>")
+		case g(8) != "":
+			b.WriteString("<em>" + emailInline(g(8), base) + "</em>")
 		default:
 			b.WriteString(emailAnchor(whole, base, emailLink, html.EscapeString(whole), whole))
 		}

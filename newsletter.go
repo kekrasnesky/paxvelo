@@ -954,6 +954,12 @@ func (a *App) editIssuePage(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) renderIssueForm(w http.ResponseWriter, r *http.Request, is Issue, problem string) {
 	v := adminView{Title: is.Label() + " newsletter", Tab: "newsletter", Issue: is, Months: months, IssueRides: a.issueRides(is), EventChoices: a.eventChoices(is)}
+	// Emailing it: the groups to send to, who to send a test to, and when it went out.
+	v.Audiences, v.IssueSends, v.Live, v.Year = a.store.emailAudiences(a.cfg.ThisYear()), a.issueCampaigns(is.ID), a.mailer.live(), a.cfg.ThisYear()
+	v.TestTo = a.cfg.AdminEmail
+	if u, ok := a.currentAdmin(r); ok && u.Email != "" {
+		v.TestTo = u.Email
+	}
 	if live, ok := a.store.LiveFor(is.Month, is.Year, is.ID); ok {
 		v.MonthLive = &live
 	}
