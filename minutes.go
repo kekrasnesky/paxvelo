@@ -16,10 +16,10 @@ import (
 )
 
 // Meeting minutes are uploaded in the admin portal (Minutes tab) as PDF or
-// Word files. They're listed on the public /minutes page (Info menu), and
-// each meeting has its own link (/minutes#m3) to share by email or from a
-// newsletter. The page and the files are kept out of search engines and the
-// sitemap.
+// Word files. They're listed on the /minutes page, which nothing on the
+// website links to: it opens for anyone with the link, and each meeting has
+// its own (/minutes#m3) to share by email or from a newsletter. The page and
+// the files are kept out of search engines and the sitemap.
 
 type Minutes struct {
 	ID         int       `json:"id"`

@@ -158,8 +158,8 @@ func TestMinutes(t *testing.T) {
 	if adminPage := do(t, h, admin, "GET", "/admin/minutes", "", nil).Body.String(); !strings.Contains(adminPage, fmt.Sprintf(`/minutes#m%d"`, m.ID)) {
 		t.Error("the admin Minutes tab should offer each meeting's link to copy")
 	}
-	if home := do(t, h, nil, "GET", "/", "", nil).Body.String(); !strings.Contains(home, `href="/minutes"`) {
-		t.Error("the Info menu should link to the minutes")
+	if home := do(t, h, nil, "GET", "/", "", nil).Body.String(); strings.Contains(home, `href="/minutes"`) {
+		t.Error("the website shouldn't link to the minutes: they're for people with the link")
 	}
 	do(t, h, admin, "POST", fmt.Sprintf("/admin/minutes/%d/delete", m.ID), "", nil)
 	if w := do(t, h, nil, "GET", m.File, "", nil); w.Code != 404 {
