@@ -151,8 +151,9 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("GET /e/o/{c}/{code}/{sig}", a.emailOpened)
 	mux.HandleFunc("GET /e/c/{c}/{code}/{sig}", a.emailClicked)
 
-	// Meeting minutes files. They aren't listed anywhere; a newsletter can link
-	// to one, and search engines are told not to index them.
+	// Meeting minutes: the list (/minutes) and the files. Anyone can open
+	// them; search engines are told not to index them.
+	mux.HandleFunc("GET /minutes", a.minutesPage)
 	mux.Handle("GET /files/", a.serveFiles())
 
 	// The ride calendar, and signing in with Strava to lead rides.

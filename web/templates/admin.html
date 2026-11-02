@@ -1443,7 +1443,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
 {{define "minutes"}}{{template "head" .}}
 <div class="title-row">
   <h1>Meeting minutes</h1>
-  <p class="muted">Minutes aren’t listed on the website. To share one, link to its file from a newsletter. Anyone with that link can open it.</p>
+  <p class="muted">Every upload is on the public <a href="/minutes" target="_blank" rel="noopener">Meeting Minutes</a> page (in the Info menu), newest first. To share one by email or in a newsletter, press <strong>Copy link</strong> and paste it in. Search engines don’t list them.</p>
 </div>
 <div class="table-wrap"><table>
   <thead><tr><th>Meeting</th><th>File</th><th>Uploaded by</th><th><span class="sr">Actions</span></th></tr></thead>
@@ -1452,7 +1452,8 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
     <td><strong>{{.Title}}</strong><br><span class="muted small">{{.DateLabel}}</span></td>
     <td><a href="{{.File}}" target="_blank" rel="noopener">{{.FileName}}</a><br><span class="muted small">{{.Kind}}, {{.SizeLabel}}</span></td>
     <td>{{or .UploadedBy "—"}}</td>
-    <td class="right nowrap">
+    <td class="right nowrap row-acts">
+      <button type="button" class="mini ghost copy-link" data-copy="{{$.SiteURL}}/minutes#m{{.ID}}">{{icon "copy"}}Copy link</button>
       <form method="post" action="/admin/minutes/{{.ID}}/delete" class="inline" onsubmit="return confirm('Delete the minutes for {{.DateLabel}}? This can’t be undone.')"><button class="link danger">{{icon "trash"}}Delete</button></form>
     </td>
   </tr>
@@ -1471,6 +1472,12 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   <p class="muted small">PDF or Word (.docx), up to 20 MB. PDF is best: anyone can open it in their browser. In Word or Google Docs, use File → Download → PDF.</p>
   <button>{{icon "upload"}}Upload</button>
 </form>
+<script>
+// Copy link: the meeting's place on the public Minutes page, ready to paste into an email.
+document.querySelectorAll('.copy-link').forEach(function(b){b.addEventListener('click',function(){var u=b.dataset.copy,label=b.lastChild;
+  function done(t){label.textContent=t;setTimeout(function(){label.textContent='Copy link'},2000)}
+  if(navigator.clipboard)navigator.clipboard.writeText(u).then(function(){done('Copied')},function(){prompt('Copy this link',u)});else prompt('Copy this link',u)})});
+</script>
 {{template "foot" .}}{{end}}
 
 {{define "instagram"}}{{template "head" .}}

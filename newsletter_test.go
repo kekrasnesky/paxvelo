@@ -120,8 +120,8 @@ func TestLoginNeedsName(t *testing.T) {
 
 func TestMinutes(t *testing.T) {
 	a, h, admin := testApp(t)
-	if w := do(t, h, nil, "GET", "/minutes", "", nil); w.Code != 404 {
-		t.Fatalf("minutes are on the website: %d", w.Code)
+	if w := do(t, h, nil, "GET", "/minutes", "", nil); w.Code != 200 || !strings.Contains(w.Body.String(), "No minutes posted yet") || !strings.Contains(w.Body.String(), `name="robots" content="noindex"`) {
+		t.Fatalf("the minutes page, empty: %d", w.Code)
 	}
 	upload := func(name, content string) *httptest.ResponseRecorder {
 		var buf bytes.Buffer
@@ -146,6 +146,20 @@ func TestMinutes(t *testing.T) {
 	}
 	if w := do(t, h, nil, "GET", m.File, "", nil); w.Code != 200 || !strings.HasPrefix(w.Body.String(), "%PDF") || w.Header().Get("X-Robots-Tag") != "noindex" {
 		t.Errorf("minutes file by its link: %d %q", w.Code, w.Header().Get("X-Robots-Tag"))
+	}
+	// Anyone can see them on the Minutes page, each with its own link, and
+	// the admin offers that link to copy.
+	page := do(t, h, nil, "GET", "/minutes", "", nil).Body.String()
+	for _, want := range []string{fmt.Sprintf(`id="m%d"`, m.ID), "October club meeting", "October 7, 2026", "Approved the 2027 ride calendar.", `href="` + m.File + `"`, "Read the minutes"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("minutes page is missing %q", want)
+		}
+	}
+	if adminPage := do(t, h, admin, "GET", "/admin/minutes", "", nil).Body.String(); !strings.Contains(adminPage, fmt.Sprintf(`/minutes#m%d"`, m.ID)) {
+		t.Error("the admin Minutes tab should offer each meeting's link to copy")
+	}
+	if home := do(t, h, nil, "GET", "/", "", nil).Body.String(); !strings.Contains(home, `href="/minutes"`) {
+		t.Error("the Info menu should link to the minutes")
 	}
 	do(t, h, admin, "POST", fmt.Sprintf("/admin/minutes/%d/delete", m.ID), "", nil)
 	if w := do(t, h, nil, "GET", m.File, "", nil); w.Code != 404 {

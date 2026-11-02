@@ -1,0 +1,15 @@
+{{define "head"}}<meta name="robots" content="noindex">{{end}}
+{{define "content"}}{{with .Data}}
+<article class="page">
+  <h1>Meeting Minutes</h1>
+  <p class="lead">Notes from PaxVelo club meetings, newest first. Upcoming meetings are on the <a href="/calendar">ride calendar</a>.</p>
+  {{if .List}}<ul class="minutes">
+    {{range .List}}<li id="m{{.ID}}">
+      <h2>{{.Title}}</h2>
+      <p class="minutes-date">{{.DateLabel}}</p>
+      {{with .Summary}}<p>{{.}}</p>{{end}}
+      <p class="minutes-file"><a class="btn btn-quiet" href="{{.File}}" target="_blank" rel="noopener">{{if eq .Kind "Word"}}Download the minutes{{else}}Read the minutes{{end}}</a> <span class="muted-note">{{.Kind}}, {{.SizeLabel}}</span></p>
+    </li>{{end}}
+  </ul>{{else}}<p>No minutes posted yet.</p>{{end}}
+</article>
+{{end}}{{end}}

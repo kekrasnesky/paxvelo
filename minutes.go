@@ -16,9 +16,10 @@ import (
 )
 
 // Meeting minutes are uploaded in the admin portal (Minutes tab) as PDF or
-// Word files. They aren't listed on the website. A file opens for anyone
-// with its link (a newsletter can link to it), but its name is random and
-// it's kept out of search engines and the sitemap.
+// Word files. They're listed on the public /minutes page (Info menu), and
+// each meeting has its own link (/minutes#m3) to share by email or from a
+// newsletter. The page and the files are kept out of search engines and the
+// sitemap.
 
 type Minutes struct {
 	ID         int       `json:"id"`
@@ -146,6 +147,11 @@ func (a *App) serveFiles() http.HandlerFunc {
 		}
 		files.ServeHTTP(w, r)
 	}
+}
+
+// minutesPage is the public list of meeting minutes, newest first.
+func (a *App) minutesPage(w http.ResponseWriter, r *http.Request) {
+	a.site.render(w, http.StatusOK, "minutes", "/minutes", "Meeting Minutes — "+siteName, struct{ List []Minutes }{a.store.AllMinutes()})
 }
 
 // ---- Admin ----
