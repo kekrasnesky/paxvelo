@@ -22,6 +22,11 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 body{margin:0;background:var(--paper);color:var(--text);font:300 1rem/1.65 var(--font);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
 body{display:flex;flex-direction:column;min-height:100vh} /* the footer stays at the bottom on short pages */
 main{flex:1 0 auto}
+/* A zoomed-in photo (focus.go) is scaled up and clipped back to its box, but
+   browsers still count the scaled box when sizing the page; clipping here
+   keeps it from making the page scroll sideways. hidden first, for browsers
+   without clip. */
+main{overflow-x:hidden;overflow-x:clip}
 
 /* Each page's content fades in gently as it opens; the header stays put. A page
    loaded ahead in the background waits to fade until it's shown (layout.html). */
@@ -114,6 +119,7 @@ strong{font-weight:500}
 .cols:not(:has(img)) p{margin-top:4px}
 .photos{display:grid;grid-auto-flow:column;grid-auto-columns:82%;gap:10px;margin:16px calc(-1 * var(--side)) 0;padding:0 var(--side);overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding:0 var(--side);scrollbar-width:none}
 .photos::-webkit-scrollbar{display:none}
+.photos .framed{display:block;overflow:hidden;border-radius:var(--radius);scroll-snap-align:start} /* a zoomed photo in a swiping row: its box clipped, so the row doesn't scroll past its end */
 .photos img{--r:var(--radius);width:100%;height:auto;aspect-ratio:4/3;object-fit:cover;border-radius:var(--radius);scroll-snap-align:start}
 .photos img:is([src*=".png"],[src*="/kit-"]){aspect-ratio:auto} /* product pictures, like the kit page's, keep their own shape */
 @media (min-width:700px){.photos{grid-auto-columns:minmax(0,1fr);margin:16px 0 0;padding:0;overflow:visible}}

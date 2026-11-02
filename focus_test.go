@@ -93,3 +93,16 @@ func TestGalleryPhotoFraming(t *testing.T) {
 		t.Error("the admin album page should offer the framing tool")
 	}
 }
+
+// A zoomed photo in a swiping row of photos goes in a clipping wrapper, so
+// its scaled box doesn't make the row (or the page) scroll past its end.
+func TestZoomedPhotosInRows(t *testing.T) {
+	row := framedInRow(`<img src="/a.jpg" style="object-position:40% 30%"><img src="/b.jpg" style="object-position:40% 30%;transform:scale(1.5);transform-origin:40% 30%">`)
+	if strings.Count(row, `<span class="framed">`) != 1 || !strings.Contains(row, `<span class="framed"><img src="/b.jpg"`) {
+		t.Errorf("only the zoomed photo should be wrapped: %s", row)
+	}
+	home := string(homePhotosWidget([]HomePhoto{{Photo: "/a.jpg", Focus: "40% 30%"}, {Photo: "/b.jpg", Focus: "40% 30% 2"}}))
+	if strings.Count(home, `<span class="framed">`) != 1 || !strings.Contains(home, `<span class="framed"><img src="/b.jpg"`) {
+		t.Errorf("home photo row: %s", home)
+	}
+}

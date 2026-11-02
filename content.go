@@ -397,7 +397,7 @@ func (r *mdRenderer) paragraph(text, class string) (string, error) {
 			return r.inline(text) // a photo on its own line
 		case photos == len(m):
 			h, err := r.inline(text) // several photos on one line: a row of photos
-			return `<div class="photos">` + h + "</div>\n", err
+			return `<div class="photos">` + framedInRow(h) + "</div>\n", err
 		case photos > 0:
 			h, err := r.inline(text) // photos and links together: an ordinary paragraph
 			return "<p" + attr + ">" + h + "</p>\n", err

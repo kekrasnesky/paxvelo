@@ -30,7 +30,7 @@ h2.section{margin:2.75rem 0 .9rem}
 }
 .bar a,.bar form{white-space:nowrap}
 .brand{font-weight:500}
-.wrap{max-width:1240px;margin:0 auto;padding:2rem 1.25rem 4rem}
+.wrap{max-width:1240px;margin:0 auto;padding:2rem 1.25rem 4rem;overflow-x:clip} /* zoomed photos' scaled boxes (focus.go) don't widen the page */
 .title-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:.25rem 1rem}
 .title-row p{margin:0}
 .card{display:grid;align-content:start;gap:1rem;padding:1.5rem;border:1px solid var(--line);background:#fff}

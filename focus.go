@@ -63,8 +63,11 @@ func cleanFocus(f string) string {
 // in, the photo is scaled up around its focus point and clipped back to its
 // box (clip-path), so no wrapper element is needed; a rounded box (an avatar,
 // a photo with rounded corners) keeps its corners when its CSS sets --r to
-// the corner radius. The admin's framing tool builds the same style
-// (framingStyle in admin.html): change both together.
+// the corner radius. The scaled box still counts toward the page's width,
+// so main clips sideways overflow (site.css), and in a row of photos that
+// swipes, a zoomed photo goes in a clipping wrapper (framedInRow). The
+// admin's framing tool builds the same style (framingStyle in admin.html):
+// change both together.
 func focusStyle(f string) template.CSS {
 	fr, ok := parseFocus(f)
 	if !ok {
@@ -79,6 +82,21 @@ func focusStyle(f string) template.CSS {
 			z, fr.X, fr.Y, p(fr.Y*k), p((100-fr.X)*k), p((100-fr.Y)*k), p(fr.X*k), z)
 	}
 	return template.CSS(s)
+}
+
+// isZoomed reports whether a framing zooms in.
+func isZoomed(f string) bool {
+	fr, ok := parseFocus(f)
+	return ok && fr.Z > 1
+}
+
+var zoomedImgRE = regexp.MustCompile(`<img [^>]*transform:scale\([^>]*>`)
+
+// framedInRow wraps the zoomed photos in a row of photos (<div class="photos">)
+// in a clipping span: the row swipes sideways, and a zoomed photo's scaled
+// box would otherwise make it scroll past its end.
+func framedInRow(h string) string {
+	return zoomedImgRE.ReplaceAllStringFunc(h, func(img string) string { return `<span class="framed">` + img + `</span>` })
 }
 
 // splitPhotoFocus takes the framing off a page photo's address: in a page's
