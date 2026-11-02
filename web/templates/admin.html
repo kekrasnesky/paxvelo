@@ -1264,13 +1264,13 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
   <p class="muted">The club newsletter, one issue a month. A month can have several drafts, but only one can be published. The latest published issue is at <a href="/newsletter" target="_blank" rel="noopener">{{.SiteURL}}/newsletter</a>.</p>
 </div>
 <div class="table-wrap"><table>
-  <thead><tr><th>Issue</th><th>Status</th><th>Started by</th><th>Last edited</th><th><span class="sr">Actions</span></th></tr></thead>
+  <thead><tr><th>Issue</th><th>Status</th><th>Started</th><th>Last edited</th><th><span class="sr">Actions</span></th></tr></thead>
   <tbody>
   {{range .Issues}}<tr>
-    <td><a href="/admin/newsletter/{{.ID}}">{{.Label}}</a></td>
-    <td>{{if .IsPublished}}<span class="paid">Live</span>{{else}}Draft{{end}}</td>
-    <td>{{or .CreatedBy "—"}}</td>
-    <td class="nowrap">{{date .Updated}}{{with .EditedBy}} by {{.}}{{end}}</td>
+    <td><a href="/admin/newsletter/{{.ID}}">{{.Label}}</a> <span class="muted small">#{{.ID}}</span></td>
+    <td>{{if .IsPublished}}<span class="paid">Live</span>{{with .Published}}<br><span class="muted small">since {{stamp .}}</span>{{end}}{{else}}Draft{{end}}</td>
+    <td class="nowrap">{{if not .Created.IsZero}}{{stamp .Created}}{{else}}<span class="muted">Not recorded</span>{{end}}{{with .CreatedBy}}<br><span class="muted small">by {{.}}</span>{{end}}</td>
+    <td class="nowrap">{{stamp .Updated}}{{with .EditedBy}}<br><span class="muted small">by {{.}}</span>{{end}}</td>
     <td class="right nowrap"><a href="/admin/newsletter/{{.ID}}">Edit</a>{{if .IsPublished}} · <a href="{{.Path}}" target="_blank" rel="noopener">View</a>{{end}}</td>
   </tr>
   {{else}}<tr><td colspan="5" class="empty">No issues yet. Start the first one below: it comes filled in with sample text to replace.</td></tr>
@@ -1294,7 +1294,7 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
   <h1>{{$is.Label}}</h1>
   <p>{{if $is.IsPublished}}<span class="paid">Live</span> on the website{{else}}<span class="tag">Draft</span> Only admins can see it{{end}}</p>
 </div>
-<p class="muted small">{{with $is.CreatedBy}}Started by {{.}}. {{end}}Last edited {{datetime $is.Updated}}{{with $is.EditedBy}} by {{.}}{{end}}.</p>
+<p class="muted small">Issue #{{$is.ID}}. Started{{if not $is.Created.IsZero}} {{stamp $is.Created}}{{end}}{{with $is.CreatedBy}} by {{.}}{{end}}. Last edited {{stamp $is.Updated}}{{with $is.EditedBy}} by {{.}}{{end}}.{{with $is.Published}} Published {{stamp .}}.{{end}}</p>
 {{with .MonthLive}}<p class="flash warn">{{.Label}} already has a published issue{{with .EditedBy}}, last edited by {{.}}{{end}}. This draft can’t be published until that one is unpublished. <a href="/admin/newsletter/{{.ID}}">Open the published one</a></p>{{end}}
 <div class="issue-actions">
   {{if $is.IsPublished}}

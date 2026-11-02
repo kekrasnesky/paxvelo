@@ -101,6 +101,7 @@ type Issue struct {
 	CoverCaption string     `json:"cover_caption,omitempty"`
 	Blocks       []Block    `json:"blocks,omitempty"`
 	Published    *time.Time `json:"published,omitempty"`
+	Created      time.Time  `json:"created,omitzero"` // when it was started; zero for issues from before this was kept
 	Updated      time.Time  `json:"updated"`
 	oldIssue
 }
@@ -317,6 +318,7 @@ func (s *Store) SaveIssue(in Issue) (Issue, error) {
 	}
 	in.Updated = time.Now().UTC()
 	if in.ID == 0 {
+		in.Created = in.Updated
 		s.d.NextIssue = max(s.d.NextIssue, 1)
 		in.ID = s.d.NextIssue
 		s.d.NextIssue++
@@ -924,7 +926,7 @@ func (a *App) copyIssue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	me, _ := a.adminName(r)
-	is.ID, is.Published, is.CreatedBy, is.EditedBy = 0, nil, me, me
+	is.ID, is.Published, is.CreatedBy, is.EditedBy, is.Created = 0, nil, me, me, time.Time{}
 	is, err := a.store.SaveIssue(is)
 	if err != nil {
 		back(w, r, "/admin/newsletter?err=save")

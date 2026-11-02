@@ -153,10 +153,15 @@ func newSite(cfg Config) (*Site, error) {
 	}
 
 	funcs := template.FuncMap{
-		"infoLinks":    func() []navLink { return *s.infoLinks.Load() },
-		"isInfo":       s.isInfo,
-		"date":         func(t time.Time) string { return t.In(cfg.Location).Format("Jan 2, 2006") },
-		"datetime":     func(t time.Time) string { return t.In(cfg.Location).Format("Jan 2, 2006, 3:04 PM") },
+		"infoLinks": func() []navLink { return *s.infoLinks.Load() },
+		"isInfo":    s.isInfo,
+		"date":      func(t time.Time) string { return t.In(cfg.Location).Format("Jan 2, 2006") },
+		"datetime":  func(t time.Time) string { return t.In(cfg.Location).Format("Jan 2, 2006, 3:04 PM") },
+		// stamp is an exact time, to the second, with the time zone: Mon, Nov 2, 2026, 7:04:12 PM EST
+		"stamp": func(t time.Time) template.HTML {
+			l := t.In(cfg.Location)
+			return template.HTML(`<time datetime="` + l.Format(time.RFC3339) + `">` + l.Format("Mon, Jan 2, 2006, 3:04:05 PM MST") + `</time>`)
+		},
 		"clock":        func(t time.Time) string { return t.In(cfg.Location).Format("3:04 PM") },
 		"statusLabel":  statusLabel,
 		"progress":     progress,
