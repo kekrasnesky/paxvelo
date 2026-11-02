@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -27,9 +28,20 @@ type Mailer struct {
 	site  *Site
 	stats *Stats // counts opens and clicks on emails to members; nil in some tests
 	wake  chan struct{}
+	bg    sync.WaitGroup // emails sent in the background (Go), so tests can wait for them
 
 	onNotify func(to, subject, body string) // lets tests see notices
 	onSend   func(to, subject, body string) // lets tests see every email
+}
+
+// Go sends an email in the background, so the page that triggered it
+// doesn't wait for the mail server. A failure is logged by send.
+func (m *Mailer) Go(f func()) {
+	m.bg.Add(1)
+	go func() {
+		defer m.bg.Done()
+		f()
+	}()
 }
 
 func newMailer(cfg Config, store *Store, site *Site) *Mailer {
@@ -145,7 +157,7 @@ func (m *Mailer) Notify(subject, body string) {
 	if to == "" {
 		return
 	}
-	go m.send(mailClub, 0, m.cfg.FromName, to, subject, body, memberLinks{}) // a failure is logged by send
+	m.Go(func() { m.send(mailClub, 0, m.cfg.FromName, to, subject, body, memberLinks{}) })
 }
 
 // SendDirect sends one email that isn't to the member list, like an admin's

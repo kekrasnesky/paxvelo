@@ -124,6 +124,7 @@ func rideApp(t *testing.T) (*App, http.Handler, *[]notice) {
 	}
 	a := &App{cfg: cfg, store: store, site: site, limit: newLimiter(), stats: stats}
 	a.mailer = newMailer(cfg, store, site)
+	t.Cleanup(a.mailer.bg.Wait) // background emails write the sent log in the temp folder: finish before it's removed
 	a.mailer.stats = stats
 	var mu sync.Mutex
 	var sent []notice

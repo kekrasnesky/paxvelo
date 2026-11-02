@@ -64,7 +64,7 @@ func (a *App) payMember(id int) (string, error) {
 	code := "paid"
 	if a.store.Welcome().Enabled {
 		if m, due, err := a.store.TakeWelcome(id); err == nil && due {
-			go a.mailer.SendWelcome(m)
+			a.mailer.Go(func() { a.mailer.SendWelcome(m) })
 			code = "paid-welcome"
 		}
 	}

@@ -231,7 +231,7 @@ func (a *App) join(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if result == Joined {
-		go a.mailer.NotifySignup(m) // their welcome email waits until an admin marks them paid
+		a.mailer.Go(func() { a.mailer.NotifySignup(m) }) // their welcome email waits until an admin marks them paid
 	}
 	// This year's waiver, unless they already signed one. Someone already on
 	// the list keeps the name on file, so the record shows both that and the

@@ -34,6 +34,7 @@ func testApp(t *testing.T) (*App, http.Handler, *http.Cookie) {
 	}
 	a := &App{cfg: cfg, store: store, site: site, limit: newLimiter(), stats: stats}
 	a.mailer = newMailer(cfg, store, site)
+	t.Cleanup(a.mailer.bg.Wait) // background emails write the sent log in the temp folder: finish before it's removed
 	a.mailer.stats = stats
 	a.refreshNewsletter()
 	rec := httptest.NewRecorder()

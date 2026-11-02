@@ -88,7 +88,7 @@ func (a *App) emailHousehold(m Member, adults []HouseholdAdult) []string {
 	var names, emails []string
 	for _, h := range adults {
 		names, emails = append(names, h.FirstName()), append(emails, h.Email)
-		go a.sendHouseholdLink(m, h) // a failure is logged by send; the member can send it again
+		a.mailer.Go(func() { a.sendHouseholdLink(m, h) }) // a failure is logged by send; the member can send it again
 	}
 	if err := a.store.MarkLinksSent(m.ID, emails); err != nil {
 		log.Printf("household links %s: %v", m.Email, err)
