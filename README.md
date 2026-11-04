@@ -27,7 +27,7 @@ The **Needs attention** notice tells you when something is waiting: new photos, 
 
 ## Common jobs
 
-- **New member joined:** you get an email. When their PayPal payment arrives, find them under Members and press **Mark paid**.
+- **New member joined:** you get an email. When their PayPal payment arrives, find them under Members and press **Mark paid**. They're also sent a link to confirm their email; until they press it, Members shows "Email not confirmed" and club emails skip them.
 - **Start of each year:** everyone shows as not paid. Email that group a reminder (put `{pay_link}` in the message so each person gets their own PayPal link), and ask everyone to sign the new waiver.
 - **Add an admin:** Security → Admins → enter name and email. They get a link to choose a password. Only the **President** can remove admins or delete members.
 - **Forgot your password:** use **Forgot your password?** on the login page.

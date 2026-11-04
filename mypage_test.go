@@ -1,10 +1,12 @@
 package main
 
 import (
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 )
 
 // A member's link opens their page: dues, contact details and riding
@@ -133,5 +135,112 @@ func TestUnsubscribePages(t *testing.T) {
 	ct, body = form(url.Values{"List-Unsubscribe": {"One-Click"}})
 	if page := do(t, h, nil, "POST", "/unsubscribe?t="+testToken, ct, body).Body.String(); !strings.Contains(page, "That was a test email") {
 		t.Error("Gmail's Unsubscribe button on a test email should say so too")
+	}
+}
+
+// Someone who joins on the website gets an email to confirm their address,
+// with the rides that suit them, and no club emails until they press Confirm
+// on their page. Someone back after unsubscribing gets the same, and
+// confirming turns club emails back on. Paying never waits for it.
+func TestConfirmEmail(t *testing.T) {
+	a, h, admin := testApp(t)
+	a.cfg.PayPalIndividual = "https://paypal.example/one"
+	type sent struct{ to, subject, body string }
+	mail := make(chan sent, 10)
+	a.mailer.onSend = func(to, subject, body string) { mail <- sent{to, subject, body} }
+	confirmFor := func(to string) sent {
+		t.Helper()
+		for {
+			select {
+			case s := <-mail:
+				if s.to == to && s.subject == "Confirm your email for PaxVelo" {
+					return s
+				}
+			case <-time.After(2 * time.Second):
+				t.Fatalf("no confirm email to %s", to)
+			}
+		}
+	}
+	day := a.today().AddDate(0, 0, 2).Format("2006-01-02")
+	a.store.AddRide(CalRide{Date: day, Time: "18:00", Name: "Wednesday Shop Ride", Place: "Wildewood"})
+	a.store.AddRide(CalRide{Date: day, Time: "17:30", Name: "Tuesday Night Ride"})
+	a.store.AddRide(CalRide{Date: day, Time: "19:00", Name: "Zwift social spin"}) // open to all, but not a first ride
+
+	var body io.Reader
+	ct, body := joinForm(a, url.Values{"plan": {"individual"}, "first": {"Jo"}, "last": {"Rider"}, "email": {"jo@example.com"},
+		"phone": {"301-555-0123"}, "emergency_name": {"Sam Rider"}, "emergency_phone": {"240-555-0199"}, "level": {"new"}})
+	page := do(t, h, nil, "POST", "/join", ct, body).Body.String()
+	if !strings.Contains(page, "paypal.example/one") || !strings.Contains(page, "confirm your email: we’ve sent a link to jo@example.com") {
+		t.Errorf("the join page should show the pay link and explain the email: %s", page)
+	}
+	c := confirmFor("jo@example.com")
+	m := a.store.Members()[0]
+	for _, want := range []string{"[[Confirm my email](" + a.cfg.membershipURL(m.Token) + "#confirm)]", "paypal.example/one", "Wednesday Shop Ride", "Wildewood"} {
+		if !strings.Contains(c.body, want) {
+			t.Errorf("confirm email missing %q:\n%s", want, c.body)
+		}
+	}
+	if strings.Contains(c.body, "Tuesday Night Ride") || strings.Contains(c.body, "Zwift") {
+		t.Error("a new rider should be sent to a social ride on the road, not the fast one or a virtual one")
+	}
+	if !m.Unconfirmed || m.Emailable() {
+		t.Fatalf("a new joiner waits for their confirmation: %+v", m)
+	}
+	if _, err := a.store.StartCampaign("News", "Hi", "all", a.cfg.ThisYear()); err == nil {
+		t.Error("club emails should skip an unconfirmed address")
+	}
+	if page := do(t, h, admin, "GET", "/admin/members", "", nil).Body.String(); !strings.Contains(page, "Email not confirmed") {
+		t.Error("Members should show the email isn't confirmed")
+	}
+
+	// Their page asks them to confirm; the button does it.
+	if page := do(t, h, nil, "GET", "/membership?t="+m.Token, "", nil).Body.String(); !strings.Contains(page, `action="/membership/confirm"`) {
+		t.Error("their page should have the Confirm button")
+	}
+	ct, body = form(url.Values{"t": {m.Token}})
+	page = do(t, h, nil, "POST", "/membership/confirm", ct, body).Body.String()
+	if got, _ := a.store.MemberByToken(m.Token); got.Unconfirmed || !got.Emailable() || !strings.Contains(page, "your email is confirmed") || strings.Contains(page, `action="/membership/confirm"`) {
+		t.Errorf("confirming should take: %+v", got)
+	}
+	if _, err := a.store.StartCampaign("News", "Hi", "all", a.cfg.ThisYear()); err != nil {
+		t.Errorf("a confirmed member gets club emails: %v", err)
+	}
+
+	// Back after unsubscribing: the same, and confirming turns emails on.
+	kim, _, _ := a.store.Join(memberDetails{Name: "Kim Rider", Email: "kim@example.com", Plan: "individual"}, a.cfg.ThisYear())
+	a.store.Unsubscribe(kim.Token)
+	ct, body = joinForm(a, url.Values{"plan": {"individual"}, "name": {"Kim Rider"}, "email": {"kim@example.com"}, "phone": {"301-555-0124"},
+		"level": {"racer"}, "emergency_name": {"Lee Rider"}, "emergency_phone": {"240-555-0100"}})
+	if page := do(t, h, nil, "POST", "/join", ct, body).Body.String(); !strings.Contains(page, "confirming turns club emails back on") {
+		t.Errorf("the join page should explain: %s", page)
+	}
+	if c := confirmFor("kim@example.com"); !strings.Contains(c.body, "Welcome back") {
+		t.Errorf("a returning member's email should say so:\n%s", c.body)
+	}
+	if got, _ := a.store.MemberByToken(kim.Token); got.Active() || !got.Unconfirmed {
+		t.Fatalf("club emails stay off until they confirm: %+v", got)
+	}
+	ct, body = form(url.Values{"t": {kim.Token}})
+	do(t, h, nil, "POST", "/membership/confirm", ct, body)
+	if got, _ := a.store.MemberByToken(kim.Token); !got.Emailable() {
+		t.Errorf("confirming should turn club emails back on: %+v", got)
+	}
+
+	// "Send me my link" for someone still unconfirmed sends the confirm email.
+	a.store.Join(memberDetails{Name: "Lou Rider", Email: "lou@example.com"}, a.cfg.ThisYear())
+	lou, _ := a.store.MemberByEmail("lou@example.com")
+	a.store.Unsubscribe(lou.Token)
+	ct, body = joinForm(a, url.Values{"plan": {"individual"}, "name": {"Lou Rider"}, "email": {"lou@example.com"}, "phone": {"301-555-0125"},
+		"level": {"some"}, "emergency_name": {"Lee Rider"}, "emergency_phone": {"240-555-0100"}})
+	do(t, h, nil, "POST", "/join", ct, body)
+	confirmFor("lou@example.com")
+	ct, body = form(url.Values{"email": {"lou@example.com"}})
+	do(t, h, nil, "POST", "/membership/link", ct, body)
+	confirmFor("lou@example.com")
+
+	// An admin adding the address vouches for it.
+	a.store.Join(memberDetails{Name: "Lou Rider", Email: "lou@example.com"}, a.cfg.ThisYear())
+	if got, _ := a.store.MemberByEmail("lou@example.com"); got.Unconfirmed {
+		t.Error("an admin adding a member should confirm them")
 	}
 }

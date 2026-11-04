@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 )
@@ -30,6 +31,7 @@ type membershipData struct {
 	Saved                        bool
 	Message                      string // a problem with what was typed
 	EmailsBack                   bool   // club emails were just turned back on
+	Confirmed                    bool   // they just confirmed their email
 	Email                        string // typed into "send me my link"
 	// This year's insurance waiver (waivers.go): the signed one, or the form
 	// to sign it.
@@ -210,7 +212,13 @@ func (a *App) sendMembershipLink(w http.ResponseWriter, r *http.Request) {
 	case !a.limit.Allow("mylink:"+clientIP(r), 5, time.Hour) || !a.limit.Allow("mylink:"+email, 3, time.Hour):
 		d.Message = "Too many links sent. Try again in an hour."
 	default:
-		if m, found := a.store.MemberByEmail(email); found {
+		if m, found := a.store.MemberByEmail(email); found && m.Unconfirmed {
+			// Their link is in the confirm email, which says what to press
+			if err := a.sendConfirm(m); err != nil {
+				d.Message = "The email didn’t send. Try again later."
+				break
+			}
+		} else if found {
 			body := fmt.Sprintf("Hi %s,\n\nHere's the link to your PaxVelo membership page. Check your %d dues, and update your phone and emergency contact:\n\n[[My membership](%s)]\n\nKeep this email: the link is just for you, and it doesn't expire.",
 				or(m.FirstName(), "there"), a.cfg.ThisYear(), a.cfg.membershipURL(m.Token))
 			if err := a.mailer.SendDirect(mailMyLink, m.Name, m.Email, "Your PaxVelo membership link", body); err != nil {
@@ -230,6 +238,89 @@ func (a *App) sendMembershipLink(w http.ResponseWriter, r *http.Request) {
 		status = http.StatusBadRequest
 	}
 	a.renderMembership(w, status, d)
+}
+
+// ---- Confirming the email ----
+
+// rideLevelsFor are the calendar levels that suit each answer on the join
+// form, for the rides the confirm email suggests.
+var rideLevelsFor = map[string][]string{
+	"new": {"social"}, "some": {"social", "intermediate"},
+	"experienced": {"intermediate", "elite"}, "racer": {"elite"},
+}
+
+// ridesFor is the next few rides on the road in the coming three weeks at a
+// level that suits a member's answer on the join form (any, with no answer).
+func (a *App) ridesFor(level string, n int) []RideOcc {
+	want := rideLevelsFor[level]
+	today := a.today()
+	todayS, now := today.Format("2006-01-02"), time.Now().In(a.cfg.Location).Format("15:04")
+	var out []RideOcc
+	for _, o := range a.store.Rides(today, today.AddDate(0, 0, 21)) {
+		if len(out) == n {
+			break
+		}
+		if o.Cancelled || !o.IsRide() || o.IsVirtual() || o.Date == todayS && o.Time != "" && o.Time <= now { // a first ride is on the road
+			continue
+		}
+		if len(want) == 0 || slices.ContainsFunc(o.Levels(), func(l rideLevel) bool { return slices.Contains(want, l.Key) }) {
+			out = append(out, o)
+		}
+	}
+	return out
+}
+
+// sendConfirm emails someone who joined on the website, or came back after
+// unsubscribing, the link to confirm their address: their membership page,
+// where they press Confirm my email. With it go their dues, if still owed,
+// and the rides coming up that suit them. Paying doesn't wait for it.
+func (a *App) sendConfirm(m Member) error {
+	year := a.cfg.ThisYear()
+	intro := "Thanks for joining PaxVelo! Press the button to confirm this is your email, so club news and ride updates reach you."
+	if !m.Active() {
+		intro = "Welcome back to PaxVelo! You unsubscribed from club emails earlier. Press the button to confirm this is your email, and they’ll come here again."
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "Hi %s,\n\n%s\n\n[[Confirm my email](%s#confirm)]", or(m.FirstName(), "there"), intro, a.cfg.membershipURL(m.Token))
+	if pay := a.cfg.PayLink(m.Plan); pay != "" && !m.PaidFor(year) {
+		fmt.Fprintf(&b, "\n\nHaven’t paid yet? [Pay your $%d %s dues for %d](%s).", a.cfg.Dues(m.Plan), strings.ToLower(m.PlanName()), year, pay)
+	}
+	if rides := a.ridesFor(m.Level, 3); len(rides) > 0 {
+		b.WriteString("\n\nRides coming up that suit you:\n")
+		for _, o := range rides {
+			when := o.ShortDate()
+			if o.Time != "" {
+				when += ", " + o.TimeLabel()
+			}
+			fmt.Fprintf(&b, "\n- **%s:** [%s](%s/calendar/ride/%s)", when, o.Name, a.cfg.SiteURL, o.Key)
+			if o.Place != "" {
+				b.WriteString(", from " + o.Place)
+			}
+		}
+	}
+	fmt.Fprintf(&b, "\n\nEvery club ride is on the calendar: %s/calendar\n\nBefore your first ride, take a couple of minutes to read Bike Safety 101: %s/bike-safety\n\nThe button opens your membership page, where you can also check your dues and update your details. Keep this email: the link is just for you.", a.cfg.SiteURL, a.cfg.SiteURL)
+	return a.mailer.SendDirect(mailConfirm, m.Name, m.Email, "Confirm your email for PaxVelo", b.String())
+}
+
+// confirmEmail is the Confirm my email button on a member's page.
+func (a *App) confirmEmail(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 4<<10)
+	if !sameOrigin(r) {
+		http.Error(w, "Blocked a request from another website.", http.StatusForbidden)
+		return
+	}
+	t := r.PostFormValue("t")
+	m, ok, err := a.store.ConfirmEmail(t)
+	if err != nil {
+		log.Printf("confirm email: %v", err)
+	}
+	if !ok {
+		a.renderMembership(w, http.StatusOK, membershipData{State: "invalid"})
+		return
+	}
+	v := a.membershipView(m, t)
+	v.Confirmed = err == nil
+	a.renderMembership(w, http.StatusOK, v)
 }
 
 // ---- Store ----

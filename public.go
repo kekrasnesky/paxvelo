@@ -281,6 +281,12 @@ func (a *App) join(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	emailed := a.emailHousehold(m, added) // if their dues are paid already; otherwise once they are
+	// The link to confirm their address, for a new joiner or someone back
+	// after unsubscribing. A few an hour per address, so nobody can flood
+	// someone's inbox by typing it in.
+	if m.Unconfirmed && a.limit.Allow("confirm:"+m.Email, 3, time.Hour) {
+		a.mailer.Go(func() { a.sendConfirm(m) }) // a failure is logged by send
+	}
 
 	d := joinData{OK: true, Form: memberDetails{Email: m.Email}} // the email, for "Email me my membership page link"
 	first := m.FirstName()
@@ -295,7 +301,7 @@ func (a *App) join(w http.ResponseWriter, r *http.Request) {
 		d.Message = fmt.Sprintf("You’re already on the list, %s.", first)
 		d.Detail = fmt.Sprintf("Pay your $%d %s dues for %d to finish up.", dues, strings.ToLower(m.PlanName()), year)
 	default:
-		d.Message = fmt.Sprintf("Thanks, %s! One last step.", first)
+		d.Message = fmt.Sprintf("Thanks, %s! Two last steps.", first)
 		d.Detail = fmt.Sprintf("Pay your $%d %s dues for %d to finish joining.", dues, strings.ToLower(m.PlanName()), year)
 	}
 	if owes {
@@ -317,10 +323,17 @@ func (a *App) join(w http.ResponseWriter, r *http.Request) {
 		}
 		d.Detail += " Once your dues are paid, we’ll email " + andList(names) + " a link to sign their own waiver."
 	}
-	if result == OptedOut {
-		// Nobody turns club emails back on for an address that opted out,
-		// since anyone could type it: the member does it from their own page.
-		d.Detail += " You unsubscribed from club emails earlier, so they’re still off. To get them again, email yourself your membership page link below and turn them back on there."
+	if m.Unconfirmed {
+		// Club emails wait until they confirm the address from their inbox,
+		// since anyone could type it. Paying doesn't wait.
+		if result == OptedOut {
+			d.Detail += " You unsubscribed from club emails earlier, so they’re off for now."
+		}
+		d.Detail += " Please also confirm your email: we’ve sent a link to " + m.Email
+		if result == OptedOut {
+			d.Detail += ", and confirming turns club emails back on"
+		}
+		d.Detail += ". Not there in a few minutes? Check spam, or press “Email me my membership page link” below."
 	}
 	reply(http.StatusOK, d)
 }

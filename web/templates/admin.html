@@ -449,7 +449,7 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
   </div>
   <h3>Signed up, not marked paid yet</h3>
   {{if .Signups}}<ul class="signups">{{range .Signups}}<li>
-    <span><strong>{{.Name}}</strong><br><span class="muted small">{{.PlanName}} · joined {{date .Joined}}</span></span>
+    <span><strong>{{.Name}}</strong><br><span class="muted small">{{.PlanName}} · joined {{date .Joined}}{{if .Unconfirmed}} · email not confirmed{{end}}</span></span>
     <form method="post" action="/admin/members/{{.ID}}/paid"><input type="hidden" name="paid" value="1"><input type="hidden" name="return" value="/admin"><button class="mini">{{icon "check"}}Mark paid</button></form>
   </li>{{end}}</ul>
   {{with .MoreSignups}}<p class="small"><a href="/admin/members?dues=unpaid">{{.}} more on the unpaid list</a></p>{{end}}
@@ -567,7 +567,7 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
   {{range .Members}}{{$paid := .PaidFor $.Year}}<tr id="m{{.ID}}" data-name="{{.Name}}" data-plan="{{.Plan}}" data-paid="{{if $paid}}1{{else}}0{{end}}" data-waiver="{{if index $.Signed .ID}}1{{else}}0{{end}}" data-joined="{{.Joined.Format "2006-01-02T15:04:05"}}" data-find="{{.Name}} {{.Email}} {{.Phone}}"{{if not .Active}} class="off"{{end}}>
     <td class="pick-col" data-label="Tick">{{if not $paid}}<input type="checkbox" name="id" value="{{.ID}}" form="bulk" aria-label="Tick {{.Name}}">{{end}}</td>
     <td data-label="Name"><a class="member-link" href="/admin/members/{{.ID}}">{{.Name}}</a>{{with .Household}}<br><span class="muted small">With {{range $i, $h := .}}{{if $i}}, {{end}}{{$h.Name}}{{end}}</span>{{end}}</td>
-    <td class="email" data-label="Email"><a href="mailto:{{.Email}}">{{.Email}}</a>{{if not .Active}} <span class="tag">Unsubscribed</span>{{end}}</td>
+    <td class="email" data-label="Email"><a href="mailto:{{.Email}}">{{.Email}}</a>{{if not .Active}} <span class="tag">Unsubscribed</span>{{end}}{{if .Unconfirmed}} <span class="tag" title="Club emails reach them once they press the link we emailed">Email not confirmed</span>{{end}}</td>
     <td class="nowrap" data-label="Phone">{{with .Phone}}<a href="tel:{{.}}">{{.}}</a>{{else}}<span class="muted">—</span>{{end}}</td>
     <td data-label="Plan">{{.PlanName}}</td>
     <td data-label="Riding">{{with .LevelName}}{{.}}{{else}}<span class="muted">—</span>{{end}}{{with .RideNames}}<br><span class="muted small">{{.}}</span>{{end}}</td>
@@ -659,7 +659,7 @@ body.addEventListener('submit',function(e){var f=e.target;if(!f.classList.contai
 <p><a href="/admin/members">← All members</a></p>
 <div class="title-row">
   <h1>{{.Name}}</h1>
-  <p class="muted">{{.PlanName}} plan · joined {{date .Joined}}{{if not .Active}} <span class="tag">Unsubscribed</span>{{end}}</p>
+  <p class="muted">{{.PlanName}} plan · joined {{date .Joined}}{{if not .Active}} <span class="tag">Unsubscribed</span>{{end}}{{if .Unconfirmed}} <span class="tag" title="Club emails reach them once they press the link we emailed">Email not confirmed</span>{{end}}</p>
 </div>
 <div class="grid2 member-page">
   <form class="card" method="post" action="/admin/members/{{.ID}}">
@@ -834,6 +834,7 @@ body.addEventListener('submit',function(e){var f=e.target;if(!f.classList.contai
     </label>
     <button formaction="/admin/email/send" onclick="return confirm('Send this email to: '+this.form.audience.selectedOptions[0].text+'?')">{{icon "send"}}Send email</button>
   </div>
+  <p class="muted small">The counts leave out members who unsubscribed, and new members until they confirm their email from the link we send them.</p>
 </form>
 <script>
 // The draft saves itself a couple of seconds after each change, and the

@@ -188,10 +188,14 @@ func (m *Mailer) NotifySignup(mem Member) {
 	year := m.cfg.ThisYear()
 	riding := or(mem.LevelName(), "not answered")
 	phone := or(mem.Phone, "not given")
+	email := mem.Email
+	if mem.Unconfirmed {
+		email += " (not confirmed yet: we emailed them a link, and club emails reach them once they press it)"
+	}
 	subject := "New member: " + mem.Name + " (" + mem.PlanName() + ")"
 	body := "**" + mem.Name + "** just joined on the website.\n\n" +
 		"- **Plan:** " + mem.PlanName() + ", $" + strconv.Itoa(m.cfg.Dues(mem.Plan)) + " for " + strconv.Itoa(year) + "\n" +
-		"- **Email:** " + mem.Email + "\n" +
+		"- **Email:** " + email + "\n" +
 		"- **Phone:** " + phone + "\n" +
 		"- **Riding:** " + riding + "\n\n" +
 		"When their PayPal payment comes in, find them on the Members page and press **Mark paid**. That sends their welcome email.\n\n" +

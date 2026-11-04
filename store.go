@@ -41,6 +41,11 @@ type Member struct {
 	// admin marks their dues paid, which sends their welcome email. Members
 	// added by an admin or imported never get one.
 	WelcomePending bool `json:"welcome_pending,omitempty"`
+	// Unconfirmed is set for someone who joined on the website, or came back
+	// after unsubscribing, until they press Confirm on their membership page
+	// from the link we email them. Club emails skip them until then, so a
+	// mistyped or borrowed address gets nothing more. Paying doesn't wait.
+	Unconfirmed bool `json:"unconfirmed,omitempty"`
 	// When they ticked "I agree to the club terms" on the join form.
 	TermsAgreed *time.Time `json:"terms_agreed,omitempty"`
 	// Other adults who ride on their Family plan, each signing their own
@@ -104,6 +109,10 @@ func (m *Member) fill(d memberDetails) {
 }
 
 func (m Member) Active() bool { return m.Unsubscribed == nil }
+
+// Emailable reports whether club emails go to them: not unsubscribed, and
+// their email confirmed if they joined on the website.
+func (m Member) Emailable() bool { return m.Active() && !m.Unconfirmed }
 
 func (m Member) PaidFor(year int) bool {
 	for _, y := range m.PaidYears {
@@ -423,14 +432,16 @@ func (s *Store) join(d memberDetails, year int, admin bool) (Member, JoinResult,
 			if !m.Active() {
 				m.Unsubscribed, res = nil, Rejoined
 			}
+			m.Unconfirmed = false // an admin vouches for the address
 			m.update(d)
 			if !m.PaidFor(year) {
 				m.Plan = d.Plan
 			}
 		case !m.Active():
-			// Back to renew: fill in what's missing, but leave club emails off.
-			// Anyone could type this address, so only the member turns them on.
+			// Back to renew: fill in what's missing, but leave club emails off
+			// until they confirm the address is theirs, since anyone could type it.
 			m.fill(d)
+			m.Unconfirmed = true
 			res = OptedOut
 		default:
 			m.fill(d)
@@ -439,8 +450,25 @@ func (s *Store) join(d memberDetails, year int, admin bool) (Member, JoinResult,
 	}
 	m := s.newMember(d.Name, d.Email, d.Plan)
 	m.update(d)
-	m.WelcomePending = !admin
+	m.WelcomePending, m.Unconfirmed = !admin, !admin
 	return *m, Joined, s.save()
+}
+
+// ConfirmEmail records that a member confirmed their address from the link
+// we emailed them, which turns club emails on (back on, for someone who came
+// back after unsubscribing).
+func (s *Store) ConfirmEmail(token string) (Member, bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	m := s.byToken(token)
+	if m == nil {
+		return Member{}, false, nil
+	}
+	if !m.Unconfirmed {
+		return *m, true, nil
+	}
+	m.Unconfirmed, m.Unsubscribed = false, nil
+	return *m, true, s.save()
 }
 
 // SetPaid marks a member's dues as paid (or not) for a year.
@@ -629,7 +657,7 @@ func (s *Store) startCampaign(issue int, subject, body, audience string, year in
 	c := &Campaign{ID: s.d.NextCampaign, Subject: subject, Body: body, Created: time.Now().UTC(), Status: "sending", Audience: audienceLabel(audience, year), Issue: issue}
 	signed := s.signedWaivers(year)
 	for _, m := range s.d.Members {
-		if m.Active() && inAudience(*m, audience, year, signed) {
+		if m.Emailable() && inAudience(*m, audience, year, signed) {
 			c.Pending = append(c.Pending, m.ID)
 		}
 	}
@@ -661,7 +689,7 @@ func (s *Store) NextSend() (Campaign, Member, bool) {
 			continue
 		}
 		for len(c.Pending) > 0 {
-			if m := s.byID(c.Pending[0]); m != nil && m.Active() {
+			if m := s.byID(c.Pending[0]); m != nil && m.Emailable() {
 				out := *c
 				out.Pending = nil
 				return out, *m, true
@@ -816,7 +844,7 @@ func (s *Store) signedWaivers(year int) map[int]bool {
 }
 
 // emailAudiences are the groups an email can go to, each with how many
-// active members are in it now.
+// members who get club emails are in it now.
 func (s *Store) emailAudiences(year int) []audienceOption {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -829,7 +857,7 @@ func (s *Store) emailAudiences(year int) []audienceOption {
 	for _, v := range values {
 		n := 0
 		for _, m := range s.d.Members {
-			if m.Active() && inAudience(*m, v, year, signed) {
+			if m.Emailable() && inAudience(*m, v, year, signed) {
 				n++
 			}
 		}

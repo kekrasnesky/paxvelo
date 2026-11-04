@@ -177,6 +177,7 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("GET /membership", a.membershipPage)
 	mux.HandleFunc("POST /membership", a.saveMembership)
 	mux.HandleFunc("POST /membership/emails", a.resubscribe)
+	mux.HandleFunc("POST /membership/confirm", a.confirmEmail)
 	mux.HandleFunc("POST /membership/link", a.sendMembershipLink)
 	mux.HandleFunc("POST /membership/waiver", a.signWaiver)
 	mux.HandleFunc("POST /membership/waiver/minor", a.signMinorWaiver)

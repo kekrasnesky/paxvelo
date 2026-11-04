@@ -354,9 +354,10 @@ func TestWelcomeTipsEditable(t *testing.T) {
 	}
 }
 
-// Joining on the website tells the admins and sends nothing to the new
-// member. Marking them paid sends their welcome email, once: undoing and
-// marking again, or marking a member an admin added, sends nothing.
+// Joining on the website tells the admins and sends the new member only the
+// link to confirm their email. Marking them paid sends their welcome email,
+// once: undoing and marking again, or marking a member an admin added, sends
+// nothing.
 func TestWelcomeAfterPaid(t *testing.T) {
 	a, h, admin := testApp(t)
 	a.store.AddAdmin("Barry Treasurer", "barry@example.com", "test")
@@ -382,14 +383,23 @@ func TestWelcomeAfterPaid(t *testing.T) {
 	ct, body := joinForm(a, url.Values{"plan": {"family"}, "first": {"Kim"}, "last": {"Rider"}, "email": {"kim@example.com"},
 		"phone": {"301-555-0123"}, "emergency_name": {"Sam Rider"}, "emergency_phone": {"240-555-0199"}, "level": {"some"}})
 	do(t, h, nil, "POST", "/join", ct, body)
-	s, ok := next()
-	if !ok || s.to != "barry@example.com" || s.subject != "New member: Kim Rider (Family)" {
-		t.Fatalf("admins should hear about the signup: %+v", s)
+	got := map[string]sent{} // both go in the background, in either order
+	for range 2 {
+		if s, ok := next(); ok {
+			got[s.to] = s
+		}
 	}
-	for _, want := range []string{"**Plan:** Family, $45", "**Riding:** Some group rides", "Mark paid", "/admin/members?q=kim%40example.com"} {
+	s := got["barry@example.com"]
+	if s.subject != "New member: Kim Rider (Family)" {
+		t.Fatalf("admins should hear about the signup: %+v", got)
+	}
+	for _, want := range []string{"**Plan:** Family, $45", "**Riding:** Some group rides", "Mark paid", "/admin/members?q=kim%40example.com", "not confirmed yet"} {
 		if !strings.Contains(s.body, want) {
 			t.Errorf("signup notice missing %q:\n%s", want, s.body)
 		}
+	}
+	if c := got["kim@example.com"]; c.subject != "Confirm your email for PaxVelo" || !strings.Contains(c.body, "[[Confirm my email](") {
+		t.Errorf("the new member should get the confirm email: %+v", c)
 	}
 	none("after joining")
 
@@ -407,7 +417,7 @@ func TestWelcomeAfterPaid(t *testing.T) {
 	if loc := paid("1"); !strings.Contains(loc, "ok=paid-welcome") {
 		t.Errorf("marking paid should say the welcome is on its way: %s", loc)
 	}
-	s, ok = next()
+	s, ok := next()
 	if !ok || s.to != "kim@example.com" || !strings.Contains(s.subject, "Welcome to PaxVelo, Kim") ||
 		!strings.Contains(s.body, "dues are in") || strings.Contains(s.body, "finish up") ||
 		!strings.Contains(s.body, levelAdvice["some"]) {
