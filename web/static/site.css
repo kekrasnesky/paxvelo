@@ -706,6 +706,11 @@ html:has(.gal-view[open]){overflow:hidden} /* the page behind stays put */
 .my-details[open]>summary::after{content:" −"}
 .my-details[open]>summary{margin-bottom:.6rem}
 .my-page .cal-msg{margin-top:1rem!important}
+.my-signout{margin-top:1.4rem}
+.plans-member{margin:.8rem 0 0;text-align:center;font-size:.95rem}
+.ftr-end{justify-self:end;display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:.2rem 1.4rem}
+.ftr-member{color:var(--paper);font-size:.9rem;font-weight:500;text-decoration:none}
+.ftr-member:hover{text-decoration:underline}
 /* Club emails: a switch for each kind a member can turn off */
 .email-prefs{display:grid;gap:.6rem;justify-items:start;margin:.5rem 0 .8rem}
 .email-prefs .hint{margin:0}
@@ -766,6 +771,8 @@ html:has(.gal-view[open]){overflow:hidden} /* the page behind stays put */
   .facts div{grid-template-columns:1fr;gap:.1rem}
   .ftr{grid-template-columns:1fr;justify-items:center;gap:.8rem;padding:20px var(--pad);text-align:center}
   .ftr-mail{justify-self:center}
+  .ftr-end{justify-self:center;justify-content:center}
+  .ftr-member{display:inline-block;padding:.6rem 0}
   .ftr-copy{flex-direction:column;gap:.4rem}
 }
 /* Narrow tablets don't have room for the club name beside the menu; the logo stays. */

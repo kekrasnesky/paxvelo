@@ -51,6 +51,7 @@
     <a href="/calendar"{{if hasPrefix .Path "/calendar"}} aria-current="page"{{end}}>Calendar</a>
     <a href="/newsletter"{{if hasPrefix .Path "/newsletter"}} aria-current="page"{{end}}>Newsletter</a>
     <a href="/kit"{{if eq .Path "/kit"}} aria-current="page"{{end}}>Shop Kit</a>
+    <a href="/membership"{{if eq .Path "/membership"}} aria-current="page"{{end}}>My Membership</a>
     <a class="nav-join" href="/join"{{if eq .Path "/join"}} aria-current="page"{{end}}>Join</a>
     <a class="nav-admin" href="/admin" rel="nofollow">Admin</a>
   </nav>
@@ -72,7 +73,7 @@
   </div>
   <p class="ftr-copy"><picture><source srcset="/static/img/rider-light-still.svg?v={{.V}}" media="(prefers-reduced-motion: reduce)"><img src="/static/img/rider-light.svg?v={{.V}}" alt="" width="44" height="42" loading="lazy"></picture>© PaxVelo, a 501(c)(3) nonprofit</p>
   {{template "social" .}}
-  <a class="ftr-mail" href="mailto:PaxVeloClub@gmail.com">PaxVeloClub@gmail.com</a>
+  <div class="ftr-end"><a class="ftr-member" href="/membership">My Membership</a><a class="ftr-mail" href="mailto:PaxVeloClub@gmail.com">PaxVeloClub@gmail.com</a></div>
   <a class="ftr-admin" href="/admin" rel="nofollow">Admin</a>
 </footer>
 <script>{{.JS}}</script>
@@ -102,6 +103,7 @@
     <span class="plan-per">per year, for your household</span>
     <span class="plan-go">Join</span>
   </a>
-</div>{{end}}
+</div>
+<p class="plans-member">Already a member? <a href="/membership">Check your membership</a></p>{{end}}
 
 {{define "rider-bar"}}{{with .Flash}}<p class="cal-msg" role="status">{{.}}</p>{{end}}{{with .Error}}<p class="cal-msg cal-err" role="alert">{{.}}</p>{{end}}{{end}}

@@ -40,6 +40,7 @@ type membershipData struct {
 	AutoConfirm                  bool   // opened from the button in the confirm email: the page confirms itself
 	RenewalDoes                  string // what confirming that renewal does, for the Confirm box
 	Email                        string // typed into "send me my link"
+	SignedOut                    bool   // they just signed out of this device
 	// This year's insurance waiver (waivers.go): the signed one, or the form
 	// to sign it.
 	Waiver        *Waiver
@@ -120,10 +121,29 @@ func (a *App) renderMembership(w http.ResponseWriter, status int, d membershipDa
 	a.site.render(w, status, "membership", "/membership", "My Membership — "+siteName, d)
 }
 
+// memberCookie remembers a member's link on their own device, so My
+// Membership in the menu opens their page without another email. It holds
+// the same secret as their link, so it's HttpOnly, and "Sign out of this
+// device" forgets it.
+const memberCookie = "pv_member"
+
+func (a *App) rememberMember(w http.ResponseWriter, token string, maxAge int) {
+	http.SetCookie(w, &http.Cookie{
+		Name: memberCookie, Value: token, Path: "/membership", MaxAge: maxAge,
+		HttpOnly: true, Secure: strings.HasPrefix(a.cfg.SiteURL, "https://"), SameSite: http.SameSiteLaxMode,
+	})
+}
+
 func (a *App) membershipPage(w http.ResponseWriter, r *http.Request) {
 	t := r.URL.Query().Get("t")
+	remembered := false
 	if t == "" {
-		a.renderMembership(w, http.StatusOK, membershipData{State: "find"})
+		if c, err := r.Cookie(memberCookie); err == nil && c.Value != "" {
+			t, remembered = c.Value, true
+		}
+	}
+	if t == "" {
+		a.renderMembership(w, http.StatusOK, membershipData{State: "find", SignedOut: r.URL.Query().Get("out") != ""})
 		return
 	}
 	if t == testToken { // the My membership link in a test email
@@ -132,8 +152,16 @@ func (a *App) membershipPage(w http.ResponseWriter, r *http.Request) {
 	}
 	_, _, v, ok := a.waiverSigner(t) // a member, or an adult on their Family plan
 	if !ok {
+		if remembered { // a member since deleted: forget them here, and offer a fresh link
+			a.rememberMember(w, "", -1)
+			a.renderMembership(w, http.StatusOK, membershipData{State: "find"})
+			return
+		}
 		a.renderMembership(w, http.StatusOK, membershipData{State: "invalid"})
 		return
+	}
+	if !remembered {
+		a.rememberMember(w, t, 400*24*3600) // browsers cap it at 400 days
 	}
 	v.WaiverSigned = v.Waiver != nil && r.URL.Query().Get("signed") != ""
 	v.MinorSigned = len(v.Minors) > 0 && r.URL.Query().Get("minor") != ""
@@ -151,6 +179,12 @@ func (a *App) membershipPage(w http.ResponseWriter, r *http.Request) {
 	// an email; a renewal must never be signed by one.
 	v.AutoConfirm = q.Get("confirm") != "" && (v.Member.Unconfirmed || v.Member.RenewalWaiting())
 	a.renderMembership(w, http.StatusOK, v)
+}
+
+// forgetMember is "Sign out of this device" on a member's page.
+func (a *App) forgetMember(w http.ResponseWriter, r *http.Request) {
+	a.rememberMember(w, "", -1)
+	http.Redirect(w, r, "/membership?out=1", http.StatusSeeOther)
 }
 
 // saveMembership saves the details a member changed on their page. The page

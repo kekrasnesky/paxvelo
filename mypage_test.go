@@ -284,3 +284,47 @@ func TestMembershipSummary(t *testing.T) {
 		t.Error("undoing should forget the date")
 	}
 }
+
+// My Membership is in the menu on every page. Once a member opens their link
+// on a device, it remembers them there, so the menu opens their page; signing
+// out of the device forgets them.
+func TestRememberedMember(t *testing.T) {
+	a, h, _ := testApp(t)
+	m, _, _ := a.store.Join(memberDetails{Name: "Pat Rider", Email: "pat@example.com", Plan: "individual"}, a.cfg.ThisYear())
+	if page := do(t, h, nil, "GET", "/calendar", "", nil).Body.String(); !strings.Contains(page, `<a href="/membership">My Membership</a>`) {
+		t.Error("the menu should have My Membership")
+	}
+	if page := do(t, h, nil, "GET", "/membership", "", nil).Body.String(); !strings.Contains(page, "Send me my link") {
+		t.Fatal("a device that doesn't know them asks for their email")
+	}
+	w := do(t, h, nil, "GET", "/membership?t="+m.Token, "", nil)
+	var c *http.Cookie
+	for _, k := range w.Result().Cookies() {
+		if k.Name == memberCookie {
+			c = k
+		}
+	}
+	if c == nil || c.Value != m.Token || !c.HttpOnly || c.Path != "/membership" {
+		t.Fatalf("opening their link should remember them here: %+v", c)
+	}
+	page := do(t, h, c, "GET", "/membership", "", nil).Body.String()
+	if !strings.Contains(page, "Pat Rider · pat@example.com") || !strings.Contains(page, "Sign out of this device") {
+		t.Fatal("My Membership should open their page on this device")
+	}
+	w = do(t, h, c, "POST", "/membership/forget", "", nil)
+	if k := w.Result().Cookies(); len(k) != 1 || k[0].MaxAge >= 0 || !strings.Contains(followed(t, h, w), "Signed out of this device") {
+		t.Errorf("signing out should forget them: %+v", k)
+	}
+	// A remembered member since deleted: forgotten, and offered a fresh link.
+	a.store.mu.Lock()
+	a.store.d.Members = nil
+	a.store.mu.Unlock()
+	w = do(t, h, c, "GET", "/membership", "", nil)
+	if !strings.Contains(w.Body.String(), "Send me my link") || len(w.Result().Cookies()) != 1 {
+		t.Error("an old device cookie should be cleared")
+	}
+	// A test email's link isn't remembered.
+	if w := do(t, h, nil, "GET", "/membership?t="+testToken, "", nil); len(w.Result().Cookies()) != 0 {
+		t.Error("a test link must not be remembered")
+	}
+}

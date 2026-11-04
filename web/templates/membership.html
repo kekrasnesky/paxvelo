@@ -166,13 +166,13 @@ adult on their Family plan. */}}
   {{else if $m.Unconfirmed}}<p>Off. Confirm your email at the top of this page to turn them back on.</p>
   {{else}}<p>Off. You unsubscribed.</p>
   <form method="post" action="/membership/emails#emails"><input type="hidden" name="t" value="{{.Token}}"><button class="btn btn-quiet" type="submit">Turn club emails back on</button></form>{{end}}
-  <p class="muted-note">This link is just for you. Keep the email it came in.</p>
+  <form class="my-signout" method="post" action="/membership/forget"><p class="muted-note">This page opens from My Membership in the menu on this device. <button class="link-button" type="submit">Sign out of this device</button></p></form>
 {{else if eq .State "adult"}}
   <h1>My Waiver</h1>
   <p class="lead">{{.Adult.Name}} · on {{.Member.Name}}’s family membership</p>
   <ul class="status-list">{{template "waiver-status" .}}</ul>
   {{template "my-waiver" .}}
-  <p class="muted-note">This link is just for you. Keep the email it came in: you’ll sign each new year’s waiver here.</p>
+  <form class="my-signout" method="post" action="/membership/forget"><p class="muted-note">You’ll sign each new year’s waiver here. <button class="link-button" type="submit">Sign out of this device</button></p></form>
 {{else if eq .State "test"}}
   <h1>That was a test email</h1>
   <p class="lead">This is the My membership link from a test email, so it isn’t anyone’s.</p>
@@ -184,7 +184,9 @@ adult on their Family plan. */}}
 {{else}}
   <h1>My Membership</h1>
   {{if eq .State "invalid"}}<p class="lead">That link isn’t valid. It may have been copied incompletely. Enter your email for a fresh one.</p>
-  {{else}}<p class="lead">Your dues, waiver and details. Enter your email and we’ll send you your link.</p>{{end}}
+  {{else if .SignedOut}}<p class="cal-msg" role="status">Signed out of this device.</p>
+  <p class="lead">Check your dues, waiver and details. Enter your email and we’ll send you a link.</p>
+  {{else}}<p class="lead">Check your dues, waiver and details. Enter your email and we’ll send you a link. After you open it, this device remembers you.</p>{{end}}
   <form class="join" method="post" action="/membership/link">
     <label>Email <input type="email" name="email" required maxlength="254" autocomplete="email" value="{{.Email}}"></label>
     <button class="btn" type="submit">{{icon "send"}}Send me my link</button>
