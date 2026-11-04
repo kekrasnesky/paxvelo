@@ -52,6 +52,8 @@ SMTP_USER=
 SMTP_PASS=
 FROM_NAME=PaxVelo
 FROM_EMAIL=news@paxvelo.cc
+# Where replies to club emails go (news@ takes no mail). Defaults to PaxVeloClub@gmail.com.
+REPLY_TO=
 
 # Pause between emails when sending to everyone. Brevo's free plan allows 300 a day.
 SEND_DELAY=2s

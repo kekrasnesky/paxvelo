@@ -25,6 +25,7 @@ type Config struct {
 	SMTPPass      string
 	FromName      string
 	FromEmail     string
+	ReplyTo       string // where replies to club emails go (the sending address may not take mail)
 	SendDelay     time.Duration
 	EmailLimit    int // emails the provider allows a day
 	Location      *time.Location
@@ -151,6 +152,7 @@ func loadConfig() (Config, error) {
 	if c.RidesEmail == "" {
 		c.RidesEmail = "PaxVeloClub@gmail.com"
 	}
+	c.ReplyTo = get("REPLY_TO", "PaxVeloClub@gmail.com")
 	c.StravaClubID = get("STRAVA_CLUB_ID", clubIDFrom(c.StravaURL))
 
 	if c.SMTPPort, err = strconv.Atoi(get("SMTP_PORT", "587")); err != nil {

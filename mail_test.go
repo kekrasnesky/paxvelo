@@ -50,9 +50,13 @@ func TestFailedEmailIsLogged(t *testing.T) {
 func TestUnsubscribeOnlyOnMemberEmails(t *testing.T) {
 	a, _, _ := testApp(t)
 	m := a.mailer
+	m.cfg.FromEmail, m.cfg.ReplyTo = "news@paxvelo.cc", "PaxVeloClub@gmail.com"
 	member := string(m.build("Pat", "pat@example.com", "News", "Hi", "<p>Hi</p>", "https://example.com/unsubscribe?t=abc"))
 	if !strings.Contains(member, "List-Unsubscribe: <https://example.com/unsubscribe?t=abc>") || !strings.Contains(member, "List-Unsubscribe-Post") {
 		t.Error("a member email should have the unsubscribe headers")
+	}
+	if want := "<PaxVeloClub@gmail.com>"; !strings.Contains(member, "Reply-To: ") || !strings.Contains(member, want) {
+		t.Errorf("replies should go to the club inbox, want %s", want)
 	}
 	direct := string(m.build("Pat", "pat@example.com", "Reset", "Hi", "<p>Hi</p>", ""))
 	if strings.Contains(direct, "List-Unsubscribe") {

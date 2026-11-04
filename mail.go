@@ -295,6 +295,10 @@ func (m *Mailer) build(toName, toEmail, subject, text, htmlBody, unsubURL string
 	boundary := "pv-" + randHex(12)
 	hdr := func(k, v string) { b.WriteString(k + ": " + v + "\r\n") }
 	hdr("From", (&mail.Address{Name: m.cfg.FromName, Address: m.cfg.FromEmail}).String())
+	if r := m.cfg.ReplyTo; r != "" && !strings.EqualFold(r, m.cfg.FromEmail) {
+		// Replies go to the club inbox: the sending address takes no mail.
+		hdr("Reply-To", (&mail.Address{Name: m.cfg.FromName, Address: r}).String())
+	}
 	hdr("To", (&mail.Address{Name: toName, Address: toEmail}).String())
 	hdr("Subject", mime.QEncoding.Encode("utf-8", subject))
 	hdr("Date", time.Now().Format(time.RFC1123Z))

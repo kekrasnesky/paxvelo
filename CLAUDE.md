@@ -10,7 +10,7 @@ Single Go program (stdlib only, no DB, no third-party code). Pages, templates, C
 - `content/<page>.md` = pages (add a file = add a page; `##` headings get anchors). Admin edits override the GitHub version (revert per page). Formatting: `content/README.md`. Placeholders: `{strava}`, `{kit}`, `{pay_link}`.
 - `web/templates/*.html`, `web/static/site.css` (colors at top), `site.js` (also the stats beacon), `web/static/img/` (logo, favicon, og). `web/waiver*.html` are legal text copied from the League of American Bicyclists: change only for a new League version; signed waivers keep their original text (`waiver_texts`).
 - Photos: `content/photos/hero.webp` (~2000px, plus square `hero-phone.webp`), `ride.webp`, `giving.webp` (~1000px).
-- Config keys (all in `paxvelo.conf`, see example): `SITE_URL ADMIN_PASSWORD DUES_INDIVIDUAL DUES_FAMILY PAYPAL_INDIVIDUAL_URL PAYPAL_FAMILY_URL KIT_URL STRAVA_URL DONATE_URL STRAVA_CLIENT_ID STRAVA_CLIENT_SECRET RIDES_EMAIL CALENDAR_API_KEY SMTP_* FROM_NAME FROM_EMAIL SEND_DELAY EMAIL_DAILY_LIMIT LISTEN DATA_DIR TIMEZONE`.
+- Config keys (all in `paxvelo.conf`, see example): `SITE_URL ADMIN_PASSWORD DUES_INDIVIDUAL DUES_FAMILY PAYPAL_INDIVIDUAL_URL PAYPAL_FAMILY_URL KIT_URL STRAVA_URL DONATE_URL STRAVA_CLIENT_ID STRAVA_CLIENT_SECRET RIDES_EMAIL CALENDAR_API_KEY SMTP_* FROM_NAME FROM_EMAIL REPLY_TO SEND_DELAY EMAIL_DAILY_LIMIT LISTEN DATA_DIR TIMEZONE`.
 
 ## Behaviors worth knowing
 - **Admins:** email + password (PBKDF2). Setup password `ADMIN_PASSWORD` works by name until the first admin sets a password; afterwards it is only an emergency key (logged as `admin login with the setup password as …`). One President can remove admins/delete members/download backups. Sessions last 30 days; removing an admin or changing a password logs them out.
@@ -30,7 +30,7 @@ Single Go program (stdlib only, no DB, no third-party code). Pages, templates, C
 - **Stats:** counts only by design; no per-member tracking. Weekly visitor codes are salted hashes kept until week end; emails use random per-copy tracking codes not tied to members.
 - **Emailing an issue** (`newsletteremail.go`): issue page → Email this issue: preview, Send a test, Send to members (published issues only). `issueEmail` writes the whole issue in email marks (emailfmt.go adds `*italics*`, `^^ kicker`, `---`) and sends it as a campaign tied to the issue (`Campaign.Issue`), leaving the Email members draft alone.
 - **Sent log** (`emaillog.go`): every send (`Mailer.send`) is appended to `data/email-log.jsonl` with kind, recipient, subject and result (never the body); halves itself past 4 MB. Admin Email → Sent log (search, kind, failed only); Home warns about failures in the last 7 days.
-- **Email:** Brevo SMTP from `news@paxvelo.cc` (add DKIM/DMARC in Cloudflare DNS; SMTP login looks like `abc@smtp-brevo.com`). Bulk sends pause after 3 straight failures and resume with **Resume**. Failures: `journalctl -u paxvelo | grep failed`. Replies to `news@` need forwarding (Cloudflare Email Routing).
+- **Email:** Brevo SMTP from `news@paxvelo.cc` (add DKIM/DMARC in Cloudflare DNS; SMTP login looks like `abc@smtp-brevo.com`). Bulk sends pause after 3 straight failures and resume with **Resume**. Failures: `journalctl -u paxvelo | grep failed`. Every email has `Reply-To: PaxVeloClub@gmail.com` (`REPLY_TO`), since `news@` takes no mail; Cloudflare Email Routing could forward it too.
 
 ## Calendar API
 ```sh
