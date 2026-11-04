@@ -33,6 +33,7 @@ type membershipData struct {
 	EmailsBack                   bool   // club emails were just turned back on
 	Confirmed                    bool   // they just confirmed their email
 	Renewed                      bool   // they just confirmed the renewal they filled in on the join form
+	AutoConfirm                  bool   // opened from the button in the confirm email: the page confirms itself
 	RenewalDoes                  string // what confirming that renewal does, for the Confirm box
 	Email                        string // typed into "send me my link"
 	// This year's insurance waiver (waivers.go): the signed one, or the form
@@ -136,6 +137,11 @@ func (a *App) membershipPage(w http.ResponseWriter, r *http.Request) {
 	v.Confirmed = q.Get("confirmed") != "" && !v.Member.Unconfirmed
 	v.Renewed = q.Get("renewed") != "" && !v.Member.RenewalWaiting()
 	v.EmailsBack = q.Get("emails") != "" && v.Member.Emailable()
+	// The button in the confirm email: the page's script presses Confirm as
+	// soon as a person's browser opens it, so one click does it. Loading the
+	// link alone changes nothing, because email scanners open every link in
+	// an email; a renewal must never be signed by one.
+	v.AutoConfirm = q.Get("confirm") != "" && (v.Member.Unconfirmed || v.Member.RenewalWaiting())
 	a.renderMembership(w, http.StatusOK, v)
 }
 
@@ -293,33 +299,35 @@ func (a *App) sendConfirm(m Member) error {
 	year := a.cfg.ThisYear()
 	renewing := m.RenewalWaiting()
 	subject, button := "Confirm your email for PaxVelo", "Confirm my email"
-	var intro string
+	var intro, unexpected string
 	switch {
 	case !m.Active():
+		unexpected = "If you weren’t expecting this email, no action is needed: you’ll stay unsubscribed unless you confirm."
 		intro = "Welcome back to PaxVelo! You unsubscribed from club emails earlier. Press the button to confirm this is your email, and they’ll come here again."
 		if renewing {
 			intro += " It also " + a.renewalDoes(m) + " on the join form."
 		}
 	case renewing && !m.Unconfirmed:
 		subject, button = "Finish renewing your PaxVelo membership", "Confirm it’s me"
+		unexpected = "If you weren’t expecting this email, no action is needed: nothing on your membership changes unless you confirm."
 		intro = "Someone, probably you, filled in PaxVelo’s join form with this email address. Press the button to confirm it was you: that " + a.renewalDoes(m) + "."
 	case renewing:
 		intro = "Thanks for joining PaxVelo! Press the button to confirm this is your email, so club news and ride updates reach you. It also " + a.renewalDoes(m) + " on the join form."
 	default:
 		intro = "Thanks for joining PaxVelo! Press the button to confirm this is your email, so club news and ride updates reach you."
 	}
-	var b strings.Builder
-	fmt.Fprintf(&b, "Hi %s,\n\n%s\n\n[[%s](%s#confirm)]", or(m.FirstName(), "there"), intro, button, a.cfg.membershipURL(m.Token))
-	if renewing {
-		b.WriteString("\n\nDidn’t fill in the form? Ignore this email, and nothing changes.")
+	if unexpected == "" {
+		unexpected = "If you didn’t sign up for PaxVelo, no action is needed: this address won’t get club emails unless it’s confirmed."
 	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "Hi %s,\n\n%s\n\n[[%s](%s&confirm=1#confirm)]", or(m.FirstName(), "there"), intro, button, a.cfg.membershipURL(m.Token))
 	if pay := a.cfg.PayLink(m.Plan); pay != "" && !m.PaidFor(year) {
 		fmt.Fprintf(&b, "\n\nHaven’t paid yet? [Pay your $%d %s dues for %d](%s).", a.cfg.Dues(m.Plan), strings.ToLower(m.PlanName()), year, pay)
 	}
 	if list := rideList(a.ridesFor(m.Level, 3), a.cfg.SiteURL); list != "" {
 		b.WriteString("\n\n" + list)
 	}
-	fmt.Fprintf(&b, "\n\nEvery club ride is on the calendar: %s/calendar\n\nBefore your first ride, take a couple of minutes to read Bike Safety 101: %s/bike-safety\n\nThe button opens your membership page, where you can also check your dues and update your details. Keep this email: the link is just for you.", a.cfg.SiteURL, a.cfg.SiteURL)
+	fmt.Fprintf(&b, "\n\nEvery club ride is on the calendar: %s/calendar\n\nBefore your first ride, take a couple of minutes to read Bike Safety 101: %s/bike-safety\n\nThe button also opens your membership page, where you can check your dues and update your details any time. Keep this email: the link is just for you.\n\n%s", a.cfg.SiteURL, a.cfg.SiteURL, unexpected)
 	return a.mailer.SendMine(mailConfirm, m, subject, b.String())
 }
 

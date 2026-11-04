@@ -88,12 +88,24 @@ func TestJoinWithSomeoneElsesEmail(t *testing.T) {
 	}
 	mail := box.to(a, "bob@example.com")
 	if len(mail) != 1 || mail[0].subject != "Finish renewing your PaxVelo membership" ||
-		!strings.Contains(mail[0].body, "[[Confirm it’s me]("+a.cfg.membershipURL(bob.Token)+"#confirm)]") ||
-		!strings.Contains(mail[0].body, "Didn’t fill in the form? Ignore this email, and nothing changes.") {
+		!strings.Contains(mail[0].body, "[[Confirm it’s me]("+a.cfg.membershipURL(bob.Token)+"&confirm=1#confirm)]") ||
+		!strings.Contains(mail[0].body, "If you weren’t expecting this email, no action is needed: nothing on your membership changes unless you confirm.") {
 		t.Fatalf("the member should get the email to confirm it: %+v", mail)
 	}
 	if len(box.to(a, "target@example.com")) != 0 {
 		t.Error("nobody else gets anything")
+	}
+	// Opening the email's link (as a person, or an email scanner) changes
+	// nothing by itself: the page's script presses Confirm for a person.
+	page := do(t, h, nil, "GET", "/membership?t="+bob.Token+"&confirm=1", "", nil).Body.String()
+	if !strings.Contains(page, `action="/membership/confirm" data-auto`) {
+		t.Error("the email's link should open a page that confirms itself")
+	}
+	if m, _ := a.store.MemberByEmail("bob@example.com"); !m.RenewalWaiting() || len(a.store.Waivers(year)) != 0 {
+		t.Error("loading the link must not confirm anything")
+	}
+	if page := do(t, h, nil, "GET", "/membership?t="+bob.Token, "", nil).Body.String(); strings.Contains(page, `action="/membership/confirm" data-auto`) {
+		t.Error("only the email's link confirms itself")
 	}
 	if page := do(t, h, admin, "GET", "/admin/members", "", nil).Body.String(); !strings.Contains(page, "Renewal not confirmed") {
 		t.Error("Members should show the renewal is waiting")

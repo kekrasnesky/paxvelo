@@ -186,7 +186,7 @@ func TestConfirmEmail(t *testing.T) {
 	}
 	c := confirmFor("jo@example.com")
 	m := a.store.Members()[0]
-	for _, want := range []string{"[[Confirm my email](" + a.cfg.membershipURL(m.Token) + "#confirm)]", "paypal.example/one", "Wednesday Shop Ride", "Wildewood"} {
+	for _, want := range []string{"[[Confirm my email](" + a.cfg.membershipURL(m.Token) + "&confirm=1#confirm)]", "If you didn’t sign up for PaxVelo, no action is needed", "paypal.example/one", "Wednesday Shop Ride", "Wildewood"} {
 		if !strings.Contains(c.body, want) {
 			t.Errorf("confirm email missing %q:\n%s", want, c.body)
 		}

@@ -203,6 +203,16 @@
     size();
   });
 
+  // Membership page opened from the button in the confirm email: press
+  // Confirm for them, once the page is really shown (not while it's being
+  // prerendered). The server never confirms on a plain page load, since email
+  // scanners open links too.
+  var auto=d.querySelector('form[data-auto]');
+  if(auto){
+    var go=function(){var b=auto.querySelector('button');if(b){b.disabled=true;b.lastChild.textContent='Confirming…'}auto.submit()};
+    if(d.prerendering)d.addEventListener('prerenderingchange',go,{once:true});else go();
+  }
+
   // Join form: write phone numbers as 301-555-0123 while they're typed. One
   // from another country, typed with its + code, stays as it's typed.
   d.querySelectorAll('form.join input[type=tel][pattern]').forEach(function(el){
