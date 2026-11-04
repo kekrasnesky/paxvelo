@@ -77,7 +77,6 @@ adult on their Family plan. */}}
   {{template "my-waiver" .}}
 
   <h2 class="my-h" id="minors">Riders under 18</h2>
-  <p>A parent or guardian signs each year for each rider under 18.</p>
   {{with .Minors}}<ul class="check-list">{{range .}}<li><strong>{{.Rider}}</strong>, age {{.RiderAge}} <span class="done-note">{{icon "check"}}{{.Year}} waiver signed {{date .Signed}}</span></li>{{end}}</ul>
   {{if $.Data.MinorSigned}}<p class="cal-msg" role="status">Thanks, that rider’s waiver is signed.</p>{{end}}{{end}}
   {{$f := .MinorForm}}<details class="minor-sign"{{if .MinorMessage}} open{{end}}>
@@ -154,19 +153,18 @@ adult on their Family plan. */}}
   </details>
 
   <h2 class="my-h" id="emails">Club emails</h2>
-  {{if $m.Active}}{{if .EmailsBack}}<p class="cal-msg" role="status">Club emails are back on.</p>{{else if .TopicsSaved}}<p class="cal-msg" role="status">Saved.</p>{{end}}<p>Sent to {{$m.Email}}.</p>
+  {{if $m.Active}}{{if .EmailsBack}}<p class="cal-msg" role="status">Club emails are back on.</p>{{else if .TopicsSaved}}<p class="cal-msg" role="status">Saved.</p>{{end}}
   <form class="email-prefs" method="post" action="/membership/emails#emails" data-autosave>
     <input type="hidden" name="t" value="{{.Token}}"><input type="hidden" name="do" value="topics">
     <label class="switch"><input type="checkbox" name="newsletter" value="yes"{{if $m.Wants "newsletter"}} checked{{end}}><span class="switch-track" aria-hidden="true"></span><span>Newsletter</span></label>
     <label class="switch"><input type="checkbox" name="events" value="yes"{{if $m.Wants "events"}} checked{{end}}><span class="switch-track" aria-hidden="true"></span><span>Calendar events</span></label>
-    <p class="hint">Dues reminders and club notices still come.</p>
     <button class="btn btn-quiet save-prefs" type="submit">Save</button>
   </form>
   <form method="post" action="/unsubscribe"><input type="hidden" name="t" value="{{.Token}}"><input type="hidden" name="what" value="all"><button class="link-button unsub-all" type="submit">Unsubscribe from everything</button></form>
   {{else if $m.Unconfirmed}}<p>Off. Confirm your email at the top of this page to turn them back on.</p>
   {{else}}<p>Off. You unsubscribed.</p>
   <form method="post" action="/membership/emails#emails"><input type="hidden" name="t" value="{{.Token}}"><button class="btn btn-quiet" type="submit">Turn club emails back on</button></form>{{end}}
-  <form class="my-signout" method="post" action="/membership/forget"><p class="muted-note">This page opens from My Membership in the menu on this device. <button class="link-button" type="submit">Sign out of this device</button></p></form>
+  <form class="my-signout" method="post" action="/membership/forget"><p class="muted-note"><button class="link-button" type="submit">Sign out of this device</button></p></form>
 {{else if eq .State "adult"}}
   <h1>My Waiver</h1>
   <p class="lead">{{.Adult.Name}} · on {{.Member.Name}}’s family membership</p>
