@@ -182,7 +182,7 @@ func TestJoinDoesNotResubscribe(t *testing.T) {
 	if _, ok := a.store.WaiverFor(got.ID, a.cfg.ThisYear()); ok {
 		t.Error("the waiver waits until they confirm")
 	}
-	if page := do(t, h, nil, "GET", "/membership?t="+got.Token, "", nil).Body.String(); !strings.Contains(page, "which turns club emails back on") ||
+	if page := do(t, h, nil, "GET", "/membership?t="+got.Token, "", nil).Body.String(); !strings.Contains(page, "and club emails turn back on") ||
 		!strings.Contains(page, "signs your "+strconv.Itoa(a.cfg.ThisYear())+" insurance waiver") || strings.Contains(page, "Turn club emails back on") {
 		t.Error("their own page should have one button, Confirm, that does it all")
 	}

@@ -1,10 +1,22 @@
 {{define "head"}}<meta name="robots" content="noindex">{{end}}
-{{/* This year's waiver, signed or the form to sign it, on a member's page or
-the page of an adult on their Family plan. */}}
-{{define "my-waiver"}}<h2 class="my-h" id="waiver">Insurance waiver</h2>
-  {{with .Waiver}}<p class="dues-paid">{{.Year}} waiver: signed ✓</p>
-  <p class="muted-note">{{if $.WaiverSigned}}Thanks! {{end}}You signed it as {{.Signature}} on {{date .Signed}}. You’ll sign a new one each year, from January.</p>
-  {{else}}<p>The club’s insurance needs every {{if .Adult}}adult who rides{{else}}member{{end}} to sign this waiver once a year. Your {{.Year}} waiver isn’t signed yet.</p>
+{{/* One line of the summary at the top: a check when it's done, a mark when
+it isn't. */}}
+{{define "status-mark"}}<span class="status-mark" aria-hidden="true">{{if .}}{{icon "check"}}{{else}}!{{end}}</span>{{end}}
+{{/* This year's waiver in the summary, on a member's page or the page of an
+adult on their Family plan. */}}
+{{define "waiver-status"}}<li class="status {{if .Waiver}}done{{else}}todo{{end}}">
+    {{template "status-mark" .Waiver}}
+    <div class="status-body">
+      <h2>{{.Year}} waiver</h2>
+      {{with .Waiver}}<p class="status-state">Signed</p>
+      <p class="status-meta">As {{.Signature}}, {{date .Signed}}</p>
+      {{else}}<p class="status-state">Not signed</p>
+      <p class="status-meta">Needed to ride with the club.</p>{{end}}
+    </div>
+    {{if not .Waiver}}<a class="btn status-act" href="#waiver">Sign</a>{{end}}
+  </li>{{end}}
+{{/* The form to sign this year's waiver, while it isn't signed. */}}
+{{define "my-waiver"}}{{if not .Waiver}}<h2 class="my-h" id="waiver">Sign the {{.Year}} waiver</h2>
   <form class="join" method="post" action="/membership/waiver#waiver">
     <input type="hidden" name="t" value="{{.Token}}">
     <fieldset class="terms waiver">
@@ -15,38 +27,59 @@ the page of an adult on their Family plan. */}}
       <label class="check-row"><input type="checkbox" name="waiver" value="yes" required{{if .WaiverTicked}} checked{{end}}> I have read and agree to the waiver.</label>
       <label>Print your full name <input name="signature" required maxlength="100" autocomplete="off" placeholder="Type your first and last name" value="{{.Signature}}"></label>
       {{template "signature-pad" "own"}}
-      <p class="hint">This signs your waiver for {{.Year}}.</p>
     </fieldset>
     <button class="btn" type="submit">Sign the waiver</button>
     <p class="msg{{if .WaiverMessage}} err{{end}}" role="status">{{.WaiverMessage}}</p>
-  </form>{{end}}{{end}}
+  </form>{{else if .WaiverSigned}}<p class="cal-msg" id="waiver" role="status">Thanks, your {{.Year}} waiver is signed.</p>{{end}}{{end}}
 {{define "content"}}{{with .Data}}
-<article class="page">
+<article class="page my-page">
 {{if eq .State "page"}}{{$m := .Member}}
   <h1>My Membership</h1>
-  <p class="lead">Hi {{or $m.FirstName "there"}}. This page is just for you, at {{$m.Email}}.</p>
+  <p class="lead">{{$m.Name}} · {{$m.Email}}</p>
   {{if $m.Unconfirmed}}<form class="confirm-box" id="confirm" method="post" action="/membership/confirm"{{if .AutoConfirm}} data-auto{{end}}>
     <input type="hidden" name="t" value="{{.Token}}">
-    <p><strong>One more step: confirm this is your email.</strong> Then club news and ride updates come to {{$m.Email}}{{if not $m.Active}}, which turns club emails back on{{end}}.{{with .RenewalDoes}} It also {{.}} on the join form.{{end}}</p>
+    <p><strong>Confirm your email.</strong> Club news and ride updates start once you do{{if not $m.Active}}, and club emails turn back on{{end}}.{{with .RenewalDoes}} It also {{.}} on the join form.{{end}}</p>
     <button class="btn" type="submit">{{icon "check"}}Confirm my email</button>
   </form>{{else if $m.RenewalWaiting}}<form class="confirm-box" id="confirm" method="post" action="/membership/confirm"{{if .AutoConfirm}} data-auto{{end}}>
     <input type="hidden" name="t" value="{{.Token}}">
-    <p><strong>Finish renewing: confirm it’s you.</strong> The join form was filled in for {{$m.Email}} on {{date $m.PendingJoin.At}}. Pressing the button {{.RenewalDoes}}. If you weren’t expecting this, no action is needed: nothing changes unless you confirm.</p>
+    <p><strong>Finish renewing.</strong> The join form was filled in for this email on {{date $m.PendingJoin.At}}. Confirming {{.RenewalDoes}}. Not you? No action is needed.</p>
     <button class="btn" type="submit">{{icon "check"}}Confirm it’s me</button>
-  </form>{{else if or .Confirmed .Renewed}}<p class="cal-msg" id="confirm" role="status">Thanks{{if .Confirmed}}, your email is confirmed. Club news and ride updates will come to {{$m.Email}}.{{else}}, you’re renewed.{{end}}{{if .Renewed}} Your waiver is signed and what you filled in is saved.{{end}}</p>{{end}}
+  </form>{{else if or .Confirmed .Renewed}}<p class="cal-msg" id="confirm" role="status">{{if .Confirmed}}Your email is confirmed.{{else}}You’re renewed.{{end}}{{if .Renewed}} Your waiver is signed and your details are saved.{{end}}</p>{{end}}
 
-  <h2 class="my-h">Dues</h2>
-  {{if .Paid}}<p class="dues-paid">{{.Year}} dues: paid ✓</p>
-  {{else}}<p>Your {{.Year}} {{.PlanName}} dues aren’t paid yet.</p>
-  {{with .PayURL}}<p><a class="btn" href="{{.}}">{{$.Data.PayLabel}}</a></p>{{else}}<p>Email <a href="mailto:PaxVeloClub@gmail.com">PaxVeloClub@gmail.com</a> and we’ll tell you how to pay.</p>{{end}}
-  <p class="muted-note">Just paid? It shows here once the treasurer marks it, usually within a few days.</p>{{end}}
+  <ul class="status-list">
+    <li class="status {{if .Paid}}done{{else}}todo{{end}}">
+      {{template "status-mark" .Paid}}
+      <div class="status-body">
+        <h2>{{.Year}} dues</h2>
+        {{if .Paid}}<p class="status-state">Paid</p>
+        <p class="status-meta">{{if .PaidOn.IsZero}}Confirmed by the club{{else}}Confirmed by the club on {{date .PaidOn}}{{end}}</p>
+        {{else}}<p class="status-state">Not paid</p>
+        <p class="status-meta">{{$m.PlanName}} plan. Already paid? It shows here once the club confirms it.</p>{{end}}
+      </div>
+      {{if not .Paid}}{{with .PayURL}}<a class="btn status-act" href="{{.}}">{{$.Data.PayLabel}}</a>{{else}}<a class="btn btn-quiet status-act" href="mailto:PaxVeloClub@gmail.com">Ask how to pay</a>{{end}}{{end}}
+    </li>
+    {{template "waiver-status" .}}
+    <li class="status {{if .DetailsDone}}done{{else}}todo{{end}}">
+      {{template "status-mark" .DetailsDone}}
+      <div class="status-body">
+        <h2>Your details</h2>
+        <p class="status-state">{{if .DetailsDone}}Filled in{{else}}Missing{{end}}</p>
+        <dl class="status-facts">
+          <div><dt>Phone</dt><dd>{{with .PhoneOnFile}}···{{.}}{{else}}<span class="missing">Not given</span>{{end}}</dd></div>
+          <div><dt>Emergency contact</dt><dd>{{with .EmergencyOnFile}}{{.}}{{else}}<span class="missing">Not given</span>{{end}}</dd></div>
+          <div><dt>Riding</dt><dd>{{with .LevelName}}{{.}}{{else}}<span class="missing">Not given</span>{{end}}</dd></div>
+        </dl>
+      </div>
+      <a class="btn {{if .DetailsDone}}btn-quiet {{end}}status-act" href="#details">{{if .DetailsDone}}Update{{else}}Add{{end}}</a>
+    </li>
+  </ul>
 
   {{template "my-waiver" .}}
 
-  <h3 class="my-h3" id="minors">Riders under 18</h3>
-  <p>Riders under 18 can’t sign the waiver themselves. As their parent or legal guardian, sign for each one here, every year.</p>
-  {{with .Minors}}<ul class="minor-list">{{range .}}<li><strong>{{.Rider}}</strong>, age {{.RiderAge}}: {{.Year}} waiver signed {{date .Signed}} ✓</li>{{end}}</ul>
-  {{if $.Data.MinorSigned}}<p class="muted-note" role="status">Thanks! That rider’s waiver is signed.</p>{{end}}{{end}}
+  <h2 class="my-h" id="minors">Riders under 18</h2>
+  <p>A parent or guardian signs each year for each rider under 18.</p>
+  {{with .Minors}}<ul class="check-list">{{range .}}<li><strong>{{.Rider}}</strong>, age {{.RiderAge}} <span class="done-note">{{icon "check"}}{{.Year}} waiver signed {{date .Signed}}</span></li>{{end}}</ul>
+  {{if $.Data.MinorSigned}}<p class="cal-msg" role="status">Thanks, that rider’s waiver is signed.</p>{{end}}{{end}}
   {{$f := .MinorForm}}<details class="minor-sign"{{if .MinorMessage}} open{{end}}>
     <summary class="btn btn-quiet">Sign for a rider under 18</summary>
     <form class="join" method="post" action="/membership/waiver/minor#minors">
@@ -68,18 +101,17 @@ the page of an adult on their Family plan. */}}
           <label><span>Your phone{{with $.Data.PhoneOnFile}} <span class="opt">blank uses the one ending in {{.}}</span>{{end}}</span> <input type="tel" name="guardian_phone"{{if not $.Data.PhoneOnFile}} required{{end}} maxlength="20" autocomplete="tel-national" placeholder="301-555-0123" pattern="\d{3}-\d{3}-\d{4}|\+[0-9 \(\)\-.]{7,22}" title="10 digits, like 301-555-0123, or + and the country code outside the US" value="{{$f.Phone}}"></label>
         </div>
         {{template "signature-pad" "minor"}}
-        <p class="hint">You sign as the rider’s parent or guardian. This signs their waiver for {{.Year}}.</p>
       </fieldset>
       <button class="btn" type="submit">Sign for this rider</button>
       <p class="msg{{if .MinorMessage}} err{{end}}" role="status">{{.MinorMessage}}</p>
     </form>
   </details>
 
-  {{if or .HouseholdRoom .Household}}<h3 class="my-h3" id="household">Other adults on your membership</h3>
-  <p>Every adult who rides on your family membership signs their own waiver, each year. We email each one a link to sign theirs{{if not .Paid}} once your {{.Year}} dues are paid{{end}}.</p>
-  {{with .HouseholdDone}}<p class="muted-note" role="status">{{if eq . "added"}}Added. We emailed them a link to sign their waiver.{{else if eq . "added-later"}}Added. We’ll email them a link to sign their waiver once your dues are paid.{{else if eq . "sent"}}Sent. Their link is on its way.{{else if eq . "removed"}}Removed. Waivers they signed stay on the club’s record.{{end}}</p>{{end}}
-  {{with .Household}}<ul class="household-list">{{range .}}<li>
-    <span><strong>{{.Adult.Name}}</strong>, {{.Adult.Email}}<br>{{if .Waiver}}<span class="dues-paid">{{.Waiver.Year}} waiver signed {{date .Waiver.Signed}} ✓</span>{{else}}{{$.Data.Year}} waiver not signed yet{{end}}</span>
+  {{if or .HouseholdRoom .Household}}<h2 class="my-h" id="household">Other adults on your membership</h2>
+  <p>Each adult signs their own waiver from a link we email them{{if not .Paid}}, once your {{.Year}} dues are paid{{end}}.</p>
+  {{with .HouseholdDone}}<p class="cal-msg" role="status">{{if eq . "added"}}Added. We emailed them a link to sign their waiver.{{else if eq . "added-later"}}Added. We’ll email them a link once your dues are paid.{{else if eq . "sent"}}Sent. Their link is on its way.{{else if eq . "removed"}}Removed. Waivers they signed stay on the club’s record.{{end}}</p>{{end}}
+  {{with .Household}}<ul class="household-list">{{range .}}<li class="{{if .Waiver}}done{{else}}todo{{end}}">
+    <span><strong>{{.Adult.Name}}</strong>, {{.Adult.Email}}<br>{{if .Waiver}}<span class="done-note">{{icon "check"}}{{.Waiver.Year}} waiver signed {{date .Waiver.Signed}}</span>{{else}}<span class="todo-note">{{$.Data.Year}} waiver not signed</span>{{end}}</span>
     <span class="household-tools">{{if and (not .Waiver) $.Data.Paid}}<form method="post" action="/membership/household#household"><input type="hidden" name="t" value="{{$.Data.Token}}"><input type="hidden" name="do" value="send"><input type="hidden" name="email" value="{{.Adult.Email}}"><button class="link-button" type="submit">Email their link again</button></form>{{end}}
       <form method="post" action="/membership/household#household"><input type="hidden" name="t" value="{{$.Data.Token}}"><input type="hidden" name="do" value="remove"><input type="hidden" name="email" value="{{.Adult.Email}}"><button class="link-button" type="submit">Remove<span class="sr"> {{.Adult.Name}}</span></button></form></span>
   </li>{{end}}</ul>{{end}}
@@ -97,10 +129,12 @@ the page of an adult on their Family plan. */}}
   </details>
   {{else if .HouseholdMessage}}<p class="msg err" role="status">{{.HouseholdMessage}}</p>{{end}}{{end}}
 
-  <h2 class="my-h">Your details</h2>
-  <p>On file: {{with .PhoneOnFile}}your phone ending in {{.}}{{else}}no phone number yet{{end}}, and {{with .EmergencyOnFile}}your emergency contact {{.}}{{else}}no emergency contact yet{{end}}. To change them, type the new details. Boxes you leave blank stay as they are.</p>
-  <form class="join" method="post" action="/membership">
+  {{if .Saved}}<p class="cal-msg" id="saved" role="status">Your details are saved.</p>{{end}}
+  <details class="my-details" id="details"{{if or (not .DetailsDone) .Message}} open{{end}}>
+  <summary><h2 class="my-h">{{if .DetailsDone}}Update your details{{else}}Add your details{{end}}</h2></summary>
+  <form class="join" method="post" action="/membership#details">
     <input type="hidden" name="t" value="{{.Token}}">
+    {{if or .PhoneOnFile .EmergencyOnFile}}<p class="hint">Leave a box blank to keep what’s on file.</p>{{end}}
     <label>{{if .PhoneOnFile}}New phone{{else}}Phone{{end}} <input type="tel" name="phone"{{if not .PhoneOnFile}} required{{end}} maxlength="20" autocomplete="tel-national" placeholder="301-555-0123" pattern="\d{3}-\d{3}-\d{4}|\+[0-9 \(\)\-.]{7,22}" title="10 digits, like 301-555-0123, or + and the country code outside the US" value="{{.Form.Phone}}"></label>
     <fieldset class="emergency">
       <legend>{{if .EmergencyOnFile}}New emergency contact{{else}}Emergency contact{{end}}</legend>
@@ -114,35 +148,36 @@ the page of an adult on their Family plan. */}}
       {{range riderLevels}}<label><input type="radio" name="level" value="{{.Value}}" required{{if eq $.Data.Form.Level .Value}} checked{{end}}><span>{{.Label}}</span></label>
       {{end}}
     </fieldset>
-    <p class="hint">Only the club’s board sees your full details. This page shows part of them, since club emails with its link sometimes get forwarded.</p>
     <button class="btn" type="submit">{{icon "save"}}Save</button>
-    <p class="msg{{if .Message}} err{{end}}" role="status">{{if .Message}}{{.Message}}{{else if .Saved}}Saved. Thanks for keeping it current.{{end}}</p>
+    <p class="msg{{if .Message}} err{{end}}" role="status">{{.Message}}</p>
   </form>
+  </details>
 
   <h2 class="my-h" id="emails">Club emails</h2>
-  {{if $m.Active}}<p{{if .EmailsBack}} role="status"{{end}}>{{if .EmailsBack}}Club emails are back on. Welcome back! {{end}}You get club emails at {{$m.Email}}.</p>
+  {{if $m.Active}}{{if .EmailsBack}}<p class="cal-msg" role="status">Club emails are back on.</p>{{end}}<p>Sent to {{$m.Email}}.</p>
   <form method="post" action="/unsubscribe"><input type="hidden" name="t" value="{{.Token}}"><button class="btn btn-quiet" type="submit">Unsubscribe</button></form>
-  {{else if $m.Unconfirmed}}<p>You’re unsubscribed from club emails. Press Confirm my email at the top of this page to turn them back on.</p>
-  {{else}}<p>You’re unsubscribed from club emails.</p>
+  {{else if $m.Unconfirmed}}<p>Off. Confirm your email at the top of this page to turn them back on.</p>
+  {{else}}<p>Off. You unsubscribed.</p>
   <form method="post" action="/membership/emails#emails"><input type="hidden" name="t" value="{{.Token}}"><button class="btn btn-quiet" type="submit">Turn club emails back on</button></form>{{end}}
-  <p class="muted-note">Keep the email this link came in. It’s your way back here.</p>
+  <p class="muted-note">This link is just for you. Keep the email it came in.</p>
 {{else if eq .State "adult"}}
   <h1>My Waiver</h1>
-  <p class="lead">Hi {{or .Adult.FirstName "there"}}. You ride on {{.Member.Name}}’s PaxVelo family membership. This page is just for you, at {{.Adult.Email}}.</p>
+  <p class="lead">{{.Adult.Name}} · on {{.Member.Name}}’s family membership</p>
+  <ul class="status-list">{{template "waiver-status" .}}</ul>
   {{template "my-waiver" .}}
-  <p class="muted-note">Keep the email this link came in. It’s where you’ll sign each new year’s waiver.</p>
+  <p class="muted-note">This link is just for you. Keep the email it came in: you’ll sign each new year’s waiver here.</p>
 {{else if eq .State "test"}}
   <h1>That was a test email</h1>
   <p class="lead">This is the My membership link from a test email, so it isn’t anyone’s.</p>
-  <p>In a real club email, each member’s own link opens their membership page, where they check their dues, sign this year’s waiver, update their details and turn club emails off or on.</p>
+  <p>In a real club email, each member’s own link opens their membership page.</p>
 {{else if eq .State "sent"}}
   <h1>Check your email</h1>
   <p class="lead">If {{.Email}} is on our member list, your link is on its way.</p>
   <p>Not there in a few minutes? Check spam, or email <a href="mailto:PaxVeloClub@gmail.com">PaxVeloClub@gmail.com</a>.</p>
 {{else}}
   <h1>My Membership</h1>
-  {{if eq .State "invalid"}}<p class="lead">That link isn’t valid. It may have been copied incompletely. We’ll email you a fresh one.</p>
-  {{else}}<p class="lead">Check your dues, sign this year’s insurance waiver, and update your details. Every club email has a “My membership” link, or we’ll email you one.</p>{{end}}
+  {{if eq .State "invalid"}}<p class="lead">That link isn’t valid. It may have been copied incompletely. Enter your email for a fresh one.</p>
+  {{else}}<p class="lead">Your dues, waiver and details. Enter your email and we’ll send you your link.</p>{{end}}
   <form class="join" method="post" action="/membership/link">
     <label>Email <input type="email" name="email" required maxlength="254" autocomplete="email" value="{{.Email}}"></label>
     <button class="btn" type="submit">{{icon "send"}}Send me my link</button>

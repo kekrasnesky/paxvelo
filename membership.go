@@ -25,7 +25,10 @@ type membershipData struct {
 	PhoneOnFile, EmergencyOnFile string
 	Year                         int
 	Paid                         bool
-	PlanName                     string // "individual" or "family", for "your 2026 family dues"
+	PaidOn                       time.Time // when the club marked this year paid; zero if not known
+	LevelName                    string    // their riding answer, briefly
+	DetailsDone                  bool      // phone, emergency contact and riding answer all on file
+	PlanName                     string    // "individual" or "family", for "your 2026 family dues"
 	PayURL                       string
 	PayLabel                     string
 	Saved                        bool
@@ -68,12 +71,15 @@ func (a *App) membershipView(m Member, token string) membershipData {
 	year := a.cfg.ThisYear()
 	d := membershipData{State: "page", Token: token, Member: m, Year: year, Paid: m.PaidFor(year), PlanName: strings.ToLower(m.PlanName()),
 		Form: memberDetails{Level: m.Level}, PhoneOnFile: phoneTail(m.Phone)}
+	d.PaidOn = m.PaidOn[year]
 	if m.EmergencyName != "" {
 		d.EmergencyOnFile = shortName(m.EmergencyName)
 		if tail := phoneTail(m.EmergencyPhone); tail != "" {
-			d.EmergencyOnFile += ", phone ending in " + tail
+			d.EmergencyOnFile += ", ···" + tail
 		}
 	}
+	d.LevelName = m.LevelName()
+	d.DetailsDone = m.Phone != "" && m.EmergencyName != "" && m.EmergencyPhone != "" && d.LevelName != ""
 	if !d.Paid {
 		if link := a.cfg.PayLink(m.Plan); link != "" {
 			d.PayURL, d.PayLabel = link, fmt.Sprintf("Pay $%d with PayPal", a.cfg.Dues(m.Plan))

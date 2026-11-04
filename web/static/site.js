@@ -203,6 +203,12 @@
     size();
   });
 
+  // A link to a closed section (like "Update" on the membership page) opens it.
+  d.addEventListener('click',function(e){
+    var a=e.target.closest&&e.target.closest('a[href^="#"]'),t=a&&a.getAttribute('href').length>1&&d.getElementById(a.getAttribute('href').slice(1));
+    if(t&&t.tagName==='DETAILS')t.open=true;
+  });
+
   // Membership page opened from the button in the confirm email: press
   // Confirm for them, once the page is really shown (not while it's being
   // prerendered). The server never confirms on a plain page load, since email

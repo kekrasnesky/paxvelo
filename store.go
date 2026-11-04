@@ -28,7 +28,10 @@ type Member struct {
 	Token        string     `json:"token"`                // secret used in unsubscribe links
 	Plan         string     `json:"plan,omitempty"`       // "individual" or "family"
 	PaidYears    []int      `json:"paid_years,omitempty"` // calendar years their dues were paid
-	Phone        string     `json:"phone,omitempty"`
+	// When an admin marked each year paid, for the member's page. Years
+	// imported or marked before this was kept have no date.
+	PaidOn map[int]time.Time `json:"paid_on,omitempty"`
+	Phone  string            `json:"phone,omitempty"`
 	// Who to call if something happens on a ride.
 	EmergencyName  string `json:"emergency_name,omitempty"`
 	EmergencyPhone string `json:"emergency_phone,omitempty"`
@@ -493,11 +496,21 @@ func (s *Store) SetPaid(id, year int, paid bool) error {
 	if m == nil {
 		return nil
 	}
+	was := m.PaidFor(year)
 	years := m.PaidYears[:0:0]
 	for _, y := range m.PaidYears {
 		if y != year {
 			years = append(years, y)
 		}
+	}
+	switch {
+	case paid && !was:
+		if m.PaidOn == nil {
+			m.PaidOn = map[int]time.Time{}
+		}
+		m.PaidOn[year] = time.Now().UTC()
+	case !paid:
+		delete(m.PaidOn, year)
 	}
 	if paid {
 		years = append(years, year)

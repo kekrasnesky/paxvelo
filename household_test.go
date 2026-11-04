@@ -111,7 +111,7 @@ func TestHouseholdAdults(t *testing.T) {
 
 	// Their own page: just their waiver, signed with their own name.
 	page := do(t, h, nil, "GET", jo, "", nil).Body.String()
-	if !strings.Contains(page, "My Waiver") || !strings.Contains(page, "Pat Rider’s PaxVelo family membership") || !strings.Contains(page, "IN CONSIDERATION") || strings.Contains(page, "Your details") {
+	if !strings.Contains(page, "My Waiver") || !strings.Contains(page, "on Pat Rider’s family membership") || !strings.Contains(page, "IN CONSIDERATION") || strings.Contains(page, "Your details") {
 		t.Error("an adult's link should open their own waiver, and nothing of the member's")
 	}
 	tok := strings.TrimPrefix(jo, "/membership?t=")
@@ -124,7 +124,7 @@ func TestHouseholdAdults(t *testing.T) {
 	if w.Code != http.StatusSeeOther {
 		t.Fatalf("signing: %d", w.Code)
 	}
-	if page := do(t, h, nil, "GET", strings.TrimSuffix(w.Header().Get("Location"), "#waiver"), "", nil).Body.String(); !strings.Contains(page, "waiver: signed ✓") {
+	if page := do(t, h, nil, "GET", strings.TrimSuffix(w.Header().Get("Location"), "#waiver"), "", nil).Body.String(); !strings.Contains(page, "waiver is signed.") || !strings.Contains(page, `class="status done"`) {
 		t.Error("their page should say it's signed")
 	}
 	if s, ok := a.store.HouseholdWaiver(m.ID, year, "jo@example.com"); !ok || s.Rider != "Jo Rider" || s.Name != "Pat Rider" || !s.Household {
@@ -148,7 +148,7 @@ func TestHouseholdAdults(t *testing.T) {
 
 	// Pat's page lists them, and can send Max's link again, add one more, and remove one.
 	mine := do(t, h, nil, "GET", "/membership?t="+m.Token, "", nil).Body.String()
-	if !strings.Contains(mine, "Other adults on your membership") || !strings.Contains(mine, "waiver not signed yet") || !strings.Contains(mine, "Add an adult") {
+	if !strings.Contains(mine, "Other adults on your membership") || !strings.Contains(mine, "waiver not signed") || !strings.Contains(mine, "Add an adult") {
 		t.Error("the member's page should list the adults")
 	}
 	mu.Lock()

@@ -160,7 +160,7 @@ func TestRenewOnJoinForm(t *testing.T) {
 	}
 
 	page := do(t, h, nil, "GET", "/membership?t="+pat.Token, "", nil).Body.String()
-	if !strings.Contains(page, "Finish renewing: confirm it’s you.") || !strings.Contains(page, "Confirm it’s me") {
+	if !strings.Contains(page, "Finish renewing.") || !strings.Contains(page, "Confirm it’s me") {
 		t.Fatal("their page should ask them to confirm the renewal")
 	}
 	// "Email me my link" sends the email with the Confirm button.
@@ -172,7 +172,7 @@ func TestRenewOnJoinForm(t *testing.T) {
 
 	ct, body = form(url.Values{"t": {pat.Token}})
 	page = followed(t, h, do(t, h, nil, "POST", "/membership/confirm", ct, body))
-	if !strings.Contains(page, "you’re renewed. Your waiver is signed") || strings.Contains(page, "Finish renewing") {
+	if !strings.Contains(page, "You’re renewed. Your waiver is signed") || strings.Contains(page, "Finish renewing.") {
 		t.Error("their page should say it's done")
 	}
 	m, _ := a.store.MemberByEmail("pat@example.com")

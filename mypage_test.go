@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -19,7 +20,7 @@ func TestMembershipPage(t *testing.T) {
 		Phone: "301-555-0177", EmergencyName: "Sam Rider", EmergencyPhone: "240-555-0199", Level: "some"}, a.cfg.ThisYear())
 
 	page := do(t, h, nil, "GET", "/membership?t="+m.Token, "", nil).Body.String()
-	for _, want := range []string{"Hi Pat", "aren’t paid yet", "https://paypal.example/one", "phone ending in 0177", "Sam R., phone ending in 0199", `value="some" required checked`} {
+	for _, want := range []string{"Pat Rider · pat@example.com", "Not paid", "https://paypal.example/one", "···0177", "Sam R., ···0199", "Filled in", `value="some" required checked`} {
 		if !strings.Contains(page, want) {
 			t.Errorf("membership page should show %q", want)
 		}
@@ -36,7 +37,7 @@ func TestMembershipPage(t *testing.T) {
 
 	// Saving with the boxes blank keeps what's on file.
 	ct, body := form(url.Values{"t": {m.Token}, "level": {"experienced"}})
-	if w := do(t, h, nil, "POST", "/membership", ct, body); !strings.Contains(w.Body.String(), "Saved.") {
+	if w := do(t, h, nil, "POST", "/membership", ct, body); !strings.Contains(w.Body.String(), "Your details are saved.") {
 		t.Errorf("saving just the riding answer should work: %d", w.Code)
 	}
 	if got, _ := a.store.MemberByToken(m.Token); got.Phone != "301-555-0177" || got.EmergencyName != "Sam Rider" || got.EmergencyPhone != "240-555-0199" || got.Level != "experienced" {
@@ -54,7 +55,7 @@ func TestMembershipPage(t *testing.T) {
 		t.Errorf("a bad phone should be refused: %d", w.Code)
 	}
 	ct, body = form(url.Values{"t": {m.Token}, "phone": {"3015550000"}, "emergency_name": {"Lee Rider"}, "emergency_phone": {"240 555 0100"}, "level": {"racer"}})
-	if w := do(t, h, nil, "POST", "/membership", ct, body); !strings.Contains(w.Body.String(), "Saved.") {
+	if w := do(t, h, nil, "POST", "/membership", ct, body); !strings.Contains(w.Body.String(), "Your details are saved.") {
 		t.Errorf("saving should say so: %d", w.Code)
 	}
 	got, _ := a.store.MemberByToken(m.Token)
@@ -63,7 +64,7 @@ func TestMembershipPage(t *testing.T) {
 	}
 
 	a.store.SetPaid(m.ID, a.cfg.ThisYear(), true)
-	if page := do(t, h, nil, "GET", "/membership?t="+m.Token, "", nil).Body.String(); !strings.Contains(page, "dues: paid ✓") || strings.Contains(page, "paypal.example") {
+	if page := do(t, h, nil, "GET", "/membership?t="+m.Token, "", nil).Body.String(); !strings.Contains(page, "Confirmed by the club on ") || !strings.Contains(page, "Filled in") || strings.Contains(page, "paypal.example") {
 		t.Error("a paid member should see it, and no PayPal button")
 	}
 
@@ -210,7 +211,7 @@ func TestConfirmEmail(t *testing.T) {
 	}
 	ct, body = form(url.Values{"t": {m.Token}})
 	page = followed(t, h, do(t, h, nil, "POST", "/membership/confirm", ct, body))
-	if got, _ := a.store.MemberByToken(m.Token); got.Unconfirmed || !got.Emailable() || !strings.Contains(page, "your email is confirmed") || strings.Contains(page, `action="/membership/confirm"`) {
+	if got, _ := a.store.MemberByToken(m.Token); got.Unconfirmed || !got.Emailable() || !strings.Contains(page, "Your email is confirmed") || strings.Contains(page, `action="/membership/confirm"`) {
 		t.Errorf("confirming should take: %+v", got)
 	}
 	if _, err := a.store.StartCampaign("News", "Hi", "all", a.cfg.ThisYear()); err != nil {
@@ -253,5 +254,33 @@ func TestConfirmEmail(t *testing.T) {
 	a.store.Join(memberDetails{Name: "Lou Rider", Email: "lou@example.com"}, a.cfg.ThisYear())
 	if got, _ := a.store.MemberByEmail("lou@example.com"); got.Unconfirmed {
 		t.Error("an admin adding a member should confirm them")
+	}
+}
+
+// The top of the page shows dues, waiver and details the same way: done
+// (with when the club confirmed the dues) or still to do.
+func TestMembershipSummary(t *testing.T) {
+	a, h, admin := testApp(t)
+	year := a.cfg.ThisYear()
+	m, _, _ := a.store.Join(memberDetails{Name: "Pat Rider", Email: "pat@example.com", Plan: "individual", Phone: "301-555-0177"}, year)
+	page := do(t, h, nil, "GET", "/membership?t="+m.Token, "", nil).Body.String()
+	if strings.Count(page, `class="status todo"`) != 3 || !strings.Contains(page, "Not paid") || !strings.Contains(page, "Not signed") ||
+		!strings.Contains(page, "Missing") || !strings.Contains(page, "···0177") || !strings.Contains(page, "<details class=\"my-details\" id=\"details\" open>") {
+		t.Error("an unpaid, unsigned member with no emergency contact has three things to do, and the details form open")
+	}
+	ct, body := form(url.Values{"paid": {"1"}})
+	do(t, h, admin, "POST", "/admin/members/"+strconv.Itoa(m.ID)+"/paid", ct, body)
+	got, _ := a.store.MemberByToken(m.Token)
+	if on := got.PaidOn[year]; time.Since(on) > time.Minute {
+		t.Fatalf("marking paid should record when: %v", got.PaidOn)
+	}
+	page = do(t, h, nil, "GET", "/membership?t="+m.Token, "", nil).Body.String()
+	if strings.Count(page, `class="status done"`) != 1 || !strings.Contains(page, "Confirmed by the club on "+got.PaidOn[year].In(a.cfg.Location).Format("Jan 2, 2006")) {
+		t.Error("paid dues should show done, with the date")
+	}
+	ct, body = form(url.Values{"paid": {"0"}})
+	do(t, h, admin, "POST", "/admin/members/"+strconv.Itoa(m.ID)+"/paid", ct, body)
+	if got, _ := a.store.MemberByToken(m.Token); !got.PaidOn[year].IsZero() {
+		t.Error("undoing should forget the date")
 	}
 }
