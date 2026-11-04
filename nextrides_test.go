@@ -85,3 +85,10 @@ func TestICSFold(t *testing.T) {
 		}
 	}
 }
+
+// Calendar files escape backslashes, semicolons, commas and line breaks.
+func TestICSText(t *testing.T) {
+	if got, want := icsText(`Back\road; 30 mi, easy`+"\n"+`bring lights`), `Back\\road\; 30 mi\, easy\nbring lights`; got != want {
+		t.Errorf("icsText = %q, want %q", got, want)
+	}
+}

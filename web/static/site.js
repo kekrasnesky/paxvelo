@@ -203,9 +203,11 @@
     size();
   });
 
-  // Join form: write phone numbers as 301-555-0123 while they're typed
+  // Join form: write phone numbers as 301-555-0123 while they're typed. One
+  // from another country, typed with its + code, stays as it's typed.
   d.querySelectorAll('form.join input[type=tel][pattern]').forEach(function(el){
     function fmt(){
+      if(/^\s*\+(?!\s*1)/.test(el.value))return;
       // Count the digits before the cursor, so it can go back after the same
       // digit once the dashes move (otherwise it jumps to the end)
       var before=el.value.slice(0,el.selectionStart).replace(/\D/g,'').length;
@@ -239,6 +241,7 @@
         var link=done.querySelector('.joined-minors input[name=email]');if(link)link.value=form.querySelector('input[name=email]').value;
         if(j.pay_url){var a=pay.querySelector('a');a.href=j.pay_url;a.querySelector('span').textContent=j.pay_label;pay.hidden=false}else{pay.hidden=true}
         form.hidden=true;done.hidden=false;done.focus();
+        d.querySelectorAll('.join-back,.join-foot').forEach(function(p){p.hidden=true}); // "Already a member?" no longer fits
       })
       .catch(function(){fail('Couldn’t reach the server. Check your connection and try again.')});
   });

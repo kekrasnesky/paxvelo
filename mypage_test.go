@@ -13,20 +13,40 @@ func TestMembershipPage(t *testing.T) {
 	a, h, _ := testApp(t)
 	a.cfg.PayPalIndividual = "https://paypal.example/one"
 	m, _, _ := a.store.Join(memberDetails{Name: "Pat Rider", Email: "pat@example.com", Plan: "individual",
-		Phone: "301-555-0123", EmergencyName: "Sam Rider", EmergencyPhone: "240-555-0199", Level: "some"}, a.cfg.ThisYear())
+		Phone: "301-555-0177", EmergencyName: "Sam Rider", EmergencyPhone: "240-555-0199", Level: "some"}, a.cfg.ThisYear())
 
 	page := do(t, h, nil, "GET", "/membership?t="+m.Token, "", nil).Body.String()
-	for _, want := range []string{"Hi Pat", "aren’t paid yet", "https://paypal.example/one", "Sam Rider", `value="some" required checked`} {
+	for _, want := range []string{"Hi Pat", "aren’t paid yet", "https://paypal.example/one", "phone ending in 0177", "Sam R., phone ending in 0199", `value="some" required checked`} {
 		if !strings.Contains(page, want) {
 			t.Errorf("membership page should show %q", want)
 		}
 	}
-	if page := do(t, h, nil, "GET", "/membership?t=guess", "", nil).Body.String(); strings.Contains(page, "Sam Rider") || !strings.Contains(page, "isn’t valid") {
+	// The link travels in emails that get forwarded, so the page shows only part.
+	for _, secret := range []string{"301-555-0177", "Sam Rider", "240-555-0199"} {
+		if strings.Contains(page, secret) {
+			t.Errorf("membership page shows %q in full", secret)
+		}
+	}
+	if page := do(t, h, nil, "GET", "/membership?t=guess", "", nil).Body.String(); strings.Contains(page, "Sam R") || !strings.Contains(page, "isn’t valid") {
 		t.Error("a wrong link must not show anyone's details")
 	}
 
+	// Saving with the boxes blank keeps what's on file.
+	ct, body := form(url.Values{"t": {m.Token}, "level": {"experienced"}})
+	if w := do(t, h, nil, "POST", "/membership", ct, body); !strings.Contains(w.Body.String(), "Saved.") {
+		t.Errorf("saving just the riding answer should work: %d", w.Code)
+	}
+	if got, _ := a.store.MemberByToken(m.Token); got.Phone != "301-555-0177" || got.EmergencyName != "Sam Rider" || got.EmergencyPhone != "240-555-0199" || got.Level != "experienced" {
+		t.Errorf("blank boxes should keep what's on file: %+v", got)
+	}
+	// A new emergency contact needs both a name and a phone.
+	ct, body = form(url.Values{"t": {m.Token}, "emergency_name": {"Lee Rider"}, "level": {"racer"}})
+	if w := do(t, h, nil, "POST", "/membership", ct, body); w.Code != http.StatusBadRequest {
+		t.Errorf("a new contact without a phone should be refused: %d", w.Code)
+	}
+
 	// A bad phone is refused and changes nothing.
-	ct, body := form(url.Values{"t": {m.Token}, "phone": {"555"}, "emergency_name": {"Lee"}, "emergency_phone": {"240-555-0100"}, "level": {"racer"}})
+	ct, body = form(url.Values{"t": {m.Token}, "phone": {"555"}, "emergency_name": {"Lee"}, "emergency_phone": {"240-555-0100"}, "level": {"racer"}})
 	if w := do(t, h, nil, "POST", "/membership", ct, body); w.Code != http.StatusBadRequest {
 		t.Errorf("a bad phone should be refused: %d", w.Code)
 	}
@@ -75,5 +95,43 @@ func TestMemberEmailsLinkToMembership(t *testing.T) {
 	page, _ := a.site.renderEmail("News", "Hi", memberLinks{Mine: "https://example.com/membership?t=abc", Unsub: "https://example.com/u"}, a.cfg.SiteURL)
 	if !strings.Contains(page, `href="https://example.com/membership?t=abc"`) || !strings.Contains(page, "My membership") {
 		t.Error("a member email should link to their membership page")
+	}
+}
+
+// Unsubscribing can be undone from the same page, a bad link offers to send
+// the member their own link, and the links in a test email say it was a test.
+func TestUnsubscribePages(t *testing.T) {
+	a, h, _ := testApp(t)
+	m, _, _ := a.store.Join(memberDetails{Name: "Pat Rider", Email: "pat@example.com"}, a.cfg.ThisYear())
+
+	ct, body := form(url.Values{"t": {m.Token}})
+	page := do(t, h, nil, "POST", "/unsubscribe", ct, body).Body.String()
+	if got, _ := a.store.MemberByToken(m.Token); got.Active() || !strings.Contains(page, "You’re unsubscribed") {
+		t.Fatalf("should be unsubscribed: %+v", got)
+	}
+	if !strings.Contains(page, `action="/membership/emails#emails"`) || !strings.Contains(page, `value="`+m.Token+`"`) || strings.Contains(page, "we’ll turn them back on") {
+		t.Error("the done page should let them turn emails back on themselves")
+	}
+	if page := do(t, h, nil, "GET", "/unsubscribe?t="+m.Token, "", nil).Body.String(); !strings.Contains(page, "Turn club emails back on") {
+		t.Error("opening the link again should offer the same")
+	}
+	ct, body = form(url.Values{"t": {m.Token}})
+	page = do(t, h, nil, "POST", "/membership/emails", ct, body).Body.String()
+	if got, _ := a.store.MemberByToken(m.Token); !got.Active() || !strings.Contains(page, "Club emails are back on.") {
+		t.Error("the button should turn emails back on, and say so")
+	}
+
+	if page := do(t, h, nil, "GET", "/unsubscribe?t=guess", "", nil).Body.String(); !strings.Contains(page, "isn’t valid") || !strings.Contains(page, `action="/membership/link"`) {
+		t.Error("a bad link should offer to send their membership link")
+	}
+
+	for _, path := range []string{"/unsubscribe?t=" + testToken, "/membership?t=" + testToken} {
+		if page := do(t, h, nil, "GET", path, "", nil).Body.String(); !strings.Contains(page, "That was a test email") {
+			t.Errorf("%s: should say it came from a test email", path)
+		}
+	}
+	ct, body = form(url.Values{"List-Unsubscribe": {"One-Click"}})
+	if page := do(t, h, nil, "POST", "/unsubscribe?t="+testToken, ct, body).Body.String(); !strings.Contains(page, "That was a test email") {
+		t.Error("Gmail's Unsubscribe button on a test email should say so too")
 	}
 }

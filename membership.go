@@ -15,19 +15,22 @@ import (
 // update their phone, emergency contact and riding answers.
 
 type membershipData struct {
-	State      string // page, find (no link), invalid, sent
-	Token      string
-	Member     Member
-	Form       memberDetails // what was typed, to show again after a mistake
-	Year       int
-	Paid       bool
-	PlanName   string // "individual" or "family", for "your 2026 family dues"
-	PayURL     string
-	PayLabel   string
-	Saved      bool
-	Message    string // a problem with what was typed
-	EmailsBack bool   // club emails were just turned back on
-	Email      string // typed into "send me my link"
+	State  string // page, adult, find (no link), invalid, sent, test (the link in a test email)
+	Token  string
+	Member Member
+	Form   memberDetails // what was typed, to show again after a mistake
+	// What's on file, in part: club emails carry this page's link and get
+	// forwarded, so it never shows a whole phone number or emergency contact.
+	PhoneOnFile, EmergencyOnFile string
+	Year                         int
+	Paid                         bool
+	PlanName                     string // "individual" or "family", for "your 2026 family dues"
+	PayURL                       string
+	PayLabel                     string
+	Saved                        bool
+	Message                      string // a problem with what was typed
+	EmailsBack                   bool   // club emails were just turned back on
+	Email                        string // typed into "send me my link"
 	// This year's insurance waiver (waivers.go): the signed one, or the form
 	// to sign it.
 	Waiver        *Waiver
@@ -59,7 +62,13 @@ func (c Config) membershipURL(token string) string {
 func (a *App) membershipView(m Member, token string) membershipData {
 	year := a.cfg.ThisYear()
 	d := membershipData{State: "page", Token: token, Member: m, Year: year, Paid: m.PaidFor(year), PlanName: strings.ToLower(m.PlanName()),
-		Form: memberDetails{Phone: m.Phone, EmergencyName: m.EmergencyName, EmergencyPhone: m.EmergencyPhone, Level: m.Level}}
+		Form: memberDetails{Level: m.Level}, PhoneOnFile: phoneTail(m.Phone)}
+	if m.EmergencyName != "" {
+		d.EmergencyOnFile = shortName(m.EmergencyName)
+		if tail := phoneTail(m.EmergencyPhone); tail != "" {
+			d.EmergencyOnFile += ", phone ending in " + tail
+		}
+	}
 	if !d.Paid {
 		if link := a.cfg.PayLink(m.Plan); link != "" {
 			d.PayURL, d.PayLabel = link, fmt.Sprintf("Pay $%d with PayPal", a.cfg.Dues(m.Plan))
@@ -69,10 +78,27 @@ func (a *App) membershipView(m Member, token string) membershipData {
 		d.Waiver = &w
 	}
 	d.Minors = a.store.MinorWaivers(m.ID, year)
-	d.MinorForm.Phone = m.Phone
 	d.Household = a.householdStatus(m, year)
 	d.HouseholdRoom = m.Plan == "family" && len(m.Household) < maxHousehold
 	return d
+}
+
+// phoneTail is the last four digits of a phone number, for "ending in 0123".
+func phoneTail(phone string) string {
+	if d := phoneDigits(phone); len(d) >= 4 {
+		return d[len(d)-4:]
+	}
+	return ""
+}
+
+// shortName is a first name and last initial, like "Sam R.".
+func shortName(name string) string {
+	f := strings.Fields(name)
+	if len(f) < 2 {
+		return name
+	}
+	last := []rune(f[len(f)-1])
+	return f[0] + " " + string(last[0]) + "."
 }
 
 func (a *App) renderMembership(w http.ResponseWriter, status int, d membershipData) {
@@ -83,6 +109,10 @@ func (a *App) membershipPage(w http.ResponseWriter, r *http.Request) {
 	t := r.URL.Query().Get("t")
 	if t == "" {
 		a.renderMembership(w, http.StatusOK, membershipData{State: "find"})
+		return
+	}
+	if t == testToken { // the My membership link in a test email
+		a.renderMembership(w, http.StatusOK, membershipData{State: "test"})
 		return
 	}
 	_, _, v, ok := a.waiverSigner(t) // a member, or an adult on their Family plan
@@ -96,7 +126,8 @@ func (a *App) membershipPage(w http.ResponseWriter, r *http.Request) {
 	a.renderMembership(w, http.StatusOK, v)
 }
 
-// saveMembership saves the details a member changed on their page.
+// saveMembership saves the details a member changed on their page. The page
+// doesn't show what's on file in full, so a box left blank keeps it.
 func (a *App) saveMembership(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 16<<10)
 	r.ParseForm()
@@ -106,26 +137,27 @@ func (a *App) saveMembership(w http.ResponseWriter, r *http.Request) {
 		a.renderMembership(w, http.StatusOK, membershipData{State: "invalid"})
 		return
 	}
+	typed := memberDetails{Phone: strings.TrimSpace(r.FormValue("phone")), EmergencyName: r.FormValue("emergency_name"),
+		EmergencyPhone: strings.TrimSpace(r.FormValue("emergency_phone")), Level: r.FormValue("level")}
 	d := memberDetails{
-		Phone: cleanPhone(r.FormValue("phone")), EmergencyName: cleanName(r.FormValue("emergency_name")),
-		EmergencyPhone: cleanPhone(r.FormValue("emergency_phone")), Level: cleanLevel(r.FormValue("level")),
+		Phone: cleanPhone(typed.Phone), EmergencyName: cleanName(typed.EmergencyName),
+		EmergencyPhone: cleanPhone(typed.EmergencyPhone), Level: cleanLevel(typed.Level),
 	}
 	problem := ""
 	switch {
-	case len(phoneDigits(d.Phone)) != 10:
+	case (typed.Phone != "" || m.Phone == "") && !phoneOK(typed.Phone):
 		problem = "phone"
 	case d.Level == "":
 		problem = "level"
-	case d.EmergencyName == "":
-		problem = "emergency"
-	case len(phoneDigits(d.EmergencyPhone)) != 10:
-		problem = "emergency-phone"
+	case d.EmergencyName == "" && (m.EmergencyName == "" || typed.EmergencyPhone != ""):
+		problem = "emergency" // a new emergency phone goes with a name
+	case (typed.EmergencyPhone != "" || m.EmergencyPhone == "" || d.EmergencyName != "") && !phoneOK(typed.EmergencyPhone):
+		problem = "emergency-phone" // and a new name with a phone
 	}
 	if problem != "" {
 		v := a.membershipView(m, t)
 		v.Message = joinProblems[problem]
-		v.Form = memberDetails{Phone: r.FormValue("phone"), EmergencyName: r.FormValue("emergency_name"),
-			EmergencyPhone: r.FormValue("emergency_phone"), Level: r.FormValue("level")}
+		v.Form = typed
 		a.renderMembership(w, http.StatusBadRequest, v)
 		return
 	}
@@ -212,7 +244,8 @@ func (s *Store) MemberByEmail(email string) (Member, bool) {
 }
 
 // UpdateMemberDetails saves what a member changed on their own page. Unlike
-// the join form, it replaces what's on file, since only they have the link.
+// the join form, it replaces what's on file, since only they have the link;
+// anything left blank stays as it was.
 func (s *Store) UpdateMemberDetails(token string, d memberDetails) (Member, bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -220,8 +253,14 @@ func (s *Store) UpdateMemberDetails(token string, d memberDetails) (Member, bool
 	if m == nil {
 		return Member{}, false, nil
 	}
-	m.Phone, m.EmergencyName, m.EmergencyPhone = d.Phone, d.EmergencyName, d.EmergencyPhone
-	m.Level = d.Level
+	for _, f := range []struct {
+		to   *string
+		from string
+	}{{&m.Phone, d.Phone}, {&m.EmergencyName, d.EmergencyName}, {&m.EmergencyPhone, d.EmergencyPhone}, {&m.Level, d.Level}} {
+		if f.from != "" {
+			*f.to = f.from
+		}
+	}
 	return *m, true, s.save()
 }
 

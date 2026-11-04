@@ -231,7 +231,7 @@ Before your first club ride, take a couple of minutes to read Bike Safety 101:
 {site}/bike-safety
 
 Every ride is posted on Strava, so join the club there too:
-https://www.strava.com/clubs/10197
+{strava}
 
 Want to ride in club colors? Our kit is in the team store:
 {site}/kit
@@ -282,7 +282,9 @@ func openStore(dir string) (*Store, error) {
 	if s.d.Secret == "" {
 		s.d.Secret = randHex(32)
 	}
-	if s.d.Welcome.Body == oldWelcomeBody {
+	// A welcome email nobody changed from an earlier default gets today's:
+	// the one from before payment, or the one with the Strava address typed in.
+	if b := s.d.Welcome.Body; b == oldWelcomeBody || b == strings.ReplaceAll(defaultWelcomeBody, "{strava}", "https://www.strava.com/clubs/10197") {
 		s.d.Welcome.Body = defaultWelcomeBody
 	}
 	if s.d.NextMember == 0 {
@@ -367,7 +369,7 @@ const (
 	Joined JoinResult = iota
 	Rejoined
 	AlreadyMember
-	OptedOut // on the list but unsubscribed; the public form leaves them that way
+	OptedOut // on the list but unsubscribed; the public form leaves club emails off
 )
 
 func (s *Store) byEmail(email string) *Member {
@@ -405,8 +407,8 @@ func (s *Store) Join(d memberDetails, year int) (Member, JoinResult, error) {
 // JoinPublic adds a member from the public Join form, where anyone can type
 // anyone's email. For someone already on the list it only fills in details
 // still missing, so nobody can overwrite another member's phone or emergency
-// contact, change their plan, or sign them up again after they unsubscribed
-// (that returns OptedOut and changes nothing).
+// contact, change their plan, or turn club emails back on after they
+// unsubscribed (that returns OptedOut, and the emails stay off).
 func (s *Store) JoinPublic(d memberDetails, year int) (Member, JoinResult, error) {
 	return s.join(d, year, false)
 }
@@ -426,7 +428,10 @@ func (s *Store) join(d memberDetails, year int, admin bool) (Member, JoinResult,
 				m.Plan = d.Plan
 			}
 		case !m.Active():
-			return *m, OptedOut, nil
+			// Back to renew: fill in what's missing, but leave club emails off.
+			// Anyone could type this address, so only the member turns them on.
+			m.fill(d)
+			res = OptedOut
 		default:
 			m.fill(d)
 		}

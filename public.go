@@ -58,7 +58,7 @@ func joinDetails(r *http.Request, all bool) (memberDetails, string) {
 	d.Email = email
 	badPhone := func(field, clean string) bool {
 		if all {
-			return len(phoneDigits(clean)) != 10
+			return !phoneOK(r.FormValue(field))
 		}
 		return r.FormValue(field) != "" && clean == ""
 	}
@@ -83,7 +83,7 @@ func joinDetails(r *http.Request, all bool) (memberDetails, string) {
 		return d, "terms"
 	case all && !d.Waiver:
 		return d, "waiver"
-	case all && !strings.EqualFold(d.Signature, d.Name):
+	case all && !signedAs(d.Signature, d.Name):
 		return d, "signature"
 	}
 	if all {
@@ -101,13 +101,13 @@ var joinProblems = map[string]string{
 	"last":            "Enter your last name.",
 	"name":            "Enter your full name.",
 	"email":           "Enter a valid email address, like name@example.com.",
-	"phone":           "Enter a 10-digit phone number, like 301-555-0123.",
+	"phone":           "Enter a 10-digit phone number, like 301-555-0123. Outside the US, start with + and the country code.",
 	"level":           "Pick the one that sounds most like you.",
 	"emergency":       "Enter the name of someone we can call in an emergency.",
-	"emergency-phone": "Enter your emergency contact’s 10-digit phone number, like 301-555-0123.",
+	"emergency-phone": "Enter your emergency contact’s 10-digit phone number, like 301-555-0123. Outside the US, start with + and the country code.",
 	"terms":           "Tick the box to agree to the club terms.",
 	"waiver":          "Tick the box to agree to the insurance waiver.",
-	"signature":       "To sign the waiver, type your first and last name just as you entered them above.",
+	"signature":       "To sign the waiver, type your first and last name as you entered them above.",
 	"drawing":         "Sign in the box with your finger, a stylus or your mouse.",
 	"adult-name":      "Enter the first and last name of each adult on your family membership.",
 	"adult-email":     "Enter each adult’s email address, so we can send them their waiver to sign.",
@@ -146,6 +146,33 @@ func cleanPhone(s string) string {
 		return strings.Join(strings.Fields(s), " ") // an international number, as typed
 	}
 	return ""
+}
+
+// phoneOK reports whether a typed phone number will do on the public forms:
+// a US number (10 digits), or a number from another country typed with its +
+// code, like +44 20 7946 0958. Without the +, a US number missing a digit
+// would pass as a foreign one.
+func phoneOK(typed string) bool {
+	clean := cleanPhone(typed)
+	return len(phoneDigits(clean)) == 10 || clean != "" && strings.HasPrefix(strings.TrimSpace(typed), "+")
+}
+
+// signedAs reports whether the name typed to sign a waiver is the signer's:
+// the same words, ignoring case and punctuation, or the same first and last
+// name with a middle name or initial left in or out ("Robert J. Smith" for
+// Robert Smith).
+func signedAs(signature, name string) bool {
+	words := func(s string) []string {
+		return strings.FieldsFunc(strings.ToLower(s), func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) })
+	}
+	s, n := words(signature), words(name)
+	if len(s) == 0 || len(n) == 0 {
+		return false
+	}
+	if strings.Join(s, " ") == strings.Join(n, " ") {
+		return true
+	}
+	return len(s) > 1 && len(n) > 1 && s[0] == n[0] && s[len(s)-1] == n[len(n)-1]
 }
 
 func (a *App) joinPage(w http.ResponseWriter, r *http.Request) {
@@ -224,12 +251,6 @@ func (a *App) join(w http.ResponseWriter, r *http.Request) {
 		fail(http.StatusInternalServerError, "Something went wrong on our end. Try again in a minute.")
 		return
 	}
-	if result == OptedOut {
-		// Nobody can sign up an address that opted out: it has to come from the club.
-		reply(http.StatusOK, joinData{OK: true, Message: "You’re already on our list.",
-			Detail: "You unsubscribed from club emails earlier, so we haven’t turned them back on. To get them again, email " + or(a.cfg.AdminEmail, "the club") + "."})
-		return
-	}
 	if result == Joined {
 		a.mailer.Go(func() { a.mailer.NotifySignup(m) }) // their welcome email waits until an admin marks them paid
 	}
@@ -265,11 +286,12 @@ func (a *App) join(w http.ResponseWriter, r *http.Request) {
 	first := m.FirstName()
 	dues := a.cfg.Dues(m.Plan)
 	owes := !m.PaidFor(year)
+	onList := result == AlreadyMember || result == OptedOut
 	switch {
-	case result == AlreadyMember && !owes:
+	case onList && !owes:
 		d.Message = fmt.Sprintf("You’re already a member, %s.", first)
 		d.Detail = fmt.Sprintf("Your %d dues are paid. See you on the road!", year)
-	case result == AlreadyMember:
+	case onList:
 		d.Message = fmt.Sprintf("You’re already on the list, %s.", first)
 		d.Detail = fmt.Sprintf("Pay your $%d %s dues for %d to finish up.", dues, strings.ToLower(m.PlanName()), year)
 	default:
@@ -295,6 +317,11 @@ func (a *App) join(w http.ResponseWriter, r *http.Request) {
 		}
 		d.Detail += " Once your dues are paid, we’ll email " + andList(names) + " a link to sign their own waiver."
 	}
+	if result == OptedOut {
+		// Nobody turns club emails back on for an address that opted out,
+		// since anyone could type it: the member does it from their own page.
+		d.Detail += " You unsubscribed from club emails earlier, so they’re still off. To get them again, email yourself your membership page link below and turn them back on there."
+	}
 	reply(http.StatusOK, d)
 }
 
@@ -302,7 +329,7 @@ func (a *App) join(w http.ResponseWriter, r *http.Request) {
 
 type unsubData struct {
 	Token, Email string
-	State        string // ask, done, invalid
+	State        string // ask, done, test (the link in a test email), invalid
 }
 
 // unsubscribePage asks before unsubscribing, because email scanners open
@@ -312,6 +339,8 @@ func (a *App) unsubscribePage(w http.ResponseWriter, r *http.Request) {
 	m, ok := a.store.MemberByToken(t)
 	d := unsubData{Token: t, Email: m.Email, State: "ask"}
 	switch {
+	case t == testToken:
+		d.State = "test"
 	case !ok:
 		d.State = "invalid"
 	case !m.Active():
@@ -333,8 +362,12 @@ func (a *App) unsubscribe(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("unsubscribe: %v", err)
 	}
-	d := unsubData{Email: m.Email, State: "done"}
-	if !ok {
+	// The token comes along so "Turn club emails back on" works from here.
+	d := unsubData{Token: t, Email: m.Email, State: "done"}
+	switch {
+	case t == testToken:
+		d.State = "test"
+	case !ok:
 		d.State = "invalid"
 	}
 	a.site.render(w, http.StatusOK, "unsubscribe", "/unsubscribe", "Unsubscribe — "+siteName, d)

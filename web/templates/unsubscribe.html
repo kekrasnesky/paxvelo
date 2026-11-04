@@ -11,11 +11,23 @@
 {{else if eq .Data.State "done"}}
   <h1>You’re unsubscribed</h1>
   <p class="lead">You won’t get any more club emails{{with .Data.Email}} at {{.}}{{end}}.</p>
-  <p>Changed your mind? Email <a href="mailto:PaxVeloClub@gmail.com">PaxVeloClub@gmail.com</a> and we’ll turn them back on.</p>
+  {{with .Data.Token}}<form method="post" action="/membership/emails#emails">
+    <input type="hidden" name="t" value="{{.}}">
+    <p>Changed your mind? <button class="link-button" type="submit">Turn club emails back on</button></p>
+  </form>{{end}}
+{{else if eq .Data.State "test"}}
+  <h1>That was a test email</h1>
+  <p class="lead">Nothing changed. This is the Unsubscribe link from a test email, so it isn’t anyone’s.</p>
+  <p>In a real club email, each member’s own link opens this page, where they press Unsubscribe to stop club emails.</p>
 {{else}}
   <h1>Link not recognized</h1>
   <p class="lead">This unsubscribe link isn’t valid. It may have been copied incompletely.</p>
-  <p>Email <a href="mailto:PaxVeloClub@gmail.com">PaxVeloClub@gmail.com</a> and we’ll take you off the list.</p>
+  <p>Enter your email and we’ll send you a link to your membership page, where you can unsubscribe.</p>
+  <form class="join" method="post" action="/membership/link">
+    <label>Email <input type="email" name="email" required maxlength="254" autocomplete="email"></label>
+    <button class="btn" type="submit">{{icon "send"}}Send me my link</button>
+  </form>
+  <p class="muted-note">Or email <a href="mailto:PaxVeloClub@gmail.com">PaxVeloClub@gmail.com</a> and we’ll take you off the list.</p>
 {{end}}
 </article>
 {{end}}

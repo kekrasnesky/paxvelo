@@ -14,8 +14,7 @@
 
   <dl class="facts">
     {{if $r.IsVirtual}}<div><dt>Where</dt><dd class="virtual-where">{{if $r.OnZwift}}{{template "zwift"}} Virtual, on Zwift{{else}}Virtual: online or on an indoor trainer{{end}}</dd></div>{{end}}
-    {{with $r.Place}}<div><dt>Start</dt><dd>{{.}}{{with $r.Directions}} · <a href="{{.}}" target="_blank" rel="noopener">Directions</a>{{end}}</dd></div>
-    {{else}}{{if $r.Place}}<div><dt>Start</dt><dd>Shared with club members on the Strava event</dd></div>{{end}}{{end}}
+    {{with $r.Place}}<div><dt>Start</dt><dd>{{.}}{{with $r.Directions}} · <a href="{{.}}" target="_blank" rel="noopener">Directions</a>{{end}}</dd></div>{{end}}
     {{with $r.Route}}{{if .Shown}}<div><dt>Route</dt><dd><a href="{{.URL}}" target="_blank" rel="noopener">{{.Name}}</a>, {{.Stats}}{{with .TimeLabel}}, about {{.}} of riding{{end}}</dd></div>{{end}}{{end}}
     {{with $r.Levels}}<div><dt>Level</dt><dd><span class="lvls">{{range $i, $l := .}}{{if $i}} or {{end}}<span class="lvl lvl-{{$l.Key}}">{{$l.Name}}</span> {{$l.MPH}}{{end}}</span>{{if gt (len .) 1}}, depending on who turns out{{end}}</dd></div>{{end}}
     {{if not $r.IsRide}}{{with $r.Leaders}}<div><dt>{{$r.HostLabel}}</dt><dd>{{(index . 0).Name}}</dd></div>{{end}}{{end}}

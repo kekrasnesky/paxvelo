@@ -55,7 +55,7 @@ func TestJoinWithEmergencyContact(t *testing.T) {
 		"level": {"some"}, "emergency_name": {"Sam Rider"}, "emergency_phone": {"240 555 0199"},
 	}
 
-	for field, bad := range map[string]string{"last": "", "phone": "555-0123", "emergency_phone": "+44 20 7946 0958"} {
+	for field, bad := range map[string]string{"last": "", "phone": "555-0123", "emergency_phone": "301-555-012"} {
 		form := url.Values{}
 		for k, v := range full {
 			form[k] = v
@@ -151,21 +151,34 @@ func TestJoinFillsBlanksOnly(t *testing.T) {
 	}
 }
 
-// Someone who unsubscribed isn't signed up again by anyone typing their email
-// into the public form, and gets no welcome email. An admin adding them back can.
+// Someone who unsubscribed can come back and renew on the public form: their
+// waiver counts and they're shown how to pay. But club emails stay off, since
+// anyone could type their email; they turn them on from their own page. An
+// admin adding them back turns them on too.
 func TestJoinDoesNotResubscribe(t *testing.T) {
 	a, h, _ := testApp(t)
-	m, _, _ := a.store.Join(memberDetails{Name: "Kim Rider", Email: "kim@example.com", Plan: "individual"}, 2026)
+	m, _, _ := a.store.Join(memberDetails{Name: "Kim Rider", Email: "kim@example.com", Plan: "individual"}, a.cfg.ThisYear())
 	a.store.Unsubscribe(m.Token)
 	form := url.Values{"plan": {"individual"}, "name": {"Kim Rider"}, "email": {"kim@example.com"}, "phone": {"301-555-0123"},
 		"level": {"some"}, "emergency_name": {"Sam Rider"}, "emergency_phone": {"240-555-0199"}}
 	ct, body := joinForm(a, form)
 	w := do(t, h, nil, "POST", "/join", ct, body)
-	if !strings.Contains(w.Body.String(), "unsubscribed from club emails earlier") {
-		t.Errorf("the form should explain: %s", w.Body)
+	page := w.Body.String()
+	if !strings.Contains(page, "unsubscribed from club emails earlier") || !strings.Contains(page, "Pay your $35 individual dues") {
+		t.Errorf("the form should explain the emails and how to pay: %s", page)
 	}
-	if got := a.store.Members()[0]; got.Active() || got.Phone != "" {
-		t.Errorf("the public form must not re-subscribe or change an unsubscribed member: %+v", got)
+	got := a.store.Members()[0]
+	if got.Active() {
+		t.Errorf("the public form must not turn club emails back on: %+v", got)
+	}
+	if got.Phone != "301-555-0123" || got.Name != "Kim Rider" {
+		t.Errorf("missing details should be filled in, like for any member: %+v", got)
+	}
+	if _, ok := a.store.WaiverFor(got.ID, a.cfg.ThisYear()); !ok {
+		t.Error("the waiver they just signed should be kept")
+	}
+	if w := do(t, h, nil, "GET", "/membership?t="+got.Token, "", nil); !strings.Contains(w.Body.String(), "Turn club emails back on") {
+		t.Error("their own page should offer to turn emails back on")
 	}
 	if _, res, _ := a.store.Join(memberDetails{Name: "Kim Rider", Email: "kim@example.com", Plan: "individual"}, 2026); res != Rejoined || !a.store.Members()[0].Active() {
 		t.Errorf("an admin should be able to add them back: %v", res)
@@ -435,6 +448,51 @@ func TestOldWelcomeBodyUpdated(t *testing.T) {
 		}
 		if got := s.Welcome().Body; got != c.want {
 			t.Errorf("saved %.20q: got %.40q", c.saved, got)
+		}
+	}
+}
+
+// A waiver signature counts when it's the signer's name, give or take case,
+// punctuation and a middle name or initial.
+func TestSignedAs(t *testing.T) {
+	for _, c := range []struct {
+		sig, name string
+		want      bool
+	}{
+		{"Robert Smith", "Robert Smith", true},
+		{"robert smith", "Robert Smith", true},
+		{"Robert J. Smith", "Robert Smith", true},
+		{"Robert Smith", "Robert James Smith", true},
+		{"Mary-Kate O’Neil", "Mary Kate O'Neil", true},
+		{"Bob Smith", "Robert Smith", false},
+		{"Smith", "Robert Smith", false},
+		{"Robert", "Robert Smith", false},
+		{"", "Robert Smith", false},
+		{"Pat Jones", "Robert Smith", false},
+	} {
+		if got := signedAs(c.sig, c.name); got != c.want {
+			t.Errorf("signedAs(%q, %q) = %v, want %v", c.sig, c.name, got, c.want)
+		}
+	}
+}
+
+// The public forms take US numbers, and numbers from other countries typed
+// with their + code; a US number missing a digit isn't taken as foreign.
+func TestPhoneOK(t *testing.T) {
+	for in, want := range map[string]bool{
+		"301-555-0123":     true,
+		"(301) 555-0123":   true,
+		"+1 301.555.0123":  true,
+		"+44 20 7946 0958": true,
+		"+61 412 345 678":  true,
+		"301-555-012":      false,
+		"20 7946 095":      false,
+		"+1 555":           false,
+		"call me":          false,
+		"":                 false,
+	} {
+		if got := phoneOK(in); got != want {
+			t.Errorf("phoneOK(%q) = %v, want %v", in, got, want)
 		}
 	}
 }

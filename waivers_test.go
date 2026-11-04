@@ -93,12 +93,14 @@ func TestMinorWaivers(t *testing.T) {
 	a, h, admin := testApp(t)
 	year := a.cfg.ThisYear()
 	m, _, _ := a.store.Join(memberDetails{Name: "Pat Rider", Email: "pat@example.com", Plan: "family", Phone: "301-555-0123"}, year)
-	if page := do(t, h, nil, "GET", "/membership?t="+m.Token, "", nil).Body.String(); !strings.Contains(page, "Sign for a rider under 18") || !strings.Contains(page, "For Parents and Guardians") || !strings.Contains(page, `value="301-555-0123"`) {
+	if page := do(t, h, nil, "GET", "/membership?t="+m.Token, "", nil).Body.String(); !strings.Contains(page, "Sign for a rider under 18") || !strings.Contains(page, "For Parents and Guardians") || !strings.Contains(page, "blank uses the one ending in 0123") || strings.Contains(page, `value="301-555-0123"`) {
 		t.Error("the membership page should offer the waiver for a rider under 18")
 	}
 
+	// The phone box starts blank (the page shows only its last digits), and
+	// blank signs with the one on file.
 	good := url.Values{"t": {m.Token}, "rider_first": {"Sam"}, "rider_last": {"Rider"}, "rider_age": {"12"},
-		"guardian_phone": {"301-555-0123"}, "guardian": {"yes"}, "signature": {"Pat Rider"}}
+		"guardian_phone": {""}, "guardian": {"yes"}, "signature": {"Pat Rider"}}
 	for field, bad := range map[string]string{"rider_last": "", "rider_age": "18", "guardian": "", "signature": "Sam Rider", "guardian_phone": "555"} {
 		v := url.Values{}
 		for k, vs := range good {

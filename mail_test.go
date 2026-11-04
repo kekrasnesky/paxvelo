@@ -66,3 +66,22 @@ func TestUnsubscribeOnlyOnMemberEmails(t *testing.T) {
 		t.Error("a member email should have the unsubscribe link")
 	}
 }
+
+// {strava} in an email is the club on Strava, and a welcome email nobody
+// changed from the default that typed the address in gets the placeholder.
+func TestStravaPlaceholder(t *testing.T) {
+	a, _, _ := testApp(t)
+	if got := a.mailer.personalize("Join us: {strava}", Member{Name: "Pat Rider"}); got != "Join us: "+a.cfg.StravaURL {
+		t.Errorf("personalize = %q", got)
+	}
+	w := a.store.Welcome()
+	w.Body = strings.ReplaceAll(defaultWelcomeBody, "{strava}", "https://www.strava.com/clubs/10197")
+	a.store.SetWelcome(w)
+	s, err := openStore(a.cfg.DataDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.Welcome().Body != defaultWelcomeBody {
+		t.Error("the old default welcome email should get the {strava} placeholder")
+	}
+}

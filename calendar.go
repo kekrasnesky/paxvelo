@@ -696,7 +696,7 @@ func (a *App) notifyRide(subject, body string, o RideOcc, group string) {
 
 // icsText escapes words for a calendar file.
 func icsText(s string) string {
-	return strings.NewReplacer(`\`, `\`, ";", `\;`, ",", `\,`, "\r\n", `\n`, "\n", `\n`, "\r", "").Replace(s)
+	return strings.NewReplacer(`\`, `\\`, ";", `\;`, ",", `\,`, "\r\n", `\n`, "\n", `\n`, "\r", "").Replace(s)
 }
 
 // icsFold ends a calendar file line, folding it every 75 bytes as the format

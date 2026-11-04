@@ -306,7 +306,7 @@ func (a *App) signWaiver(w http.ResponseWriter, r *http.Request) {
 	case v.Waiver != nil:
 	case r.PostFormValue("waiver") == "":
 		v.WaiverMessage = joinProblems["waiver"]
-	case !strings.EqualFold(signature, name):
+	case !signedAs(signature, name):
 		v.WaiverMessage = fmt.Sprintf("To sign, type your name as the club has it: %s.", name)
 	case !drawn:
 		v.WaiverMessage = joinProblems["drawing"]
@@ -346,7 +346,11 @@ func (a *App) signMinorWaiver(w http.ResponseWriter, r *http.Request) {
 	}
 	f := minorForm{First: r.PostFormValue("rider_first"), Last: r.PostFormValue("rider_last"), Age: r.PostFormValue("rider_age"),
 		Phone: r.PostFormValue("guardian_phone"), Signature: r.PostFormValue("signature"), Ticked: r.PostFormValue("guardian") != ""}
-	first, last, phone := cleanName(f.First), cleanName(f.Last), cleanPhone(f.Phone)
+	typedPhone := f.Phone
+	if strings.TrimSpace(typedPhone) == "" { // the page doesn't show it, so blank means the one on file
+		typedPhone = m.Phone
+	}
+	first, last, phone := cleanName(f.First), cleanName(f.Last), cleanPhone(typedPhone)
 	age, err := strconv.Atoi(strings.TrimSpace(f.Age))
 	drawing, drawn := drawnSignature(r)
 	v := a.membershipView(m, t)
@@ -362,11 +366,11 @@ func (a *App) signMinorWaiver(w http.ResponseWriter, r *http.Request) {
 		v.MinorMessage = "Enter the rider’s age, under 18. Riders 18 and over sign their own waiver."
 	case already:
 		v.MinorMessage = fmt.Sprintf("You’ve already signed %s’s %d waiver.", first, v.Year)
-	case len(phoneDigits(phone)) != 10:
-		v.MinorMessage = "Enter your 10-digit phone number, like 301-555-0123."
+	case !phoneOK(typedPhone):
+		v.MinorMessage = "Enter your 10-digit phone number, like 301-555-0123. Outside the US, start with + and the country code."
 	case !f.Ticked:
 		v.MinorMessage = "Tick the box to agree, as the rider’s parent or legal guardian."
-	case !strings.EqualFold(cleanName(f.Signature), m.Name):
+	case !signedAs(f.Signature, m.Name):
 		v.MinorMessage = fmt.Sprintf("To sign, type your name as the club has it: %s.", m.Name)
 	case !drawn:
 		v.MinorMessage = joinProblems["drawing"]

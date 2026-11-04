@@ -117,6 +117,7 @@ func (m *Mailer) personalize(s string, mem Member) string {
 		"{first_name}", first,
 		"{name}", name,
 		"{site}", m.cfg.SiteURL,
+		"{strava}", m.cfg.StravaURL,
 		"{pay_link}", pay,
 		"{dues}", "$"+strconv.Itoa(m.cfg.Dues(mem.Plan)),
 		"{year}", strconv.Itoa(m.cfg.ThisYear()),
@@ -144,8 +145,13 @@ func (m *Mailer) sendTo(kind string, campaign int, mem Member, subject, body str
 	return m.send(kind, campaign, mem.Name, mem.Email, m.personalize(subject, mem), m.personalize(body, mem), links)
 }
 
+// testToken stands in for a member's secret in test emails, so their My
+// membership and Unsubscribe links open a page saying it was a test. Real
+// tokens are 32 hex digits, so it can't be anyone's.
+const testToken = "test"
+
 func (m *Mailer) SendTest(to, subject, body string) error {
-	return m.sendTo(mailTest, 0, Member{Email: to, Token: "test"}, "[Test] "+subject, body, nil)
+	return m.sendTo(mailTest, 0, Member{Email: to, Token: testToken}, "[Test] "+subject, body, nil)
 }
 
 // Notify emails a notice to the club (RIDES_EMAIL) in the background.

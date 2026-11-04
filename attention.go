@@ -152,7 +152,11 @@ func (a *App) attention() []attentionItem {
 		}
 		need := "needs a leader"
 		if open[0] != "" {
-			need = "needs a leader for the " + strings.Join(open, " and ")
+			need = "needs a leader for the " + andList(open)
+			// Groups from Strava or the API can be called anything, like "Fast"
+			if !strings.Contains(strings.ToLower(strings.Join(open, " ")), "group") {
+				need += map[bool]string{true: " group", false: " groups"}[len(open) == 1]
+			}
 		}
 		out = append(out, attentionItem{
 			Text: fmt.Sprintf("%s, %s, %s.", o.Name, o.DateLabel(), need),

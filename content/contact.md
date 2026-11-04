@@ -14,7 +14,7 @@ The best way to reach us is email: [PaxVeloClub@gmail.com](mailto:PaxVeloClub@gm
 
 ## Looking for a ride?
 
-Club rides are on our [ride calendar](/calendar), with the start time, route, and any last-minute changes. They're posted on [Strava]({strava}) too, so join the club there and RSVP to the rides you're coming to. New to group riding? Just show up and say hello, or email us first and we'll help you find a ride that fits.
+Club rides are on our [ride calendar](/calendar), with the start time and route. They're posted on [Strava]({strava}) too, where leaders post any last-minute changes, so join the club there and RSVP to the rides you're coming to. New to group riding? Just show up and say hello, or email us first and we'll help you find a ride that fits.
 
 Want to lead one? Open it on the calendar.
 

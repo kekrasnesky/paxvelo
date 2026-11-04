@@ -818,7 +818,7 @@ body.addEventListener('submit',function(e){var f=e.target;if(!f.classList.contai
     <div class="mail-write">
       {{template "mail-bar"}}
       <label>Message <textarea name="body" rows="16">{{.Draft.Body}}</textarea></label>
-      <p class="muted small">Select some words and use the buttons above, or type the marks yourself: **bold**, [words to click](https://…), ## Heading, - list item, and [[Button words](https://…)] for a button. Leave a blank line between paragraphs; web addresses become links on their own. {first_name} greets each member by name, and {pay_link} is a link to pay their dues ({dues} and {year} work too), and {my_link} is their membership page, to check dues and update their details.</p>
+      <p class="muted small">Select some words and use the buttons above, or type the marks yourself: **bold**, [words to click](https://…), ## Heading, - list item, and [[Button words](https://…)] for a button. Leave a blank line between paragraphs; web addresses become links on their own. {first_name} greets each member by name, and {pay_link} is a link to pay their dues ({dues} and {year} work too), {my_link} is their membership page, to check dues and update their details, and {strava} is the club on Strava.</p>
     </div>
     {{template "mail-preview"}}
   </div>
@@ -874,7 +874,7 @@ body.addEventListener('submit',function(e){var f=e.target;if(!f.classList.contai
     <div class="mail-write">
       {{template "mail-bar"}}
       <label>Message <textarea name="body" rows="14" required>{{.Welcome.Body}}</textarea></label>
-      <p class="muted small">The same buttons and marks work here. {first_name} becomes the new member’s first name, {pay_link} their PayPal link, {year} the current year, {site} the website address, and {ride_tips} where to start riding, from their answer on the join form (below). The preview shows the advice for “Some group rides” as last saved.</p>
+      <p class="muted small">The same buttons and marks work here. {first_name} becomes the new member’s first name, {pay_link} their PayPal link, {year} the current year, {site} the website address, {strava} the club on Strava, and {ride_tips} where to start riding, from their answer on the join form (below). The preview shows the advice for “Some group rides” as last saved.</p>
     </div>
     {{template "mail-preview"}}
   </div>

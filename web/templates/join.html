@@ -22,7 +22,7 @@
     </div>
     <div class="pair">
       <label>Email <input type="email" name="email" required maxlength="254" autocomplete="email" value="{{.Data.Form.Email}}"></label>
-      <label>Phone <input type="tel" name="phone" required maxlength="20" autocomplete="tel-national" placeholder="301-555-0123" pattern="\d{3}-\d{3}-\d{4}" title="10 digits, like 301-555-0123" value="{{.Data.Form.Phone}}"></label>
+      <label>Phone <input type="tel" name="phone" required maxlength="20" autocomplete="tel-national" placeholder="301-555-0123" pattern="\d{3}-\d{3}-\d{4}|\+[0-9 \(\)\-.]{7,22}" title="10 digits, like 301-555-0123, or + and the country code outside the US" value="{{.Data.Form.Phone}}"></label>
     </div>
     <fieldset class="pick two">
       <legend>Which sounds like you?</legend>
@@ -33,7 +33,7 @@
       <legend>Emergency contact</legend>
       <div class="pair">
         <label>Name <input name="emergency_name" required maxlength="100" autocomplete="off" value="{{.Data.Form.EmergencyName}}"></label>
-        <label>Phone <input type="tel" name="emergency_phone" required maxlength="20" autocomplete="off" placeholder="301-555-0123" pattern="\d{3}-\d{3}-\d{4}" title="10 digits, like 301-555-0123" value="{{.Data.Form.EmergencyPhone}}"></label>
+        <label>Phone <input type="tel" name="emergency_phone" required maxlength="20" autocomplete="off" placeholder="301-555-0123" pattern="\d{3}-\d{3}-\d{4}|\+[0-9 \(\)\-.]{7,22}" title="10 digits, like 301-555-0123, or + and the country code outside the US" value="{{.Data.Form.EmergencyPhone}}"></label>
       </div>
     </fieldset>
     <fieldset class="emergency household">
@@ -89,13 +89,13 @@
     <p class="joined-title">{{if .Data.OK}}{{.Data.Message}}{{end}}</p>
     <p class="joined-detail">{{.Data.Detail}}</p>
     <p class="joined-pay"{{if not .Data.PayURL}} hidden{{end}}><a class="btn" href="{{.Data.PayURL}}" target="_blank" rel="noopener noreferrer"><span>{{.Data.PayLabel}}</span><span class="sr"> (opens in a new tab)</span></a></p>
-    <p>While you’re here, read <a href="/bike-safety" target="_blank" rel="noopener noreferrer">Bike Safety 101<span class="sr"> (opens in a new tab)</span></a> and <a href="{{.Club.StravaURL}}" target="_blank" rel="noopener noreferrer">find a ride on Strava<span class="sr"> (opens in a new tab)</span></a>.</p>
+    <p>Next, <a href="/calendar" target="_blank" rel="noopener noreferrer">find your first ride on the club calendar<span class="sr"> (opens in a new tab)</span></a>, and read <a href="/bike-safety" target="_blank" rel="noopener noreferrer">Bike Safety 101<span class="sr"> (opens in a new tab)</span></a> before you go.</p>
     <form class="joined-minors" method="post" action="/membership/link" target="_blank">
       <input type="hidden" name="email" value="{{.Data.Form.Email}}">
-      <p>Need to sign for a rider under 18 later? You can do it on your membership page.</p>
+      <p>Your membership page is where you check your dues, update your details, sign for riders under 18 and turn club emails on or off.</p>
       <button class="btn btn-quiet" type="submit">Email me my membership page link<span class="sr"> (opens in a new tab)</span></button>
     </form>
   </div>
-  <p class="muted-note">Already a member? <a href="/membership" target="_blank" rel="noopener noreferrer">Check your dues or update your details<span class="sr"> (opens in a new tab)</span></a>.</p>
+  <p class="muted-note join-foot"{{if .Data.OK}} hidden{{end}}>Already a member? <a href="/membership" target="_blank" rel="noopener noreferrer">Check your dues or update your details<span class="sr"> (opens in a new tab)</span></a>.</p>
 </article>
 {{end}}

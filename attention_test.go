@@ -110,3 +110,16 @@ func TestSecurityTab(t *testing.T) {
 		t.Errorf("saving the PIN: %s", to)
 	}
 }
+
+// Groups from Strava or the calendar API can be called anything, and the
+// line still reads as a sentence.
+func TestAttentionGroupWording(t *testing.T) {
+	a, h, admin := testApp(t)
+	day := a.today().AddDate(0, 0, 1).Format("2006-01-02")
+	if _, err := a.store.AddRide(CalRide{Date: day, Time: "18:00", Name: "Fast Spin", Groups: []string{"Fast", "Tempo"}}); err != nil {
+		t.Fatal(err)
+	}
+	if page := do(t, h, admin, "GET", "/admin", "", nil).Body.String(); !strings.Contains(page, "needs a leader for the Fast and Tempo groups.") {
+		t.Error("group names without the word should get it")
+	}
+}
