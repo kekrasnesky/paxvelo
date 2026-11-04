@@ -681,10 +681,10 @@ html:has(.gal-view[open]){overflow:hidden} /* the page behind stays put */
 .status-mark{display:grid;place-items:center;width:2.2rem;height:2.2rem;border-radius:50%;border:2px solid var(--todo);color:var(--todo);font-weight:600;font-size:1.1rem;line-height:1}
 .status.done .status-mark{border-color:var(--done);background:var(--done);color:#fff}
 .status-mark svg{width:1.2rem;height:1.2rem}
-.status-body h2{margin:0;font-size:.8rem;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:#6b625b}
-.status-state{margin:0;font-size:1.2rem;font-weight:500;color:var(--todo)}
+.status-body h2{margin:0 0 .1rem;font-size:.8rem;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:#6b625b}
+.status-body .status-state{margin:0;line-height:1.3;font-size:1.2rem;font-weight:500;color:var(--todo)}
 .status.done .status-state{color:var(--done)}
-.status-meta{margin:.1rem 0 0;font-size:.9rem;color:#6b625b}
+.status-body .status-meta{margin:.15rem 0 0;font-size:.9rem;color:#6b625b}
 .status-facts{display:flex;flex-wrap:wrap;gap:.1rem 1.4rem;margin:.2rem 0 0;font-size:.9rem}
 .status-facts div{display:flex;gap:.35rem}
 .status-facts dt{color:#6b625b}
