@@ -3,6 +3,7 @@ package main
 import (
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
@@ -75,6 +76,16 @@ func TestMembershipPage(t *testing.T) {
 	}
 }
 
+// followed is the page a form's redirect goes to.
+func followed(t *testing.T, h http.Handler, w *httptest.ResponseRecorder) string {
+	t.Helper()
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("expected a redirect, got %d", w.Code)
+	}
+	loc, _, _ := strings.Cut(w.Header().Get("Location"), "#")
+	return do(t, h, nil, "GET", loc, "", nil).Body.String()
+}
+
 // "Send me my link" answers the same for members and strangers.
 func TestSendMembershipLink(t *testing.T) {
 	a, h, _ := testApp(t)
@@ -118,7 +129,7 @@ func TestUnsubscribePages(t *testing.T) {
 		t.Error("opening the link again should offer the same")
 	}
 	ct, body = form(url.Values{"t": {m.Token}})
-	page = do(t, h, nil, "POST", "/membership/emails", ct, body).Body.String()
+	page = followed(t, h, do(t, h, nil, "POST", "/membership/emails", ct, body))
 	if got, _ := a.store.MemberByToken(m.Token); !got.Active() || !strings.Contains(page, "Club emails are back on.") {
 		t.Error("the button should turn emails back on, and say so")
 	}
@@ -198,7 +209,7 @@ func TestConfirmEmail(t *testing.T) {
 		t.Error("their page should have the Confirm button")
 	}
 	ct, body = form(url.Values{"t": {m.Token}})
-	page = do(t, h, nil, "POST", "/membership/confirm", ct, body).Body.String()
+	page = followed(t, h, do(t, h, nil, "POST", "/membership/confirm", ct, body))
 	if got, _ := a.store.MemberByToken(m.Token); got.Unconfirmed || !got.Emailable() || !strings.Contains(page, "your email is confirmed") || strings.Contains(page, `action="/membership/confirm"`) {
 		t.Errorf("confirming should take: %+v", got)
 	}
@@ -211,7 +222,7 @@ func TestConfirmEmail(t *testing.T) {
 	a.store.Unsubscribe(kim.Token)
 	ct, body = joinForm(a, url.Values{"plan": {"individual"}, "name": {"Kim Rider"}, "email": {"kim@example.com"}, "phone": {"301-555-0124"},
 		"level": {"racer"}, "emergency_name": {"Lee Rider"}, "emergency_phone": {"240-555-0100"}})
-	if page := do(t, h, nil, "POST", "/join", ct, body).Body.String(); !strings.Contains(page, "confirming turns club emails back on") {
+	if page := do(t, h, nil, "POST", "/join", ct, body).Body.String(); !strings.Contains(page, "This email is already on our list.") {
 		t.Errorf("the join page should explain: %s", page)
 	}
 	if c := confirmFor("kim@example.com"); !strings.Contains(c.body, "Welcome back") {

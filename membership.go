@@ -32,6 +32,8 @@ type membershipData struct {
 	Message                      string // a problem with what was typed
 	EmailsBack                   bool   // club emails were just turned back on
 	Confirmed                    bool   // they just confirmed their email
+	Renewed                      bool   // they just confirmed the renewal they filled in on the join form
+	RenewalDoes                  string // what confirming that renewal does, for the Confirm box
 	Email                        string // typed into "send me my link"
 	// This year's insurance waiver (waivers.go): the signed one, or the form
 	// to sign it.
@@ -80,6 +82,9 @@ func (a *App) membershipView(m Member, token string) membershipData {
 		d.Waiver = &w
 	}
 	d.Minors = a.store.MinorWaivers(m.ID, year)
+	if m.RenewalWaiting() {
+		d.RenewalDoes = a.renewalDoes(m)
+	}
 	d.Household = a.householdStatus(m, year)
 	d.HouseholdRoom = m.Plan == "family" && len(m.Household) < maxHousehold
 	return d
@@ -125,6 +130,12 @@ func (a *App) membershipPage(w http.ResponseWriter, r *http.Request) {
 	v.WaiverSigned = v.Waiver != nil && r.URL.Query().Get("signed") != ""
 	v.MinorSigned = len(v.Minors) > 0 && r.URL.Query().Get("minor") != ""
 	v.HouseholdDone = r.URL.Query().Get("household")
+	// Back from Confirm, or Turn club emails back on: each redirects here, so
+	// reloading or bookmarking the page works.
+	q := r.URL.Query()
+	v.Confirmed = q.Get("confirmed") != "" && !v.Member.Unconfirmed
+	v.Renewed = q.Get("renewed") != "" && !v.Member.RenewalWaiting()
+	v.EmailsBack = q.Get("emails") != "" && v.Member.Emailable()
 	a.renderMembership(w, http.StatusOK, v)
 }
 
@@ -189,9 +200,8 @@ func (a *App) resubscribe(w http.ResponseWriter, r *http.Request) {
 		a.renderMembership(w, http.StatusOK, membershipData{State: "invalid"})
 		return
 	}
-	v := a.membershipView(m, t)
-	v.EmailsBack = true
-	a.renderMembership(w, http.StatusOK, v)
+	a.welcomeIfDue(m)
+	http.Redirect(w, r, "/membership?t="+url.QueryEscape(t)+"&emails=on#emails", http.StatusSeeOther)
 }
 
 // sendMembershipLink emails a member their link. It says the same thing
@@ -212,7 +222,7 @@ func (a *App) sendMembershipLink(w http.ResponseWriter, r *http.Request) {
 	case !a.limit.Allow("mylink:"+clientIP(r), 5, time.Hour) || !a.limit.Allow("mylink:"+email, 3, time.Hour):
 		d.Message = "Too many links sent. Try again in an hour."
 	default:
-		if m, found := a.store.MemberByEmail(email); found && m.Unconfirmed {
+		if m, found := a.store.MemberByEmail(email); found && (m.Unconfirmed || m.RenewalWaiting()) {
 			// Their link is in the confirm email, which says what to press
 			if err := a.sendConfirm(m); err != nil {
 				d.Message = "The email didn’t send. Try again later."
@@ -221,7 +231,7 @@ func (a *App) sendMembershipLink(w http.ResponseWriter, r *http.Request) {
 		} else if found {
 			body := fmt.Sprintf("Hi %s,\n\nHere's the link to your PaxVelo membership page. Check your %d dues, and update your phone and emergency contact:\n\n[[My membership](%s)]\n\nKeep this email: the link is just for you, and it doesn't expire.",
 				or(m.FirstName(), "there"), a.cfg.ThisYear(), a.cfg.membershipURL(m.Token))
-			if err := a.mailer.SendDirect(mailMyLink, m.Name, m.Email, "Your PaxVelo membership link", body); err != nil {
+			if err := a.mailer.SendMine(mailMyLink, m, "Your PaxVelo membership link", body); err != nil {
 				d.Message = "The email didn’t send. Try again later."
 				break
 			}
@@ -252,15 +262,20 @@ var rideLevelsFor = map[string][]string{
 // ridesFor is the next few rides on the road in the coming three weeks at a
 // level that suits a member's answer on the join form (any, with no answer).
 func (a *App) ridesFor(level string, n int) []RideOcc {
+	return ridesFor(a.store, a.cfg.Location, level, n)
+}
+
+func ridesFor(store *Store, loc *time.Location, level string, n int) []RideOcc {
 	want := rideLevelsFor[level]
-	today := a.today()
-	todayS, now := today.Format("2006-01-02"), time.Now().In(a.cfg.Location).Format("15:04")
+	now := time.Now().In(loc)
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	todayS, clock := today.Format("2006-01-02"), now.Format("15:04")
 	var out []RideOcc
-	for _, o := range a.store.Rides(today, today.AddDate(0, 0, 21)) {
+	for _, o := range store.Rides(today, today.AddDate(0, 0, 21)) {
 		if len(out) == n {
 			break
 		}
-		if o.Cancelled || !o.IsRide() || o.IsVirtual() || o.Date == todayS && o.Time != "" && o.Time <= now { // a first ride is on the road
+		if o.Cancelled || !o.IsRide() || o.IsVirtual() || o.Date == todayS && o.Time != "" && o.Time <= clock { // a first ride is on the road
 			continue
 		}
 		if len(want) == 0 || slices.ContainsFunc(o.Levels(), func(l rideLevel) bool { return slices.Contains(want, l.Key) }) {
@@ -270,39 +285,80 @@ func (a *App) ridesFor(level string, n int) []RideOcc {
 	return out
 }
 
-// sendConfirm emails someone who joined on the website, or came back after
-// unsubscribing, the link to confirm their address: their membership page,
-// where they press Confirm my email. With it go their dues, if still owed,
-// and the rides coming up that suit them. Paying doesn't wait for it.
+// sendConfirm emails the link to confirm their address to someone who joined
+// on the website, came back after unsubscribing, or renewed on the join form:
+// their membership page, where they press Confirm. With it go their dues, if
+// still owed, and the rides coming up that suit them. Paying doesn't wait.
 func (a *App) sendConfirm(m Member) error {
 	year := a.cfg.ThisYear()
-	intro := "Thanks for joining PaxVelo! Press the button to confirm this is your email, so club news and ride updates reach you."
-	if !m.Active() {
+	renewing := m.RenewalWaiting()
+	subject, button := "Confirm your email for PaxVelo", "Confirm my email"
+	var intro string
+	switch {
+	case !m.Active():
 		intro = "Welcome back to PaxVelo! You unsubscribed from club emails earlier. Press the button to confirm this is your email, and they’ll come here again."
+		if renewing {
+			intro += " It also " + a.renewalDoes(m) + " on the join form."
+		}
+	case renewing && !m.Unconfirmed:
+		subject, button = "Finish renewing your PaxVelo membership", "Confirm it’s me"
+		intro = "Someone, probably you, filled in PaxVelo’s join form with this email address. Press the button to confirm it was you: that " + a.renewalDoes(m) + "."
+	case renewing:
+		intro = "Thanks for joining PaxVelo! Press the button to confirm this is your email, so club news and ride updates reach you. It also " + a.renewalDoes(m) + " on the join form."
+	default:
+		intro = "Thanks for joining PaxVelo! Press the button to confirm this is your email, so club news and ride updates reach you."
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "Hi %s,\n\n%s\n\n[[Confirm my email](%s#confirm)]", or(m.FirstName(), "there"), intro, a.cfg.membershipURL(m.Token))
+	fmt.Fprintf(&b, "Hi %s,\n\n%s\n\n[[%s](%s#confirm)]", or(m.FirstName(), "there"), intro, button, a.cfg.membershipURL(m.Token))
+	if renewing {
+		b.WriteString("\n\nDidn’t fill in the form? Ignore this email, and nothing changes.")
+	}
 	if pay := a.cfg.PayLink(m.Plan); pay != "" && !m.PaidFor(year) {
 		fmt.Fprintf(&b, "\n\nHaven’t paid yet? [Pay your $%d %s dues for %d](%s).", a.cfg.Dues(m.Plan), strings.ToLower(m.PlanName()), year, pay)
 	}
-	if rides := a.ridesFor(m.Level, 3); len(rides) > 0 {
-		b.WriteString("\n\nRides coming up that suit you:\n")
-		for _, o := range rides {
-			when := o.ShortDate()
-			if o.Time != "" {
-				when += ", " + o.TimeLabel()
-			}
-			fmt.Fprintf(&b, "\n- **%s:** [%s](%s/calendar/ride/%s)", when, o.Name, a.cfg.SiteURL, o.Key)
-			if o.Place != "" {
-				b.WriteString(", from " + o.Place)
-			}
-		}
+	if list := rideList(a.ridesFor(m.Level, 3), a.cfg.SiteURL); list != "" {
+		b.WriteString("\n\n" + list)
 	}
 	fmt.Fprintf(&b, "\n\nEvery club ride is on the calendar: %s/calendar\n\nBefore your first ride, take a couple of minutes to read Bike Safety 101: %s/bike-safety\n\nThe button opens your membership page, where you can also check your dues and update your details. Keep this email: the link is just for you.", a.cfg.SiteURL, a.cfg.SiteURL)
-	return a.mailer.SendDirect(mailConfirm, m.Name, m.Email, "Confirm your email for PaxVelo", b.String())
+	return a.mailer.SendMine(mailConfirm, m, subject, b.String())
 }
 
-// confirmEmail is the Confirm my email button on a member's page.
+// renewalDoes says what confirming a renewal from the join form does: signs
+// the waiver, unless it's signed already, and saves what was filled in.
+func (a *App) renewalDoes(m Member) string {
+	if m.PendingJoin == nil {
+		return ""
+	}
+	if _, signed := a.store.WaiverFor(m.ID, m.PendingJoin.Year); signed {
+		return "saves what you filled in"
+	}
+	return fmt.Sprintf("signs your %d insurance waiver and saves what you filled in", m.PendingJoin.Year)
+}
+
+// rideList is the rides coming up that suit someone, as a list for an email,
+// or "" when there are none.
+func rideList(rides []RideOcc, site string) string {
+	if len(rides) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("Rides coming up that suit you:\n")
+	for _, o := range rides {
+		when := o.ShortDate()
+		if o.Time != "" {
+			when += ", " + o.TimeLabel()
+		}
+		fmt.Fprintf(&b, "\n- **%s:** [%s](%s/calendar/ride/%s)", when, o.Name, site, o.Key)
+		if o.Place != "" {
+			b.WriteString(", from " + o.Place)
+		}
+	}
+	return b.String()
+}
+
+// confirmEmail is the Confirm button on a member's page: Confirm my email,
+// or Confirm it's me for a renewal from the join form, which this signs.
+// It goes back to their page, so reloading it doesn't send the form again.
 func (a *App) confirmEmail(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 4<<10)
 	if !sameOrigin(r) {
@@ -310,7 +366,8 @@ func (a *App) confirmEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	t := r.PostFormValue("t")
-	m, ok, err := a.store.ConfirmEmail(t)
+	before, _ := a.store.MemberByToken(t)
+	m, p, ok, err := a.store.ConfirmEmail(t)
 	if err != nil {
 		log.Printf("confirm email: %v", err)
 	}
@@ -318,9 +375,32 @@ func (a *App) confirmEmail(w http.ResponseWriter, r *http.Request) {
 		a.renderMembership(w, http.StatusOK, membershipData{State: "invalid"})
 		return
 	}
-	v := a.membershipView(m, t)
-	v.Confirmed = err == nil
-	a.renderMembership(w, http.StatusOK, v)
+	q := url.Values{"t": {t}}
+	if before.Unconfirmed && err == nil {
+		q.Set("confirmed", "1")
+	}
+	if p != nil && err == nil {
+		riders := make([]joinRider, len(p.Riders))
+		for i, k := range p.Riders {
+			riders[i] = joinRider{k.Name, k.Age}
+		}
+		_, added := a.applyJoin(m, p.Year, p.Signature, p.Drawing, p.IP, riders, p.Adults)
+		a.emailHousehold(m, added) // if their dues are paid; otherwise once they are
+		q.Set("renewed", "1")
+	}
+	a.welcomeIfDue(m)
+	http.Redirect(w, r, "/membership?"+q.Encode()+"#confirm", http.StatusSeeOther)
+}
+
+// welcomeIfDue sends a website joiner's welcome email once they're both
+// marked paid and confirmed, whichever came last.
+func (a *App) welcomeIfDue(m Member) {
+	if !a.store.Welcome().Enabled {
+		return
+	}
+	if m, due, err := a.store.TakeWelcome(m.ID, a.cfg.ThisYear()); err == nil && due {
+		a.mailer.Go(func() { a.mailer.SendWelcome(m) })
+	}
 }
 
 // ---- Store ----
@@ -362,10 +442,13 @@ func (s *Store) Resubscribe(token string) (Member, bool, error) {
 	if m == nil {
 		return Member{}, false, nil
 	}
-	if m.Active() {
+	if m.Active() && !m.Unconfirmed {
 		return *m, true, nil
 	}
-	m.Unsubscribed = nil
+	// Their own link proves the inbox is theirs, so this confirms the
+	// address too; otherwise the page would say emails are on while they
+	// still wait for the confirmation.
+	m.Unsubscribed, m.Unconfirmed = nil, false
 	return *m, true, s.save()
 }
 

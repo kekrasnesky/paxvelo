@@ -238,8 +238,10 @@ func (a *App) join(w http.ResponseWriter, r *http.Request) {
 		fail(http.StatusBadRequest, joinProblems[problem])
 		return
 	}
-	// Only count well-formed signups, so typos never lock anyone out.
-	if !a.limit.Allow("join:"+clientIP(r), 5, time.Hour) {
+	// Only count well-formed signups, so typos never lock anyone out. A
+	// club night on one wifi can bring in a crowd, and the spam checks above
+	// stop bots, so the cap is generous.
+	if !a.limit.Allow("join:"+clientIP(r), 20, time.Hour) {
 		fail(http.StatusTooManyRequests, "Too many signups from your connection. Wait a bit and try again.")
 		return
 	}
@@ -251,65 +253,27 @@ func (a *App) join(w http.ResponseWriter, r *http.Request) {
 		fail(http.StatusInternalServerError, "Something went wrong on our end. Try again in a minute.")
 		return
 	}
-	if result == Joined {
-		a.mailer.Go(func() { a.mailer.NotifySignup(m) }) // their welcome email waits until an admin marks them paid
+	if result != Joined {
+		a.renewal(r, reply, m, details, riders, adults, year)
+		return
 	}
-	// This year's waiver, unless they already signed one. Someone already on
-	// the list keeps the name on file, so the record shows both that and the
-	// name typed.
-	if _, _, err := a.store.SignWaiver(Waiver{MemberID: m.ID, Year: year, Signature: details.Signature, Drawing: details.Drawing, Where: "Join form", IP: clientIP(r)}, a.site.waiver); err != nil {
-		log.Printf("join %s: waiver: %v", details.Email, err)
-	}
-	// And the riders under 18 they signed for, as parent or guardian.
-	var signedFor []string
-	for _, k := range riders {
-		signed := Waiver{MemberID: m.ID, Year: year, Signature: details.Signature, Drawing: details.Drawing, Where: "Join form", IP: clientIP(r),
-			Rider: k.Name, Minor: true, RiderAge: k.Age, GuardianPhone: details.Phone}
-		if _, _, err := a.store.SignWaiver(signed, a.site.waiver.forMinor()); err != nil {
-			log.Printf("join %s: minor waiver: %v", details.Email, err)
-			continue
-		}
-		signedFor = append(signedFor, k.Name)
-	}
-	// The other adults on a Family plan sign their own waivers, with the link
-	// emailed to them. Someone already on the list who has adults keeps them.
-	var added []HouseholdAdult
-	if m.Plan == "family" && len(adults) > 0 {
-		var err error
-		if added, err = a.store.AddHousehold(m.ID, adults, result != Joined); err != nil {
-			log.Printf("join %s: household: %v", details.Email, err)
-		}
-	}
+	a.mailer.Go(func() { a.mailer.NotifySignup(m) }) // their welcome email waits until an admin marks them paid
+	signedFor, added := a.applyJoin(m, year, details.Signature, details.Drawing, clientIP(r), riders, adults)
 	emailed := a.emailHousehold(m, added) // if their dues are paid already; otherwise once they are
-	// The link to confirm their address, for a new joiner or someone back
-	// after unsubscribing. A few an hour per address, so nobody can flood
-	// someone's inbox by typing it in.
-	if m.Unconfirmed && a.limit.Allow("confirm:"+m.Email, 3, time.Hour) {
+	// The link to confirm their address. A few an hour per address, so
+	// nobody can flood someone's inbox by typing it in.
+	if a.limit.Allow("confirm:"+m.Email, 3, time.Hour) {
 		a.mailer.Go(func() { a.sendConfirm(m) }) // a failure is logged by send
 	}
 
 	d := joinData{OK: true, Form: memberDetails{Email: m.Email}} // the email, for "Email me my membership page link"
-	first := m.FirstName()
 	dues := a.cfg.Dues(m.Plan)
-	owes := !m.PaidFor(year)
-	onList := result == AlreadyMember || result == OptedOut
-	switch {
-	case onList && !owes:
-		d.Message = fmt.Sprintf("You’re already a member, %s.", first)
-		d.Detail = fmt.Sprintf("Your %d dues are paid. See you on the road!", year)
-	case onList:
-		d.Message = fmt.Sprintf("You’re already on the list, %s.", first)
-		d.Detail = fmt.Sprintf("Pay your $%d %s dues for %d to finish up.", dues, strings.ToLower(m.PlanName()), year)
-	default:
-		d.Message = fmt.Sprintf("Thanks, %s! Two last steps.", first)
-		d.Detail = fmt.Sprintf("Pay your $%d %s dues for %d to finish joining.", dues, strings.ToLower(m.PlanName()), year)
-	}
-	if owes {
-		if link := a.cfg.PayLink(m.Plan); link != "" {
-			d.PayURL, d.PayLabel = link, fmt.Sprintf("Pay $%d with PayPal", dues)
-		} else {
-			d.Detail += " We’ll email you how to pay."
-		}
+	d.Message = fmt.Sprintf("Thanks, %s! Two last steps.", m.FirstName())
+	d.Detail = fmt.Sprintf("Pay your $%d %s dues for %d to finish joining.", dues, strings.ToLower(m.PlanName()), year)
+	if link := a.cfg.PayLink(m.Plan); link != "" {
+		d.PayURL, d.PayLabel = link, fmt.Sprintf("Pay $%d with PayPal", dues)
+	} else {
+		d.Detail += " We’ll email you how to pay."
 	}
 	if len(signedFor) > 0 {
 		d.Detail += " You signed the waiver for " + andList(signedFor) + " too."
@@ -323,19 +287,70 @@ func (a *App) join(w http.ResponseWriter, r *http.Request) {
 		}
 		d.Detail += " Once your dues are paid, we’ll email " + andList(names) + " a link to sign their own waiver."
 	}
-	if m.Unconfirmed {
-		// Club emails wait until they confirm the address from their inbox,
-		// since anyone could type it. Paying doesn't wait.
-		if result == OptedOut {
-			d.Detail += " You unsubscribed from club emails earlier, so they’re off for now."
-		}
-		d.Detail += " Please also confirm your email: we’ve sent a link to " + m.Email
-		if result == OptedOut {
-			d.Detail += ", and confirming turns club emails back on"
-		}
-		d.Detail += ". Not there in a few minutes? Check spam, or press “Email me my membership page link” below."
-	}
+	// Club emails wait until they confirm the address from their inbox,
+	// since anyone could type it. Paying doesn't wait.
+	d.Detail += " Please also confirm your email: we’ve sent a link to " + m.Email +
+		". Not there in a few minutes? Check spam, or press “Email me my membership page link” below."
 	reply(http.StatusOK, d)
+}
+
+// renewal answers the join form for an address already on the list (see
+// renewal.go): what was typed waits for the member to confirm it from their
+// inbox, and the page says the same whoever the member is, paid or not, so
+// typing someone's address shows nothing about them.
+func (a *App) renewal(r *http.Request, reply func(int, joinData), m Member, details memberDetails,
+	riders []joinRider, adults []HouseholdAdult, year int) {
+	p := PendingJoin{Year: year, Phone: details.Phone, EmergencyName: details.EmergencyName, EmergencyPhone: details.EmergencyPhone,
+		Level: details.Level, Terms: details.Terms, Signature: details.Signature, Drawing: details.Drawing, IP: clientIP(r), Adults: adults}
+	for _, k := range riders {
+		p.Riders = append(p.Riders, PendingRider{k.Name, k.Age})
+	}
+	m, err := a.store.SetPendingJoin(m.ID, p)
+	if err != nil {
+		log.Printf("join %s: renewal: %v", m.Email, err)
+		reply(http.StatusInternalServerError, joinData{Message: "Something went wrong on our end. Try again in a minute."})
+		return
+	}
+	if a.limit.Allow("confirm:"+m.Email, 3, time.Hour) {
+		a.mailer.Go(func() { a.sendConfirm(m) }) // a failure is logged by send
+	}
+	reply(http.StatusOK, joinData{OK: true, Form: memberDetails{Email: m.Email},
+		Message: "This email is already on our list.",
+		Detail: "We’ve sent a link to " + m.Email + ". Open it and press Confirm it’s me to finish: that signs your " + strconv.Itoa(year) +
+			" waiver and saves what you filled in. Your membership page, from the same link, shows your dues and how to pay them." +
+			" Not there in a few minutes? Check spam, or press “Email me my membership page link” below."})
+}
+
+// applyJoin signs the waivers from a join form (theirs, and any riders under
+// 18 they signed for as parent or guardian) and adds the other adults on a
+// Family plan. It runs when a new member joins, and when a member confirms a
+// renewal. It returns the riders signed for and the adults added.
+func (a *App) applyJoin(m Member, year int, signature string, drawing []byte, ip string, riders []joinRider, adults []HouseholdAdult) ([]string, []HouseholdAdult) {
+	// This year's waiver, unless they already signed one. The record keeps
+	// the name on file and the name typed.
+	if _, _, err := a.store.SignWaiver(Waiver{MemberID: m.ID, Year: year, Signature: signature, Drawing: drawing, Where: "Join form", IP: ip}, a.site.waiver); err != nil {
+		log.Printf("join %s: waiver: %v", m.Email, err)
+	}
+	var signedFor []string
+	for _, k := range riders {
+		signed := Waiver{MemberID: m.ID, Year: year, Signature: signature, Drawing: drawing, Where: "Join form", IP: ip,
+			Rider: k.Name, Minor: true, RiderAge: k.Age, GuardianPhone: m.Phone}
+		if _, _, err := a.store.SignWaiver(signed, a.site.waiver.forMinor()); err != nil {
+			log.Printf("join %s: minor waiver: %v", m.Email, err)
+			continue
+		}
+		signedFor = append(signedFor, k.Name)
+	}
+	// The other adults on a Family plan sign their own waivers, with the link
+	// emailed to them. A member who has adults listed already keeps them.
+	var added []HouseholdAdult
+	if m.Plan == "family" && len(adults) > 0 {
+		var err error
+		if added, err = a.store.AddHousehold(m.ID, adults, true); err != nil {
+			log.Printf("join %s: household: %v", m.Email, err)
+		}
+	}
+	return signedFor, added
 }
 
 // ---- Unsubscribe ----

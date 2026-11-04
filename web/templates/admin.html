@@ -567,14 +567,14 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
   {{range .Members}}{{$paid := .PaidFor $.Year}}<tr id="m{{.ID}}" data-name="{{.Name}}" data-plan="{{.Plan}}" data-paid="{{if $paid}}1{{else}}0{{end}}" data-waiver="{{if index $.Signed .ID}}1{{else}}0{{end}}" data-joined="{{.Joined.Format "2006-01-02T15:04:05"}}" data-find="{{.Name}} {{.Email}} {{.Phone}}"{{if not .Active}} class="off"{{end}}>
     <td class="pick-col" data-label="Tick">{{if not $paid}}<input type="checkbox" name="id" value="{{.ID}}" form="bulk" aria-label="Tick {{.Name}}">{{end}}</td>
     <td data-label="Name"><a class="member-link" href="/admin/members/{{.ID}}">{{.Name}}</a>{{with .Household}}<br><span class="muted small">With {{range $i, $h := .}}{{if $i}}, {{end}}{{$h.Name}}{{end}}</span>{{end}}</td>
-    <td class="email" data-label="Email"><a href="mailto:{{.Email}}">{{.Email}}</a>{{if not .Active}} <span class="tag">Unsubscribed</span>{{end}}{{if .Unconfirmed}} <span class="tag" title="Club emails reach them once they press the link we emailed">Email not confirmed</span>{{end}}</td>
+    <td class="email" data-label="Email"><a href="mailto:{{.Email}}">{{.Email}}</a>{{if not .Active}} <span class="tag">Unsubscribed</span>{{end}}{{if .Unconfirmed}} <span class="tag" title="Club emails reach them once they press the link we emailed">Email not confirmed</span>{{end}}{{if .RenewalWaiting}} <span class="tag" title="They filled in the join form again. Their waiver and details count once they press the link we emailed">Renewal not confirmed</span>{{end}}</td>
     <td class="nowrap" data-label="Phone">{{with .Phone}}<a href="tel:{{.}}">{{.}}</a>{{else}}<span class="muted">—</span>{{end}}</td>
     <td data-label="Plan">{{.PlanName}}</td>
     <td data-label="Riding">{{with .LevelName}}{{.}}{{else}}<span class="muted">—</span>{{end}}{{with .RideNames}}<br><span class="muted small">{{.}}</span>{{end}}</td>
     <td class="nowrap" data-label="{{$.Year}} dues"><form method="post" action="/admin/members/{{.ID}}/paid" class="inline paid-form">
       <input type="hidden" name="return" value="/admin/members?q={{$.Q}}&dues={{$.Dues}}">
       {{if $paid}}<span class="paid">Paid</span> <input type="hidden" name="paid" value="0"><button class="link small">{{icon "undo"}}Undo</button>
-      {{else}}<input type="hidden" name="paid" value="1"><button class="mini ghost">{{icon "check"}}Mark paid</button>{{if .WelcomePending}}<span class="muted small welcome-note">Sends their welcome email</span>{{end}}{{end}}
+      {{else}}<input type="hidden" name="paid" value="1"><button class="mini ghost">{{icon "check"}}Mark paid</button>{{if .WelcomePending}}<span class="muted small welcome-note">{{if .Unconfirmed}}Their welcome email goes once they confirm their email{{else}}Sends their welcome email{{end}}</span>{{end}}{{end}}
     </form></td>
     <td class="nowrap" data-label="{{$.Year}} waiver">{{if index $.Signed .ID}}<span class="paid">Signed</span>{{else}}<span class="muted">Not signed</span>{{end}}</td>
     <td class="nowrap" data-label="Joined">{{date .Joined}}</td>
@@ -659,7 +659,7 @@ body.addEventListener('submit',function(e){var f=e.target;if(!f.classList.contai
 <p><a href="/admin/members">← All members</a></p>
 <div class="title-row">
   <h1>{{.Name}}</h1>
-  <p class="muted">{{.PlanName}} plan · joined {{date .Joined}}{{if not .Active}} <span class="tag">Unsubscribed</span>{{end}}{{if .Unconfirmed}} <span class="tag" title="Club emails reach them once they press the link we emailed">Email not confirmed</span>{{end}}</p>
+  <p class="muted">{{.PlanName}} plan · joined {{date .Joined}}{{if not .Active}} <span class="tag">Unsubscribed</span>{{end}}{{if .Unconfirmed}} <span class="tag" title="Club emails reach them once they press the link we emailed">Email not confirmed</span>{{end}}{{if .RenewalWaiting}} <span class="tag" title="They filled in the join form again. Their waiver and details count once they press the link we emailed">Renewal not confirmed</span>{{end}}</p>
 </div>
 <div class="grid2 member-page">
   <form class="card" method="post" action="/admin/members/{{.ID}}">

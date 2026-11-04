@@ -11,7 +11,7 @@ The club's website: public pages, membership signup with PayPal dues, a ride cal
 | **Home** | Where you land: how many members have paid, this week's rides, quick links to common jobs, and warnings if backups or security need a look. |
 | **Pages** | Edit the words and photos on any page, or add a new page. |
 | **Board** | Change board members, roles and photos. |
-| **Members** | See who has joined and paid. Press **Mark paid** when PayPal emails you a payment (this also sends the member a welcome email). Import or export lists. |
+| **Members** | See who has joined and paid. Press **Mark paid** when PayPal emails you a payment (this also sends a new member their welcome email, once they have confirmed their email). Import or export lists. |
 | **Members → Waivers** | See who has signed this year's insurance waiver. Each January, email members asking them to sign again. |
 | **Rides / Calendar** | Set up weekly rides, add one-off events, change leaders, cancel rides. Approve rides that members submit. Tick **Virtual** for a Zwift ride (rides mentioning Zwift, virtual or a trainer ride are ticked automatically). |
 | **Newsletter** | Build the monthly issue from blocks, preview it, publish it, then email members about it. |
@@ -28,6 +28,7 @@ The **Needs attention** notice tells you when something is waiting: new photos, 
 ## Common jobs
 
 - **New member joined:** you get an email. When their PayPal payment arrives, find them under Members and press **Mark paid**. They're also sent a link to confirm their email; until they press it, Members shows "Email not confirmed" and club emails skip them.
+- **Member renewing on the Join form:** nothing they typed counts until they press the link we email them, since anyone can type any email. Until then Members shows "Renewal not confirmed" and their waiver shows as not signed.
 - **Start of each year:** everyone shows as not paid. Email that group a reminder (put `{pay_link}` in the message so each person gets their own PayPal link), and ask everyone to sign the new waiver.
 - **Add an admin:** Security → Admins → enter name and email. They get a link to choose a password. Only the **President** can remove admins or delete members.
 - **Forgot your password:** use **Forgot your password?** on the login page.

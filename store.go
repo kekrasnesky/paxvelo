@@ -51,6 +51,9 @@ type Member struct {
 	// Other adults who ride on their Family plan, each signing their own
 	// waiver (household.go).
 	Household []HouseholdAdult `json:"household,omitempty"`
+	// PendingJoin is the join form filled in for their address, waiting for
+	// them to confirm it was them (renewal.go).
+	PendingJoin *PendingJoin `json:"pending_join,omitempty"`
 }
 
 // memberDetails is what someone fills in to join.
@@ -414,10 +417,10 @@ func (s *Store) Join(d memberDetails, year int) (Member, JoinResult, error) {
 }
 
 // JoinPublic adds a member from the public Join form, where anyone can type
-// anyone's email. For someone already on the list it only fills in details
-// still missing, so nobody can overwrite another member's phone or emergency
-// contact, change their plan, or turn club emails back on after they
-// unsubscribed (that returns OptedOut, and the emails stay off).
+// anyone's email. For someone already on the list it changes nothing (what
+// they typed waits for the member to confirm it: renewal.go), except that
+// someone who unsubscribed is marked unconfirmed, so confirming turns club
+// emails back on (that returns OptedOut, and the emails stay off till then).
 func (s *Store) JoinPublic(d memberDetails, year int) (Member, JoinResult, error) {
 	return s.join(d, year, false)
 }
@@ -438,13 +441,11 @@ func (s *Store) join(d memberDetails, year int, admin bool) (Member, JoinResult,
 				m.Plan = d.Plan
 			}
 		case !m.Active():
-			// Back to renew: fill in what's missing, but leave club emails off
-			// until they confirm the address is theirs, since anyone could type it.
-			m.fill(d)
+			// Back to renew: club emails stay off until they confirm the
+			// address is theirs, since anyone could type it. What they typed
+			// waits for that too (SetPendingJoin).
 			m.Unconfirmed = true
 			res = OptedOut
-		default:
-			m.fill(d)
 		}
 		return *m, res, s.save()
 	}
@@ -454,21 +455,34 @@ func (s *Store) join(d memberDetails, year int, admin bool) (Member, JoinResult,
 	return *m, Joined, s.save()
 }
 
-// ConfirmEmail records that a member confirmed their address from the link
-// we emailed them, which turns club emails on (back on, for someone who came
-// back after unsubscribing).
-func (s *Store) ConfirmEmail(token string) (Member, bool, error) {
+// ConfirmEmail is the member pressing Confirm on their page, from the link we
+// emailed them. It confirms the address, which turns club emails on (back on,
+// for someone who came back after unsubscribing), and takes the renewal they
+// filled in on the join form, if one is waiting: its details fill in what's
+// missing, and the caller signs its waivers. The link proves the inbox is
+// theirs.
+func (s *Store) ConfirmEmail(token string) (Member, *PendingJoin, bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	m := s.byToken(token)
 	if m == nil {
-		return Member{}, false, nil
+		return Member{}, nil, false, nil
 	}
-	if !m.Unconfirmed {
-		return *m, true, nil
+	if !m.Unconfirmed && m.PendingJoin == nil {
+		return *m, nil, true, nil
 	}
-	m.Unconfirmed, m.Unsubscribed = false, nil
-	return *m, true, s.save()
+	if m.Unconfirmed {
+		m.Unconfirmed, m.Unsubscribed = false, nil
+	}
+	p := m.PendingJoin
+	m.PendingJoin = nil
+	if !p.fresh() {
+		p = nil // too old to count; they can fill in the form again
+	}
+	if p != nil {
+		m.fill(p.details())
+	}
+	return *m, p, true, s.save()
 }
 
 // SetPaid marks a member's dues as paid (or not) for a year.
@@ -495,12 +509,17 @@ func (s *Store) SetPaid(id, year int, paid bool) error {
 // TakeWelcome reports whether a member's welcome email is still to be sent,
 // and if so marks it as sent, so it goes out once however often they're
 // marked paid.
-func (s *Store) TakeWelcome(id int) (Member, bool, error) {
+// It waits until they're both paid for the year and have confirmed their
+// email, in either order.
+func (s *Store) TakeWelcome(id, year int) (Member, bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	m := s.byID(id)
-	if m == nil || !m.WelcomePending {
+	if m == nil {
 		return Member{}, false, nil
+	}
+	if !m.WelcomePending || m.Unconfirmed || !m.PaidFor(year) {
+		return *m, false, nil
 	}
 	m.WelcomePending = false
 	return *m, true, s.save()

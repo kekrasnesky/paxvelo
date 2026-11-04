@@ -109,6 +109,10 @@ func (m *Mailer) personalize(s string, mem Member) string {
 	if first == "" {
 		first, name = "there", "there"
 	}
+	tips := ""
+	if strings.Contains(s, "{ride_tips}") { // the rides coming up take a look at the calendar
+		tips = rideTips(m.store.Welcome(), mem, m.cfg.SiteURL, ridesFor(m.store, m.cfg.Location, mem.Level, 3))
+	}
 	pay := m.cfg.PayLink(mem.Plan)
 	if pay == "" {
 		pay = m.cfg.SiteURL + "/join"
@@ -121,7 +125,7 @@ func (m *Mailer) personalize(s string, mem Member) string {
 		"{pay_link}", pay,
 		"{dues}", "$"+strconv.Itoa(m.cfg.Dues(mem.Plan)),
 		"{year}", strconv.Itoa(m.cfg.ThisYear()),
-		"{ride_tips}", rideTips(m.store.Welcome(), mem, m.cfg.SiteURL),
+		"{ride_tips}", tips,
 		"{my_link}", m.cfg.membershipURL(mem.Token),
 	).Replace(s)
 	return extraBlankLines.ReplaceAllString(s, "\n\n") // where {ride_tips} came out empty
@@ -170,6 +174,13 @@ func (m *Mailer) Notify(subject, body string) {
 // password link, so it has no unsubscribe link. kind names it in the sent log.
 func (m *Mailer) SendDirect(kind, toName, toEmail, subject, body string) error {
 	return m.send(kind, 0, toName, toEmail, subject, body, memberLinks{})
+}
+
+// SendMine sends one email to a member that isn't to the member list, like
+// the link to confirm their email: it has their My membership link at the
+// foot, but no unsubscribe link.
+func (m *Mailer) SendMine(kind string, mem Member, subject, body string) error {
+	return m.send(kind, 0, mem.Name, mem.Email, subject, body, memberLinks{Mine: m.cfg.membershipURL(mem.Token)})
 }
 
 // NotifySignup tells every admin that someone joined on the website, so the
@@ -247,8 +258,11 @@ func (m *Mailer) send(kind string, campaign int, toName, toEmail, subject, text 
 		m.onSend(toEmail, subject, text)
 	}
 	plain := emailText(text, m.cfg.SiteURL) + "\n\n--\nPaxVelo, " + m.cfg.SiteURL + "\n"
+	if links.Mine != "" {
+		plain += "My membership: " + links.Mine + "\n"
+	}
 	if links.Unsub != "" {
-		plain += "My membership: " + links.Mine + "\nUnsubscribe: " + links.Unsub + "\n"
+		plain += "Unsubscribe: " + links.Unsub + "\n"
 	}
 	if !m.live() {
 		log.Printf("[test mode, not sent] To: %s | Subject: %s\n%s\n", toEmail, subject, text)

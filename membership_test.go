@@ -125,8 +125,8 @@ func TestJoinWithEmergencyContact(t *testing.T) {
 	full.Set("phone", "202-555-0100")
 	full.Set("plan", "individual")
 	ct, body = joinForm(a, full)
-	if w := do(t, h, nil, "POST", "/join", ct, body); !strings.Contains(w.Body.String(), "already on the list") {
-		t.Errorf("joining again should say they're already on the list")
+	if w := do(t, h, nil, "POST", "/join", ct, body); !strings.Contains(w.Body.String(), "This email is already on our list.") || strings.Contains(w.Body.String(), "paypal.example") {
+		t.Errorf("joining again should say the email is on the list, and nothing about the member")
 	}
 	if m := a.store.Members()[0]; m.EmergencyName != "Sam Rider" || m.Phone != "301-555-0123" || m.Plan != "family" || len(a.store.Members()) != 1 {
 		t.Errorf("joining again must not overwrite what's on file, got %+v", m)
@@ -134,16 +134,23 @@ func TestJoinWithEmergencyContact(t *testing.T) {
 }
 
 // A member from before the phone fields existed can fill them in by joining
-// again, but only the blanks. The admin's Add a member can still change them.
+// again, but only the blanks, and only once they confirm it was them. The
+// admin's Add a member can still change them.
 func TestJoinFillsBlanksOnly(t *testing.T) {
 	a, h, _ := testApp(t)
 	a.store.Join(memberDetails{Name: "Old Timer", Email: "old@example.com", Plan: "individual"}, 2026)
-	form := url.Values{"plan": {"family"}, "name": {"Someone Else"}, "email": {"old@example.com"}, "phone": {"301-555-0123"},
+	vals := url.Values{"plan": {"family"}, "name": {"Someone Else"}, "email": {"old@example.com"}, "phone": {"301-555-0123"},
 		"level": {"some"}, "emergency_name": {"Sam Rider"}, "emergency_phone": {"240-555-0199"}}
-	ct, body := joinForm(a, form)
+	ct, body := joinForm(a, vals)
 	do(t, h, nil, "POST", "/join", ct, body)
 	m := a.store.Members()[0]
-	if m.Name != "Old Timer" || m.Phone != "301-555-0123" || m.EmergencyName != "Sam Rider" || m.Plan != "individual" {
+	if m.Phone != "" || m.EmergencyName != "" || !m.RenewalWaiting() {
+		t.Errorf("nothing changes until they confirm: %+v", m)
+	}
+	ct, cbody := form(url.Values{"t": {m.Token}})
+	do(t, h, nil, "POST", "/membership/confirm", ct, cbody)
+	m = a.store.Members()[0]
+	if m.Name != "Old Timer" || m.Phone != "301-555-0123" || m.EmergencyName != "Sam Rider" || m.Plan != "individual" || m.RenewalWaiting() {
 		t.Errorf("only the blank details should be filled in: %+v", m)
 	}
 	if got, _, _ := a.store.Join(memberDetails{Name: "Old Timer", Email: "old@example.com", Plan: "family", Phone: "202-555-0100"}, 2026); got.Phone != "202-555-0100" || got.Plan != "family" {
@@ -151,35 +158,44 @@ func TestJoinFillsBlanksOnly(t *testing.T) {
 	}
 }
 
-// Someone who unsubscribed can come back and renew on the public form: their
-// waiver counts and they're shown how to pay. But club emails stay off, since
-// anyone could type their email; they turn them on from their own page. An
-// admin adding them back turns them on too.
+// Someone who unsubscribed can come back and renew on the public form. Since
+// anyone could type their email, club emails stay off and their waiver and
+// details wait until they press Confirm on their page, from the link we email
+// them, which turns emails back on too. An admin adding them back turns them
+// on too.
 func TestJoinDoesNotResubscribe(t *testing.T) {
 	a, h, _ := testApp(t)
 	m, _, _ := a.store.Join(memberDetails{Name: "Kim Rider", Email: "kim@example.com", Plan: "individual"}, a.cfg.ThisYear())
 	a.store.Unsubscribe(m.Token)
-	form := url.Values{"plan": {"individual"}, "name": {"Kim Rider"}, "email": {"kim@example.com"}, "phone": {"301-555-0123"},
+	vals := url.Values{"plan": {"individual"}, "name": {"Kim Rider"}, "email": {"kim@example.com"}, "phone": {"301-555-0123"},
 		"level": {"some"}, "emergency_name": {"Sam Rider"}, "emergency_phone": {"240-555-0199"}}
-	ct, body := joinForm(a, form)
+	ct, body := joinForm(a, vals)
 	w := do(t, h, nil, "POST", "/join", ct, body)
 	page := w.Body.String()
-	if !strings.Contains(page, "unsubscribed from club emails earlier") || !strings.Contains(page, "Pay your $35 individual dues") {
-		t.Errorf("the form should explain the emails and how to pay: %s", page)
+	if !strings.Contains(page, "This email is already on our list.") || strings.Contains(page, "unsubscribed") || strings.Contains(page, "Kim") {
+		t.Errorf("the form should say the same as for any member, and nothing about them: %s", page)
 	}
 	got := a.store.Members()[0]
-	if got.Active() {
-		t.Errorf("the public form must not turn club emails back on: %+v", got)
+	if got.Active() || got.Phone != "" {
+		t.Errorf("the public form must not turn club emails back on, or change anything yet: %+v", got)
 	}
-	if got.Phone != "301-555-0123" || got.Name != "Kim Rider" {
-		t.Errorf("missing details should be filled in, like for any member: %+v", got)
+	if _, ok := a.store.WaiverFor(got.ID, a.cfg.ThisYear()); ok {
+		t.Error("the waiver waits until they confirm")
+	}
+	if page := do(t, h, nil, "GET", "/membership?t="+got.Token, "", nil).Body.String(); !strings.Contains(page, "which turns club emails back on") ||
+		!strings.Contains(page, "signs your "+strconv.Itoa(a.cfg.ThisYear())+" insurance waiver") || strings.Contains(page, "Turn club emails back on") {
+		t.Error("their own page should have one button, Confirm, that does it all")
+	}
+	ct, cbody := form(url.Values{"t": {got.Token}})
+	do(t, h, nil, "POST", "/membership/confirm", ct, cbody)
+	got = a.store.Members()[0]
+	if !got.Emailable() || got.Phone != "301-555-0123" || got.Name != "Kim Rider" {
+		t.Errorf("confirming turns emails on and fills in what's missing: %+v", got)
 	}
 	if _, ok := a.store.WaiverFor(got.ID, a.cfg.ThisYear()); !ok {
-		t.Error("the waiver they just signed should be kept")
+		t.Error("confirming should sign the waiver they filled in")
 	}
-	if w := do(t, h, nil, "GET", "/membership?t="+got.Token, "", nil); !strings.Contains(w.Body.String(), "Turn club emails back on") {
-		t.Error("their own page should offer to turn emails back on")
-	}
+	a.store.Unsubscribe(got.Token)
 	if _, res, _ := a.store.Join(memberDetails{Name: "Kim Rider", Email: "kim@example.com", Plan: "individual"}, 2026); res != Rejoined || !a.store.Members()[0].Active() {
 		t.Errorf("an admin should be able to add them back: %v", res)
 	}
@@ -407,16 +423,20 @@ func TestWelcomeAfterPaid(t *testing.T) {
 	if !m.WelcomePending {
 		t.Fatal("a website signup should be waiting for its welcome email")
 	}
-	if page := do(t, h, admin, "GET", "/admin/members", "", nil).Body.String(); !strings.Contains(page, "Sends their welcome email") {
-		t.Error("the Members page should say marking them paid sends the welcome email")
+	if page := do(t, h, admin, "GET", "/admin/members", "", nil).Body.String(); !strings.Contains(page, "Their welcome email goes once they confirm their email") {
+		t.Error("the Members page should say the welcome email waits for their confirmation")
 	}
 	paid := func(v string) string {
 		ct, body := form(url.Values{"paid": {v}})
 		return do(t, h, admin, "POST", "/admin/members/"+strconv.Itoa(m.ID)+"/paid", ct, body).Header().Get("Location")
 	}
-	if loc := paid("1"); !strings.Contains(loc, "ok=paid-welcome") {
-		t.Errorf("marking paid should say the welcome is on its way: %s", loc)
+	// Marked paid before they confirm: the welcome waits for the confirmation.
+	if loc := paid("1"); !strings.Contains(loc, "ok=paid-wait") {
+		t.Errorf("marking paid should say the welcome waits: %s", loc)
 	}
+	none("marking paid before they confirm")
+	ct, cbody := form(url.Values{"t": {m.Token}})
+	do(t, h, nil, "POST", "/membership/confirm", ct, cbody)
 	s, ok := next()
 	if !ok || s.to != "kim@example.com" || !strings.Contains(s.subject, "Welcome to PaxVelo, Kim") ||
 		!strings.Contains(s.body, "dues are in") || strings.Contains(s.body, "finish up") ||

@@ -27,9 +27,13 @@ the page of an adult on their Family plan. */}}
   <p class="lead">Hi {{or $m.FirstName "there"}}. This page is just for you, at {{$m.Email}}.</p>
   {{if $m.Unconfirmed}}<form class="confirm-box" id="confirm" method="post" action="/membership/confirm">
     <input type="hidden" name="t" value="{{.Token}}">
-    <p><strong>One more step: confirm this is your email.</strong> Then club news and ride updates come to {{$m.Email}}{{if not $m.Active}}, which turns club emails back on{{end}}.</p>
+    <p><strong>One more step: confirm this is your email.</strong> Then club news and ride updates come to {{$m.Email}}{{if not $m.Active}}, which turns club emails back on{{end}}.{{with .RenewalDoes}} It also {{.}} on the join form.{{end}}</p>
     <button class="btn" type="submit">{{icon "check"}}Confirm my email</button>
-  </form>{{else if .Confirmed}}<p class="cal-msg" id="confirm" role="status">Thanks, your email is confirmed. Club news and ride updates will come to {{$m.Email}}.</p>{{end}}
+  </form>{{else if $m.RenewalWaiting}}<form class="confirm-box" id="confirm" method="post" action="/membership/confirm">
+    <input type="hidden" name="t" value="{{.Token}}">
+    <p><strong>Finish renewing: confirm it’s you.</strong> The join form was filled in for {{$m.Email}} on {{date $m.PendingJoin.At}}. Pressing the button {{.RenewalDoes}}. Didn’t fill it in? Leave this, and nothing changes.</p>
+    <button class="btn" type="submit">{{icon "check"}}Confirm it’s me</button>
+  </form>{{else if or .Confirmed .Renewed}}<p class="cal-msg" id="confirm" role="status">Thanks{{if .Confirmed}}, your email is confirmed. Club news and ride updates will come to {{$m.Email}}.{{else}}, you’re renewed.{{end}}{{if .Renewed}} Your waiver is signed and what you filled in is saved.{{end}}</p>{{end}}
 
   <h2 class="my-h">Dues</h2>
   {{if .Paid}}<p class="dues-paid">{{.Year}} dues: paid ✓</p>
@@ -118,6 +122,7 @@ the page of an adult on their Family plan. */}}
   <h2 class="my-h" id="emails">Club emails</h2>
   {{if $m.Active}}<p{{if .EmailsBack}} role="status"{{end}}>{{if .EmailsBack}}Club emails are back on. Welcome back! {{end}}You get club emails at {{$m.Email}}.</p>
   <form method="post" action="/unsubscribe"><input type="hidden" name="t" value="{{.Token}}"><button class="btn btn-quiet" type="submit">Unsubscribe</button></form>
+  {{else if $m.Unconfirmed}}<p>You’re unsubscribed from club emails. Press Confirm my email at the top of this page to turn them back on.</p>
   {{else}}<p>You’re unsubscribed from club emails.</p>
   <form method="post" action="/membership/emails#emails"><input type="hidden" name="t" value="{{.Token}}"><button class="btn btn-quiet" type="submit">Turn club emails back on</button></form>{{end}}
   <p class="muted-note">Keep the email this link came in. It’s your way back here.</p>

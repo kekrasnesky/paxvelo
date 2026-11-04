@@ -243,6 +243,8 @@ var flashText = map[string]string{
 	"welcome":              "Welcome email saved.",
 	"paid":                 "Marked as paid.",
 	"paid-welcome":         "Marked as paid, and their welcome email is on its way.",
+	"paid-wait":            "Marked as paid. Their welcome email goes once they confirm their email, from the link we sent them.",
+	"paid-wait-links":      "Marked as paid, and the other adults on their family membership were emailed links to sign their waivers. Their welcome email goes once they confirm their email, from the link we sent them.",
 	"paid-links":           "Marked as paid. The other adults on their family membership were emailed links to sign their waivers.",
 	"paid-welcome-links":   "Marked as paid. Their welcome email is on its way, and the other adults on their family membership were emailed links to sign their waivers.",
 	"unpaid":               "Marked as not paid.",

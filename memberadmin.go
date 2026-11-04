@@ -63,9 +63,12 @@ func (a *App) payMember(id int) (string, error) {
 	}
 	code := "paid"
 	if a.store.Welcome().Enabled {
-		if m, due, err := a.store.TakeWelcome(id); err == nil && due {
+		switch m, due, err := a.store.TakeWelcome(id, a.cfg.ThisYear()); {
+		case err == nil && due:
 			a.mailer.Go(func() { a.mailer.SendWelcome(m) })
 			code = "paid-welcome"
+		case m.WelcomePending && m.Unconfirmed:
+			code = "paid-wait" // it goes when they confirm their email
 		}
 	}
 	if names := a.emailHousehold(a.store.UnsignedHousehold(id, a.cfg.ThisYear())); len(names) > 0 {

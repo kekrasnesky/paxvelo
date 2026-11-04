@@ -30,7 +30,7 @@ var clubRides = []choice{
 // levelAdvice is the built-in {ride_tips} for each answer, used until an
 // admin writes their own on the Email tab.
 var levelAdvice = map[string]string{
-	"new":         "Since you’re new to group rides, start with the Old Line Cycles shop ride, Wednesdays at 6:00 PM from the Wildewood Shopping Center. It’s about 20 miles at a social pace, with plenty of regroups. Weekend café rides, when a member hosts one, are another easy way to meet people.\n\nWhen you’re ready for more, try the Thursday Night Ride: a tempo ride to Point Lookout and back that keeps things tame when newer riders come, and nobody gets left behind.",
+	"new":         "Since you’re new to group rides, start with the Old Line Cycles shop ride. It’s about 20 miles at a social pace, with plenty of regroups. Weekend café rides, when a member hosts one, are another easy way to meet people.\n\nWhen you’re ready for more, try the Thursday Night Ride: a tempo ride to Point Lookout and back that keeps things tame when newer riders come, and nobody gets left behind.",
 	"some":        "Start with the Thursday Night Ride: a tempo ride to Point Lookout and back, roughly 40 miles. The pace suits who turns out, and nobody gets left behind.\n\nWhen that feels good, try the Tuesday Night Ride’s B group, about 19–21 mph. It’s hard, but not a race.",
 	"experienced": "You’ll fit right in on the Thursday Night Ride (tempo, and nobody gets left behind) and the Tuesday Night Ride’s B group (about 19–21 mph).\n\nWhen you want a harder night, try the Tuesday A group. It’s race pace, typically 22–28 mph for about 30 miles, and if you come off the back you’re on your own.",
 	"racer":       "Come race-pace training with the Tuesday Night Ride A group, typically 22–28 mph for about 30 miles, mid-March through October.\n\nThe Thursday ride to Point Lookout makes a good tempo day, and it doesn’t drop anyone.",
@@ -76,11 +76,17 @@ func (w WelcomeEmail) Tip(level string) string {
 }
 
 // rideTips is what {ride_tips} becomes in the welcome email: the advice for
-// their answer, then where to find the details. It's empty for members added
-// by an admin, who didn't answer.
-func rideTips(w WelcomeEmail, m Member, site string) string {
+// their answer, the rides coming up on the calendar that suit them, then
+// where to find the details. The advice says which rides, and the calendar
+// says when and where, so the email never names an old time or start spot.
+// It's empty for members added by an admin, who didn't answer.
+func rideTips(w WelcomeEmail, m Member, site string, rides []RideOcc) string {
 	if cleanLevel(m.Level) == "" {
 		return ""
 	}
-	return w.Tip(m.Level) + "\n\nTimes, start spots, and this week’s routes are on Strava and at " + site + "/rides"
+	s := w.Tip(m.Level)
+	if list := rideList(rides, site); list != "" {
+		s += "\n\n" + list
+	}
+	return s + "\n\nTimes, start spots, and this week’s routes are on Strava and at " + site + "/rides"
 }
