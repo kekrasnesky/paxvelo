@@ -49,6 +49,10 @@ type Member struct {
 	// from the link we email them. Club emails skip them until then, so a
 	// mistyped or borrowed address gets nothing more. Paying doesn't wait.
 	Unconfirmed bool `json:"unconfirmed,omitempty"`
+	// Kinds of club email they turned off on their page (emailtopics.go).
+	// Unsubscribed stops everything.
+	NoNewsletter bool `json:"no_newsletter,omitempty"`
+	NoEvents     bool `json:"no_events,omitempty"`
 	// When they ticked "I agree to the club terms" on the join form.
 	TermsAgreed *time.Time `json:"terms_agreed,omitempty"`
 	// Other adults who ride on their Family plan, each signing their own
@@ -153,6 +157,7 @@ type Campaign struct {
 	LastError string     `json:"last_error,omitempty"`
 	Pending   []int      `json:"pending,omitempty"` // member IDs still to send to
 	Issue     int        `json:"issue,omitempty"`   // the newsletter issue it is, when it's one
+	Topic     string     `json:"topic,omitempty"`   // newsletter, events, or "" for club news (emailtopics.go)
 }
 
 type EmailDraft struct {
@@ -674,22 +679,28 @@ func (s *Store) campaign(id int) *Campaign {
 // "unpaid" (for the given dues year). The background sender picks it up from
 // there, and resumes automatically after a restart.
 func (s *Store) StartCampaign(subject, body, audience string, year int) (Campaign, error) {
-	return s.startCampaign(0, subject, body, audience, year)
+	return s.startCampaign(0, "", subject, body, audience, year)
+}
+
+// StartCampaignAbout is StartCampaign for an email on a topic members can
+// turn off (emailtopics.go); those who did are left out.
+func (s *Store) StartCampaignAbout(topic, subject, body, audience string, year int) (Campaign, error) {
+	return s.startCampaign(0, cleanTopic(topic), subject, body, audience, year)
 }
 
 // StartIssueCampaign queues a newsletter issue's email, like StartCampaign,
 // but leaves the draft on Email members alone.
 func (s *Store) StartIssueCampaign(issue int, subject, body, audience string, year int) (Campaign, error) {
-	return s.startCampaign(issue, subject, body, audience, year)
+	return s.startCampaign(issue, topicNewsletter, subject, body, audience, year)
 }
 
-func (s *Store) startCampaign(issue int, subject, body, audience string, year int) (Campaign, error) {
+func (s *Store) startCampaign(issue int, topic, subject, body, audience string, year int) (Campaign, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	c := &Campaign{ID: s.d.NextCampaign, Subject: subject, Body: body, Created: time.Now().UTC(), Status: "sending", Audience: audienceLabel(audience, year), Issue: issue}
+	c := &Campaign{ID: s.d.NextCampaign, Subject: subject, Body: body, Created: time.Now().UTC(), Status: "sending", Audience: audienceLabel(audience, year), Issue: issue, Topic: topic}
 	signed := s.signedWaivers(year)
 	for _, m := range s.d.Members {
-		if m.Emailable() && inAudience(*m, audience, year, signed) {
+		if m.Emailable() && m.Wants(topic) && inAudience(*m, audience, year, signed) {
 			c.Pending = append(c.Pending, m.ID)
 		}
 	}
@@ -721,12 +732,13 @@ func (s *Store) NextSend() (Campaign, Member, bool) {
 			continue
 		}
 		for len(c.Pending) > 0 {
-			if m := s.byID(c.Pending[0]); m != nil && m.Emailable() {
+			if m := s.byID(c.Pending[0]); m != nil && m.Emailable() && m.Wants(c.Topic) {
 				out := *c
 				out.Pending = nil
 				return out, *m, true
 			}
-			// Member was deleted or unsubscribed after the send started.
+			// Member was deleted, unsubscribed, or turned this kind of
+			// email off after the send started.
 			c.Pending = c.Pending[1:]
 			c.Total--
 		}
@@ -877,7 +889,11 @@ func (s *Store) signedWaivers(year int) map[int]bool {
 
 // emailAudiences are the groups an email can go to, each with how many
 // members who get club emails are in it now.
-func (s *Store) emailAudiences(year int) []audienceOption {
+// emailAudiences are the groups an email can go to, each with how many it
+// reaches. Events is the count for an email about rides and events, which
+// skips members who turned those off; topic is the email's own (newsletter
+// for an issue).
+func (s *Store) emailAudiences(year int, topic string) []audienceOption {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	signed := s.signedWaivers(year)
@@ -887,15 +903,21 @@ func (s *Store) emailAudiences(year int) []audienceOption {
 	}
 	var out []audienceOption
 	for _, v := range values {
-		n := 0
+		n, events := 0, 0
 		for _, m := range s.d.Members {
 			if m.Emailable() && inAudience(*m, v, year, signed) {
-				n++
+				if m.Wants(topic) {
+					n++
+				}
+				if m.Wants(topicEvents) {
+					events++
+				}
 			}
 		}
-		out = append(out, audienceOption{v, fmt.Sprintf("%s (%d)", audienceLabel(v, year), n)})
+		label := audienceLabel(v, year)
+		out = append(out, audienceOption{v, fmt.Sprintf("%s (%d)", label, n), fmt.Sprintf("%s (%d)", label, events)})
 	}
 	return out
 }
 
-type audienceOption struct{ Value, Label string }
+type audienceOption struct{ Value, Label, Events string }

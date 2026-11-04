@@ -791,7 +791,7 @@ func (a *App) emailView(r *http.Request) adminView {
 			v.Sending = true
 		}
 	}
-	v.Audiences, v.Links = a.store.emailAudiences(v.Year), a.editorLinks()
+	v.Audiences, v.Links = a.store.emailAudiences(v.Year, ""), a.editorLinks()
 	v.Flash, v.Error = flashFrom(r)
 	return v
 }
@@ -867,7 +867,7 @@ func (a *App) sendAll(w http.ResponseWriter, r *http.Request) {
 		back(w, r, "/admin/email?err=empty")
 		return
 	}
-	if _, err := a.store.StartCampaign(d.Subject, d.Body, r.FormValue("audience"), a.cfg.ThisYear()); err != nil {
+	if _, err := a.store.StartCampaignAbout(r.FormValue("topic"), d.Subject, d.Body, r.FormValue("audience"), a.cfg.ThisYear()); err != nil {
 		a.store.SetDraft(d)
 		v := a.emailView(r)
 		v.Draft, v.Error = d, err.Error()

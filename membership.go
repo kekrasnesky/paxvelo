@@ -34,6 +34,7 @@ type membershipData struct {
 	Saved                        bool
 	Message                      string // a problem with what was typed
 	EmailsBack                   bool   // club emails were just turned back on
+	TopicsSaved                  bool   // they just changed which kinds of club email they get
 	Confirmed                    bool   // they just confirmed their email
 	Renewed                      bool   // they just confirmed the renewal they filled in on the join form
 	AutoConfirm                  bool   // opened from the button in the confirm email: the page confirms itself
@@ -142,7 +143,8 @@ func (a *App) membershipPage(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	v.Confirmed = q.Get("confirmed") != "" && !v.Member.Unconfirmed
 	v.Renewed = q.Get("renewed") != "" && !v.Member.RenewalWaiting()
-	v.EmailsBack = q.Get("emails") != "" && v.Member.Emailable()
+	v.EmailsBack = q.Get("emails") == "on" && v.Member.Emailable()
+	v.TopicsSaved = q.Get("emails") == "saved"
 	// The button in the confirm email: the page's script presses Confirm as
 	// soon as a person's browser opens it, so one click does it. Loading the
 	// link alone changes nothing, because email scanners open every link in
@@ -199,11 +201,24 @@ func (a *App) saveMembership(w http.ResponseWriter, r *http.Request) {
 	a.renderMembership(w, http.StatusOK, v)
 }
 
-// resubscribe turns club emails back on for someone who unsubscribed. Only
-// the member's own link can do that.
+// resubscribe turns club emails back on for someone who unsubscribed, or
+// (with do=topics) saves the kinds of club email they want. Only the
+// member's own link can do either.
 func (a *App) resubscribe(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 4<<10)
 	t := r.PostFormValue("t")
+	if r.PostFormValue("do") == "topics" {
+		_, ok, err := a.store.SetTopics(t, r.PostFormValue("newsletter") != "", r.PostFormValue("events") != "")
+		if err != nil {
+			log.Printf("email topics: %v", err)
+		}
+		if !ok {
+			a.renderMembership(w, http.StatusOK, membershipData{State: "invalid"})
+			return
+		}
+		http.Redirect(w, r, "/membership?t="+url.QueryEscape(t)+"&emails=saved#emails", http.StatusSeeOther)
+		return
+	}
 	m, ok, err := a.store.Resubscribe(t)
 	if err != nil {
 		log.Printf("resubscribe: %v", err)

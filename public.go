@@ -357,7 +357,9 @@ func (a *App) applyJoin(m Member, year int, signature string, drawing []byte, ip
 
 type unsubData struct {
 	Token, Email string
-	State        string // ask, done, test (the link in a test email), invalid
+	State        string // ask, done, topic (one kind turned off), test (the link in a test email), invalid
+	From         string // the topic of the email the link came in (emailtopics.go), offered first
+	Topic        string // the kind just turned off, as it reads ("the newsletter")
 }
 
 // unsubscribePage asks before unsubscribing, because email scanners open
@@ -365,7 +367,7 @@ type unsubData struct {
 func (a *App) unsubscribePage(w http.ResponseWriter, r *http.Request) {
 	t := r.URL.Query().Get("t")
 	m, ok := a.store.MemberByToken(t)
-	d := unsubData{Token: t, Email: m.Email, State: "ask"}
+	d := unsubData{Token: t, Email: m.Email, State: "ask", From: cleanTopic(r.URL.Query().Get("from"))}
 	switch {
 	case t == testToken:
 		d.State = "test"
@@ -377,8 +379,10 @@ func (a *App) unsubscribePage(w http.ResponseWriter, r *http.Request) {
 	a.site.render(w, http.StatusOK, "unsubscribe", "/unsubscribe", "Unsubscribe — "+siteName, d)
 }
 
-// unsubscribe handles both the button on the page and the one-click
-// unsubscribe button Gmail and Yahoo show next to the sender's name.
+// unsubscribe handles the buttons on the page (stop one kind of email, or
+// everything) and the one-click unsubscribe button Gmail and Yahoo show next
+// to the sender's name, which stops the kind of email it came in, or
+// everything for an email of no particular kind.
 func (a *App) unsubscribe(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 4<<10)
 	r.ParseForm()
@@ -386,12 +390,25 @@ func (a *App) unsubscribe(w http.ResponseWriter, r *http.Request) {
 	if t == "" {
 		t = r.PostFormValue("t")
 	}
-	m, ok, err := a.store.Unsubscribe(t)
+	what := r.PostFormValue("what")
+	if what == "" {
+		what = r.URL.Query().Get("from")
+	}
+	var m Member
+	var ok bool
+	var err error
+	// The token comes along so "Turn club emails back on" works from here.
+	d := unsubData{Token: t, State: "done"}
+	if topic := cleanTopic(what); topic != "" && t != testToken {
+		m, ok, err = a.store.StopTopic(t, topic)
+		d.State, d.Topic = "topic", topicName(topic)
+	} else {
+		m, ok, err = a.store.Unsubscribe(t)
+	}
 	if err != nil {
 		log.Printf("unsubscribe: %v", err)
 	}
-	// The token comes along so "Turn club emails back on" works from here.
-	d := unsubData{Token: t, Email: m.Email, State: "done"}
+	d.Email = m.Email
 	switch {
 	case t == testToken:
 		d.State = "test"

@@ -203,6 +203,10 @@
     size();
   });
 
+  // Switches that save as soon as they're changed (club emails on the
+  // membership page); without scripts, a Save button shows instead.
+  d.querySelectorAll('form[data-autosave]').forEach(function(f){f.addEventListener('change',function(){f.submit()})});
+
   // A link to a closed section (like "Update" on the membership page) opens it.
   d.addEventListener('click',function(e){
     var a=e.target.closest&&e.target.closest('a[href^="#"]'),t=a&&a.getAttribute('href').length>1&&d.getElementById(a.getAttribute('href').slice(1));

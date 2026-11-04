@@ -659,7 +659,7 @@ body.addEventListener('submit',function(e){var f=e.target;if(!f.classList.contai
 <p><a href="/admin/members">← All members</a></p>
 <div class="title-row">
   <h1>{{.Name}}</h1>
-  <p class="muted">{{.PlanName}} plan · joined {{date .Joined}}{{if not .Active}} <span class="tag">Unsubscribed</span>{{end}}{{if .Unconfirmed}} <span class="tag" title="Club emails reach them once they press the link we emailed">Email not confirmed</span>{{end}}{{if .RenewalWaiting}} <span class="tag" title="They filled in the join form again. Their waiver and details count once they press the link we emailed">Renewal not confirmed</span>{{end}}</p>
+  <p class="muted">{{.PlanName}} plan · joined {{date .Joined}}{{if not .Active}} <span class="tag">Unsubscribed</span>{{end}}{{if .Unconfirmed}} <span class="tag" title="Club emails reach them once they press the link we emailed">Email not confirmed</span>{{end}}{{if .RenewalWaiting}} <span class="tag" title="They filled in the join form again. Their waiver and details count once they press the link we emailed">Renewal not confirmed</span>{{end}}{{if .NoNewsletter}} <span class="tag">Newsletter off</span>{{end}}{{if .NoEvents}} <span class="tag">Event emails off</span>{{end}}</p>
 </div>
 <div class="grid2 member-page">
   <form class="card" method="post" action="/admin/members/{{.ID}}">
@@ -829,13 +829,22 @@ body.addEventListener('submit',function(e){var f=e.target;if(!f.classList.contai
     <span class="muted small draft-status" role="status"></span>
   </div>
   <div class="send-row">
+    <label class="inline-label">About
+      <select name="topic" class="email-topic"><option value="">Club news and notices</option><option value="events">Rides and events</option></select>
+    </label>
     <label class="inline-label">Send to
-      <select name="audience">{{range .Audiences}}<option value="{{.Value}}">{{.Label}}</option>{{end}}</select>
+      <select name="audience">{{range .Audiences}}<option value="{{.Value}}" data-all="{{.Label}}" data-events="{{.Events}}">{{.Label}}</option>{{end}}</select>
     </label>
     <button formaction="/admin/email/send" onclick="return confirm('Send this email to: '+this.form.audience.selectedOptions[0].text+'?')">{{icon "send"}}Send email</button>
   </div>
-  <p class="muted small">The counts leave out members who unsubscribed, and new members until they confirm their email from the link we send them.</p>
+  <p class="muted small">The counts leave out members who unsubscribed, and new members until they confirm their email from the link we send them. Rides and events emails also skip members who turned those off.</p>
 </form>
+<script>
+// The counts follow what the email is about.
+(function(){var f=document.querySelector('form.compose'),t=f&&f.querySelector('.email-topic');if(!t)return;
+  t.addEventListener('change',function(){f.querySelectorAll('select[name=audience] option').forEach(function(o){o.textContent=t.value==='events'?o.dataset.events:o.dataset.all})});
+})();
+</script>
 <script>
 // The draft saves itself a couple of seconds after each change, and the
 // page asks before you leave while a change hasn't been saved yet.

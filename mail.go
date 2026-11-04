@@ -84,7 +84,7 @@ func (m *Mailer) run(ctx context.Context) {
 		if c.ID != streakCampaign {
 			streak, streakCampaign = nil, c.ID
 		}
-		err := m.sendCampaign(c.ID, mem, c.Subject, c.Body)
+		err := m.sendCampaign(c.ID, c.Topic, mem, c.Subject, c.Body)
 		m.store.RecordSend(c.ID, mem.ID, err)
 		if err != nil {
 			streak = append(streak, mem.ID)
@@ -135,17 +135,23 @@ var extraBlankLines = regexp.MustCompile(`\n{3,}`)
 
 // sendCampaign sends a member their copy of an email to members, marked so
 // its opens and clicks are counted without saying whose it is (stats.go).
-func (m *Mailer) sendCampaign(id int, mem Member, subject, body string) error {
+func (m *Mailer) sendCampaign(id int, topic string, mem Member, subject, body string) error {
 	var track *emailTrack
 	if m.stats != nil {
 		track = newEmailTrack(m.stats, m.cfg.SiteURL, id, mem)
 	}
-	return m.sendTo(mailCampaign, id, mem, subject, body, track)
+	return m.sendTo(mailCampaign, id, topic, mem, subject, body, track)
 }
 
 // sendTo sends one personalized email to a member, of a kind for the sent log.
-func (m *Mailer) sendTo(kind string, campaign int, mem Member, subject, body string, track *emailTrack) error {
-	links := memberLinks{Mine: m.cfg.membershipURL(mem.Token), Unsub: m.cfg.SiteURL + "/unsubscribe?t=" + url.QueryEscape(mem.Token), Track: track}
+// Its Unsubscribe link (and Gmail's one-click button) offers to stop just its
+// topic, if it has one (emailtopics.go).
+func (m *Mailer) sendTo(kind string, campaign int, topic string, mem Member, subject, body string, track *emailTrack) error {
+	unsub := m.cfg.SiteURL + "/unsubscribe?t=" + url.QueryEscape(mem.Token)
+	if topic != "" {
+		unsub += "&from=" + topic
+	}
+	links := memberLinks{Mine: m.cfg.membershipURL(mem.Token), Unsub: unsub, Track: track}
 	return m.send(kind, campaign, mem.Name, mem.Email, m.personalize(subject, mem), m.personalize(body, mem), links)
 }
 
@@ -155,7 +161,7 @@ func (m *Mailer) sendTo(kind string, campaign int, mem Member, subject, body str
 const testToken = "test"
 
 func (m *Mailer) SendTest(to, subject, body string) error {
-	return m.sendTo(mailTest, 0, Member{Email: to, Token: testToken}, "[Test] "+subject, body, nil)
+	return m.sendTo(mailTest, 0, "", Member{Email: to, Token: testToken}, "[Test] "+subject, body, nil)
 }
 
 // Notify emails a notice to the club (RIDES_EMAIL) in the background.
@@ -231,7 +237,7 @@ func (m *Mailer) SendWelcome(mem Member) {
 			body = body[:i] + "\n\n{ride_tips}" + body[i:]
 		}
 	}
-	m.sendTo(mailWelcome, 0, mem, w.Subject, body, nil) // a failure is logged by send
+	m.sendTo(mailWelcome, 0, "", mem, w.Subject, body, nil) // a failure is logged by send
 }
 
 // memberLinks are the member's own links at the foot of a club email: their

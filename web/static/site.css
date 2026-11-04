@@ -706,6 +706,19 @@ html:has(.gal-view[open]){overflow:hidden} /* the page behind stays put */
 .my-details[open]>summary::after{content:" −"}
 .my-details[open]>summary{margin-bottom:.6rem}
 .my-page .cal-msg{margin-top:1rem!important}
+/* Club emails: a switch for each kind a member can turn off */
+.email-prefs{display:grid;gap:.6rem;justify-items:start;margin:.5rem 0 .8rem}
+.email-prefs .hint{margin:0}
+.switch{position:relative;display:inline-flex;align-items:center;gap:.7rem;cursor:pointer;font-weight:500}
+.switch input{position:absolute;width:1px;height:1px;opacity:0}
+.switch-track{position:relative;flex:none;width:2.7rem;height:1.5rem;border-radius:1rem;background:#cfc6bc;transition:background .15s}
+.switch-track::after{content:"";position:absolute;top:.2rem;left:.2rem;width:1.1rem;height:1.1rem;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s}
+.switch input:checked+.switch-track{background:var(--done,#2e6b34)}
+.switch input:checked+.switch-track::after{transform:translateX(1.2rem)}
+.switch input:focus-visible+.switch-track{outline:2px solid var(--red);outline-offset:2px}
+.js .save-prefs{display:none}
+.unsub-all{color:var(--red)}
+.unsub-choices{display:flex;flex-wrap:wrap;gap:.6rem;margin:1rem 0}
 @media (max-width:560px){
   .status{grid-template-columns:2rem minmax(0,1fr);align-items:start;gap:.4rem .8rem}
   .status-mark{width:2rem;height:2rem;margin-top:.15rem}

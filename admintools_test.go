@@ -18,7 +18,7 @@ func TestEmailAudiences(t *testing.T) {
 	a.store.mu.Unlock()
 
 	page := do(t, h, c, "GET", "/admin/email", "", nil).Body.String()
-	for _, want := range []string{`value="unsigned">Haven’t signed the ` + itoa(year) + ` waiver (1)`, `value="level-racer">Riding: Racer (1)`, `value="all">Everyone (2)`, `id="mail-link-box"`, `data-do="italic"`} {
+	for _, want := range []string{`">Haven’t signed the ` + itoa(year) + ` waiver (1)</option>`, `">Riding: Racer (1)</option>`, `<option value="all" data-all="Everyone (2)" data-events="Everyone (2)">Everyone (2)</option>`, `id="mail-link-box"`, `data-do="italic"`} {
 		if !strings.Contains(page, want) {
 			t.Errorf("email page is missing %q", want)
 		}

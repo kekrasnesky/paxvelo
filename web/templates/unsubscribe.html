@@ -3,11 +3,19 @@
 <article class="page">
 {{if eq .Data.State "ask"}}
   <h1>Unsubscribe</h1>
-  <p class="lead">Stop club emails to <strong>{{.Data.Email}}</strong>?</p>
-  <form method="post" action="/unsubscribe">
+  <p class="lead">Which emails should stop coming to <strong>{{.Data.Email}}</strong>?</p>
+  <form class="unsub-choices" method="post" action="/unsubscribe">
     <input type="hidden" name="t" value="{{.Data.Token}}">
-    <button class="btn" type="submit">Unsubscribe</button>
+    {{if ne .Data.From "events"}}<button class="btn{{if ne .Data.From "newsletter"}} btn-quiet{{end}}" type="submit" name="what" value="newsletter">The newsletter</button>{{end}}
+    <button class="btn{{if ne .Data.From "events"}} btn-quiet{{end}}" type="submit" name="what" value="events">Calendar event emails</button>
+    {{if eq .Data.From "events"}}<button class="btn btn-quiet" type="submit" name="what" value="newsletter">The newsletter</button>{{end}}
+    <button class="btn btn-quiet" type="submit" name="what" value="all">Everything</button>
   </form>
+  <p class="muted-note">Change these any time from <a href="/membership?t={{.Data.Token}}#emails">your membership page</a>.</p>
+{{else if eq .Data.State "topic"}}
+  <h1>Done</h1>
+  <p class="lead">You won’t get {{.Data.Topic}} any more{{with .Data.Email}} at {{.}}{{end}}. Other club emails still come.</p>
+  {{with .Data.Token}}<p>Change this, or stop everything, from <a href="/membership?t={{.}}#emails">your membership page</a>.</p>{{end}}
 {{else if eq .Data.State "done"}}
   <h1>You’re unsubscribed</h1>
   <p class="lead">You won’t get any more club emails{{with .Data.Email}} at {{.}}{{end}}.</p>
