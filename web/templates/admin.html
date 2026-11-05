@@ -604,7 +604,7 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
   <input type="hidden" name="return" value="/admin/members?q={{.Q}}&dues={{.Dues}}">
   <span class="bulk-n"></span>
   <button class="mini">{{icon "check"}}Mark them paid</button>
-  <button class="mini ghost" formaction="/admin/members/moved" data-confirm-moved title="For members who paid on the old site: marks them paid and sends the site-move email instead of the welcome">{{icon "send"}}Mark paid &amp; send site-move email</button>
+  {{if .MovedOn}}<button class="mini ghost" formaction="/admin/members/moved" data-confirm-moved title="For members who paid on the old site: marks them paid and sends the site-move email instead of the welcome">{{icon "send"}}Mark paid &amp; send site-move email</button>{{end}}
   {{if .CanManage}}<button class="mini ghost danger" formaction="/admin/members/delete" data-confirm-delete>{{icon "trash"}}Delete them</button>{{end}}
   <button type="button" class="link small bulk-clear">Clear</button>
 </form>
@@ -733,11 +733,11 @@ body.addEventListener('submit',function(e){var f=e.target;if(!f.classList.contai
       <button class="link small">{{icon "plus"}}Renew early (adds a year)</button>
     </form>{{end}}
     {{if .WelcomePending}}{{end}}
-    <form method="post" action="/admin/members/moved" class="inline" onsubmit="return confirm('Send {{.FirstName}} the site-move email{{if not $paid}} and mark them paid{{end}}?')">
+    {{if $.MovedOn}}<form method="post" action="/admin/members/moved" class="inline" onsubmit="return confirm('Send {{.FirstName}} the site-move email{{if not $paid}} and mark them paid{{end}}?')">
       <input type="hidden" name="id" value="{{.ID}}"><input type="hidden" name="return" value="/admin/members/{{.ID}}">
       <button class="mini ghost">{{icon "send"}}{{if $paid}}Send{{else}}Mark paid &amp; send{{end}} site-move email</button>
       {{with .MovedSent}}<span class="muted small">Sent {{date .}}</span>{{end}}
-    </form>
+    </form>{{end}}
     {{if $.CanManage}}<form class="record" method="post" action="/admin/members/{{.ID}}/record">
       <label>Years paid <input name="years" value="{{.YearsPaidText}}" placeholder="e.g. 2024, 2025"></label>
       <label>Joined <input type="date" name="joined" value="{{.Joined.Format "2006-01-02"}}"></label>

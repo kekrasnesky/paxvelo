@@ -78,6 +78,9 @@ func (m *Mailer) SendMoved(mem Member) error {
 // moveMember marks a member paid for this year (if they weren't) and sends
 // them the site-move email instead of the welcome email.
 func (a *App) moveMember(id int) error {
+	if a.store.BuiltinRemoved("moved") {
+		return nil
+	}
 	year := a.cfg.ThisYear()
 	m, ok := a.store.MemberByID(id)
 	if !ok {
@@ -125,7 +128,7 @@ func (a *App) movedMany(w http.ResponseWriter, r *http.Request) {
 		}
 		n++
 	}
-	if e := a.store.MovedEmail(); n > 0 {
+	if e := a.store.MovedEmail(); n > 0 && !a.store.BuiltinRemoved("moved") {
 		a.store.RecordSent(e.Subject, e.Body, "Site-move email", n) // a line in Email → Sent emails
 	}
 	ret := r.FormValue("return")

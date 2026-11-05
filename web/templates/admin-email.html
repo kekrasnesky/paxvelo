@@ -7,6 +7,7 @@ editor for one, and the easy editor every email box uses (mail-cards). */}}
 <div class="title-row"><h1>Automations</h1><a class="btn auto-new" href="/admin/email/auto/new">{{icon "plus"}}New automated email</a></div>
 
 <div class="auto-list">{{range $v.Autos}}{{template "auto-row" .}}{{end}}{{range $v.Manual}}{{template "auto-row" .}}{{end}}</div>
+{{if $v.Gone}}<div class="auto-gone">{{range $v.Gone}}<form method="post" action="/admin/email/auto/{{.Key}}/restore"><span class="muted">{{.Name}} (deleted)</span> <button class="link">{{icon "undo"}}Put back</button></form>{{end}}</div>{{end}}
 
 <details class="auto-fixed">
   <summary><h2>Built-in notices</h2> <span class="auto-count">{{len $v.Builtin}}</span></summary>

@@ -72,6 +72,7 @@ type adminView struct {
 	Draft         EmailDraft
 	Welcome       WelcomeEmail
 	Moved         EmailDraft // the site-move email (moved.go)
+	MovedOn       bool       // the site-move email hasn't been deleted: its buttons show
 	Auto          *autoView  // Email → Automations (automations.go)
 	TestTo        string
 	Live, Sending bool
@@ -217,6 +218,7 @@ func (a *App) auth(h http.HandlerFunc) http.Handler {
 func (a *App) renderAdmin(w http.ResponseWriter, r *http.Request, status int, name string, v adminView) {
 	v.CSS, v.SiteURL, v.PhotoJS = a.site.adminCSS, a.cfg.SiteURL, a.site.photoJS
 	v.Me, _ = a.adminName(r)
+	v.MovedOn = !a.store.BuiltinRemoved("moved")
 	if v.Tab != "" {
 		v.Nav = adminNavFor(v.Tab, len(a.attention()), a.canSeeMoney(r))
 	}

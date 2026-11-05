@@ -176,29 +176,30 @@ type WelcomeEmail struct {
 }
 
 type storeData struct {
-	Secret        string         `json:"secret"`
-	NextMember    int            `json:"next_member_id"`
-	NextCampaign  int            `json:"next_campaign_id"`
-	Members       []*Member      `json:"members"`
-	Campaigns     []*Campaign    `json:"campaigns"`
-	Welcome       WelcomeEmail   `json:"welcome_email"`
-	Moved         EmailDraft     `json:"moved_email,omitempty"`   // the site-move email (moved.go); blank = built in
-	Confirm       EmailDraft     `json:"confirm_email,omitempty"` // the confirm-your-email email (automations.go); blank = built in
-	ConfirmOff    bool           `json:"confirm_off,omitempty"`   // switched off: new joiners aren't asked to confirm
-	NextAuto      int            `json:"next_automation_id,omitempty"`
-	Automations   []*Automation  `json:"automations,omitempty"`        // admins' own automated emails (automations.go)
-	RemovedAuto   *Automation    `json:"removed_automation,omitempty"` // the one removed last, for Undo
-	Draft         EmailDraft     `json:"draft"`
-	NextIssue     int            `json:"next_issue_id,omitempty"`
-	Issues        []*Issue       `json:"newsletter,omitempty"`
-	NextMinutes   int            `json:"next_minutes_id,omitempty"`
-	Minutes       []*Minutes     `json:"minutes,omitempty"`
-	Instagram     []string       `json:"instagram,omitempty"` // posts picked for the home page
-	InstagramLink *InstagramLink `json:"instagram_link,omitempty"`
-	InstaFeed     []InstaPost    `json:"instagram_feed,omitempty"` // the latest posts, from Instagram
-	EmailsSent    map[string]int `json:"emails_sent,omitempty"`    // emails sent today, by day (UTC)
-	NextAdmin     int            `json:"next_admin_id,omitempty"`
-	Admins        []*AdminUser   `json:"admins,omitempty"`
+	Secret         string         `json:"secret"`
+	NextMember     int            `json:"next_member_id"`
+	NextCampaign   int            `json:"next_campaign_id"`
+	Members        []*Member      `json:"members"`
+	Campaigns      []*Campaign    `json:"campaigns"`
+	Welcome        WelcomeEmail   `json:"welcome_email"`
+	Moved          EmailDraft     `json:"moved_email,omitempty"`   // the site-move email (moved.go); blank = built in
+	Confirm        EmailDraft     `json:"confirm_email,omitempty"` // the confirm-your-email email (automations.go); blank = built in
+	ConfirmOff     bool           `json:"confirm_off,omitempty"`   // switched off: new joiners aren't asked to confirm
+	NextAuto       int            `json:"next_automation_id,omitempty"`
+	Automations    []*Automation  `json:"automations,omitempty"`        // admins' own automated emails (automations.go)
+	RemovedAuto    *Automation    `json:"removed_automation,omitempty"` // the one removed last, for Undo
+	RemovedBuiltin []string       `json:"removed_builtin,omitempty"`    // built-in automations the president deleted (automations.go)
+	Draft          EmailDraft     `json:"draft"`
+	NextIssue      int            `json:"next_issue_id,omitempty"`
+	Issues         []*Issue       `json:"newsletter,omitempty"`
+	NextMinutes    int            `json:"next_minutes_id,omitempty"`
+	Minutes        []*Minutes     `json:"minutes,omitempty"`
+	Instagram      []string       `json:"instagram,omitempty"` // posts picked for the home page
+	InstagramLink  *InstagramLink `json:"instagram_link,omitempty"`
+	InstaFeed      []InstaPost    `json:"instagram_feed,omitempty"` // the latest posts, from Instagram
+	EmailsSent     map[string]int `json:"emails_sent,omitempty"`    // emails sent today, by day (UTC)
+	NextAdmin      int            `json:"next_admin_id,omitempty"`
+	Admins         []*AdminUser   `json:"admins,omitempty"`
 
 	// Signed insurance waivers (waivers.go), and every version of the
 	// waiver's text anyone signed, by version.

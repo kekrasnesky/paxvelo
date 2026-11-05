@@ -278,3 +278,40 @@ func TestOnlyPresidentRemovesAutomations(t *testing.T) {
 		t.Error("the president should be able to remove an automation")
 	}
 }
+
+// The president can delete the built-in automations too, not just switch
+// them off; they leave the list, stop, and can be put back.
+func TestPresidentDeletesBuiltinAutomations(t *testing.T) {
+	a, h, admin := testApp(t)
+	page := do(t, h, admin, "GET", "/admin/email/auto", "", nil).Body.String()
+	for _, k := range []string{"confirm", "welcome", "moved"} {
+		if !strings.Contains(page, `action="/admin/email/auto/`+k+`/remove"`) {
+			t.Errorf("%s should have a Remove button", k)
+		}
+	}
+	do(t, h, admin, "POST", "/admin/email/auto/welcome/remove", "", nil)
+	do(t, h, admin, "POST", "/admin/email/auto/moved/remove", "", nil)
+	do(t, h, admin, "POST", "/admin/email/auto/confirm/remove", "", nil)
+	page = do(t, h, admin, "GET", "/admin/email/auto", "", nil).Body.String()
+	for _, k := range []string{"confirm", "welcome", "moved"} {
+		if strings.Contains(page, `id="a-`+k+`"`) {
+			t.Errorf("%s should be gone from the list", k)
+		}
+		if !strings.Contains(page, `/admin/email/auto/`+k+`/restore`) {
+			t.Errorf("%s should be offered back", k)
+		}
+	}
+	if a.store.Welcome().Enabled || a.store.ConfirmOn() {
+		t.Error("deleted ones should stop")
+	}
+	m, _, _ := a.store.Join(memberDetails{Name: "Ollie Old", Email: "ollie@example.com", Plan: "individual"}, a.cfg.ThisYear())
+	ct, body := form(url.Values{"id": {strconv.Itoa(m.ID)}})
+	do(t, h, admin, "POST", "/admin/members/moved", ct, body)
+	if m, _ = a.store.MemberByID(m.ID); m.MovedSent != nil {
+		t.Error("a deleted site-move email must not send")
+	}
+	do(t, h, admin, "POST", "/admin/email/auto/welcome/restore", "", nil)
+	if !a.store.Welcome().Enabled || a.store.BuiltinRemoved("welcome") {
+		t.Error("Put back should bring it back on")
+	}
+}

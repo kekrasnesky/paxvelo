@@ -1082,3 +1082,6 @@ a.tag:hover{border-color:var(--ink);color:var(--ink)}
 /* The saved message closes when pressed */
 .flash:not(.err):not(.warn){cursor:pointer}
 @media (prefers-reduced-motion:reduce){:target{animation:none}.is-busy::after{animation-duration:2s}}
+
+.auto-gone{display:flex;flex-wrap:wrap;gap:.5rem 1.25rem;margin:.75rem 0}
+.auto-gone form{display:flex;align-items:center;gap:.5rem}

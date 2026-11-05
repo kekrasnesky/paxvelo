@@ -299,6 +299,56 @@ func (s *Store) RestoreAutomation(id int) bool {
 	return true
 }
 
+// The built-in automations (confirm, welcome, moved) can be deleted too. A
+// deleted one leaves the list and stops: it is switched off (confirm: new
+// joiners start confirmed; welcome: paused) or, for the site-move email,
+// its buttons go. The president can put it back from the list's foot.
+var builtinKeys = []string{"confirm", "welcome", "moved"}
+
+func isBuiltinKey(k string) bool { return slices.Contains(builtinKeys, k) }
+
+// BuiltinRemoved reports whether a built-in automation was deleted.
+func (s *Store) BuiltinRemoved(key string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return slices.Contains(s.d.RemovedBuiltin, key)
+}
+
+// RemoveBuiltin deletes a built-in automation (see above).
+func (s *Store) RemoveBuiltin(key string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !isBuiltinKey(key) || slices.Contains(s.d.RemovedBuiltin, key) {
+		return nil
+	}
+	s.d.RemovedBuiltin = append(s.d.RemovedBuiltin, key)
+	switch key {
+	case "confirm":
+		s.d.ConfirmOff = true
+	case "welcome":
+		s.d.Welcome.Enabled = false
+	}
+	return s.save()
+}
+
+// RestoreBuiltin puts a deleted built-in automation back, switched on.
+func (s *Store) RestoreBuiltin(key string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	i := slices.Index(s.d.RemovedBuiltin, key)
+	if i < 0 {
+		return nil
+	}
+	s.d.RemovedBuiltin = slices.Delete(s.d.RemovedBuiltin, i, i+1)
+	switch key {
+	case "confirm":
+		s.d.ConfirmOff = false
+	case "welcome":
+		s.d.Welcome.Enabled = true
+	}
+	return s.save()
+}
+
 // MarkAutoSent records that an automation is going to a member for a day,
 // and reports false if it already went (or the automation is gone or paused).
 func (s *Store) MarkAutoSent(id, member int, occ string) bool {
@@ -440,7 +490,8 @@ type autoView struct {
 	Autos, Manual, Builtin []autoRow
 	Form                   *autoForm
 	Triggers               []autoTrigger
-	Removed                int // an automation just removed, for Undo
+	Removed                string    // an automation just removed (its number, or a built-in's key), for Undo
+	Gone                   []autoRow // built-in ones deleted earlier, for the president to put back
 }
 
 // moveChoice is a member in the site-move email's Send picker.
@@ -514,6 +565,19 @@ func (a *App) autoRows(canRemove bool) (autos, manual []autoRow) {
 	manual = []autoRow{{Key: "moved", Name: "Site-move email", When: "Sent by hand", Who: "Members who paid on the old site",
 		Subject: mv.Subject, CanEdit: true, CanSend: true, Manual: true, Sent: n[mailMoved], Last: last[mailMoved],
 		About: "Tick members and press Mark paid & send site-move email, or use the button on a member’s page. It goes instead of the welcome email."}}
+	for _, list := range []*[]autoRow{&autos, &manual} { // built-in ones: the president can delete them
+		kept := (*list)[:0]
+		for _, r := range *list {
+			if isBuiltinKey(r.Key) {
+				if a.store.BuiltinRemoved(r.Key) {
+					continue
+				}
+				r.CanRemove = canRemove
+			}
+			kept = append(kept, r)
+		}
+		*list = kept
+	}
 	return
 }
 
@@ -524,7 +588,19 @@ func (a *App) autoPage(w http.ResponseWriter, r *http.Request) {
 		av.Builtin[i].Fixed = true
 	}
 	av.Autos, av.Manual = a.autoRows(a.canManage(r))
-	av.Removed, _ = strconv.Atoi(r.URL.Query().Get("removed"))
+	if k := r.URL.Query().Get("removed"); isBuiltinKey(k) {
+		av.Removed = k
+	} else if id, _ := strconv.Atoi(k); id > 0 {
+		av.Removed = strconv.Itoa(id)
+	}
+	if a.canManage(r) {
+		names := map[string]string{"confirm": "Confirm your email", "welcome": "Welcome email", "moved": "Site-move email"}
+		for _, k := range builtinKeys {
+			if a.store.BuiltinRemoved(k) {
+				av.Gone = append(av.Gone, autoRow{Key: k, Name: names[k]})
+			}
+		}
+	}
 	for i := range av.Manual {
 		if av.Manual[i].CanSend {
 			av.Manual[i].Movers = a.moveChoices()
@@ -676,6 +752,14 @@ func (a *App) autoPause(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) autoRemove(w http.ResponseWriter, r *http.Request) {
+	if key := r.PathValue("key"); isBuiltinKey(key) {
+		if err := a.store.RemoveBuiltin(key); err != nil {
+			back(w, r, "/admin/email/auto?err=save")
+			return
+		}
+		back(w, r, "/admin/email/auto?ok=auto-removed&removed="+key)
+		return
+	}
 	id, _ := strconv.Atoi(r.PathValue("key"))
 	if _, err := a.store.RemoveAutomation(id); err != nil {
 		back(w, r, "/admin/email/auto?err=save")
@@ -685,6 +769,11 @@ func (a *App) autoRemove(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) autoRestore(w http.ResponseWriter, r *http.Request) {
+	if key := r.PathValue("key"); isBuiltinKey(key) {
+		a.store.RestoreBuiltin(key)
+		back(w, r, "/admin/email/auto?ok=auto-restored#a-"+key)
+		return
+	}
 	id, _ := strconv.Atoi(r.PathValue("key"))
 	a.store.RestoreAutomation(id)
 	back(w, r, "/admin/email/auto?ok=auto-restored#a-"+strconv.Itoa(id))
