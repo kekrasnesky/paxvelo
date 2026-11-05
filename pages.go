@@ -29,10 +29,11 @@ type PageEdit struct {
 }
 
 type BoardMember struct {
-	Name  string `json:"name"`
-	Role  string `json:"role"`
-	Photo string `json:"photo,omitempty"`
-	Focus string `json:"focus,omitempty"`
+	Name   string `json:"name"`
+	Role   string `json:"role"`
+	Member int    `json:"member,omitempty"` // their record on the member list (boardroles.go)
+	Photo  string `json:"photo,omitempty"`
+	Focus  string `json:"focus,omitempty"`
 }
 
 // contentData is what admins change that the content pages show.
@@ -370,7 +371,7 @@ func (a *App) pagePhoto(w http.ResponseWriter, r *http.Request) {
 // ---- Admin: Board ----
 
 func (a *App) boardAdmin(w http.ResponseWriter, r *http.Request) {
-	v := adminView{Title: "Board members", Tab: "board", Board: append(a.store.Board(), BoardMember{})}
+	v := adminView{Title: "Board members", Tab: "board", Board: append(a.store.Board(), BoardMember{}), BoardPick: a.boardChoices()}
 	v.Flash, v.Error = flashFrom(r)
 	a.renderAdmin(w, r, http.StatusOK, "board", v)
 }
@@ -391,6 +392,14 @@ func (a *App) saveBoard(w http.ResponseWriter, r *http.Request) {
 	for i := 0; i < count && i < 40; i++ {
 		f := func(name string) string { return strings.TrimSpace(r.FormValue(fmt.Sprintf("%s%d", name, i))) }
 		m := BoardMember{Name: cleanName(f("name")), Role: cleanName(f("role")), Focus: cleanFocus(f("focus"))}
+		if id, err := strconv.Atoi(f("member")); err == nil {
+			if mm, ok := a.store.MemberByID(id); ok {
+				m.Member = id
+				if m.Name == "" {
+					m.Name = mm.Name
+				}
+			}
+		}
 		if f("remove") != "" || (m.Name == "" && m.Role == "") {
 			continue
 		}
@@ -423,7 +432,7 @@ func (a *App) saveBoard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(problems) > 0 {
-		v := adminView{Title: "Board members", Tab: "board", Board: append(a.store.Board(), BoardMember{}),
+		v := adminView{Title: "Board members", Tab: "board", Board: append(a.store.Board(), BoardMember{}), BoardPick: a.boardChoices(),
 			Error: "Saved, but: " + strings.Join(problems, " ")}
 		a.renderAdmin(w, r, http.StatusOK, "board", v)
 		return

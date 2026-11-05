@@ -237,9 +237,9 @@ type storeData struct {
 
 	// The treasurer's books: expenses, income, budgets and saved reports (treasurer.go).
 	Treasury Treasury `json:"treasury"`
-	// AdminBoardSeeded: admins named on the Board page were marked as board
-	// members once, when the Board mark was added (seedAdminBoard).
-	AdminBoardSeeded bool `json:"admin_board_seeded,omitempty"`
+	// BoardLinked: the Board page's people were tied to member records with
+	// the same name once, when that link was added (boardroles.go).
+	BoardLinked bool `json:"board_linked,omitempty"`
 }
 
 type Store struct {
@@ -339,7 +339,7 @@ func openStore(dir string) (*Store, error) {
 	s.albumize()
 	s.relinkWaivers()
 	s.seedTreasury()
-	s.seedAdminBoard()
+	s.linkBoard()
 	return s, s.save()
 }
 

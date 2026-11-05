@@ -117,11 +117,13 @@ type adminView struct {
 	RideForm rideForm
 	// Admins tab, login, and password pages
 	Admins     []AdminUser
-	Account    AdminUser // the logged-in admin, or whose password is being set
-	SetupLogin bool      // no accounts yet, so the setup password logs in
-	Email      string    // typed on the login form
-	Token      string    // the password link's secret
-	TestLink   string    // in test mode, the password link that would have been emailed
+	AdminRoles map[int]string // each admin's roles on the Board page (boardroles.go)
+	BoardPick  []boardChoice  // Board page: members to tie each person to
+	Account    AdminUser      // the logged-in admin, or whose password is being set
+	SetupLogin bool           // no accounts yet, so the setup password logs in
+	Email      string         // typed on the login form
+	Token      string         // the password link's secret
+	TestLink   string         // in test mode, the password link that would have been emailed
 }
 
 // ---- Sessions ----
@@ -311,7 +313,6 @@ var flashText = map[string]string{
 	"invited":              "Added. They’ve been emailed a link to choose their password.",
 	"link-sent":            "A new password link is on its way.",
 	"admin-removed":        "Admin removed. They can’t log in anymore.",
-	"treasurer":            "Saved.",
 	"money-added":          "Added.",
 	"money-saved":          "Saved.",
 	"money-restored":       "Put back.",
@@ -344,7 +345,7 @@ var errorText = map[string]string{
 	"emergency-phone": "Enter the emergency contact’s phone number, with its area code.",
 	"president-only":  "Only the president can do that.",
 	"treasurer-only":  "Only the treasurer or the president can remove that.",
-	"board-only":      "The Treasurer tab is for board members.",
+	"board-only":      "The Treasurer tab is for board members (Website → Board).",
 	"money-gone":      "That was removed.",
 	"money-meeting":   "Pick the meeting date.",
 	"bad-years":       "Type the years paid as four-digit years, like 2024, 2025.",

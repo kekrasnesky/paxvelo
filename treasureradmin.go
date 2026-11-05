@@ -78,23 +78,6 @@ type budgetRow struct {
 	Dues                     bool // the dues from Members count in it
 }
 
-// canRemoveMoney reports whether the logged-in admin may remove lines and
-// saved reports: the treasurer, or whoever can manage (the president).
-func (a *App) canRemoveMoney(r *http.Request) bool {
-	if a.canManage(r) {
-		return true
-	}
-	u, ok := a.currentAdmin(r)
-	return ok && u.Treasurer
-}
-
-// canSeeMoney reports whether the logged-in admin may open the Treasurer
-// tab: board members, the treasurer, the president, or the setup password.
-func (a *App) canSeeMoney(r *http.Request) bool {
-	u, ok := a.currentAdmin(r)
-	return ok && (u.ID == 0 || u.President || u.Treasurer || u.Board)
-}
-
 // boardOnly is auth for the Treasurer tab: other admins are sent to Home.
 func (a *App) boardOnly(h http.HandlerFunc) http.Handler {
 	return a.auth(func(w http.ResponseWriter, r *http.Request) {
@@ -603,34 +586,4 @@ func (a *App) restoreReport(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.Atoi(r.PathValue("id"))
 	a.store.RestoreReport(id)
 	back(w, r, "/admin/treasurer/reports?ok=money-restored")
-}
-
-// ---- Who is treasurer, and who is on the board ----
-
-// setBoard marks or unmarks an admin as a board member (Admins page,
-// president only).
-func (a *App) setBoard(w http.ResponseWriter, r *http.Request) {
-	u, ok := a.adminFromPath(w, r)
-	if !ok {
-		return
-	}
-	if err := a.store.SetAdminBoard(u.ID, r.FormValue("on") != ""); err != nil {
-		back(w, r, "/admin/admins?err=save")
-		return
-	}
-	back(w, r, "/admin/admins?ok=treasurer")
-}
-
-// setTreasurer marks or unmarks an admin as the treasurer (Admins page,
-// president only).
-func (a *App) setTreasurer(w http.ResponseWriter, r *http.Request) {
-	u, ok := a.adminFromPath(w, r)
-	if !ok {
-		return
-	}
-	if err := a.store.SetTreasurer(u.ID, r.FormValue("on") != ""); err != nil {
-		back(w, r, "/admin/admins?err=save")
-		return
-	}
-	back(w, r, "/admin/admins?ok=treasurer")
 }

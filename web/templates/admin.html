@@ -400,7 +400,7 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
   <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Last login</th><th>Added</th><th><span class="sr">Actions</span></th></tr></thead>
   <tbody>
   {{range .Admins}}<tr>
-    <td data-label="Name">{{.Name}}{{if .President}} <span class="tag tag-pres">President</span>{{end}}{{if .Treasurer}} <span class="tag tag-pres">Treasurer</span>{{else if and .Board (not .President)}} <span class="tag">Board</span>{{end}}{{if eq .ID $.Account.ID}} <span class="tag">You</span>{{end}}</td>
+    <td data-label="Name">{{.Name}}{{if .President}} <span class="tag tag-pres">President</span>{{end}}{{with index $.AdminRoles .ID}} <a class="tag" href="/admin/board" title="Website → Board">{{.}}</a>{{end}}{{if eq .ID $.Account.ID}} <span class="tag">You</span>{{end}}</td>
     <td class="email" data-label="Email"><a href="mailto:{{.Email}}">{{.Email}}</a></td>
     <td data-label="Status">{{if .HasPassword}}<span class="paid">Active</span>{{else}}Invited, no password yet{{end}}</td>
     <td data-label="Last login">{{with .LastLogin}}<span class="nowrap">{{date .}}</span><br><span class="muted small">{{clock .}}</span>{{else}}<span class="muted">Never</span>{{end}}</td>
@@ -408,8 +408,6 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
     <td class="right cell-act"><div class="acts">
       <form method="post" action="/admin/admins/{{.ID}}/link"><button class="link">{{icon "mail"}}{{if .HasPassword}}Send a reset link{{else}}Send a new link{{end}}</button></form>
       {{if and $.CanNamePresident (not .President)}}<form method="post" action="/admin/admins/{{.ID}}/president" onsubmit="return confirm('Make {{.Name}} the president? Only the president can remove admins and delete members{{if $.Account.President}}, so you won’t be able to anymore{{end}}.')"><button class="link">Make president</button></form>{{end}}
-      {{if and $.CanManage (not .President) (not .Treasurer)}}<form method="post" action="/admin/admins/{{.ID}}/board">{{if .Board}}<button class="link">Not board member</button>{{else}}<input type="hidden" name="on" value="1"><button class="link">Make board member</button>{{end}}</form>{{end}}
-      {{if $.CanManage}}<form method="post" action="/admin/admins/{{.ID}}/treasurer">{{if .Treasurer}}<button class="link">Not treasurer</button>{{else}}<input type="hidden" name="on" value="1"><button class="link">Make treasurer</button>{{end}}</form>{{end}}
       {{if and $.CanManage (ne .ID $.Account.ID)}}<form method="post" action="/admin/admins/{{.ID}}/remove" onsubmit="return confirm('Remove {{.Name}} as an admin? They won’t be able to log in.')"><button class="link danger">{{icon "trash"}}Remove</button></form>{{end}}
     </div></td>
   </tr>
@@ -2617,7 +2615,7 @@ try{if(localStorage.getItem('pagePreview')==='0')showPreview(false)}catch(e){}
   <input type="hidden" name="count" value="{{len .Board}}">
   {{range $i, $m := .Board}}<section class="card">
     <h2>{{if $m.Name}}{{$m.Name}}{{else}}Add a board member{{end}}</h2>
-    <div class="pair"><label>Name <input name="name{{$i}}" value="{{$m.Name}}" maxlength="60"></label><label>Role <input name="role{{$i}}" value="{{$m.Role}}" maxlength="60"></label></div>
+    <div class="trio board-who"><label>Member <select name="member{{$i}}" data-name="name{{$i}}"><option value="">—</option>{{range $.BoardPick}}<option value="{{.ID}}"{{if eq .ID $m.Member}} selected{{end}}>{{.Name}}{{if .Admin}} · admin login{{end}}</option>{{end}}</select></label><label>Name on the page <input name="name{{$i}}" value="{{$m.Name}}" maxlength="60"></label><label>Role <input name="role{{$i}}" value="{{$m.Role}}" maxlength="60" list="board-roles"></label></div>
     <div class="photo-field" data-board="{{$i}}">
       {{if $m.Photo}}{{template "framer" (framer $m.Photo $m.Focus (printf "focus%d" $i) "board")}}{{else}}<span></span>{{end}}
       <input type="hidden" name="photo_current{{$i}}" value="{{$m.Photo}}">
@@ -2632,7 +2630,11 @@ try{if(localStorage.getItem('pagePreview')==='0')showPreview(false)}catch(e){}
   </section>{{end}}
   <div class="save-bar"><button>{{icon "save"}}Save</button><span class="muted small">Photos show as circles: click a photo to keep their face in view.</span></div>
 </form>
+<datalist id="board-roles"><option value="President"><option value="Vice President"><option value="Treasurer"><option value="Secretary"><option value="Member at Large"></datalist>
 <script>
+// Picking a member fills in the name shown on the page, when it's empty.
+document.querySelectorAll('select[data-name]').forEach(function(s){s.addEventListener('change',function(){
+  var n=s.form.elements[s.dataset.name];if(n&&!n.value.trim()&&s.value)n.value=s.options[s.selectedIndex].text.replace(/ · admin login$/,'')})});
 // Choose from the gallery: the picked photo shows right away, ready to
 // frame, and is kept when Save is pressed.
 document.querySelectorAll('[data-board]').forEach(function(box){

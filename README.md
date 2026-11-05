@@ -10,7 +10,7 @@ The club's website: public pages, membership signup with PayPal dues, a ride cal
 |---|---|
 | **Home** | Where you land: how many members have paid, this week's rides, quick links to common jobs, and warnings if backups or security need a look. |
 | **Pages** | Edit the words and photos on any page, or add a new page. |
-| **Board** | Change board members, roles and photos. |
+| **Board** | Change board members, roles and photos. Pick each person from the member list: whoever is on the board sees the Treasurer tab, and the Treasurer can remove its lines. After an election, just update this page. |
 | **Members** | See who has joined and paid. Press **Mark paid** when PayPal emails you a payment (this also sends a new member their welcome email, once they have confirmed their email). Import or export lists. |
 | **Members → Waivers** | See who has signed this year's insurance waiver. Each January, email members asking them to sign again. |
 | **Rides / Calendar** | Set up weekly rides, add one-off events, change leaders, cancel rides. Approve rides that members submit. Tick **Virtual** for a Zwift ride (rides mentioning Zwift, virtual or a trainer ride are ticked automatically). |
@@ -33,7 +33,7 @@ The **Needs attention** notice tells you when something is waiting: new photos, 
 - **Members checking their status:** **My Membership** is in the menu on every page. The first time, it asks for their email and sends a link; after they open it, that device remembers them.
 - **Member renewing on the Join form:** nothing they typed counts until they press the link we email them, since anyone can type any email. Until then Members shows "Renewal not confirmed" and their waiver shows as not signed.
 - **Start of each year:** everyone shows as not paid. Email that group a reminder (put `{pay_link}` in the message so each person gets their own PayPal link), and ask everyone to sign the new waiver.
-- **Add an admin:** Security → Admins → enter name and email. They get a link to choose a password. Only the **President** can remove admins, delete members or remove an automated email. The President marks which admins are **board members** (only they see the Treasurer tab) and who is **Treasurer**.
+- **Add an admin:** Security → Admins → enter name and email. They get a link to choose a password. Only the **President** can remove admins, delete members or remove an automated email. Board roles (who sees the Treasurer tab, who is Treasurer) come from **Website → Board**.
 - **Forgot your password:** use **Forgot your password?** on the login page.
 - **Club PIN:** a shared code members can type to post photos and add rides without waiting for approval. Change it if it gets passed around.
 - **Monthly newsletter:** Newsletter → Start a new draft → fill in the blocks → Save and preview → Save and publish → Email members about it.

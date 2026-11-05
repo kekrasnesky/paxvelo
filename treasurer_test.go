@@ -196,23 +196,16 @@ func TestExpensesAndReceipts(t *testing.T) {
 		a.setSession(rec, accountSession(u), 3600)
 		return rec.Result().Cookies()[0]
 	}
-	// The president makes Barry the treasurer; Sam can't.
-	do(t, h, as(sam), "POST", "/admin/admins/"+fmt.Sprint(barry.ID)+"/treasurer", "application/x-www-form-urlencoded", strings.NewReader("on=1"))
-	if u, _ := a.store.Admin(barry.ID); u.Treasurer {
-		t.Fatal("only the president names the treasurer")
-	}
-	do(t, h, as(pat), "POST", "/admin/admins/"+fmt.Sprint(barry.ID)+"/treasurer", "application/x-www-form-urlencoded", strings.NewReader("on=1"))
-	if u, _ := a.store.Admin(barry.ID); !u.Treasurer {
-		t.Fatal("the president should be able to name the treasurer")
-	}
-
-	// Only board members see the tab: Ola, an admin who isn't on the board,
-	// doesn't, until the president marks her as one.
+	// Who is on the board comes from Website → Board: Pat is president,
+	// Barry the treasurer (tied to his member record, shown by a nickname),
+	// Sam the secretary (named on the page). Ola, an admin, isn't on it.
 	ola, _ := a.store.AddAdmin("Ola", "ola@example.com", "")
-	board := func(u AdminUser, on string) {
-		do(t, h, as(pat), "POST", "/admin/admins/"+fmt.Sprint(u.ID)+"/board", "application/x-www-form-urlencoded", strings.NewReader("on="+on))
+	a.store.mu.Lock()
+	for _, m := range []Member{{ID: 501, Name: "Barry Murphy", Email: "BARRY@example.com"}, {ID: 502, Name: "Ola Nordmann", Email: "ola@example.com"}} {
+		a.store.d.Members = append(a.store.d.Members, &m)
 	}
-	board(sam, "1")
+	a.store.mu.Unlock()
+	a.store.SetBoard([]BoardMember{{Name: "Pat", Role: "President"}, {Name: "Bear", Role: "Treasurer", Member: 501}, {Name: "sam", Role: "Secretary"}})
 	if home := do(t, h, as(ola), "GET", "/admin", "", nil).Body.String(); strings.Contains(home, `href="/admin/treasurer"`) {
 		t.Error("an admin who isn't on the board shouldn't see the Treasurer tab")
 	}
@@ -226,17 +219,11 @@ func TestExpensesAndReceipts(t *testing.T) {
 	if len(a.store.Ledger("", 2026)) != 0 {
 		t.Error("a non-board admin shouldn't be able to add a line")
 	}
-	do(t, h, as(ola), "POST", "/admin/admins/"+fmt.Sprint(ola.ID)+"/board", "application/x-www-form-urlencoded", strings.NewReader("on=1"))
-	if u, _ := a.store.Admin(ola.ID); u.Board {
-		t.Error("only the president marks board members")
+	if admins := do(t, h, as(pat), "GET", "/admin/admins", "", nil).Body.String(); !strings.Contains(admins, `title="Website → Board">Treasurer</a>`) || !strings.Contains(admins, ">Secretary</a>") {
+		t.Error("the Admins page should show each admin's Board role")
 	}
-	board(ola, "1")
-	if w := do(t, h, as(ola), "GET", "/admin/treasurer", "", nil); w.Code != 200 {
-		t.Errorf("a board member should open the tab: %d", w.Code)
-	}
-	board(ola, "")
-	if w := do(t, h, as(ola), "GET", "/admin/treasurer", "", nil); w.Code == 200 {
-		t.Error("taken off the board, she shouldn't open the tab any more")
+	if page := do(t, h, as(pat), "GET", "/admin/board", "", nil).Body.String(); !strings.Contains(page, `<option value="501" selected>Barry Murphy · admin login</option>`) || !strings.Contains(page, `<option value="502">Ola Nordmann · admin login</option>`) {
+		t.Error("the Board page should offer members, marking who has an admin login")
 	}
 
 	for _, p := range []string{"/admin/treasurer", "/admin/treasurer/income", "/admin/treasurer/budget", "/admin/treasurer/reports"} {
@@ -463,29 +450,71 @@ func TestTreasuryKeptInDataFile(t *testing.T) {
 	}
 }
 
-// Admins named on the Board page are marked as board members once, when the
-// mark first arrives; after that it's the president's to change.
-func TestAdminBoardSeededFromBoardPage(t *testing.T) {
+// After an election the Board page changes, and access follows: Ola takes
+// over as treasurer, picked from the member list, and Barry steps down.
+func TestBoardRolesFollowTheBoardPage(t *testing.T) {
+	a, h, admin := testApp(t)
+	barry, _ := a.store.AddAdmin("Barry Murphy", "barry@example.com", "")
+	ola, _ := a.store.AddAdmin("Ola", "ola-admin@example.com", "")
+	as := func(u AdminUser) *http.Cookie {
+		u, _ = a.store.Admin(u.ID)
+		rec := httptest.NewRecorder()
+		a.setSession(rec, accountSession(u), 3600)
+		return rec.Result().Cookies()[0]
+	}
+	a.store.mu.Lock()
+	for _, m := range []Member{{ID: 601, Name: "Barry Murphy", Email: "barry@example.com"}, {ID: 602, Name: "Ola", Email: "ola@home.example"}} {
+		a.store.d.Members = append(a.store.d.Members, &m)
+	}
+	a.store.mu.Unlock()
+	a.store.SetBoard([]BoardMember{{Name: "Barry Murphy", Role: "Treasurer", Member: 601}})
+	r := func(c *http.Cookie) *http.Request {
+		q := httptest.NewRequest("GET", "/", nil)
+		q.AddCookie(c)
+		return q
+	}
+	if !a.canRemoveMoney(r(as(barry))) || a.canSeeMoney(r(as(ola))) {
+		t.Fatal("before: Barry is treasurer, Ola isn't on the board")
+	}
+	// Save the Board page as an admin would: Ola picked from the members (her
+	// admin email differs, her name matches), shown as "Ola N.".
+	ct, body := form(url.Values{"count": {"1"}, "member0": {"602"}, "name0": {"Ola N."}, "role0": {"Treasurer"}, "order0": {"1"}})
+	do(t, h, admin, "POST", "/admin/board", ct, body)
+	if b := a.store.Board(); len(b) != 1 || b[0].Member != 602 || b[0].Name != "Ola N." {
+		t.Fatalf("board: %+v", b)
+	}
+	if !a.canRemoveMoney(r(as(ola))) || a.canSeeMoney(r(as(barry))) {
+		t.Error("after: Ola should be treasurer, and Barry off the Treasurer tab")
+	}
+	// Picking a member with the name left blank uses the member's name.
+	ct, body = form(url.Values{"count": {"1"}, "member0": {"601"}, "role0": {"Secretary"}})
+	do(t, h, admin, "POST", "/admin/board", ct, body)
+	if b := a.store.Board(); b[0].Name != "Barry Murphy" || b[0].Member != 601 {
+		t.Errorf("blank name: %+v", b)
+	}
+}
+
+// The people already on the Board page are tied to the member with the same
+// name once; a nickname ("Gabe" for Gabriel) is left for an admin to pick.
+func TestBoardLinkedToMembersOnce(t *testing.T) {
 	dir := t.TempDir()
 	s, err := openStore(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	s.d.AdminBoardSeeded = false
-	s.d.Board = []BoardMember{{Name: "Barry  Treasurer", Role: "Treasurer"}}
-	barry, _ := s.AddAdmin("barry treasurer", "barry@example.com", "")
-	helper, _ := s.AddAdmin("Hal Helper", "hal@example.com", "")
+	s.d.BoardLinked = false
+	s.d.Members = []*Member{{ID: 1, Name: "Karl  Krasnesky"}, {ID: 2, Name: "Gabriel Murray"}, {ID: 3, Name: "Pat Two"}, {ID: 4, Name: "Pat Two"}}
+	s.d.Board = []BoardMember{{Name: "Karl Krasnesky", Role: "President"}, {Name: "Gabe Murray", Role: "Treasurer"}, {Name: "pat two", Role: "Secretary"}}
 	s.save()
 	s, _ = openStore(dir)
-	if b, _ := s.Admin(barry.ID); !b.Board {
-		t.Error("an admin named on the Board page should be marked as a board member")
+	b := s.Board()
+	if b[0].Member != 1 || b[1].Member != 0 || b[2].Member != 0 {
+		t.Errorf("linked: %+v", b)
 	}
-	if hh, _ := s.Admin(helper.ID); hh.Board {
-		t.Error("an admin not on the Board page shouldn't be")
-	}
-	s.SetAdminBoard(barry.ID, false)
+	b[1].Member = 2
+	s.SetBoard(b)
 	s, _ = openStore(dir)
-	if b, _ := s.Admin(barry.ID); b.Board {
-		t.Error("the one-time marking shouldn't undo the president's change")
+	if s.Board()[1].Member != 2 {
+		t.Error("an admin's pick should stay")
 	}
 }

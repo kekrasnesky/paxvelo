@@ -39,11 +39,6 @@ type AdminUser struct {
 	LastLogin    *time.Time `json:"last_login,omitempty"`
 	// The president is the one admin who can remove admins and delete members.
 	President bool `json:"president,omitempty"`
-	// The treasurer can remove lines and saved reports on the Treasurer tab, as the president can.
-	Treasurer bool `json:"treasurer,omitempty"`
-	// Board members see the Treasurer tab; other admins don't. The
-	// president and the treasurer always count.
-	Board bool `json:"board,omitempty"`
 	// SeenGuide: they've opened How the site works, or dismissed Home's welcome card.
 	SeenGuide bool `json:"seen_guide,omitempty"`
 }
@@ -494,6 +489,7 @@ func (a *App) adminsView(r *http.Request) adminView {
 	v := adminView{Title: "Admins", Tab: "admins", Admins: a.store.Admins(), Live: a.mailer.live(),
 		CanManage: a.canManage(r), CanNamePresident: a.canNamePresident(r)}
 	v.Account, _ = a.currentAdmin(r)
+	v.AdminRoles = a.adminRoleTags(v.Admins)
 	v.Flash, v.Error = flashFrom(r)
 	return v
 }

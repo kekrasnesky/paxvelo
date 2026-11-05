@@ -1017,3 +1017,6 @@ tr.current td{background:#faf8f5}
   .report .table-wrap{border:0;overflow:visible}
   .report-table{font-size:10pt}
 }
+.board-who{gap:.9rem}
+a.tag{text-decoration:none}
+a.tag:hover{border-color:var(--ink);color:var(--ink)}

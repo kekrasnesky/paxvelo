@@ -208,8 +208,6 @@ func (a *App) routes() http.Handler {
 	mux.Handle("POST /admin/admins/{id}/link", a.auth(a.sendAdminLink))
 	mux.Handle("POST /admin/admins/{id}/remove", a.auth(a.removeAdmin))
 	mux.Handle("POST /admin/admins/{id}/president", a.auth(a.makePresident))
-	mux.Handle("POST /admin/admins/{id}/treasurer", a.president("/admin/admins", a.setTreasurer))
-	mux.Handle("POST /admin/admins/{id}/board", a.president("/admin/admins", a.setBoard))
 	mux.Handle("POST /admin/admins/password", a.auth(a.changePassword))
 	mux.Handle("GET /admin/security", a.auth(a.securityPage))
 	mux.Handle("POST /admin/security", a.auth(a.securityAction))
