@@ -487,7 +487,9 @@ func (a *App) sentCounts() (map[string]int, map[string]time.Time) {
 	return n, last
 }
 
-func (a *App) autoRows() (autos, manual []autoRow) {
+// autoRows lists the automations; canRemove is whether this admin may
+// remove the ones admins made (only the president).
+func (a *App) autoRows(canRemove bool) (autos, manual []autoRow) {
 	n, last := a.sentCounts()
 	w, c, mv := a.store.Welcome(), a.store.ConfirmText(), a.store.MovedEmail()
 	autos = []autoRow{
@@ -500,7 +502,7 @@ func (a *App) autoRows() (autos, manual []autoRow) {
 	}
 	for _, au := range a.store.Automations() {
 		r := autoRow{Key: strconv.Itoa(au.ID), Name: au.Name, When: au.When(), Who: "Members who reach that point, unless they unsubscribed",
-			Subject: au.Subject, Paused: au.Paused, CanPause: true, CanEdit: true, CanRemove: true, Sent: au.Count}
+			Subject: au.Subject, Paused: au.Paused, CanPause: true, CanEdit: true, CanRemove: canRemove, Sent: au.Count}
 		if t, ok := triggerFor(au.Trigger); ok {
 			r.About = t.Help
 		}
@@ -521,7 +523,7 @@ func (a *App) autoPage(w http.ResponseWriter, r *http.Request) {
 	for i := range av.Builtin {
 		av.Builtin[i].Fixed = true
 	}
-	av.Autos, av.Manual = a.autoRows()
+	av.Autos, av.Manual = a.autoRows(a.canManage(r))
 	av.Removed, _ = strconv.Atoi(r.URL.Query().Get("removed"))
 	for i := range av.Manual {
 		if av.Manual[i].CanSend {

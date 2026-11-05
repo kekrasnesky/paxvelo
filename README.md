@@ -16,7 +16,7 @@ The club's website: public pages, membership signup with PayPal dues, a ride cal
 | **Rides / Calendar** | Set up weekly rides, add one-off events, change leaders, cancel rides. Approve rides that members submit. Tick **Virtual** for a Zwift ride (rides mentioning Zwift, virtual or a trainer ride are ticked automatically). |
 | **Newsletter** | Build the monthly issue from blocks, preview it, publish it, then email members about it. |
 | **Email → Send an email** | Send email to all members or a group (such as only those who haven't paid). Always **Send test** to yourself first. Pick **About**: club news and notices (dues, waivers) reach everyone; **Rides and events** skips members who turned those emails off. |
-| **Email → Automations** | Emails the site sends by itself, like the welcome email (President only). Green is on, red is off, yellow is sent by hand. Press one to see it, **Edit** its words, or flip its switch. **New automated email** adds your own, such as a reminder a few days after someone joins if they haven't paid. |
+| **Email → Automations** | Emails the site sends by itself, like the welcome email. Green is on, red is off, yellow is sent by hand. Press one to see it, **Edit** its words, or flip its switch. **New automated email** adds your own, such as a reminder a few days after someone joins if they haven't paid. |
 | **Website → Gallery** | Albums of ride photos. This is where the club's photos live: the newsletter picks its photos from here. Drag albums into order, **Feature** one to show it first and big, or **Hide** one to take it off the website without deleting it. |
 | **Website → Photos to review** | Photos members shared wait here. Each person's photos are one card: press **Approve** to put them in the gallery, or **Reject**. Both can be undone. |
 | **Instagram** | Choose which club posts show on the home page. |
@@ -32,7 +32,7 @@ The **Needs attention** notice tells you when something is waiting: new photos, 
 - **Members checking their status:** **My Membership** is in the menu on every page. The first time, it asks for their email and sends a link; after they open it, that device remembers them.
 - **Member renewing on the Join form:** nothing they typed counts until they press the link we email them, since anyone can type any email. Until then Members shows "Renewal not confirmed" and their waiver shows as not signed.
 - **Start of each year:** everyone shows as not paid. Email that group a reminder (put `{pay_link}` in the message so each person gets their own PayPal link), and ask everyone to sign the new waiver.
-- **Add an admin:** Security → Admins → enter name and email. They get a link to choose a password. Only the **President** can remove admins, delete members or use **Automations**.
+- **Add an admin:** Security → Admins → enter name and email. They get a link to choose a password. Only the **President** can remove admins, delete members or remove an automated email.
 - **Forgot your password:** use **Forgot your password?** on the login page.
 - **Club PIN:** a shared code members can type to post photos and add rides without waiting for approval. Change it if it gets passed around.
 - **Monthly newsletter:** Newsletter → Start a new draft → fill in the blocks → Save and preview → Save and publish → Email members about it.

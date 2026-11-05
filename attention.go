@@ -50,10 +50,7 @@ type navSection struct {
 	Current     bool
 }
 
-// presidentTabs are the screens only the president can open.
-var presidentTabs = map[string]bool{"auto": true}
-
-func adminNavFor(tab string, attention int, president bool) adminNav {
+func adminNavFor(tab string, attention int) adminNav {
 	nav := adminNav{Security: navSection{Label: securityGroup.Label, Href: securityGroup.Href}}
 	for _, g := range append(adminGroups, securityGroup) {
 		ng := navGroup{Label: g.Label, Href: g.Href}
@@ -67,9 +64,6 @@ func adminNavFor(tab string, attention int, president bool) adminNav {
 		}
 		if ng.Current && len(g.Sections) > 1 {
 			for _, s := range g.Sections {
-				if presidentTabs[s.Tab] && !president {
-					continue
-				}
 				nav.Sections = append(nav.Sections, navSection{s.Label, s.Href, s.Tab == tab})
 			}
 		}
