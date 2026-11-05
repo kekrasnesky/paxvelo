@@ -339,6 +339,7 @@ func openStore(dir string) (*Store, error) {
 	s.albumize()
 	s.relinkWaivers()
 	s.seedTreasury()
+	s.seedFee()
 	s.linkBoard()
 	return s, s.save()
 }

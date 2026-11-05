@@ -148,9 +148,13 @@ func TestDuesIncome(t *testing.T) {
 		a.store.d.Members = append(a.store.d.Members, &m)
 	}
 	a.store.mu.Unlock()
-	total, ind, fam, lines := a.duesIncome(2026, "2026-07-31")
-	if total != 35_00+45_00+35_00 || ind != 2 || fam != 1 || len(lines) != 3 {
-		t.Fatalf("dues: %d, %d individual, %d family, %+v", total, ind, fam, lines)
+	d := a.duesIncome(2026, "2026-07-31")
+	lines := d.Lines
+	if d.Total != 35_00+45_00+35_00 || d.Individual != 2 || d.Family != 1 || len(lines) != 3 {
+		t.Fatalf("dues: %+v", d)
+	}
+	if d.Fees != 0 {
+		t.Error("payments before PayPal (the fee's start day) have no PayPal fee")
 	}
 	if !lines[0].Guessed || lines[0].Member != "Cy Imported" || lines[0].Date != "2026-06-10" {
 		t.Errorf("an imported year should count on the join day: %+v", lines[0])
@@ -165,6 +169,72 @@ func TestDuesIncome(t *testing.T) {
 		}
 	}
 	t.Error("no membership row")
+}
+
+// PayPal keeps 3.49% + $0.49 of each dues payment (by default, from the day
+// the fee arrived): those fees are an expense in Bank Fees, shown on the
+// Income page, the Expenses list and the report, and the rate can change.
+func TestPayPalFees(t *testing.T) {
+	a, h, admin := testApp(t)
+	if f := a.store.PayPalFee(); f.BP != 349 || f.Fixed != 49 || f.Cat != "Bank Fees" || f.Since != time.Now().In(clubTZ).Format("2006-01-02") {
+		t.Fatalf("default fee: %+v", f)
+	}
+	if (PayPalFee{BP: 349, Fixed: 49}).On(35_00) != 1_71 || (PayPalFee{BP: 349, Fixed: 49}).On(45_00) != 2_06 {
+		t.Error("PayPal's fee on $35 is $1.71 and on $45 is $2.06")
+	}
+	a.store.SetPayPalFee(PayPalFee{BP: 349, Fixed: 49, Since: "2026-03-01", Cat: "Bank Fees"})
+	day := func(m time.Month, d int) time.Time { return time.Date(2026, m, d, 15, 0, 0, 0, time.UTC) }
+	moved := day(4, 2)
+	a.store.mu.Lock()
+	for i, m := range []Member{
+		{Name: "Early", Plan: "individual", PaidYears: []int{2026}, PaidOn: map[int]time.Time{2026: day(2, 1)}},                // Squarespace days
+		{Name: "Pal", Plan: "individual", PaidYears: []int{2026}, PaidOn: map[int]time.Time{2026: day(4, 1)}},                  // $1.71
+		{Name: "Fam", Plan: "family", PaidYears: []int{2026}, PaidOn: map[int]time.Time{2026: day(5, 1)}},                      // $2.06
+		{Name: "Moved", Plan: "individual", PaidYears: []int{2026}, PaidOn: map[int]time.Time{2026: moved}, MovedSent: &moved}, // paid on the old site
+		{Name: "Imported", Plan: "individual", Joined: time.Date(2019, 6, 10, 12, 0, 0, 0, time.UTC), PaidYears: []int{2026}},  // no date
+	} {
+		m.ID = 300 + i
+		a.store.d.Members = append(a.store.d.Members, &m)
+	}
+	a.store.mu.Unlock()
+	d := a.duesIncome(2026, "2026-12-31")
+	if d.Total != 5*35_00+10_00 || d.Fees != 1_71+2_06 || d.Net() != d.Total-3_77 {
+		t.Fatalf("dues %d, fees %d", d.Total, d.Fees)
+	}
+	a.store.AddLedgerEntry(LedgerEntry{Kind: "expense", Date: "2026-02-01", Category: "Bank Fees", Cents: 240_10, What: "Squarespace fees"})
+	rep := a.buildReport(time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC))
+	for _, r := range rep.Rows {
+		if r.Label == "Bank Fees" && r.Actual != 240_10+3_77 {
+			t.Errorf("Bank Fees should add PayPal's fees to what was typed in: %+v", r)
+		}
+		if r.Label == "TOTAL INCOME" && r.Actual != d.Total {
+			t.Errorf("membership income stays the full dues: %+v", r)
+		}
+	}
+	income := do(t, h, admin, "GET", "/admin/treasurer/income?year=2026", "", nil).Body.String()
+	if !strings.Contains(income, "−$3.77") || !strings.Contains(income, `value="3.49"`) {
+		t.Error("the Income page should show the PayPal fees and the rate")
+	}
+	if exp := do(t, h, admin, "GET", "/admin/treasurer?year=2026", "", nil).Body.String(); !strings.Contains(exp, "PayPal fees on dues") || !strings.Contains(exp, "$243.87") {
+		t.Error("the Expenses page should list the PayPal fees and count them in the total")
+	}
+	// A new rate, from a new day, in another category; or not counted at all.
+	ct, body := form(url.Values{"year": {"2026"}, "percent": {"1.99"}, "fixed": {"0.49"}, "since": {"2026-01-01"}, "category": {"Office Expenses:Quicken"}})
+	do(t, h, admin, "POST", "/admin/treasurer/income/fee", ct, body)
+	if f := a.store.PayPalFee(); f.BP != 199 || f.Fixed != 49 || f.Since != "2026-01-01" || f.Cat != "Office Expenses:Quicken" {
+		t.Errorf("saved fee: %+v", f)
+	}
+	ct, body = form(url.Values{"year": {"2026"}, "percent": {"lots"}, "fixed": {"0.49"}})
+	if w := do(t, h, admin, "POST", "/admin/treasurer/income/fee", ct, body); !strings.Contains(w.Header().Get("Location"), "err=money-fee") {
+		t.Error("a fee that isn't a number should be refused")
+	}
+	ct, body = form(url.Values{"year": {"2026"}, "percent": {"3.49"}, "fixed": {"0.49"}, "since": {"2026-03-01"}, "category": {""}})
+	do(t, h, admin, "POST", "/admin/treasurer/income/fee", ct, body)
+	for _, r := range a.buildReport(time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC)).Rows {
+		if r.Label == "Bank Fees" && r.Actual != 240_10 {
+			t.Errorf("not counted: Bank Fees is only what was typed in: %+v", r)
+		}
+	}
 }
 
 func receiptForm(t *testing.T, fields map[string]string, file string, content []byte) (string, *bytes.Buffer) {

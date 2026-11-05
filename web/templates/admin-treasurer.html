@@ -19,6 +19,7 @@
       <h2>Membership dues</h2>
       <p class="money-big">{{money .Total}}</p>
       <p class="muted small">{{.Individual}} Individual × ${{.DuesIndividual}} · {{.Family}} Family × ${{.DuesFamily}}</p>
+      {{if .Fees}}<p class="dues-net"><span class="muted">PayPal fees</span> −{{money .Fees}} <span class="muted">· net</span> <strong>{{money .Net}}</strong></p>{{end}}
     </div>
     <form method="post" action="/admin/treasurer/income/dues" class="dues-where">
       <input type="hidden" name="year" value="{{$m.Year}}">
@@ -27,16 +28,38 @@
     </form>
   </div>
   <p class="muted small">Dues marked paid on Members, {{$m.Year}} through {{mdy .Through}}, at today’s prices.{{with .Guessed}} ≈ {{.}} marked paid without a date, counted on the member’s join day.{{end}}</p>
+  <div class="dues-more">
   {{with .Lines}}<details class="dues-list"><summary>Who paid ({{len .}})</summary>
     <div class="table-wrap"><table class="tight">
-      <tbody>{{range .}}<tr><td class="nowrap">{{if .Guessed}}<span title="Marked paid without a date: counted on their join day">≈ </span>{{end}}{{.DateLabel}}</td><td>{{.Member}}</td><td>{{.Plan}}</td><td class="right nowrap">{{money .Cents}}</td></tr>{{end}}</tbody>
+      <thead><tr><th>Date</th><th>Member</th><th>Plan</th><th class="right">Dues</th><th class="right">PayPal fee</th></tr></thead>
+      <tbody>{{range .}}<tr><td class="nowrap">{{if .Guessed}}<span title="Marked paid without a date: counted on their join day">≈ </span>{{end}}{{.DateLabel}}</td><td>{{.Member}}</td><td>{{.Plan}}</td><td class="right nowrap">{{money .Cents}}</td><td class="right nowrap">{{if .Fee}}−{{money .Fee}}{{else}}<span class="muted" title="Before PayPal, or paid on the old site">—</span>{{end}}</td></tr>{{end}}</tbody>
     </table></div>
   </details>{{end}}
+  <details class="dues-list"><summary>PayPal fee{{with .Fee}} ({{.Percent}}% + {{money .Fixed}}){{end}}</summary>
+    <form method="post" action="/admin/treasurer/income/fee" class="fee-form">
+      <input type="hidden" name="year" value="{{$m.Year}}">
+      <label>Percent <span class="money-in pct"><input name="percent" value="{{.Fee.Percent}}" inputmode="decimal" autocomplete="off"><span aria-hidden="true">%</span></span></label>
+      <label>Plus <span class="money-in"><span aria-hidden="true">$</span><input name="fixed" value="{{moneyInput .Fee.Fixed}}" inputmode="decimal" autocomplete="off"></span></label>
+      <label title="Dues marked paid before this went through Squarespace">PayPal since <input type="date" name="since" value="{{.Fee.Since}}"></label>
+      <label>Counted in <select name="category"><option value="">Not counted</option>{{range .ExpenseCats}}<option{{if eq . $.Money.Dues.Fee.Cat}} selected{{end}}>{{.}}</option>{{end}}</select></label>
+      <button class="ghost">{{icon "save"}}Save</button>
+    </form>
+  </details>
+  </div>
 </section>{{end}}
 {{template "money-form" .}}
 <div class="table-wrap"><table class="money-list">
   <thead><tr><th>Date</th><th>Category</th><th>{{if $in}}Details{{else}}What for{{end}}</th>{{if not $in}}<th>Who spent it</th>{{end}}<th class="right">Amount</th><th>Receipt</th><th><span class="sr">Actions</span></th></tr></thead>
   <tbody>
+  {{if $m.Fees}}<tr class="fee-row">
+    <td class="c-date nowrap">{{$m.Year}}</td>
+    <td class="c-cat">{{$m.FeeCat}}</td>
+    <td class="c-what">PayPal fees on dues</td>
+    <td class="c-who"></td>
+    <td class="c-amt right nowrap money-amt">{{money $m.Fees}}</td>
+    <td class="c-rcpt"></td>
+    <td class="c-act right"><div class="acts"><a class="link" href="/admin/treasurer/income?year={{$m.Year}}">Income</a></div></td>
+  </tr>{{end}}
   {{range $m.Entries}}<tr id="e{{.ID}}">
     <td class="c-date nowrap">{{.DateLabel}}</td>
     <td class="c-cat">{{.Category}}</td>

@@ -348,6 +348,7 @@ var errorText = map[string]string{
 	"board-only":      "The Treasurer tab is for board members (Website → Board).",
 	"money-gone":      "That was removed.",
 	"money-meeting":   "Pick the meeting date.",
+	"money-fee":       "Type the fee like 3.49 and 0.49.",
 	"bad-years":       "Type the years paid as four-digit years, like 2024, 2025.",
 	"bad-date":        "That join date isn’t a date.",
 	"file":            "Choose a CSV file to import.",

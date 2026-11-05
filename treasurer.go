@@ -29,6 +29,7 @@ type Treasury struct {
 	// DuesCat is the income category the dues marked paid on Members count
 	// in; empty when the treasurer types membership income in instead.
 	DuesCat    string              `json:"dues_category,omitempty"`
+	Fee        PayPalFee           `json:"paypal_fee"`
 	NextEntry  int                 `json:"next_entry_id,omitempty"`
 	Entries    []*LedgerEntry      `json:"entries,omitempty"`
 	Removed    *LedgerEntry        `json:"removed_entry,omitempty"` // the one removed last, for Undo
@@ -172,6 +173,60 @@ func (s *Store) seedTreasury() {
 		return
 	}
 	t.IncomeCats, t.ExpenseCats, t.DuesCat, t.Seeded = slices.Clone(defaultIncomeCats), slices.Clone(defaultExpenseCats), defaultIncomeCats[0], true
+}
+
+// PayPalFee is what PayPal keeps from each dues payment: a percentage plus a
+// fixed amount. The site can't see the real fees, so it works them out for
+// every dues payment marked paid on or after Since (before that, dues went
+// through Squarespace, whose fees the treasurer typed in) and counts them as
+// an expense in Cat. Members moved from the old site paid there, so their
+// site-move payment has no PayPal fee.
+type PayPalFee struct {
+	Set   bool   `json:"set,omitempty"`      // the defaults were filled in
+	BP    int    `json:"basis_points"`       // the percentage in hundredths: 349 = 3.49%
+	Fixed int64  `json:"fixed_cents"`        // per payment
+	Since string `json:"since,omitempty"`    // 2006-01-02
+	Cat   string `json:"category,omitempty"` // expense category; "" = not counted
+}
+
+// On is the fee on a payment, rounded to the cent like PayPal does.
+func (f PayPalFee) On(cents int64) int64 {
+	return (cents*int64(f.BP)+5000)/10000 + f.Fixed
+}
+
+// Percent is the percentage for a form box: 3.49.
+func (f PayPalFee) Percent() string {
+	return strings.TrimSuffix(strings.TrimRight(fmt.Sprintf("%d.%02d", f.BP/100, f.BP%100), "0"), ".")
+}
+
+// seedFee fills in PayPal's standard US rate (3.49% + $0.49) once, counting
+// from the day it arrives, in Bank Fees like Barry's Squarespace fees.
+func (s *Store) seedFee() {
+	f := &s.d.Treasury.Fee
+	if f.Set {
+		return
+	}
+	f.Set, f.BP, f.Fixed, f.Since = true, 349, 49, time.Now().In(clubTZ).Format("2006-01-02")
+	if slices.Contains(s.d.Treasury.ExpenseCats, "Bank Fees") {
+		f.Cat = "Bank Fees"
+	}
+}
+
+func (s *Store) PayPalFee() PayPalFee {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.d.Treasury.Fee
+}
+
+func (s *Store) SetPayPalFee(f PayPalFee) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if f.Cat != "" && !slices.Contains(s.d.Treasury.ExpenseCats, f.Cat) {
+		return errors.New("no such category")
+	}
+	f.Set = true
+	s.d.Treasury.Fee = f
+	return s.save()
 }
 
 // TreasuryCats returns the income and expense categories, in report order,
@@ -384,6 +439,9 @@ func (s *Store) SaveBudget(year int, b BudgetYear, rows []catRow) (kept []string
 		if t.DuesCat == from {
 			t.DuesCat = to
 		}
+		if t.Fee.Cat == from {
+			t.Fee.Cat = to
+		}
 	}
 	for _, kind := range []string{"income", "expense"} {
 		old := &t.ExpenseCats
@@ -421,6 +479,9 @@ func (s *Store) SaveBudget(year int, b BudgetYear, rows []catRow) (kept []string
 	}
 	if t.DuesCat != "" && !slices.Contains(t.IncomeCats, t.DuesCat) {
 		t.DuesCat = ""
+	}
+	if t.Fee.Cat != "" && !slices.Contains(t.ExpenseCats, t.Fee.Cat) {
+		t.Fee.Cat = ""
 	}
 	if t.Years == nil {
 		t.Years = map[int]*BudgetYear{}
@@ -528,8 +589,19 @@ type duesLine struct {
 	Plan    string
 	Date    string // 2006-01-02
 	Cents   int64
-	Guessed bool // marked paid without a date (imported): counted on their join day
+	Fee     int64 // what PayPal kept, worked out (PayPalFee)
+	Guessed bool  // marked paid without a date (imported): counted on their join day
 }
+
+// duesSum is a year's membership income so far.
+type duesSum struct {
+	Total, Fees        int64
+	Individual, Family int
+	Lines              []duesLine
+}
+
+// Net is the dues after PayPal's fees.
+func (d duesSum) Net() int64 { return d.Total - d.Fees }
 
 func (d duesLine) DateLabel() string { return mdy(d.Date) }
 
@@ -537,9 +609,11 @@ func (d duesLine) DateLabel() string { return mdy(d.Date) }
 // knows: each year marked paid counts once, on the day it was marked paid
 // (or, from a Squarespace orders import, the day it was paid), at today's
 // dues for the member's plan. Years imported without a date count on the
-// member's join day in that year. Deleted members aren't counted.
-func (a *App) duesIncome(year int, through string) (total int64, individual, family int, lines []duesLine) {
+// member's join day in that year. Deleted members aren't counted. Each
+// payment also has its PayPal fee worked out (PayPalFee).
+func (a *App) duesIncome(year int, through string) (sum duesSum) {
 	y := strconv.Itoa(year)
+	fee := a.store.PayPalFee()
 	for _, m := range a.store.Members() {
 		for _, p := range m.PaidYears {
 			t, ok := m.PaidOn[p]
@@ -551,17 +625,23 @@ func (a *App) duesIncome(year int, through string) (total int64, individual, fam
 				continue
 			}
 			c := int64(a.cfg.Dues(m.Plan)) * 100
-			total += c
-			if m.Plan == "family" {
-				family++
-			} else {
-				individual++
+			line := duesLine{Member: m.Name, Plan: m.PlanName(), Date: d, Cents: c, Guessed: !ok}
+			movedOver := m.MovedSent != nil && ok && t.Sub(*m.MovedSent).Abs() < 24*time.Hour
+			if ok && fee.Since != "" && d >= fee.Since && !movedOver {
+				line.Fee = fee.On(c)
 			}
-			lines = append(lines, duesLine{Member: m.Name, Plan: m.PlanName(), Date: d, Cents: c, Guessed: !ok})
+			sum.Total += c
+			sum.Fees += line.Fee
+			if m.Plan == "family" {
+				sum.Family++
+			} else {
+				sum.Individual++
+			}
+			sum.Lines = append(sum.Lines, line)
 		}
 	}
-	sort.SliceStable(lines, func(i, j int) bool { return lines[i].Date > lines[j].Date })
-	return total, individual, family, lines
+	sort.SliceStable(sum.Lines, func(i, j int) bool { return sum.Lines[i].Date > sum.Lines[j].Date })
+	return sum
 }
 
 // ---- The board report ----
@@ -645,11 +725,20 @@ func (a *App) buildReport(through time.Time) Report {
 	}
 	duesLabel := ""
 	if duesCat != "" {
-		total, ind, fam, _ := a.duesIncome(year, thru)
+		d := a.duesIncome(year, thru)
 		k := "income\x00" + duesCat
-		actual[k] += total
+		actual[k] += d.Total
 		has[k] = true
-		duesLabel = fmt.Sprintf("%s (%d Individual/%d Family)", duesCat, ind, fam)
+		duesLabel = fmt.Sprintf("%s (%d Individual/%d Family)", duesCat, d.Individual, d.Family)
+		// PayPal's cut is an expense, as Barry kept Squarespace's
+		if fee := a.store.PayPalFee(); fee.Cat != "" && d.Fees != 0 {
+			k := "expense\x00" + fee.Cat
+			actual[k] += d.Fees
+			has[k] = true
+			if !slices.Contains(expense, fee.Cat) {
+				expense = append(expense, fee.Cat)
+			}
+		}
 	}
 
 	balance := func(label, note string, v int64) ReportRow {

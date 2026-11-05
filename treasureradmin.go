@@ -48,18 +48,21 @@ type moneyView struct {
 	RemovedR int    // the saved report just removed, for Undo
 	// CanRemove: the logged-in admin is the treasurer or the president.
 	CanRemove bool
+	// Expenses: PayPal's fees on the year's dues so far, and their category.
+	Fees   int64
+	FeeCat string
 }
 
 // duesView is the membership income worked out from Members.
 type duesView struct {
-	Total              int64
-	Individual, Family int
-	Lines              []duesLine
-	Guessed            int
-	Through            string
-	DuesIndividual     int
-	DuesFamily         int
-	IncomeCats         []string
+	duesSum
+	Fee            PayPalFee
+	ExpenseCats    []string
+	Guessed        int
+	Through        string
+	DuesIndividual int
+	DuesFamily     int
+	IncomeCats     []string
 }
 
 type budgetView struct {
@@ -161,12 +164,9 @@ func (a *App) ledgerPage(w http.ResponseWriter, r *http.Request, kind string, fo
 	m.Form = form
 	m.Who = a.whoSuggestions()
 	if kind == "income" {
-		through := a.today().Format("2006-01-02")
-		if year != a.cfg.ThisYear() {
-			through = fmt.Sprintf("%d-12-31", year)
-		}
-		d := &duesView{Through: through, DuesIndividual: a.cfg.DuesIndividual, DuesFamily: a.cfg.DuesFamily, IncomeCats: income}
-		d.Total, d.Individual, d.Family, d.Lines = a.duesIncome(year, through)
+		through := a.yearThrough(year)
+		d := &duesView{Through: through, DuesIndividual: a.cfg.DuesIndividual, DuesFamily: a.cfg.DuesFamily, IncomeCats: income,
+			Fee: a.store.PayPalFee(), ExpenseCats: expense, duesSum: a.duesIncome(year, through)}
 		for _, l := range d.Lines {
 			if l.Guessed {
 				d.Guessed++
@@ -176,6 +176,12 @@ func (a *App) ledgerPage(w http.ResponseWriter, r *http.Request, kind string, fo
 		if duesCat != "" && (m.Cat == "" || m.Cat == duesCat) {
 			m.Total += d.Total
 		}
+	}
+	// PayPal's fees on dues are an expense, listed above the typed-in ones.
+	if fee := a.store.PayPalFee(); kind == "expense" && duesCat != "" && fee.Cat != "" && (m.Cat == "" || m.Cat == fee.Cat) {
+		m.FeeCat = fee.Cat
+		m.Fees = a.duesIncome(year, a.yearThrough(year)).Fees
+		m.Total += m.Fees
 	}
 	title := map[string]string{"expense": "Expenses", "income": "Income"}[kind]
 	v := adminView{Title: title, Tab: map[string]string{"expense": "expenses", "income": "income"}[kind], Money: m}
@@ -404,6 +410,34 @@ func (a *App) restoreLedger(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	back(w, r, fmt.Sprintf("%s?year=%s&ok=money-restored#e%d", ledgerPath(e.Kind), e.Date[:4], id))
+}
+
+// yearThrough is the last day of a year's figures so far: today, or the end
+// of a past year.
+func (a *App) yearThrough(year int) string {
+	if year != a.cfg.ThisYear() {
+		return fmt.Sprintf("%d-12-31", year)
+	}
+	return a.today().Format("2006-01-02")
+}
+
+// payPalFee saves how PayPal's fee on dues is worked out and where it counts.
+func (a *App) payPalFee(w http.ResponseWriter, r *http.Request) {
+	to := "/admin/treasurer/income?year=" + url.QueryEscape(r.FormValue("year"))
+	f := a.store.PayPalFee()
+	pct, ok := parseMoney(strings.TrimSuffix(strings.TrimSpace(r.FormValue("percent")), "%"))
+	fixed, ok2 := parseMoney(r.FormValue("fixed"))
+	since := strings.TrimSpace(r.FormValue("since"))
+	if !ok || !ok2 || pct < 0 || pct > 2000 || fixed < 0 || (since != "" && !validDate(since)) {
+		back(w, r, to+"&err=money-fee")
+		return
+	}
+	f.BP, f.Fixed, f.Since, f.Cat = int(pct), fixed, since, r.FormValue("category")
+	if err := a.store.SetPayPalFee(f); err != nil {
+		back(w, r, to+"&err=save")
+		return
+	}
+	back(w, r, to+"&ok=money-dues")
 }
 
 // duesCategory picks where the dues from Members count, or "" for nowhere.

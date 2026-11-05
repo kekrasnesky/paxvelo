@@ -897,7 +897,7 @@ body.resizing iframe{pointer-events:none}
 .money-acts{display:flex;flex-wrap:wrap;gap:.5rem}
 .money-acts .btn,.money-acts button{padding:.5rem .8rem}
 .money-form{margin-bottom:1rem;gap:.8rem}
-.money-add>summary{display:none;list-style:none;margin-bottom:1rem}
+.money-add>summary.btn{display:none;list-style:none;margin-bottom:1rem}
 .money-add>summary::-webkit-details-marker{display:none}
 .money-fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(11rem,1fr));gap:.75rem}
 .money-fields .money-what,.money-fields .money-file{grid-column:span 2}
@@ -948,8 +948,7 @@ body.resizing iframe{pointer-events:none}
   .money-total{order:1;margin-left:auto}
   .money-pick{order:2;flex-basis:100%;flex-wrap:nowrap;min-width:0}
   .money-pick select[name=cat]{flex:1;width:0;min-width:0}
-  .money-add>summary{display:inline-flex}
-  .money-add[open]>summary{display:none}
+  .money-add:not([open])>summary.btn{display:inline-flex}
   .money-fields{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
   .money-fields>label:not(:first-child):not(:nth-child(2)),.money-fields .money-go{grid-column:1/-1}
   .money-list thead{display:none}
@@ -1020,3 +1019,12 @@ tr.current td{background:#faf8f5}
 .board-who{gap:.9rem}
 a.tag{text-decoration:none}
 a.tag:hover{border-color:var(--ink);color:var(--ink)}
+.dues-net{margin:.15rem 0 0;font-size:.9rem;font-variant-numeric:tabular-nums}
+.dues-net strong{font-weight:500}
+.dues-more{display:flex;flex-wrap:wrap;gap:.4rem 1.5rem}
+.dues-more>details{flex:1 1 18rem;min-width:0}
+.fee-form{display:grid;grid-template-columns:repeat(auto-fill,minmax(8.5rem,1fr));gap:.6rem;align-items:end;margin-top:.5rem}
+.fee-form button{padding:.55rem .8rem}
+.money-in.pct>span{left:auto;right:.65rem}
+.money-in.pct input{padding-left:.75rem;padding-right:1.6rem}
+.fee-row td{background:#faf8f5}
