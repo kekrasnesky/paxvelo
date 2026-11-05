@@ -4,7 +4,6 @@
     <h1>Club Calendar</h1>
     <p class="cal-actions"><a class="btn" href="/calendar/new">Add a ride or event</a></p>
   </div>
-  <p class="lead">Every club ride and who’s leading it, plus meetings, parties and other club events. See a ride with no leader? Sign up to lead it, or add one of your own.</p>
   {{template "rider-bar" .}}
 
   <section class="cal-up" aria-label="Coming up">
@@ -29,7 +28,6 @@
       <h2>{{.MonthLabel}}</h2>
       <a href="/calendar?m={{.Next}}" aria-label="Next month">›</a>
     </nav>
-    <p class="cal-key"><span class="cal-hint-hover">Point at a ride or event for details.</span><span class="cal-hint-touch">Tap a ride or event for details.</span></p>
   </div>
 
   <table class="cal-grid">

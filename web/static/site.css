@@ -387,8 +387,6 @@ form:has(.kind-pick input:checked:not([value=""])) .event-word{display:inline}
 .cal-nav a{display:grid;place-items:center;width:40px;height:40px;border:1px solid var(--line);border-radius:8px;background:var(--card);font:500 1.4rem/1 var(--font);text-decoration:none}
 @media (hover:hover){.cal-nav a:hover{background:var(--red);color:var(--paper)}}
 .cal-key{margin:0!important;font-size:.85rem;color:#6b625b}
-.cal-hint-touch{display:none}
-@media (hover:none){.cal-hint-hover{display:none}.cal-hint-touch{display:inline}}
 /* Rides that need a leader get a dashed yellow badge, a different shape from
    the filled pace pills, so the two never read as one color code */
 .cal-ride.open,.cal-ride.partial{--c:#d9a400}
