@@ -99,6 +99,7 @@ type adminView struct {
 	// Home photos tab
 	HomePhotos    []HomePhoto
 	MaxHomePhotos int
+	Hero          HeroPhoto
 	// Rides tab
 	Series      []RideSeries
 	Upcoming    []RideOcc
@@ -264,6 +265,7 @@ var flashText = map[string]string{
 	"page-deleted":         "Page deleted.",
 	"board":                "Saved. The board page is updated.",
 	"home-photos":          "Saved. The home page is updated.",
+	"hero":                 "Saved. The top photo on the home page is updated.",
 	"submitted-rejected":   "Rejected. They’re deleted in 30 days; until then they’re under Already reviewed, where you can put them back.",
 	"submitted-restored":   "Put back, ready to review.",
 	"submitted-unapproved": "Taken back out of the gallery, ready to review again.",

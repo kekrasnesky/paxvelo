@@ -228,6 +228,7 @@ type storeData struct {
 	BoardSeeded bool                `json:"board_seeded,omitempty"`
 	HomePhotos  []HomePhoto         `json:"home_photos,omitempty"`
 	HomeSeeded  bool                `json:"home_photos_seeded,omitempty"`
+	Hero        HeroPhoto           `json:"hero"` // the photo at the top of the home page (hero.go)
 }
 
 type Store struct {

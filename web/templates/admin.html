@@ -46,6 +46,7 @@ document.addEventListener('keydown',function(e){
 // shape (width/height, as in site.css), and its corner radius.
 var FRAME_SHAPES={
   home:[['Home page photo row','4/3','10px']],
+  hero:[['Home page top, computers','21/9'],['Home page top, tablets','2/1'],['Home page top, phones','1/1']],
   board:[['Board page','1/1','50%']],
   cover:[['Newsletter top, big screens','5/2'],['Newsletter top, tablets','2/1'],['Newsletter top, phones','4/3']],
   story:[['Newsletter, big screens','3/2'],['Newsletter, phones and tablets','4/3']],
@@ -1907,8 +1908,25 @@ document.querySelectorAll('.copy-link').forEach(function(b){b.addEventListener('
 </div>{{end}}
 
 {{define "home-photos"}}{{template "head" .}}
-<div class="title-row"><h1>Home photos</h1><p class="muted">The row of photos on the <a href="/" target="_blank" rel="noopener">home page</a>, up to {{.MaxHomePhotos}}. Phones swipe through them; computers show three at a time. With more than 6, the row moves on by itself every few seconds on computers (not on phones). Drag a photo by ⠿ (or use the arrows) to change the order.</p></div>
+<div class="title-row"><h1>Home photos</h1><p class="muted">The big top photo and the row of photos on the <a href="/" target="_blank" rel="noopener">home page</a>. The row holds up to {{.MaxHomePhotos}}. Phones swipe through them; computers show three at a time. With more than 6, the row moves on by itself every few seconds on computers (not on phones). Drag a photo by ⠿ (or use the arrows) to change the order.</p></div>
+<form class="issue" id="hero" method="post" action="/admin/home-hero" enctype="multipart/form-data">
+  <section class="card">
+    <h2>Top photo</h2>
+    <p class="muted small">The big photo behind the club’s name at the top of the <a href="/" target="_blank" rel="noopener">home page</a>. {{if .Hero.Photo}}You uploaded this one.{{else}}This is the original photo.{{end}} Wide photos of riders work best; the words sit over the bottom part, which is darkened so they stay readable.</p>
+    <div class="photo-field">
+      {{template "framer" (framer (or .Hero.Photo "/photos/hero.webp") .Hero.Focus "hero_focus" "hero")}}
+      <div class="fields">
+        <label>Replace it with <input type="file" name="hero_photo" id="hero-file" accept="image/jpeg,image/png,image/webp"></label>
+        <p class="muted small">After it uploads, press Adjust framing to choose what stays in view on computers and phones.</p>
+        <label>What’s in the photo <input name="hero_alt" value="{{.Hero.Alt}}" maxlength="120" placeholder="Riders climbing a country road on the Saturday ride"></label>
+        {{if .Hero.Photo}}<label class="check"><input type="checkbox" name="builtin"> Go back to the original photo</label>{{end}}
+      </div>
+    </div>
+    <div class="save-bar"><button>{{icon "save"}}Save top photo</button></div>
+  </section>
+</form>
 <form class="issue" id="home-photos" method="post" action="/admin/home-photos" enctype="multipart/form-data">
+  <h2>Photo row</h2>
   <input type="hidden" name="count" value="{{len .HomePhotos}}">
   {{range $i, $p := .HomePhotos}}<section class="card home-photo">
     <div class="photo-order">

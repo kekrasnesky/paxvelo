@@ -77,6 +77,7 @@ type view struct {
 	LD                            template.JS // structured data for search engines (seo.go)
 	Club                          clubInfo
 	Data                          any
+	Hero                          HeroPhoto // the home page's top photo (hero.go)
 }
 
 // clubInfo holds the settings pages show: dues and outside links.
@@ -355,6 +356,9 @@ func (s *Site) pageHTML(p *contentPage, d contentData) ([]byte, error) {
 	v.Desc = p.Desc
 	if p.Path == "/" || p.People {
 		v.LD = s.clubLD(d.Board)
+	}
+	if p.Path == "/" {
+		v.Hero = d.Hero
 	}
 	var buf bytes.Buffer
 	if err := t.ExecuteTemplate(&buf, "layout", v); err != nil {

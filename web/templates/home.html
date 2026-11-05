@@ -1,9 +1,10 @@
 {{define "content"}}
 <div class="hero">
-  <picture>
+  {{if .Hero.Photo}}<img class="hero-bg" src="{{.Hero.Photo}}" alt="{{or .Hero.Alt "A PaxVelo club ride"}}" fetchpriority="high" decoding="async"{{with .Hero.Focus}} style="{{focusStyle .}}"{{end}}>
+  {{else}}<picture>
     <source media="(max-width: 767px)" srcset="/photos/hero-phone.webp?v={{.V}}" width="800" height="800">
-    <img class="hero-bg" src="/photos/hero.webp?v={{.V}}" alt="PaxVelo riders on a group ride along a country road" width="1800" height="818" fetchpriority="high" decoding="async">
-  </picture>
+    <img class="hero-bg" src="/photos/hero.webp?v={{.V}}" alt="{{or .Hero.Alt "PaxVelo riders on a group ride along a country road"}}" width="1800" height="818" fetchpriority="high" decoding="async"{{with .Hero.Focus}} style="{{focusStyle .}}"{{end}}>
+  </picture>{{end}}
   <div class="hero-in">
 {{.Data.Intro}}  </div>
 </div>
