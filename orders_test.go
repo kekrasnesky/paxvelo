@@ -68,3 +68,32 @@ func TestImportOrders(t *testing.T) {
 	}
 
 }
+
+// Deleting members keeps their waivers; adding the same email back, here by
+// importing an orders file, brings them back to the new record.
+func TestWaiversFollowReaddedMember(t *testing.T) {
+	a, _, _ := testApp(t)
+	clubTZ = a.cfg.Location
+	year := a.cfg.ThisYear()
+	a.store.Import([]Member{{Name: "Old Member", Email: "old@example.com"}, {Name: "Other", Email: "other@example.com"}})
+	old, _ := a.store.MemberByEmail("old@example.com")
+	other, _ := a.store.MemberByEmail("other@example.com")
+	a.store.SignWaiver(Waiver{MemberID: old.ID, Year: year, Signature: "Old Member", Where: "Join form"}, a.site.waiver)
+	a.store.SignWaiver(Waiver{MemberID: other.ID, Year: year, Signature: "Other", Where: "Join form"}, a.site.waiver)
+	a.store.DeleteMembers([]int{old.ID, other.ID})
+
+	a.store.ApplyOrders([]duesOrder{{Email: "old@example.com", Name: "Old Member", Plan: "individual", Paid: day("2026-03-10")}})
+	back, _ := a.store.MemberByEmail("old@example.com")
+	if back.ID == old.ID {
+		t.Fatal("expected a new member number")
+	}
+	if ws := a.store.WaiversOf(back.ID); len(ws) != 1 || ws[0].Signature != "Old Member" {
+		t.Errorf("waivers back on the new record: %+v", ws)
+	}
+	if !a.store.SignedWaivers(year)[back.ID] {
+		t.Error("counts as signed for the year")
+	}
+	if len(a.store.Waivers(year)) != 2 {
+		t.Error("the other deleted member's waiver is still kept")
+	}
+}

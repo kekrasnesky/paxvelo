@@ -325,6 +325,7 @@ func openStore(dir string) (*Store, error) {
 	s.tidyGroups()
 	s.upgradeIssues()
 	s.albumize()
+	s.relinkWaivers()
 	return s, s.save()
 }
 
@@ -417,6 +418,7 @@ func (s *Store) newMember(name, email, plan string) *Member {
 	m := &Member{ID: s.d.NextMember, Name: name, Email: email, Joined: time.Now().UTC(), Token: randHex(16), Plan: plan}
 	s.d.NextMember++
 	s.d.Members = append(s.d.Members, m)
+	s.relinkWaivers()
 	return m
 }
 

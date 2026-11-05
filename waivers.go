@@ -208,6 +208,32 @@ func (s *Store) SignWaiver(w Waiver, text waiverText) (Waiver, bool, error) {
 	return w, true, s.save()
 }
 
+// relinkWaivers gives waivers whose member was deleted back to whoever is on
+// the list now with the email it was signed under (the account holder's, also
+// for riders under 18 and Family adults). Deleting someone keeps their
+// waivers, so a member deleted and added again, by hand or by an import,
+// gets them back. Member numbers are never reused, so a waiver can't land on
+// someone else. Callers hold s.mu.
+func (s *Store) relinkWaivers() (n int) {
+	var ids map[int]bool
+	for _, w := range s.d.Waivers {
+		if ids == nil {
+			ids = map[int]bool{}
+			for _, m := range s.d.Members {
+				ids[m.ID] = true
+			}
+		}
+		if ids[w.MemberID] {
+			continue
+		}
+		if m := s.byEmail(strings.ToLower(strings.TrimSpace(w.Email))); m != nil {
+			w.MemberID = m.ID
+			n++
+		}
+	}
+	return n
+}
+
 // Waivers lists every signed waiver for a year, newest first.
 func (s *Store) Waivers(year int) []Waiver {
 	s.mu.Lock()
