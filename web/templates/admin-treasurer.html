@@ -17,7 +17,7 @@
   <div class="dues-head">
     <div>
       <h2>Membership dues</h2>
-      <p class="money-big">{{money .Total}}</p>
+      <p class="money-big" title="Dues marked paid on Members, at today’s prices">{{money .Total}}</p>
       <p class="muted small">{{.Individual}} Individual × ${{.DuesIndividual}} · {{.Family}} Family × ${{.DuesFamily}}</p>
       {{if .Fees}}<p class="dues-net"><span class="muted">PayPal fees</span> −{{money .Fees}} <span class="muted">· net</span> <strong>{{money .Net}}</strong></p>{{end}}
     </div>
@@ -27,7 +27,6 @@
       <noscript><button class="ghost mini">Save</button></noscript>
     </form>
   </div>
-  <p class="muted small">Dues marked paid on Members, {{$m.Year}} through {{mdy .Through}}, at today’s prices.{{with .Guessed}} ≈ {{.}} marked paid without a date, counted on the member’s join day.{{end}}</p>
   <div class="dues-more">
   {{with .Lines}}<details class="dues-list"><summary>Who paid ({{len .}})</summary>
     <div class="table-wrap"><table class="tight">

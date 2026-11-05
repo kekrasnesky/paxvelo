@@ -113,7 +113,7 @@ func (a *App) securityNudges() []attentionItem {
 	var out []attentionItem
 	if a.store.ClubPIN() == "" {
 		out = append(out, attentionItem{
-			Text: "The club PIN is off, so every photo and ride members send in waits for an admin.",
+			Text: "The club PIN is off.",
 			Href: "/admin/security", Link: "Set one",
 		})
 	}

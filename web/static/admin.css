@@ -25,6 +25,7 @@ h2.section{margin:2.75rem 0 .9rem}
 .sub a:hover{background:#f3eee8}
 .sub a[aria-current]{background:var(--ink);color:var(--paper)}
 @media (max-width:1100px){.bar{gap:1.25rem;padding:.85rem 1rem}.bar nav{gap:1rem}.sub{padding:.55rem 1rem}}
+@media (max-width:1200px){.bar .me,.corner span{display:none}.corner .ic{margin:0;width:1.25em;height:1.25em}}
 @media (max-width:700px){
   .bar{flex-wrap:wrap;justify-content:space-between;gap:.6rem 1rem;padding:.7rem 1rem}
   .bar nav{order:3;flex-basis:100%;justify-content:space-between;gap:.5rem;font-size:.92rem}

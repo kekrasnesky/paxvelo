@@ -64,7 +64,7 @@ func TestWaiverEachYear(t *testing.T) {
 	}
 
 	// The admin's record: the list, the signed copy with its text, and the spreadsheet.
-	if page := do(t, h, admin, "GET", "/admin/waivers", "", nil).Body.String(); !strings.Contains(page, "1 signed for "+strconv.Itoa(year)) || !strings.Contains(page, "/admin/waivers/"+strconv.Itoa(ws[0].ID)) {
+	if page := do(t, h, admin, "GET", "/admin/waivers", "", nil).Body.String(); !strings.Contains(page, "/admin/waivers/"+strconv.Itoa(ws[0].ID)) {
 		t.Error("the Waivers page should list the signed waiver")
 	}
 	copyPage := do(t, h, admin, "GET", "/admin/waivers/"+strconv.Itoa(ws[0].ID), "", nil).Body.String()

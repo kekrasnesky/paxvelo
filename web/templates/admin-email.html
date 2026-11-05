@@ -2,7 +2,7 @@
 editor for one, and the easy editor every email box uses (mail-cards). */}}
 
 {{define "auto"}}{{template "head" .}}{{$v := .Auto}}
-{{if not .Live}}<p class="flash warn">Test mode: emails are written to the server log instead of being sent. Add the SMTP settings to paxvelo.conf to send for real.</p>{{end}}
+{{if not .Live}}<p class="flash warn">Test mode: emails go to the server log.</p>{{end}}
 {{with $v.Removed}}<form class="flash warn undo-flash" method="post" action="/admin/email/auto/{{.}}/restore">Removed the automated email. <button class="link">{{icon "undo"}}Undo</button></form>{{end}}
 <div class="title-row"><h1>Automations</h1><a class="btn auto-new" href="/admin/email/auto/new">{{icon "plus"}}New automated email</a></div>
 

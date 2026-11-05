@@ -49,7 +49,7 @@ func TestReviewPhotosInPlace(t *testing.T) {
 	sent := a.store.SubmittedPhotos()
 	batch := strconv.Itoa(sent[0].Batch)
 	page := do(t, h, admin, "GET", "/admin/submitted", "", nil).Body.String()
-	for _, want := range []string{`<option value="` + strconv.Itoa(al.ID) + `" selected>Club ride</option>`, "Picked from the ride’s date",
+	for _, want := range []string{`<option value="` + strconv.Itoa(al.ID) + `" selected>Club ride</option>`,
 		`into <span class="sent-to">Club ride</span>`, `class="sent-view"`} {
 		if !strings.Contains(page, want) {
 			t.Errorf("the card should show %s", want)

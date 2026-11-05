@@ -40,7 +40,7 @@ func TestHomePhotos(t *testing.T) {
 	if home := do(t, h, nil, "GET", "/", "", nil).Body.String(); !strings.Contains(home, `src="/photos/shop-ride.webp"`) || strings.Contains(home, `class="strip-btn`) {
 		t.Fatal("the home page should start with the three club photos, and no arrows")
 	}
-	if w := do(t, h, admin, "GET", "/admin/home-photos", "", nil); w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "Room for 12 more") {
+	if w := do(t, h, admin, "GET", "/admin/home-photos", "", nil); w.Code != http.StatusOK {
 		t.Fatalf("admin tab: %d", w.Code)
 	}
 

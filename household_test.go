@@ -87,8 +87,8 @@ func TestHouseholdAdults(t *testing.T) {
 	if early {
 		t.Fatal("an adult's link waits until the dues are paid")
 	}
-	if unsigned := do(t, h, admin, "GET", "/admin/waivers?show=unsigned", "", nil).Body.String(); !strings.Contains(unsigned, "Their link is emailed once the dues are marked paid.") {
-		t.Error("Not signed should say their link is waiting for the dues")
+	if unsigned := do(t, h, admin, "GET", "/admin/waivers?show=unsigned", "", nil).Body.String(); !strings.Contains(unsigned, "’s family membership") {
+		t.Error("Not signed should list the adult on the family membership")
 	}
 	if needsWaivers(a) {
 		t.Error("an unpaid membership doesn't need attention yet")
