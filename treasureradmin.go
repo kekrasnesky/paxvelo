@@ -88,9 +88,27 @@ func (a *App) canRemoveMoney(r *http.Request) bool {
 	return ok && u.Treasurer
 }
 
+// canSeeMoney reports whether the logged-in admin may open the Treasurer
+// tab: board members, the treasurer, the president, or the setup password.
+func (a *App) canSeeMoney(r *http.Request) bool {
+	u, ok := a.currentAdmin(r)
+	return ok && (u.ID == 0 || u.President || u.Treasurer || u.Board)
+}
+
+// boardOnly is auth for the Treasurer tab: other admins are sent to Home.
+func (a *App) boardOnly(h http.HandlerFunc) http.Handler {
+	return a.auth(func(w http.ResponseWriter, r *http.Request) {
+		if !a.canSeeMoney(r) {
+			back(w, r, "/admin?err=board-only")
+			return
+		}
+		h(w, r)
+	})
+}
+
 // treasurerOnly is auth for removing on the Treasurer tab.
 func (a *App) treasurerOnly(from string, h http.HandlerFunc) http.Handler {
-	return a.auth(func(w http.ResponseWriter, r *http.Request) {
+	return a.boardOnly(func(w http.ResponseWriter, r *http.Request) {
 		if !a.canRemoveMoney(r) {
 			back(w, r, from+"?err=treasurer-only")
 			return
@@ -587,7 +605,21 @@ func (a *App) restoreReport(w http.ResponseWriter, r *http.Request) {
 	back(w, r, "/admin/treasurer/reports?ok=money-restored")
 }
 
-// ---- Who is treasurer ----
+// ---- Who is treasurer, and who is on the board ----
+
+// setBoard marks or unmarks an admin as a board member (Admins page,
+// president only).
+func (a *App) setBoard(w http.ResponseWriter, r *http.Request) {
+	u, ok := a.adminFromPath(w, r)
+	if !ok {
+		return
+	}
+	if err := a.store.SetAdminBoard(u.ID, r.FormValue("on") != ""); err != nil {
+		back(w, r, "/admin/admins?err=save")
+		return
+	}
+	back(w, r, "/admin/admins?ok=treasurer")
+}
 
 // setTreasurer marks or unmarks an admin as the treasurer (Admins page,
 // president only).

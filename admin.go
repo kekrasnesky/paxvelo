@@ -216,7 +216,7 @@ func (a *App) renderAdmin(w http.ResponseWriter, r *http.Request, status int, na
 	v.CSS, v.SiteURL, v.PhotoJS = a.site.adminCSS, a.cfg.SiteURL, a.site.photoJS
 	v.Me, _ = a.adminName(r)
 	if v.Tab != "" {
-		v.Nav = adminNavFor(v.Tab, len(a.attention()))
+		v.Nav = adminNavFor(v.Tab, len(a.attention()), a.canSeeMoney(r))
 	}
 	var buf bytes.Buffer
 	if err := a.site.admin.ExecuteTemplate(&buf, name, v); err != nil {
@@ -344,6 +344,7 @@ var errorText = map[string]string{
 	"emergency-phone": "Enter the emergency contact’s phone number, with its area code.",
 	"president-only":  "Only the president can do that.",
 	"treasurer-only":  "Only the treasurer or the president can remove that.",
+	"board-only":      "The Treasurer tab is for board members.",
 	"money-gone":      "That was removed.",
 	"money-meeting":   "Pick the meeting date.",
 	"bad-years":       "Type the years paid as four-digit years, like 2024, 2025.",

@@ -52,9 +52,15 @@ type navSection struct {
 	Current     bool
 }
 
-func adminNavFor(tab string, attention int) adminNav {
+// moneyGroup is the Treasurer group, shown only to board members.
+const moneyGroup = "Treasurer"
+
+func adminNavFor(tab string, attention int, board bool) adminNav {
 	nav := adminNav{Security: navSection{Label: securityGroup.Label, Href: securityGroup.Href}}
 	for _, g := range append(adminGroups, securityGroup) {
+		if g.Label == moneyGroup && !board {
+			continue
+		}
 		ng := navGroup{Label: g.Label, Href: g.Href}
 		if g.Label == "Home" {
 			ng.Badge = attention

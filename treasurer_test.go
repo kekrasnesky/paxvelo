@@ -182,7 +182,7 @@ func receiptForm(t *testing.T, fields map[string]string, file string, content []
 	return mw.FormDataContentType(), &buf
 }
 
-// Expenses with receipts: any admin adds and edits; receipts are only for
+// Expenses with receipts: board members add and edit; receipts are only for
 // logged-in admins; only the treasurer or the president removes, with Undo.
 func TestExpensesAndReceipts(t *testing.T) {
 	a, h, _ := testApp(t)
@@ -204,6 +204,39 @@ func TestExpensesAndReceipts(t *testing.T) {
 	do(t, h, as(pat), "POST", "/admin/admins/"+fmt.Sprint(barry.ID)+"/treasurer", "application/x-www-form-urlencoded", strings.NewReader("on=1"))
 	if u, _ := a.store.Admin(barry.ID); !u.Treasurer {
 		t.Fatal("the president should be able to name the treasurer")
+	}
+
+	// Only board members see the tab: Ola, an admin who isn't on the board,
+	// doesn't, until the president marks her as one.
+	ola, _ := a.store.AddAdmin("Ola", "ola@example.com", "")
+	board := func(u AdminUser, on string) {
+		do(t, h, as(pat), "POST", "/admin/admins/"+fmt.Sprint(u.ID)+"/board", "application/x-www-form-urlencoded", strings.NewReader("on="+on))
+	}
+	board(sam, "1")
+	if home := do(t, h, as(ola), "GET", "/admin", "", nil).Body.String(); strings.Contains(home, `href="/admin/treasurer"`) {
+		t.Error("an admin who isn't on the board shouldn't see the Treasurer tab")
+	}
+	for _, p := range []string{"/admin/treasurer", "/admin/treasurer/income", "/admin/treasurer/budget", "/admin/treasurer/reports", "/admin/treasurer/report.csv"} {
+		if w := do(t, h, as(ola), "GET", p, "", nil); w.Code != http.StatusSeeOther || !strings.Contains(w.Header().Get("Location"), "err=board-only") {
+			t.Errorf("%s for a non-board admin: %d %s", p, w.Code, w.Header().Get("Location"))
+		}
+	}
+	ct0, body0 := receiptForm(t, map[string]string{"date": "2026-02-10", "amount": "5", "category": "Bank Fees"}, "", nil)
+	do(t, h, as(ola), "POST", "/admin/treasurer/entries?kind=expense", ct0, body0)
+	if len(a.store.Ledger("", 2026)) != 0 {
+		t.Error("a non-board admin shouldn't be able to add a line")
+	}
+	do(t, h, as(ola), "POST", "/admin/admins/"+fmt.Sprint(ola.ID)+"/board", "application/x-www-form-urlencoded", strings.NewReader("on=1"))
+	if u, _ := a.store.Admin(ola.ID); u.Board {
+		t.Error("only the president marks board members")
+	}
+	board(ola, "1")
+	if w := do(t, h, as(ola), "GET", "/admin/treasurer", "", nil); w.Code != 200 {
+		t.Errorf("a board member should open the tab: %d", w.Code)
+	}
+	board(ola, "")
+	if w := do(t, h, as(ola), "GET", "/admin/treasurer", "", nil); w.Code == 200 {
+		t.Error("taken off the board, she shouldn't open the tab any more")
 	}
 
 	for _, p := range []string{"/admin/treasurer", "/admin/treasurer/income", "/admin/treasurer/budget", "/admin/treasurer/reports"} {
@@ -249,6 +282,9 @@ func TestExpensesAndReceipts(t *testing.T) {
 	rp := "/admin/treasurer/receipts/" + list[1].Receipt
 	if w := do(t, h, as(sam), "GET", rp, "", nil); w.Code != 200 || !bytes.Equal(w.Body.Bytes(), pdf) {
 		t.Errorf("admin receipt: %d", w.Code)
+	}
+	if w := do(t, h, as(ola), "GET", rp, "", nil); w.Code == 200 {
+		t.Error("a receipt shouldn't open for an admin who isn't on the board")
 	}
 	if w := do(t, h, nil, "GET", rp, "", nil); w.Code == 200 {
 		t.Error("a receipt shouldn't open without logging in")
@@ -424,5 +460,32 @@ func TestTreasuryKeptInDataFile(t *testing.T) {
 	}
 	if b, _ := os.ReadFile(filepath.Join(dir, "paxvelo.json")); !strings.Contains(string(b), `"treasury"`) {
 		t.Error("the books should be in paxvelo.json")
+	}
+}
+
+// Admins named on the Board page are marked as board members once, when the
+// mark first arrives; after that it's the president's to change.
+func TestAdminBoardSeededFromBoardPage(t *testing.T) {
+	dir := t.TempDir()
+	s, err := openStore(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.d.AdminBoardSeeded = false
+	s.d.Board = []BoardMember{{Name: "Barry  Treasurer", Role: "Treasurer"}}
+	barry, _ := s.AddAdmin("barry treasurer", "barry@example.com", "")
+	helper, _ := s.AddAdmin("Hal Helper", "hal@example.com", "")
+	s.save()
+	s, _ = openStore(dir)
+	if b, _ := s.Admin(barry.ID); !b.Board {
+		t.Error("an admin named on the Board page should be marked as a board member")
+	}
+	if hh, _ := s.Admin(helper.ID); hh.Board {
+		t.Error("an admin not on the Board page shouldn't be")
+	}
+	s.SetAdminBoard(barry.ID, false)
+	s, _ = openStore(dir)
+	if b, _ := s.Admin(barry.ID); b.Board {
+		t.Error("the one-time marking shouldn't undo the president's change")
 	}
 }

@@ -520,6 +520,37 @@ func (s *Store) RestoreReport(id int) bool {
 	return true
 }
 
+// SetAdminBoard marks an admin as a board member, who sees the Treasurer tab.
+func (s *Store) SetAdminBoard(id int, on bool) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	u := s.adminWhere(func(u *AdminUser) bool { return u.ID == id })
+	if u == nil {
+		return errors.New("that admin was removed")
+	}
+	u.Board = on
+	return s.save()
+}
+
+// seedAdminBoard marks the admins named on the Board page as board members,
+// once, so the Treasurer tab doesn't vanish for them when the mark arrives.
+// After that the president keeps it up to date on the Admins page.
+func (s *Store) seedAdminBoard() {
+	if s.d.AdminBoardSeeded {
+		return
+	}
+	names := map[string]bool{}
+	for _, b := range s.d.Board {
+		names[strings.ToLower(strings.Join(strings.Fields(b.Name), " "))] = true
+	}
+	for _, u := range s.d.Admins {
+		if names[strings.ToLower(strings.Join(strings.Fields(u.Name), " "))] {
+			u.Board = true
+		}
+	}
+	s.d.AdminBoardSeeded = true
+}
+
 // SetTreasurer marks an admin as the treasurer, who can remove lines and
 // saved reports on the Treasurer tab, as the president can.
 func (s *Store) SetTreasurer(id int, on bool) error {
