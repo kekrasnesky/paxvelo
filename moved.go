@@ -126,11 +126,15 @@ func (a *App) movedMany(w http.ResponseWriter, r *http.Request) {
 		n++
 	}
 	ret := r.FormValue("return")
-	if u, err := url.Parse(ret); err == nil && strings.HasPrefix(u.Path, "/admin/members") {
+	if u, err := url.Parse(ret); err == nil && (strings.HasPrefix(u.Path, "/admin/members") || u.Path == "/admin/email/auto") {
 		q := u.Query()
 		q.Set("ok", "moved")
 		q.Set("n", strconv.Itoa(n))
-		back(w, r, u.Path+"?"+q.Encode())
+		to := u.Path + "?" + q.Encode()
+		if u.Path == "/admin/email/auto" { // sent from Email → Automations: open its row again
+			to += "#a-moved"
+		}
+		back(w, r, to)
 		return
 	}
 	back(w, r, "/admin/members?ok=moved&n="+strconv.Itoa(n))

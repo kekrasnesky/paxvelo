@@ -850,3 +850,17 @@ details.auto-row[open]>summary{border-bottom:1px solid var(--line)}
 .drag-bar:focus-visible{outline:none}
 body.resizing,body.resizing *{cursor:ns-resize!important;user-select:none}
 body.resizing iframe{pointer-events:none}
+/* A list to tick members from, in a dialog (Send the site-move email) */
+.pick-dialog{width:min(40rem,calc(100vw - 2rem));max-height:calc(100vh - 2rem);padding:1.25rem 1.5rem}
+.pick-dialog::backdrop{background:rgba(0,0,0,.35)}
+.pick-dialog form{display:grid;gap:.8rem}
+.pick-top{display:grid;gap:.6rem}
+.pick-tools{font-size:.85rem}
+.pick-list{display:grid;gap:0;max-height:min(50vh,26rem);margin:0;padding:0;overflow:auto;border:1px solid var(--line);list-style:none}
+.pick-list li{border-bottom:1px solid var(--line)}
+.pick-list li[hidden]{display:none}
+.pick-list label{display:flex;align-items:center;gap:.6rem;margin:0;padding:.5rem .75rem;cursor:pointer}
+.pick-list label:hover{background:#fcfaf7}
+.pick-name{flex:1;min-width:0;overflow-wrap:anywhere}
+.tag-warn{border-color:#e6cf6e;background:#fff8d6;color:#7a6418}
+.pick-go:disabled{opacity:.45;cursor:default}

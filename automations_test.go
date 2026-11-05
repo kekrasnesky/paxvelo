@@ -181,3 +181,26 @@ func TestConfirmEmailEditable(t *testing.T) {
 		t.Error("the preview should show the Confirm button")
 	}
 }
+
+// The site-move email's row has Send: a list of members to tick, and
+// sending comes back to the row.
+func TestSiteMoveSendFromAutomations(t *testing.T) {
+	a, h, admin := testApp(t)
+	m, _, _ := a.store.Join(memberDetails{Name: "Ollie Old", Email: "ollie@example.com", Plan: "individual"}, a.cfg.ThisYear())
+	page := do(t, h, admin, "GET", "/admin/email/auto", "", nil).Body.String()
+	for _, want := range []string{`data-open="move-send"`, `id="move-send"`, `name="id" value="` + strconv.Itoa(m.ID) + `"`, "Ollie Old", "Not paid"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the Automations page is missing %q", want)
+		}
+	}
+	ct, body := form(url.Values{"id": {strconv.Itoa(m.ID)}, "return": {"/admin/email/auto"}})
+	if loc := do(t, h, admin, "POST", "/admin/members/moved", ct, body).Header().Get("Location"); loc != "/admin/email/auto?n=1&ok=moved#a-moved" {
+		t.Errorf("after sending: %q", loc)
+	}
+	if m, _ = a.store.MemberByID(m.ID); m.MovedSent == nil || !m.Paid() {
+		t.Errorf("sent and paid: %+v", m)
+	}
+	if page := do(t, h, admin, "GET", "/admin/email/auto", "", nil).Body.String(); !strings.Contains(page, `value="`+strconv.Itoa(m.ID)+`" data-sent`) {
+		t.Error("the list should show it went")
+	}
+}

@@ -17,6 +17,35 @@ editor for one, and the easy editor every email box uses (mail-cards). */}}
     <span class="auto-main"><strong>{{.Name}}</strong><span>{{.When}}</span></span><span class="auto-count">{{.Who}}</span></div></div>{{end}}</div>
 </details>
 
+<dialog id="move-send" class="card pick-dialog" aria-labelledby="move-send-h">
+  <form method="post" action="/admin/members/moved">
+    <input type="hidden" name="return" value="/admin/email/auto">
+    <div class="pick-top"><h2 id="move-send-h">Send the site-move email</h2>
+      <input type="search" class="pick-search" placeholder="Search names or emails" aria-label="Search"></div>
+    <div class="pick-tools"><button type="button" class="link" data-pick="new">Select everyone not sent yet</button> · <button type="button" class="link" data-pick="none">Clear</button></div>
+    <ul class="pick-list">{{range $v.Movers}}<li><label class="check"><input type="checkbox" name="id" value="{{.ID}}"{{if .Sent}} data-sent{{end}}>
+      <span class="pick-name">{{.Name}} <span class="muted small">{{.Email}}</span></span>
+      {{if .Sent}}<span class="tag">Sent</span>{{end}}{{if not .Paid}}<span class="tag tag-warn">Not paid</span>{{end}}</label></li>
+    {{else}}<li class="muted">No members yet.</li>{{end}}</ul>
+    <div class="send-row"><button class="pick-go" disabled>{{icon "send"}}Send to&nbsp;<span class="pick-n">0</span></button><button type="button" class="link" data-close>Cancel</button></div>
+  </form>
+</dialog>
+<script>
+// Send: tick who gets the site-move email. Members not paid yet are marked
+// paid when it goes (it's for people who paid on the old site).
+(function(){var d=document.getElementById('move-send');if(!d)return;var f=d.querySelector('form'),boxes=[].slice.call(f.querySelectorAll('input[name=id]')),
+    go=f.querySelector('.pick-go'),n=f.querySelector('.pick-n'),q=f.querySelector('.pick-search');
+  function count(){var k=boxes.filter(function(b){return b.checked}).length;n.textContent=k;go.disabled=!k}
+  f.addEventListener('change',count);
+  q.addEventListener('input',function(){var t=q.value.trim().toLowerCase();boxes.forEach(function(b){var li=b.closest('li');li.hidden=t&&li.textContent.toLowerCase().indexOf(t)<0})});
+  f.querySelector('[data-pick=new]').addEventListener('click',function(){boxes.forEach(function(b){if(!b.closest('li').hidden)b.checked=!b.hasAttribute('data-sent')});count()});
+  f.querySelector('[data-pick=none]').addEventListener('click',function(){boxes.forEach(function(b){b.checked=false});count()});
+  f.querySelector('[data-close]').addEventListener('click',function(){d.close()});
+  f.addEventListener('submit',function(e){var unpaid=boxes.filter(function(b){return b.checked&&b.closest('label').querySelector('.tag-warn')}).length;
+    if(!confirm('Send the site-move email to '+n.textContent+(n.textContent==='1'?' member':' members')+'?'+(unpaid?' '+unpaid+' not paid yet will be marked paid.':''))){e.preventDefault()}});
+  document.querySelectorAll('[data-open=move-send]').forEach(function(b){b.addEventListener('click',function(){d.showModal();q.focus()})});
+})();
+</script>
 <script>
 // Each row opens to show its details and a preview, drawn the first time.
 document.querySelectorAll('details.auto-row').forEach(function(d){d.addEventListener('toggle',function(){
@@ -48,7 +77,8 @@ document.querySelectorAll('form.auto-pause').forEach(function(f){f.addEventListe
         <div><dt>Subject</dt><dd>{{.Subject}}</dd></div>
       </dl>
       <div class="auto-actions">
-        {{if .CanEdit}}<a class="btn" href="/admin/email/auto/{{.Key}}">{{icon "pencil"}}Edit</a>{{end}}
+        {{if .CanSend}}<button type="button" class="btn" data-open="move-send">{{icon "send"}}Send</button>{{end}}
+        {{if .CanEdit}}<a class="btn{{if .CanSend}} ghost{{end}}" href="/admin/email/auto/{{.Key}}">{{icon "pencil"}}Edit</a>{{end}}
         {{if .CanPause}}<form class="auto-pause" method="post" action="/admin/email/auto/{{.Key}}/pause"><input type="hidden" name="paused" value="{{if .Paused}}0{{else}}1{{end}}"><button class="ghost">{{if .Paused}}{{icon "play"}}Resume{{else}}{{icon "pause"}}Pause{{end}}</button></form>{{end}}
         {{if .CanRemove}}<form method="post" action="/admin/email/auto/{{.Key}}/remove" onsubmit="return confirm('Remove “{{.Name}}”? It stops sending.')"><button class="link danger">{{icon "trash"}}Remove</button></form>{{end}}
       </div>
