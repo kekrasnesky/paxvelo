@@ -184,6 +184,7 @@ type storeData struct {
 	Welcome       WelcomeEmail   `json:"welcome_email"`
 	Moved         EmailDraft     `json:"moved_email,omitempty"`   // the site-move email (moved.go); blank = built in
 	Confirm       EmailDraft     `json:"confirm_email,omitempty"` // the confirm-your-email email (automations.go); blank = built in
+	ConfirmOff    bool           `json:"confirm_off,omitempty"`   // switched off: new joiners aren't asked to confirm
 	NextAuto      int            `json:"next_automation_id,omitempty"`
 	Automations   []*Automation  `json:"automations,omitempty"`        // admins' own automated emails (automations.go)
 	RemovedAuto   *Automation    `json:"removed_automation,omitempty"` // the one removed last, for Undo
@@ -469,7 +470,7 @@ func (s *Store) join(d memberDetails, year int, admin bool) (Member, JoinResult,
 	}
 	m := s.newMember(d.Name, d.Email, d.Plan)
 	m.update(d)
-	m.WelcomePending, m.Unconfirmed = !admin, !admin
+	m.WelcomePending, m.Unconfirmed = !admin, !admin && !s.d.ConfirmOff
 	return *m, Joined, s.save()
 }
 

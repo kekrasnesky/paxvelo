@@ -84,7 +84,7 @@ func TestAutomationRuns(t *testing.T) {
 		t.Fatalf("sent while paused: %q", s)
 	}
 	page := do(t, h, admin, "GET", "/admin/email/auto", "", nil).Body.String()
-	for _, want := range []string{"Pay nudge", "Paused", "Sent 1", "Confirm your email", "Welcome email", "Site-move email", "New member alert"} {
+	for _, want := range []string{`class="auto-row is-off" id="a-` + strconv.Itoa(au.ID) + `"`, `aria-checked="false" aria-label="Pay nudge"`, "Confirm your email", "Welcome email", `class="auto-row is-manual" id="a-moved"`, "New member alert"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("the Automations list is missing %q", want)
 		}
@@ -188,7 +188,7 @@ func TestSiteMoveSendFromAutomations(t *testing.T) {
 	a, h, admin := testApp(t)
 	m, _, _ := a.store.Join(memberDetails{Name: "Ollie Old", Email: "ollie@example.com", Plan: "individual"}, a.cfg.ThisYear())
 	page := do(t, h, admin, "GET", "/admin/email/auto", "", nil).Body.String()
-	for _, want := range []string{`data-open="move-send"`, `id="move-send"`, `name="id" value="` + strconv.Itoa(m.ID) + `"`, "Ollie Old", "Not paid"} {
+	for _, want := range []string{`class="auto-send"`, `class="auto-pick"`, `name="id" value="` + strconv.Itoa(m.ID) + `"`, "Ollie Old", "Not paid"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("the Automations page is missing %q", want)
 		}
@@ -202,5 +202,28 @@ func TestSiteMoveSendFromAutomations(t *testing.T) {
 	}
 	if page := do(t, h, admin, "GET", "/admin/email/auto", "", nil).Body.String(); !strings.Contains(page, `value="`+strconv.Itoa(m.ID)+`" data-sent`) {
 		t.Error("the list should show it went")
+	}
+}
+
+// The confirm email has a switch too. Off, a new joiner isn't asked to
+// confirm: club emails reach them right away, and no confirm email goes.
+func TestConfirmEmailSwitch(t *testing.T) {
+	a, h, admin := testApp(t)
+	ct, body := form(url.Values{"paused": {"1"}})
+	do(t, h, admin, "POST", "/admin/email/auto/confirm/pause", ct, body)
+	if a.store.ConfirmOn() {
+		t.Fatal("the switch should turn it off")
+	}
+	if page := do(t, h, admin, "GET", "/admin/email/auto", "", nil).Body.String(); !strings.Contains(page, `class="auto-row is-off" id="a-confirm"`) {
+		t.Error("the list should show it off")
+	}
+	m, _, _ := a.store.JoinPublic(memberDetails{Name: "Jo Doe", Email: "jo@example.com", Plan: "individual", Terms: true}, a.cfg.ThisYear())
+	if m.Unconfirmed || !m.Emailable() {
+		t.Errorf("with the confirm email off, a new joiner should get club emails: %+v", m)
+	}
+	ct, body = form(url.Values{"paused": {"0"}})
+	do(t, h, admin, "POST", "/admin/email/auto/confirm/pause", ct, body)
+	if m, _, _ := a.store.JoinPublic(memberDetails{Name: "Kim Lee", Email: "kim@example.com", Plan: "individual", Terms: true}, a.cfg.ThisYear()); !m.Unconfirmed {
+		t.Error("back on, new joiners confirm first")
 	}
 }

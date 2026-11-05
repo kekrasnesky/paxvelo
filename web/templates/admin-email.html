@@ -4,88 +4,87 @@ editor for one, and the easy editor every email box uses (mail-cards). */}}
 {{define "auto"}}{{template "head" .}}{{$v := .Auto}}
 {{if not .Live}}<p class="flash warn">Test mode: emails are written to the server log instead of being sent. Add the SMTP settings to paxvelo.conf to send for real.</p>{{end}}
 {{with $v.Removed}}<form class="flash warn undo-flash" method="post" action="/admin/email/auto/{{.}}/restore">Removed the automated email. <button class="link">{{icon "undo"}}Undo</button></form>{{end}}
-<div class="title-row"><h1>Automations</h1><a class="btn auto-new" href="/admin/email/auto/new">＋ New automated email</a></div>
+<div class="title-row"><h1>Automations</h1><a class="btn auto-new" href="/admin/email/auto/new">{{icon "plus"}}New automated email</a></div>
 
-<div class="auto-list">{{range $v.Autos}}{{template "auto-row" .}}{{end}}</div>
-
-<h2 class="section">Sent by hand</h2>
-<div class="auto-list">{{range $v.Manual}}{{template "auto-row" .}}{{end}}</div>
+<div class="auto-list">{{range $v.Autos}}{{template "auto-row" .}}{{end}}{{range $v.Manual}}{{template "auto-row" .}}{{end}}</div>
 
 <details class="auto-fixed">
   <summary><h2>Built-in notices</h2> <span class="auto-count">{{len $v.Builtin}}</span></summary>
-  <div class="auto-list">{{range $v.Builtin}}<div class="auto-row auto-plain"><div class="auto-sum"><span class="auto-state fixed">Built in</span>
-    <span class="auto-main"><strong>{{.Name}}</strong><span>{{.When}}</span></span><span class="auto-count">{{.Who}}</span></div></div>{{end}}</div>
+  <div class="auto-list">{{range $v.Builtin}}{{template "auto-row" .}}{{end}}</div>
 </details>
 
-<dialog id="move-send" class="card pick-dialog" aria-labelledby="move-send-h">
-  <form method="post" action="/admin/members/moved">
-    <input type="hidden" name="return" value="/admin/email/auto">
-    <div class="pick-top"><h2 id="move-send-h">Send the site-move email</h2>
-      <input type="search" class="pick-search" placeholder="Search names or emails" aria-label="Search"></div>
-    <div class="pick-tools"><button type="button" class="link" data-pick="new">Select everyone not sent yet</button> · <button type="button" class="link" data-pick="none">Clear</button></div>
-    <ul class="pick-list">{{range $v.Movers}}<li><label class="check"><input type="checkbox" name="id" value="{{.ID}}"{{if .Sent}} data-sent{{end}}>
-      <span class="pick-name">{{.Name}} <span class="muted small">{{.Email}}</span></span>
-      {{if .Sent}}<span class="tag">Sent</span>{{end}}{{if not .Paid}}<span class="tag tag-warn">Not paid</span>{{end}}</label></li>
-    {{else}}<li class="muted">No members yet.</li>{{end}}</ul>
-    <div class="send-row"><button class="pick-go" disabled>{{icon "send"}}Send to&nbsp;<span class="pick-n">0</span></button><button type="button" class="link" data-close>Cancel</button></div>
-  </form>
-</dialog>
 <script>
-// Send: tick who gets the site-move email. Members not paid yet are marked
-// paid when it goes (it's for people who paid on the old site).
-(function(){var d=document.getElementById('move-send');if(!d)return;var f=d.querySelector('form'),boxes=[].slice.call(f.querySelectorAll('input[name=id]')),
-    go=f.querySelector('.pick-go'),n=f.querySelector('.pick-n'),q=f.querySelector('.pick-search');
-  function count(){var k=boxes.filter(function(b){return b.checked}).length;n.textContent=k;go.disabled=!k}
-  f.addEventListener('change',count);
-  q.addEventListener('input',function(){var t=q.value.trim().toLowerCase();boxes.forEach(function(b){var li=b.closest('li');li.hidden=t&&li.textContent.toLowerCase().indexOf(t)<0})});
-  f.querySelector('[data-pick=new]').addEventListener('click',function(){boxes.forEach(function(b){if(!b.closest('li').hidden)b.checked=!b.hasAttribute('data-sent')});count()});
-  f.querySelector('[data-pick=none]').addEventListener('click',function(){boxes.forEach(function(b){b.checked=false});count()});
-  f.querySelector('[data-close]').addEventListener('click',function(){d.close()});
-  f.addEventListener('submit',function(e){var unpaid=boxes.filter(function(b){return b.checked&&b.closest('label').querySelector('.tag-warn')}).length;
-    if(!confirm('Send the site-move email to '+n.textContent+(n.textContent==='1'?' member':' members')+'?'+(unpaid?' '+unpaid+' not paid yet will be marked paid.':''))){e.preventDefault()}});
-  document.querySelectorAll('[data-open=move-send]').forEach(function(b){b.addEventListener('click',function(){d.showModal();q.focus()})});
+(function(){
+  // A row opens to its details and a preview, drawn the first time.
+  function open(row,on){var b=row.querySelector('.auto-body'),o=row.querySelector('.auto-open');if(!b)return;b.hidden=!on;o.setAttribute('aria-expanded',on);
+    var f=b.querySelector('iframe[data-src]');if(on&&f){var u=f.dataset.src;f.removeAttribute('data-src');fetch(u).then(function(r){return r.text()}).then(function(h){f.srcdoc=h})}}
+  document.querySelectorAll('.auto-open').forEach(function(o){o.addEventListener('click',function(){var row=o.closest('.auto-row');open(row,o.getAttribute('aria-expanded')!=='true')})});
+  // The switch turns an automation on or off, in place.
+  document.querySelectorAll('form.auto-pause').forEach(function(f){f.addEventListener('submit',function(e){e.preventDefault();
+    var b=f.querySelector('.switch'),row=f.closest('.auto-row'),name=row.querySelector('.auto-open strong').textContent;
+    if(f.paused.value==='1'&&row.dataset.key==='confirm'&&!confirm('Turn off “'+name+'”? New members will get club emails without confirming their address.'))return;
+    b.disabled=true;
+    fetch(f.action,{method:'POST',headers:{Accept:'application/json'},body:new URLSearchParams(new FormData(f))}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(j){
+      row.classList.toggle('is-on',!j.paused);row.classList.toggle('is-off',j.paused);
+      b.setAttribute('aria-checked',!j.paused);b.title=j.paused?'Off: press to turn on':'On: press to turn off';
+      f.paused.value=j.paused?'0':'1';b.disabled=false})
+    .catch(function(){f.submit()})})});
+  // Send to members: the list opens in the row. Members not paid yet are
+  // marked paid when the site-move email goes (it's for people who paid on
+  // the old site).
+  document.querySelectorAll('form.auto-pick').forEach(function(f){
+    var row=f.closest('.auto-row'),btn=row.querySelector('.auto-send'),boxes=[].slice.call(f.querySelectorAll('input[name=id]')),
+        go=f.querySelector('.pick-go'),n=f.querySelector('.pick-n'),q=f.querySelector('.pick-search');
+    function show(on){f.hidden=!on;btn.setAttribute('aria-expanded',on);if(on)q.focus()}
+    btn.addEventListener('click',function(){show(f.hidden)});
+    f.querySelector('[data-close]').addEventListener('click',function(){show(false);btn.focus()});
+    function count(){var k=boxes.filter(function(b){return b.checked}).length;n.textContent=k;go.disabled=!k}
+    f.addEventListener('change',count);
+    q.addEventListener('input',function(){var t=q.value.trim().toLowerCase();boxes.forEach(function(b){var li=b.closest('li');li.hidden=!!t&&li.textContent.toLowerCase().indexOf(t)<0})});
+    f.querySelector('[data-pick=new]').addEventListener('click',function(){boxes.forEach(function(b){if(!b.closest('li').hidden)b.checked=!b.hasAttribute('data-sent')});count()});
+    f.querySelector('[data-pick=none]').addEventListener('click',function(){boxes.forEach(function(b){b.checked=false});count()});
+    f.addEventListener('submit',function(e){var k=+n.textContent,unpaid=boxes.filter(function(b){return b.checked&&b.hasAttribute('data-unpaid')}).length;
+      if(!confirm('Send the site-move email to '+k+(k===1?' member':' members')+'?'+(unpaid?' '+unpaid+' not paid yet will be marked paid.':'')))e.preventDefault()});
+  });
+  // Back from saving or sending (#a-welcome): that row, open.
+  var r=location.hash&&document.getElementById(location.hash.slice(1));if(r&&r.classList.contains('auto-row')){open(r,true);r.scrollIntoView({block:'center'})}
 })();
-</script>
-<script>
-// Each row opens to show its details and a preview, drawn the first time.
-document.querySelectorAll('details.auto-row').forEach(function(d){d.addEventListener('toggle',function(){
-  var f=d.querySelector('iframe[data-src]');if(!d.open||!f)return;var u=f.dataset.src;f.removeAttribute('data-src');
-  fetch(u).then(function(r){return r.text()}).then(function(h){f.srcdoc=h})})});
-// Pause and Resume answer in place.
-document.querySelectorAll('form.auto-pause').forEach(function(f){f.addEventListener('submit',function(e){e.preventDefault();
-  var b=f.querySelector('button'),p=f.paused.value==='1',row=f.closest('.auto-row');b.disabled=true;
-  fetch(f.action,{method:'POST',headers:{Accept:'application/json'},body:new URLSearchParams(new FormData(f))}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(j){
-    var st=row.querySelector('.auto-state');st.textContent=j.paused?'Paused':'On';st.classList.toggle('off',j.paused);
-    f.paused.value=j.paused?'0':'1';b.innerHTML=j.paused?{{icon "play"}}+'Resume':{{icon "pause"}}+'Pause';b.disabled=false})
-  .catch(function(){f.submit()})})});
-// Open the row a link points to (#a-welcome), after saving.
-(function(){var d=location.hash&&document.getElementById(location.hash.slice(1));if(d&&d.tagName==='DETAILS'){d.open=true;d.dispatchEvent(new Event('toggle'))}})();
 </script>
 {{template "foot" .}}{{end}}
 
-{{define "auto-row"}}<details class="auto-row" id="a-{{.Key}}">
-  <summary class="auto-sum">
-    <span class="auto-state{{if .Paused}} off{{end}}">{{if .Paused}}Paused{{else if .CanPause}}On{{else if eq .Key "moved"}}By hand{{else}}Always on{{end}}</span>
-    <span class="auto-main"><strong>{{.Name}}</strong><span>{{.When}}</span></span>
-    <span class="auto-count">{{if .Sent}}Sent {{.Sent}} · last {{date .Last}}{{else}}Not sent yet{{end}}</span>
-  </summary>
-  <div class="auto-body">
-    <div class="auto-info">
-      <dl class="auto-facts">
-        <div><dt>When</dt><dd>{{.When}}</dd></div>
-        <div><dt>Goes to</dt><dd>{{.Who}}</dd></div>
-        <div><dt>Subject</dt><dd>{{.Subject}}</dd></div>
-      </dl>
-      <div class="auto-actions">
-        {{if .CanSend}}<button type="button" class="btn" data-open="move-send">{{icon "send"}}Send</button>{{end}}
-        {{if .CanEdit}}<a class="btn{{if .CanSend}} ghost{{end}}" href="/admin/email/auto/{{.Key}}">{{icon "pencil"}}Edit</a>{{end}}
-        {{if .CanPause}}<form class="auto-pause" method="post" action="/admin/email/auto/{{.Key}}/pause"><input type="hidden" name="paused" value="{{if .Paused}}0{{else}}1{{end}}"><button class="ghost">{{if .Paused}}{{icon "play"}}Resume{{else}}{{icon "pause"}}Pause{{end}}</button></form>{{end}}
-        {{if .CanRemove}}<form method="post" action="/admin/email/auto/{{.Key}}/remove" onsubmit="return confirm('Remove “{{.Name}}”? It stops sending.')"><button class="link danger">{{icon "trash"}}Remove</button></form>{{end}}
-      </div>
-    </div>
-    <div class="auto-prev"><iframe title="Preview of {{.Name}}" sandbox="allow-same-origin" data-src="/admin/email/auto/{{.Key}}/preview"></iframe></div>
+{{define "auto-row"}}<section class="auto-row {{if .Manual}}is-manual{{else if .Paused}}is-off{{else}}is-on{{end}}" id="a-{{.Key}}" data-key="{{.Key}}">
+  <div class="auto-head">
+    <button type="button" class="auto-open" aria-expanded="false"{{if .Fixed}} disabled{{end}}>
+      <strong>{{.Name}}</strong><span>{{.When}}</span>
+    </button>
+    <span class="auto-count" title="Sent so far">{{if .Fixed}}{{.Who}}{{else if .Sent}}{{icon "mail"}}{{.Sent}} · {{date .Last}}{{end}}</span>
+    <span class="auto-acts">
+      {{if .CanSend}}<button type="button" class="auto-send" aria-expanded="false">{{icon "send"}}Send to members</button>{{end}}
+      {{if .CanEdit}}<a class="btn ghost" href="/admin/email/auto/{{.Key}}">{{icon "pencil"}}Edit</a>{{end}}
+      {{if .CanPause}}<form class="auto-pause" method="post" action="/admin/email/auto/{{.Key}}/pause"><input type="hidden" name="paused" value="{{if .Paused}}0{{else}}1{{end}}"><button class="switch" role="switch" aria-checked="{{if .Paused}}false{{else}}true{{end}}" aria-label="{{.Name}}" title="{{if .Paused}}Off: press to turn on{{else}}On: press to turn off{{end}}"><span></span></button></form>{{end}}
+    </span>
   </div>
-</details>{{end}}
+  {{if .CanSend}}<form class="auto-pick" method="post" action="/admin/members/moved" hidden>
+    <input type="hidden" name="return" value="/admin/email/auto">
+    <div class="pick-top"><h3>Who gets the {{.Name}}?</h3>
+      <input type="search" class="pick-search" placeholder="Search names or emails" aria-label="Search members"></div>
+    <div class="pick-tools"><button type="button" class="link" data-pick="new">Everyone not sent yet</button><button type="button" class="link" data-pick="none">Clear</button></div>
+    <ul class="pick-list">{{range .Movers}}<li><label><input type="checkbox" name="id" value="{{.ID}}"{{if .Sent}} data-sent{{end}}{{if not .Paid}} data-unpaid{{end}}>
+      <span class="pick-name">{{.Name}} <span class="muted small">{{.Email}}</span></span>
+      {{if .Sent}}<span class="tag" title="Already sent">{{icon "check"}}Sent</span>{{end}}{{if not .Paid}}<span class="tag tag-warn">Not paid</span>{{end}}</label></li>
+    {{else}}<li class="muted">No members yet.</li>{{end}}</ul>
+    <div class="send-row"><button class="pick-go" disabled>{{icon "send"}}Send to&nbsp;<span class="pick-n">0</span></button><button type="button" class="link" data-close>Cancel</button></div>
+  </form>{{end}}
+  {{if not .Fixed}}<div class="auto-body" hidden>
+    <dl class="auto-facts">
+      <div><dt>When</dt><dd>{{.When}}</dd></div>
+      <div><dt>Goes to</dt><dd>{{.Who}}</dd></div>
+      <div><dt>Subject</dt><dd>{{.Subject}}</dd></div>
+      {{if .CanRemove}}<div><dt></dt><dd><form method="post" action="/admin/email/auto/{{.Key}}/remove" onsubmit="return confirm('Remove “{{.Name}}”? It stops sending.')"><button class="link danger">{{icon "trash"}}Remove</button></form></dd></div>{{end}}
+    </dl>
+    <div class="auto-prev"><iframe title="Preview of {{.Name}}" sandbox="allow-same-origin" data-src="/admin/email/auto/{{.Key}}/preview"></iframe></div>
+  </div>{{end}}
+</section>{{end}}
 
 {{define "auto-edit"}}{{template "head" .}}{{$f := .Auto.Form}}
 <p class="crumb"><a href="/admin/email/auto">← Automations</a></p>

@@ -355,6 +355,20 @@ func (s *Store) ConfirmText() EmailDraft {
 	return e
 }
 
+// ConfirmOn reports whether new joiners get the confirm email.
+func (s *Store) ConfirmOn() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return !s.d.ConfirmOff
+}
+
+func (s *Store) SetConfirmOn(on bool) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.d.ConfirmOff = !on
+	return s.save()
+}
+
 func (s *Store) SetConfirmText(e EmailDraft) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -375,6 +389,9 @@ type autoRow struct {
 	Key, Name, When, Who, Subject, About  string
 	Paused                                bool
 	CanPause, CanEdit, CanRemove, CanSend bool
+	Manual                                bool         // sent by hand, not by itself
+	Fixed                                 bool         // the site writes it: can't be changed
+	Movers                                []moveChoice // who it can go to, for one sent by hand
 	Sent                                  int
 	Last                                  time.Time
 }
@@ -423,8 +440,7 @@ type autoView struct {
 	Autos, Manual, Builtin []autoRow
 	Form                   *autoForm
 	Triggers               []autoTrigger
-	Removed                int          // an automation just removed, for Undo
-	Movers                 []moveChoice // who the site-move email can go to
+	Removed                int // an automation just removed, for Undo
 }
 
 // moveChoice is a member in the site-move email's Send picker.
@@ -476,7 +492,7 @@ func (a *App) autoRows() (autos, manual []autoRow) {
 	w, c, mv := a.store.Welcome(), a.store.ConfirmText(), a.store.MovedEmail()
 	autos = []autoRow{
 		{Key: "confirm", Name: "Confirm your email", When: "Right away when someone joins on the website", Who: "The new member",
-			Subject: c.Subject, CanEdit: true, Sent: n[mailConfirm], Last: last[mailConfirm],
+			Subject: c.Subject, Paused: !a.store.ConfirmOn(), CanPause: true, CanEdit: true, Sent: n[mailConfirm], Last: last[mailConfirm],
 			About: "Club emails reach a new member once they press its button. Members coming back after unsubscribing, or renewing on the join form, get it with a first paragraph written for them. It can’t be paused: new members need it."},
 		{Key: "welcome", Name: "Welcome email", When: "The first time someone who joined on the website is marked paid", Who: "The new member",
 			Subject: w.Subject, Paused: !w.Enabled, CanPause: true, CanEdit: true, Sent: n[mailWelcome], Last: last[mailWelcome],
@@ -494,17 +510,24 @@ func (a *App) autoRows() (autos, manual []autoRow) {
 		autos = append(autos, r)
 	}
 	manual = []autoRow{{Key: "moved", Name: "Site-move email", When: "Sent by hand", Who: "Members who paid on the old site",
-		Subject: mv.Subject, CanEdit: true, CanSend: true, Sent: n[mailMoved], Last: last[mailMoved],
+		Subject: mv.Subject, CanEdit: true, CanSend: true, Manual: true, Sent: n[mailMoved], Last: last[mailMoved],
 		About: "Tick members and press Mark paid & send site-move email, or use the button on a member’s page. It goes instead of the welcome email."}}
 	return
 }
 
 func (a *App) autoPage(w http.ResponseWriter, r *http.Request) {
 	v := adminView{Title: "Automated emails", Tab: "auto", TestTo: a.cfg.AdminEmail, Live: a.mailer.live()}
-	av := &autoView{Builtin: builtinAutos, Triggers: autoTriggers}
+	av := &autoView{Builtin: slices.Clone(builtinAutos), Triggers: autoTriggers}
+	for i := range av.Builtin {
+		av.Builtin[i].Fixed = true
+	}
 	av.Autos, av.Manual = a.autoRows()
 	av.Removed, _ = strconv.Atoi(r.URL.Query().Get("removed"))
-	av.Movers = a.moveChoices()
+	for i := range av.Manual {
+		if av.Manual[i].CanSend {
+			av.Manual[i].Movers = a.moveChoices()
+		}
+	}
 	v.Auto = av
 	v.Flash, v.Error = flashFrom(r)
 	a.renderAdmin(w, r, http.StatusOK, "auto", v)
@@ -632,6 +655,8 @@ func (a *App) autoPause(w http.ResponseWriter, r *http.Request) {
 		we := a.store.Welcome()
 		we.Enabled = !paused
 		a.store.SetWelcome(we)
+	case "confirm":
+		a.store.SetConfirmOn(!paused)
 	default:
 		id, _ := strconv.Atoi(key)
 		a.store.PauseAutomation(id, paused)

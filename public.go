@@ -262,7 +262,7 @@ func (a *App) join(w http.ResponseWriter, r *http.Request) {
 	emailed := a.emailHousehold(m, added) // if their dues are paid already; otherwise once they are
 	// The link to confirm their address. A few an hour per address, so
 	// nobody can flood someone's inbox by typing it in.
-	if a.limit.Allow("confirm:"+m.Email, 3, time.Hour) {
+	if m.Unconfirmed && a.limit.Allow("confirm:"+m.Email, 3, time.Hour) {
 		a.mailer.Go(func() { a.sendConfirm(m) }) // a failure is logged by send
 	}
 
@@ -289,8 +289,10 @@ func (a *App) join(w http.ResponseWriter, r *http.Request) {
 	}
 	// Club emails wait until they confirm the address from their inbox,
 	// since anyone could type it. Paying doesn't wait.
-	d.Detail += " Please also confirm your email: we’ve sent a link to " + m.Email +
-		". Not there in a few minutes? Check spam, or press “Email me my membership page link” below."
+	if m.Unconfirmed {
+		d.Detail += " Please also confirm your email: we’ve sent a link to " + m.Email +
+			". Not there in a few minutes? Check spam, or press “Email me my membership page link” below."
+	}
 	reply(http.StatusOK, d)
 }
 
