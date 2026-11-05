@@ -76,8 +76,12 @@ type Waiver struct {
 	Year     int `json:"year"` // the membership year it covers, January to December
 	// The member's name and email on file when they signed. For a rider
 	// under 18, the member is the parent or guardian who signed for them.
-	Name      string    `json:"name"`
-	Email     string    `json:"email"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
+	// Account is the member's email now, when it has changed since they
+	// signed (Email stays as signed). It finds them again if they're
+	// deleted and added back (relinkWaivers).
+	Account   string    `json:"account,omitempty"`
 	Signature string    `json:"signature"` // the name they typed to sign
 	Signed    time.Time `json:"signed"`
 	Version   string    `json:"version"` // the text they signed, in the store's waiver texts
@@ -209,8 +213,9 @@ func (s *Store) SignWaiver(w Waiver, text waiverText) (Waiver, bool, error) {
 }
 
 // relinkWaivers gives waivers whose member was deleted back to whoever is on
-// the list now with the email it was signed under (the account holder's, also
-// for riders under 18 and Family adults). Deleting someone keeps their
+// the list now with the account holder's email (also for riders under 18 and
+// Family adults): the one it was signed under, or the newer one if the member
+// changed it. Deleting someone keeps their
 // waivers, so a member deleted and added again, by hand or by an import,
 // gets them back. Member numbers are never reused, so a waiver can't land on
 // someone else. Callers hold s.mu.
@@ -226,7 +231,7 @@ func (s *Store) relinkWaivers() (n int) {
 		if ids[w.MemberID] {
 			continue
 		}
-		if m := s.byEmail(strings.ToLower(strings.TrimSpace(w.Email))); m != nil {
+		if m := s.byEmail(strings.ToLower(strings.TrimSpace(or(w.Account, w.Email)))); m != nil {
 			w.MemberID = m.ID
 			n++
 		}

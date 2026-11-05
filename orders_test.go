@@ -97,3 +97,24 @@ func TestWaiversFollowReaddedMember(t *testing.T) {
 		t.Error("the other deleted member's waiver is still kept")
 	}
 }
+
+// A member who changed their email, then was deleted and added back under the
+// new one, still gets their waivers; the waiver keeps the email it was signed
+// under.
+func TestWaiversFollowChangedEmail(t *testing.T) {
+	a, _, _ := testApp(t)
+	year := a.cfg.ThisYear()
+	a.store.Import([]Member{{Name: "Pat", Email: "pat@old.example", Plan: "individual"}})
+	pat, _ := a.store.MemberByEmail("pat@old.example")
+	a.store.SignWaiver(Waiver{MemberID: pat.ID, Year: year, Signature: "Pat", Where: "Join form"}, a.site.waiver)
+	if err := a.store.UpdateMember(pat.ID, memberDetails{Name: "Pat", Email: "pat@new.example", Plan: "individual"}); err != nil {
+		t.Fatal(err)
+	}
+	a.store.DeleteMembers([]int{pat.ID})
+	a.store.Import([]Member{{Name: "Pat", Email: "pat@new.example"}})
+	back, _ := a.store.MemberByEmail("pat@new.example")
+	ws := a.store.WaiversOf(back.ID)
+	if len(ws) != 1 || ws[0].Email != "pat@old.example" {
+		t.Errorf("waivers on the re-added member: %+v", ws)
+	}
+}

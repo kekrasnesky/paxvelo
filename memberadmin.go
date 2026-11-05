@@ -128,6 +128,13 @@ func (s *Store) UpdateMember(id int, d memberDetails) error {
 	if o := s.byEmail(d.Email); o != nil && o.ID != id {
 		return errEmailTaken
 	}
+	if d.Email != m.Email {
+		for _, w := range s.d.Waivers {
+			if w.MemberID == id {
+				w.Account = d.Email
+			}
+		}
+	}
 	m.Name, m.Email, m.Plan = d.Name, d.Email, d.Plan
 	m.Phone, m.EmergencyName, m.EmergencyPhone, m.Level = d.Phone, d.EmergencyName, d.EmergencyPhone, d.Level
 	return s.save()
