@@ -241,7 +241,7 @@ var flashText = map[string]string{
 	"record-saved":         "Membership record saved.",
 	"renewed":              "Renewed for another year.",
 	"moved-saved":          "Site-move email saved.",
-	"member-saved":         "Saved.",
+	"member-saved":         "Changes saved.",
 	"sending":              "Sending now. It keeps going in the background, so you can close this page.",
 	"stopped":              "Sending stopped.",
 	"resumed":              "Sending resumed.",

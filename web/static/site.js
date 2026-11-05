@@ -34,6 +34,21 @@
     if(root.classList.contains('menu-open')){setMenu(false);if(burger)burger.focus()}
     setDD(false);
   });
+  // The header slides away while you scroll down the page and comes back as
+  // soon as you scroll up, so phones get the whole screen for reading. It
+  // stays while a menu is open or something in it has focus.
+  var hdr=d.querySelector('.hdr'),lastY=scrollY,ticking=false;
+  function onScroll(){
+    ticking=false;
+    var y=scrollY,hide=y>lastY&&y>120;
+    if(Math.abs(y-lastY)<6)return; // ignore tiny jitters
+    if(hide&&(root.classList.contains('menu-open')||(dd&&dd.classList.contains('open'))||hdr.querySelector(':focus-visible')))hide=false; // keyboard focus in it keeps it
+    hdr.classList.toggle('hdr-hidden',hide);
+    if(hide)setDD(false);
+    lastY=y;
+  }
+  if(hdr)addEventListener('scroll',function(){if(!ticking){ticking=true;requestAnimationFrame(onScroll)}},{passive:true});
+
   // A page brought back by the Back button is restored exactly as it was left,
   // which would be with the menu still open after tapping one of its links
   addEventListener('pageshow',function(e){if(e.persisted){setMenu(false);setDD(false)}});

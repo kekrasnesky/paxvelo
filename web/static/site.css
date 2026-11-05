@@ -43,8 +43,10 @@ strong{font-weight:500}
 .skip{position:absolute;left:-9999px;top:.5rem;z-index:50;background:var(--paper);color:var(--ink);padding:.5rem 1rem}
 .skip:focus{left:.5rem}
 
-/* ---------- Header: a slim bar that stays at the top ---------- */
-.hdr{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:1.5rem;min-height:60px;padding:0 var(--side);background:var(--ink);color:var(--paper)}
+/* ---------- Header: a slim bar at the top. It slides away while you scroll
+   down and comes back when you scroll up (site.js) ---------- */
+.hdr{position:sticky;top:0;z-index:20;transition:transform .3s ease;display:flex;align-items:center;justify-content:space-between;gap:1.5rem;min-height:60px;padding:0 var(--side);background:var(--ink);color:var(--paper)}
+.hdr.hdr-hidden{transform:translateY(-100%)}
 .logo{display:flex;align-items:center;gap:12px;padding:6px 0;color:var(--paper);text-decoration:none}
 .logo img{width:84px;height:auto;transition:filter .25s}
 /* The PV mark lights up a little on hover */
@@ -59,12 +61,18 @@ strong{font-weight:500}
 @media (hover:hover){.nav .nav-join:hover{background:#b3322f}}
 .nav .nav-admin{margin-left:4px;font-size:13px;opacity:.7}
 .dd{position:relative;align-self:stretch;display:flex;align-items:center}
-.dd-btn{display:flex;align-items:center;gap:7px;border:0;background:none;font:inherit;letter-spacing:inherit;text-transform:inherit;cursor:pointer}
+.dd-btn{display:flex;align-items:center;gap:7px;border:0;background:none;font:inherit;letter-spacing:inherit;text-transform:inherit;cursor:pointer;transition:background .15s,color .15s}
 .dd-btn svg{width:10px;height:6px;fill:none;stroke:currentColor;stroke-width:1.4;transition:transform .15s}
 .dd.open .dd-btn svg{transform:rotate(180deg)}
-.dd-menu{position:absolute;top:100%;right:0;display:none;min-width:220px;padding:6px;border-radius:0 0 var(--radius) var(--radius);background:var(--ink);box-shadow:0 12px 24px rgba(0,0,0,.25)}
-.dd.open .dd-menu{display:block}
-@media (hover:hover){.dd:hover .dd-menu{display:block}}
+/* The Info menu fades in and grows from its corner; the button turns solid while it's open */
+.dd-menu{position:absolute;top:100%;right:0;min-width:220px;padding:6px;border-radius:0 0 var(--radius) var(--radius);background:var(--ink);box-shadow:0 12px 24px rgba(0,0,0,.25);
+  visibility:hidden;opacity:0;transform:scale(.92);transform-origin:top right;pointer-events:none;transition:opacity .15s ease,transform .15s ease,visibility 0s linear .15s}
+.dd.open .dd-menu{visibility:visible;opacity:1;transform:none;pointer-events:auto;transition:opacity .15s ease,transform .15s ease,visibility 0s}
+.dd.open .dd-btn{background:var(--paper);color:var(--ink)}
+@media (hover:hover){
+  .dd:hover .dd-menu{visibility:visible;opacity:1;transform:none;pointer-events:auto;transition:opacity .15s ease,transform .15s ease,visibility 0s}
+  .dd:hover .dd-btn{background:var(--paper);color:var(--ink)}
+}
 .dd-menu a{display:block;padding:.45rem .75rem;border-radius:6px;white-space:nowrap}
 @media (hover:hover){.dd-menu a:hover{background:rgba(245,242,236,.14)}}
 .burger{display:none}
@@ -742,8 +750,11 @@ html:has(.gal-view[open]){overflow:hidden} /* the page behind stays put */
   .burger span:last-child{top:25px}
   .menu-open .burger span:first-child{transform:translateY(4px) rotate(45deg)}
   .menu-open .burger span:last-child{transform:translateY(-4px) rotate(-45deg)}
-  .js .nav{position:fixed;inset:0;z-index:1;display:none;flex-direction:column;align-items:center;justify-content:center;gap:.7rem;padding:5rem 2rem 2rem;overflow-y:auto;background:var(--ink);font-size:1.6rem;line-height:1.3}
-  .menu-open .nav{display:flex}
+  .js .nav{position:fixed;inset:0;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.7rem;padding:5rem 2rem 2rem;overflow-y:auto;background:var(--ink);font-size:1.6rem;line-height:1.3;
+    visibility:hidden;opacity:0;transition:opacity .2s ease,visibility 0s linear .2s}
+  .js .nav>*{transform:translateY(8px);transition:transform .25s ease}
+  .menu-open .nav{visibility:visible;opacity:1;transition:opacity .2s ease,visibility 0s}
+  .menu-open .nav>*{transform:none}
   .menu-open body{overflow:hidden}
   .no-js .nav{flex-wrap:wrap;justify-content:flex-end;gap:.3rem .6rem;font-size:.9rem}
   .js .nav>a,.js .dd-btn{padding:.2rem .8rem}
@@ -757,9 +768,10 @@ html:has(.gal-view[open]){overflow:hidden} /* the page behind stays put */
   .dd{display:flex;flex-direction:column;align-items:center;align-self:auto}
   .dd-btn{gap:10px}
   .dd-btn svg{width:14px;height:9px}
-  .dd-menu{position:static;min-width:0;padding:.3rem 0 0;border-radius:0;background:none;box-shadow:none;font-size:1.05rem;text-align:center}
+  .dd-menu{position:static;display:none;min-width:0;padding:.3rem 0 0;border-radius:0;background:none;box-shadow:none;font-size:1.05rem;text-align:center;visibility:visible;opacity:1;transform:none;pointer-events:auto;transition:none}
   .dd:hover .dd-menu{display:none}
   .dd.open .dd-menu{display:block}
+  .dd.open .dd-btn,.dd:hover .dd-btn{background:none;color:var(--paper)}
   .dd-menu a{padding:.65rem 0}
   .hero{min-height:360px}
   .hero-in{padding:48px var(--pad) 20px}
@@ -823,3 +835,6 @@ html:has(.gal-view[open]){overflow:hidden} /* the page behind stays put */
 /* ---------- Button icons (icons.go) ---------- */
 .ic{flex:none;width:1.1em;height:1.1em;margin-right:.4em;vertical-align:-.2em;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 button:has(>.ic),.btn:has(>.ic){display:inline-flex;align-items:center;justify-content:center}
+
+/* No sliding or fading for people who turn motion off on their device */
+@media (prefers-reduced-motion:reduce){.hdr,.dd-menu,.js .nav,.js .nav>*,.dd-btn svg{transition:none!important}}

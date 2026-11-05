@@ -59,6 +59,15 @@ tr.off td{color:var(--muted)}
 .small{font-size:.82rem}
 .err-text{display:block;color:var(--red)}
 .flash{margin:0 0 1.5rem;padding:.75rem 1rem;border-left:4px solid #3c7a46;background:#fff}
+/* Saved, added, marked paid: a green message with a tick that floats at the
+   bottom of the window, so it shows wherever the page lands, then fades after
+   8 seconds (hovering holds it). Errors and warnings stay in place, plain. */
+.flash:not(.err):not(.warn){display:flex;align-items:center;gap:.7rem;padding:.9rem 1.3rem;font-size:1.05rem;border:1px solid #9cc9a3;border-left:6px solid #2f7a3b;border-radius:8px;background:#e9f6eb;color:#1f5128;font-weight:500;box-shadow:0 6px 24px rgba(0,0,0,.18);position:fixed;z-index:100;left:50%;bottom:1.25rem;width:max-content;max-width:min(40rem,calc(100% - 2rem));margin:0;translate:-50% 0;animation:flash-in .35s ease,flash-out .5s ease 8s forwards}
+.flash:not(.err):not(.warn):hover{animation-play-state:paused}
+.flash:not(.err):not(.warn)::before{content:"";flex:none;width:1.4rem;height:1.4rem;border-radius:50%;background:#2f7a3b url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center/70% no-repeat}
+@keyframes flash-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes flash-out{to{opacity:0;visibility:hidden}}
+@media (prefers-reduced-motion:reduce){.flash:not(.err):not(.warn){animation:flash-out 0s 8s forwards!important}}
 .flash.err{border-color:var(--red)}
 .flash.warn{border-color:#c98a1b}
 .tools{display:flex;flex-wrap:wrap;justify-content:space-between;gap:.75rem;margin-top:1.25rem}
