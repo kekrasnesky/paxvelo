@@ -21,6 +21,7 @@ The club's website: public pages, membership signup with PayPal dues, a ride cal
 | **Website → Photos to review** | Photos members shared wait here. Each person's photos are one card: press **Approve** to put them in the gallery, or **Reject**. Both can be undone. |
 | **Instagram** | Choose which club posts show on the home page. |
 | **Minutes** | Upload meeting minutes (PDF or Word). They aren't listed publicly; anyone with the link can open them. |
+| **Treasurer** | The club's books. **Expenses** and **Income**: add what was spent or received, with a photo or PDF of the receipt. Dues marked paid on Members count as membership income automatically. **Budget**: the year's starting balance, budget and notes. **Reports**: the Income/Expense report for board meetings, to print, download, or save for a meeting. Only the treasurer or the president can remove a line. |
 | **Stats** | How many people visit and open emails. Counts only: it never tracks individuals. |
 | **Security (gear icon)** | Add or remove admins, set the **Club PIN**, download a full backup. |
 
@@ -32,7 +33,7 @@ The **Needs attention** notice tells you when something is waiting: new photos, 
 - **Members checking their status:** **My Membership** is in the menu on every page. The first time, it asks for their email and sends a link; after they open it, that device remembers them.
 - **Member renewing on the Join form:** nothing they typed counts until they press the link we email them, since anyone can type any email. Until then Members shows "Renewal not confirmed" and their waiver shows as not signed.
 - **Start of each year:** everyone shows as not paid. Email that group a reminder (put `{pay_link}` in the message so each person gets their own PayPal link), and ask everyone to sign the new waiver.
-- **Add an admin:** Security → Admins → enter name and email. They get a link to choose a password. Only the **President** can remove admins, delete members or remove an automated email.
+- **Add an admin:** Security → Admins → enter name and email. They get a link to choose a password. Only the **President** can remove admins, delete members or remove an automated email. The President can mark one admin as **Treasurer**.
 - **Forgot your password:** use **Forgot your password?** on the login page.
 - **Club PIN:** a shared code members can type to post photos and add rides without waiting for approval. Change it if it gets passed around.
 - **Monthly newsletter:** Newsletter → Start a new draft → fill in the blocks → Save and preview → Save and publish → Email members about it.

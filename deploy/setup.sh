@@ -32,12 +32,14 @@ APT
 echo 'deploy ALL=(root) NOPASSWD: /usr/local/bin/paxvelo-install' > /etc/sudoers.d/paxvelo-deploy
 chmod 440 /etc/sudoers.d/paxvelo-deploy
 # Nightly backup of the data file at 3am, keeping 30 days, and a weekly copy
-# of the newsletter photos and minutes files uploaded in the admin, keeping 8 weeks.
-mkdir -p /opt/paxvelo/data/media /opt/paxvelo/data/files
-chown paxvelo:paxvelo /opt/paxvelo/data/media /opt/paxvelo/data/files
+# of the newsletter photos, minutes files and treasurer's receipts uploaded in
+# the admin, keeping 8 weeks.
+mkdir -p /opt/paxvelo/data/media /opt/paxvelo/data/files /opt/paxvelo/data/receipts
+chown paxvelo:paxvelo /opt/paxvelo/data/media /opt/paxvelo/data/files /opt/paxvelo/data/receipts
+chmod 700 /opt/paxvelo/data/receipts
 cat > /etc/cron.d/paxvelo-backup <<'CRON'
 0 3 * * * paxvelo cp /opt/paxvelo/data/paxvelo.json /opt/paxvelo/backups/paxvelo-$(date +\%F).json && find /opt/paxvelo/backups -name '*.json' -mtime +30 -delete
-30 3 * * 0 paxvelo tar -czf /opt/paxvelo/backups/media-$(date +\%F).tgz -C /opt/paxvelo/data media files && find /opt/paxvelo/backups -name 'media-*.tgz' -mtime +56 -delete
+30 3 * * 0 paxvelo tar -czf /opt/paxvelo/backups/media-$(date +\%F).tgz -C /opt/paxvelo/data media files receipts && find /opt/paxvelo/backups -name 'media-*.tgz' -mtime +56 -delete
 CRON
 # At 3:30am, copy those backups to Google Drive (does nothing until Drive is connected).
 echo '30 3 * * * paxvelo /usr/local/bin/paxvelo-offsite' > /etc/cron.d/paxvelo-offsite

@@ -234,6 +234,9 @@ type storeData struct {
 	HomePhotos  []HomePhoto         `json:"home_photos,omitempty"`
 	HomeSeeded  bool                `json:"home_photos_seeded,omitempty"`
 	Hero        HeroPhoto           `json:"hero"` // the photo at the top of the home page (hero.go)
+
+	// The treasurer's books: expenses, income, budgets and saved reports (treasurer.go).
+	Treasury Treasury `json:"treasury"`
 }
 
 type Store struct {
@@ -332,6 +335,7 @@ func openStore(dir string) (*Store, error) {
 	s.upgradeIssues()
 	s.albumize()
 	s.relinkWaivers()
+	s.seedTreasury()
 	return s, s.save()
 }
 

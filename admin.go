@@ -30,6 +30,7 @@ type adminView struct {
 	Dashboard                         *dashboardView // Home
 	Guide                             *guideView     // the How the site works page
 	Stats                             *statsView     // the Stats page
+	Money                             *moneyView     // the Treasurer tab (treasureradmin.go)
 	CSS                               template.CSS
 	PhotoJS                           template.JS // photos.js: photos shrink before they upload
 	Year                              int
@@ -310,6 +311,13 @@ var flashText = map[string]string{
 	"invited":              "Added. They’ve been emailed a link to choose their password.",
 	"link-sent":            "A new password link is on its way.",
 	"admin-removed":        "Admin removed. They can’t log in anymore.",
+	"treasurer":            "Saved.",
+	"money-added":          "Added.",
+	"money-saved":          "Saved.",
+	"money-restored":       "Put back.",
+	"money-dues":           "Saved.",
+	"money-budget":         "Saved.",
+	"money-report-saved":   "Saved for the meeting.",
 	"president":            "Saved. The president is marked below, and is the one admin who can remove admins, delete members and remove automated emails.",
 	"password-set":         "Your password is set. Next time, log in with your email and this password.",
 	"password-changed":     "Password changed. Any other devices you were logged in on are logged out.",
@@ -335,6 +343,9 @@ var errorText = map[string]string{
 	"emergency":       "Enter the emergency contact’s name.",
 	"emergency-phone": "Enter the emergency contact’s phone number, with its area code.",
 	"president-only":  "Only the president can do that.",
+	"treasurer-only":  "Only the treasurer or the president can remove that.",
+	"money-gone":      "That was removed.",
+	"money-meeting":   "Pick the meeting date.",
 	"bad-years":       "Type the years paid as four-digit years, like 2024, 2025.",
 	"bad-date":        "That join date isn’t a date.",
 	"file":            "Choose a CSV file to import.",

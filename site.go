@@ -200,6 +200,10 @@ func newSite(cfg Config) (*Site, error) {
 		"lines":        func(l []string) string { return strings.Join(l, "\n") },
 		"external":     func(u string) bool { return strings.HasPrefix(u, "http://") || strings.HasPrefix(u, "https://") },
 		"icon":         icon,
+		"money":        money,
+		"moneyInput":   moneyInput,
+		"mdy":          mdy,
+		"blankRow":     func() budgetRow { return budgetRow{} },
 		"sentBatch":    func(b submittedBatch, albums []Album) sentBatchView { return sentBatchView{Batch: b, Albums: albums} },
 		"riderLevels":  func() []choice { return riderLevels },
 		"mailPieces":   func(kind string) []autoPiece { return mailPieces[kind] },
@@ -278,7 +282,7 @@ func newSite(cfg Config) (*Site, error) {
 	if s.email, err = template.New("").ParseFS(webFS, "web/templates/email.html"); err != nil {
 		return nil, err
 	}
-	if s.admin, err = template.New("").Funcs(funcs).ParseFS(webFS, "web/templates/admin.html", "web/templates/admin-email.html"); err != nil {
+	if s.admin, err = template.New("").Funcs(funcs).ParseFS(webFS, "web/templates/admin.html", "web/templates/admin-email.html", "web/templates/admin-treasurer.html"); err != nil {
 		return nil, err
 	}
 	return s, nil

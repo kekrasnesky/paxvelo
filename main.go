@@ -58,6 +58,10 @@ func main() {
 	app.mailer.stats = stats
 	app.refreshNewsletter()
 	app.ensureHeroPhone()
+	// The weekly media backup (deploy/setup.sh) copies this folder, so it has to exist.
+	if err := os.MkdirAll(app.receiptsDir(), 0o700); err != nil {
+		log.Printf("receipts folder: %v", err)
+	}
 	if err := app.rebuildContent(); err != nil {
 		log.Fatal(err)
 	}
@@ -204,6 +208,7 @@ func (a *App) routes() http.Handler {
 	mux.Handle("POST /admin/admins/{id}/link", a.auth(a.sendAdminLink))
 	mux.Handle("POST /admin/admins/{id}/remove", a.auth(a.removeAdmin))
 	mux.Handle("POST /admin/admins/{id}/president", a.auth(a.makePresident))
+	mux.Handle("POST /admin/admins/{id}/treasurer", a.president("/admin/admins", a.setTreasurer))
 	mux.Handle("POST /admin/admins/password", a.auth(a.changePassword))
 	mux.Handle("GET /admin/security", a.auth(a.securityPage))
 	mux.Handle("POST /admin/security", a.auth(a.securityAction))
@@ -212,6 +217,25 @@ func (a *App) routes() http.Handler {
 	mux.Handle("POST /admin/intro", a.auth(a.dismissIntro))
 	mux.Handle("GET /admin/members", a.auth(a.membersPage))
 	mux.Handle("GET /admin/stats", a.auth(a.statsAdmin))
+	// Treasurer tab (treasureradmin.go): every admin adds and edits, only the
+	// treasurer or the president removes.
+	mux.Handle("GET /admin/treasurer", a.auth(a.expensesPage))
+	mux.Handle("GET /admin/treasurer/income", a.auth(a.incomePage))
+	mux.Handle("POST /admin/treasurer/income/dues", a.auth(a.duesCategory))
+	mux.Handle("POST /admin/treasurer/entries", a.auth(a.addLedger))
+	mux.Handle("GET /admin/treasurer/entries/{id}", a.auth(a.editLedgerPage))
+	mux.Handle("POST /admin/treasurer/entries/{id}", a.auth(a.saveLedger))
+	mux.Handle("POST /admin/treasurer/entries/{id}/remove", a.treasurerOnly("/admin/treasurer", a.removeLedger))
+	mux.Handle("POST /admin/treasurer/entries/{id}/restore", a.treasurerOnly("/admin/treasurer", a.restoreLedger))
+	mux.Handle("GET /admin/treasurer/receipts/{name}", a.auth(a.receiptFile))
+	mux.Handle("GET /admin/treasurer/budget", a.auth(a.budgetPage))
+	mux.Handle("POST /admin/treasurer/budget", a.auth(a.saveBudget))
+	mux.Handle("GET /admin/treasurer/reports", a.auth(a.reportsPage))
+	mux.Handle("POST /admin/treasurer/reports", a.auth(a.saveReport))
+	mux.Handle("GET /admin/treasurer/report.csv", a.auth(a.reportDownload))
+	mux.Handle("GET /admin/treasurer/report.md", a.auth(a.reportDownload))
+	mux.Handle("POST /admin/treasurer/reports/{id}/remove", a.treasurerOnly("/admin/treasurer/reports", a.removeReport))
+	mux.Handle("POST /admin/treasurer/reports/{id}/restore", a.treasurerOnly("/admin/treasurer/reports", a.restoreReport))
 	mux.Handle("GET /admin/", http.RedirectHandler("/admin", http.StatusSeeOther))
 	mux.Handle("POST /admin/members", a.auth(a.addMember))
 	mux.Handle("GET /admin/members/{id}", a.auth(a.memberPage))

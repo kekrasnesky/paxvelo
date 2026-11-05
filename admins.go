@@ -39,6 +39,8 @@ type AdminUser struct {
 	LastLogin    *time.Time `json:"last_login,omitempty"`
 	// The president is the one admin who can remove admins and delete members.
 	President bool `json:"president,omitempty"`
+	// The treasurer can remove lines and saved reports on the Treasurer tab, as the president can.
+	Treasurer bool `json:"treasurer,omitempty"`
 	// SeenGuide: they've opened How the site works, or dismissed Home's welcome card.
 	SeenGuide bool `json:"seen_guide,omitempty"`
 }
