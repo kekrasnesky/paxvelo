@@ -829,3 +829,17 @@ details.auto-row[open]>summary{border-bottom:1px solid var(--line)}
 .mail-actions select{max-width:100%}
 @media (max-width:700px){.mail-save{margin:0;padding:.8rem 0}}
 .mail-actions .inline-label{flex:0 1 auto;min-width:0;max-width:100%}.mail-actions .inline-label select{min-width:0;flex:1 1 auto}
+/* Email cards: move/remove buttons float at the card's corner on hover or
+   focus (always on touch screens), and club pieces look like the email. */
+.mail-cards .ed-card{padding-right:6.5rem}
+.mail-cards .ed-head{position:absolute;top:.35rem;right:.5rem;z-index:2;display:flex;gap:.4rem;opacity:0;pointer-events:none;transition:opacity .1s}
+.mail-cards .ed-card:hover>.ed-head,.mail-cards .ed-card:focus-within>.ed-head{opacity:1;pointer-events:auto}
+.mail-cards .ed-head .ed-name{display:none}
+.mail-cards .ed-card:focus{outline:none;border-left-color:var(--red);background:#fcfaf7}
+@media (hover:none){.mail-cards .ed-head{opacity:1;pointer-events:auto}}
+.ed-look{display:grid;justify-items:start;gap:.35rem;padding:.4rem .4rem .5rem;color:var(--ink)}
+.ed-mock-btn{display:inline-block;padding:.55rem 1.1rem;border-radius:4px;background:var(--red);color:#fff;font-weight:500}
+.ed-look u{color:var(--red)}
+.ed-bar{display:block;width:70%;height:.55rem;border-radius:.3rem;background:#ece6de}
+.ed-bar+.ed-bar{width:55%}
+.ed-bar+.ed-bar+.ed-bar{width:62%}

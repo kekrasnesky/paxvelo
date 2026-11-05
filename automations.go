@@ -554,8 +554,6 @@ func (a *App) autoSave(w http.ResponseWriter, r *http.Request) {
 		problem = "The number of days needs to be from 0 to 365."
 	case f.Subject == "" || f.Body == "":
 		problem = "It needs a subject and a message."
-	case key == "confirm" && !strings.Contains(f.Body, "{confirm_button}"):
-		problem = "Keep the Confirm button in it: without it, new members can’t confirm their email."
 	}
 	if problem != "" {
 		a.renderAutoEdit(w, r, f, problem)
@@ -644,9 +642,6 @@ func (a *App) samplePat() Member {
 
 // fillConfirm fills in the confirm email's club pieces for a member.
 func (a *App) fillConfirm(body string, m Member) string {
-	if !strings.Contains(body, "{confirm_button}") { // never without its button
-		body += "\n\n{confirm_button}"
-	}
 	button := "[[Confirm my email](" + a.cfg.membershipURL(m.Token) + "&confirm=1#confirm)]"
 	pay := ""
 	if p := a.cfg.PayLink(m.Plan); p != "" && !m.Paid() {

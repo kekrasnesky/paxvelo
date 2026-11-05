@@ -142,7 +142,8 @@ func TestAutomationTriggers(t *testing.T) {
 }
 
 // The confirm email as admins write it is what new joiners get, with its
-// Confirm button, and saving it without the button is refused.
+// Confirm button. Every piece can be taken out, the button too: the email
+// then goes as written (its My membership link still leads to Confirm).
 func TestConfirmEmailEditable(t *testing.T) {
 	a, h, admin := testApp(t)
 	page := do(t, h, admin, "GET", "/admin/email/auto/confirm", "", nil).Body.String()
@@ -151,14 +152,19 @@ func TestConfirmEmailEditable(t *testing.T) {
 			t.Errorf("the editor is missing %q", want)
 		}
 	}
+	var got string
+	a.mailer.onSend = func(to, subject, body string) { got = subject + "|" + body }
 	ct, body := form(url.Values{"subject": {"Confirm"}, "body": {"Hi {first_name}, just this."}})
-	if w := do(t, h, admin, "POST", "/admin/email/auto/confirm/save", ct, body); !strings.Contains(w.Body.String(), "Keep the Confirm button") {
-		t.Error("saving without the button should be refused")
+	if loc := do(t, h, admin, "POST", "/admin/email/auto/confirm/save", ct, body).Header().Get("Location"); !strings.Contains(loc, "ok=auto-saved") {
+		t.Fatalf("saving without the button: %q", loc)
+	}
+	jo, _, _ := a.store.Join(memberDetails{Name: "Jo Doe", Email: "jo@example.com", Plan: "individual"}, a.cfg.ThisYear())
+	a.sendConfirm(jo)
+	if got != "Confirm|Hi Jo, just this." {
+		t.Errorf("without the button: %q", got)
 	}
 	ct, body = form(url.Values{"subject": {"One click, {first_name}"}, "body": {"Hi {first_name}, welcome aboard.\n\n{confirm_button}\n\n{pay_line}"}})
 	do(t, h, admin, "POST", "/admin/email/auto/confirm/save", ct, body)
-	var got string
-	a.mailer.onSend = func(to, subject, body string) { got = subject + "|" + body }
 	m, _, _ := a.store.Join(memberDetails{Name: "Kim Lee", Email: "kim@example.com", Plan: "individual"}, a.cfg.ThisYear())
 	a.sendConfirm(m)
 	if !strings.HasPrefix(got, "One click, Kim|Hi Kim, welcome aboard.") || !strings.Contains(got, "[[Confirm my email](") {

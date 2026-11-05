@@ -5,7 +5,6 @@ editor for one, and the easy editor every email box uses (mail-cards). */}}
 {{if not .Live}}<p class="flash warn">Test mode: emails are written to the server log instead of being sent. Add the SMTP settings to paxvelo.conf to send for real.</p>{{end}}
 {{with $v.Removed}}<form class="flash warn undo-flash" method="post" action="/admin/email/auto/{{.}}/restore">Removed the automated email. <button class="link">{{icon "undo"}}Undo</button></form>{{end}}
 <div class="title-row"><h1>Automations</h1><a class="btn auto-new" href="/admin/email/auto/new">＋ New automated email</a></div>
-<p class="muted small lede">Emails the site sends by itself. Press one to see more, change its words, or pause it.</p>
 
 <div class="auto-list">{{range $v.Autos}}{{template "auto-row" .}}{{end}}</div>
 
@@ -13,10 +12,9 @@ editor for one, and the easy editor every email box uses (mail-cards). */}}
 <div class="auto-list">{{range $v.Manual}}{{template "auto-row" .}}{{end}}</div>
 
 <details class="auto-fixed">
-  <summary><h2>Notices the site writes itself</h2> <span class="muted small">{{len $v.Builtin}} more emails, for admins and members, that can’t be changed here</span></summary>
+  <summary><h2>Built-in notices</h2> <span class="auto-count">{{len $v.Builtin}}</span></summary>
   <div class="auto-list">{{range $v.Builtin}}<div class="auto-row auto-plain"><div class="auto-sum"><span class="auto-state fixed">Built in</span>
-    <span class="auto-main"><strong>{{.Name}}</strong><span>{{.When}}</span></span><span class="auto-count">To: {{.Who}}</span></div>
-    <p class="muted small auto-about">{{.About}}</p></div>{{end}}</div>
+    <span class="auto-main"><strong>{{.Name}}</strong><span>{{.When}}</span></span><span class="auto-count">{{.Who}}</span></div></div>{{end}}</div>
 </details>
 
 <script>
@@ -29,8 +27,7 @@ document.querySelectorAll('form.auto-pause').forEach(function(f){f.addEventListe
   var b=f.querySelector('button'),p=f.paused.value==='1',row=f.closest('.auto-row');b.disabled=true;
   fetch(f.action,{method:'POST',headers:{Accept:'application/json'},body:new URLSearchParams(new FormData(f))}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(j){
     var st=row.querySelector('.auto-state');st.textContent=j.paused?'Paused':'On';st.classList.toggle('off',j.paused);
-    f.paused.value=j.paused?'0':'1';b.innerHTML=j.paused?{{icon "play"}}+'Resume':{{icon "pause"}}+'Pause';b.disabled=false;
-    row.querySelector('.auto-paused-note').hidden=!j.paused})
+    f.paused.value=j.paused?'0':'1';b.innerHTML=j.paused?{{icon "play"}}+'Resume':{{icon "pause"}}+'Pause';b.disabled=false})
   .catch(function(){f.submit()})})});
 // Open the row a link points to (#a-welcome), after saving.
 (function(){var d=location.hash&&document.getElementById(location.hash.slice(1));if(d&&d.tagName==='DETAILS'){d.open=true;d.dispatchEvent(new Event('toggle'))}})();
@@ -50,34 +47,28 @@ document.querySelectorAll('form.auto-pause').forEach(function(f){f.addEventListe
         <div><dt>Goes to</dt><dd>{{.Who}}</dd></div>
         <div><dt>Subject</dt><dd>{{.Subject}}</dd></div>
       </dl>
-      {{with .About}}<p class="muted small">{{.}}</p>{{end}}
-      <p class="muted small auto-paused-note"{{if not .Paused}} hidden{{end}}>Paused: nothing goes out until you resume it.{{if .CanRemove}} Members who reach it while it’s paused get it if you resume within a week.{{end}}</p>
       <div class="auto-actions">
         {{if .CanEdit}}<a class="btn" href="/admin/email/auto/{{.Key}}">{{icon "pencil"}}Edit</a>{{end}}
         {{if .CanPause}}<form class="auto-pause" method="post" action="/admin/email/auto/{{.Key}}/pause"><input type="hidden" name="paused" value="{{if .Paused}}0{{else}}1{{end}}"><button class="ghost">{{if .Paused}}{{icon "play"}}Resume{{else}}{{icon "pause"}}Pause{{end}}</button></form>{{end}}
         {{if .CanRemove}}<form method="post" action="/admin/email/auto/{{.Key}}/remove" onsubmit="return confirm('Remove “{{.Name}}”? It stops sending.')"><button class="link danger">{{icon "trash"}}Remove</button></form>{{end}}
       </div>
     </div>
-    <div class="auto-prev"><iframe title="Preview of {{.Name}}" sandbox="allow-same-origin" data-src="/admin/email/auto/{{.Key}}/preview"></iframe>
-      <p class="muted small">As a sample member, Pat, would get it.</p></div>
+    <div class="auto-prev"><iframe title="Preview of {{.Name}}" sandbox="allow-same-origin" data-src="/admin/email/auto/{{.Key}}/preview"></iframe></div>
   </div>
 </details>{{end}}
 
 {{define "auto-edit"}}{{template "head" .}}{{$f := .Auto.Form}}
 <p class="crumb"><a href="/admin/email/auto">← Automations</a></p>
 <div class="title-row"><h1>{{if $f.New}}New automated email{{else}}{{$f.Name}}{{end}}</h1>{{if $f.Paused}}<span class="auto-state off">Paused</span>{{end}}</div>
-{{with $f.About}}<p class="muted small lede">{{.}}</p>{{end}}
 <form class="card mail-form auto-form" method="post" action="/admin/email/auto/{{$f.Key}}/save" data-preview="/admin/email/auto/{{$f.Key}}/preview" data-test="/admin/email/auto/{{$f.Key}}/test">
   {{if $f.Custom}}<div class="auto-setup">
-    <label>Name <span class="muted small">(only admins see it)</span> <input name="name" required maxlength="80" value="{{$f.Name}}" placeholder="Dues reminder"></label>
+    <label>Name <input name="name" required maxlength="80" value="{{$f.Name}}" placeholder="Dues reminder"></label>
     <fieldset class="auto-when"><legend>When it goes</legend>
       <div class="when-row">
         <input type="number" name="days" min="0" max="365" value="{{$f.Days}}" aria-label="Days" class="when-days">
         <span class="when-word">days after</span>
         <select name="trigger" aria-label="What happens">{{range $.Auto.Triggers}}<option value="{{.Key}}" data-before="{{.Before}}" data-help="{{.Help}}"{{if eq .Key $f.Trigger}} selected{{end}}>{{.Label}}</option>{{end}}</select>
       </div>
-      <p class="muted small when-help"></p>
-      <p class="muted small">It goes to members who get there from {{if $f.New}}today{{else}}the day it was made{{end}} on, once each time, unless they unsubscribed. Nothing goes to anyone who got there before. Emails go out from 9 in the morning.</p>
     </fieldset>
   </div>{{end}}
   <label>Subject <input name="subject" required maxlength="200" value="{{$f.Subject}}" placeholder="What it’s about"></label>
@@ -87,14 +78,12 @@ document.querySelectorAll('form.auto-pause').forEach(function(f){f.addEventListe
       <div class="text-ed">
       {{template "mail-bar"}}
       <label>Message <textarea name="body" rows="16" required>{{$f.Body}}</textarea></label>
-      <details class="muted small"><summary>Typing the marks yourself</summary><p>**bold**, *italics*, [words to click](https://…), ## Heading, - list item, [[Button words](https://…)] for a button, and a blank line between paragraphs. {{range $f.Pieces}}{{"{"}}{{.Key}}{{"}"}} {{.Label}} · {{end}}</p></details>
       </div>
     </div>
     {{template "mail-preview"}}
   </div>
-  {{if $f.Welcome}}<details class="auto-tips"><summary><strong>Where to start riding</strong> <span class="muted small">what the Where to start riding piece says for each answer on the join form</span></summary>
+  {{if $f.Welcome}}<details class="auto-tips"><summary><strong>Where to start riding</strong></summary>
     <fieldset class="tips"><input type="hidden" name="tips" value="1">
-      <p class="muted small">Each new member gets exactly one of these, from how they answered “Which sounds like you?”, with the rides coming up that suit them. Members you add yourself get none. Clear a box to go back to the built-in advice.</p>
       {{range riderLevels}}<label>{{.Label}} <textarea name="tips_{{.Value}}" rows="5">{{$.Welcome.Tip .Value}}</textarea></label>
       {{end}}
     </fieldset></details>{{end}}
@@ -108,7 +97,7 @@ document.querySelectorAll('form.auto-pause').forEach(function(f){f.addEventListe
 (function(){var f=document.querySelector('.auto-form'),sel=f.querySelector('select[name=trigger]'),saved=false,dirty=false;
   // "days after" or "days before", and what the choice means.
   function when(){if(!sel)return;var o=sel.selectedOptions[0];f.querySelector('.when-word').textContent=o.dataset.before==='true'?'days before':'days after';
-    f.querySelector('.when-help').textContent=o.dataset.help+' 0 days means the same day.'}
+    sel.title=o.dataset.help}
   if(sel){sel.addEventListener('change',when);when()}
   // Send test: what's in the editor now, without saving it.
   f.querySelector('.auto-test').addEventListener('click',function(){var st=f.querySelector('.auto-test-state'),fd=new URLSearchParams();
@@ -216,7 +205,6 @@ for(var k in PIECES)if(!BLOCKS[k])ins.appendChild(el('option',{value:k,text:PIEC
 ins.addEventListener('change',function(){var n=ins.value;ins.value='';if(!n)return;if(!back()){alert('Click into a paragraph first, where it should go.');return}
   insertHtml('<span class="ph" contenteditable="false" data-ph="'+n+'">'+esc(phLabel(n))+'</span>&nbsp;')});
 bar.appendChild(ins);
-bar.appendChild(el('span',{'class':'muted small',text:'Select words, then press B, I or Link. Shift+Enter starts a new line.'}));
 // back puts the cursor back where it was in the last box typed in.
 function back(){if(!last||!host.contains(last))return false;last.focus();if(lastRange){var s=getSelection();s.removeAllRanges();s.addRange(lastRange)}return true}
 document.addEventListener('selectionchange',function(){var s=getSelection();if(!s.rangeCount)return;var n=s.anchorNode,r=n&&(n.nodeType===1?n:n.parentNode);
@@ -261,12 +249,21 @@ function splitAt(e){var s=getSelection();if(!s.rangeCount)return '';var r=s.getR
 function caret(e,end){e.focus();var r=document.createRange();r.selectNodeContents(e);r.collapse(!end);var s=getSelection();s.removeAllRanges();s.addRange(r)}
 
 // ---- Drawing the cards ----
-function name(b){return {p:'Paragraph',h2:'Heading',button:'Button',photo:'Photo',list:'List',hr:'Line',piece:'Club piece',text:'Text'}[b.type]||'Text'}
+function name(b){if(b.type==='piece')return phLabel(b.name);return {p:'Paragraph',h2:'Heading',button:'Button',photo:'Photo',list:'List',hr:'Line',text:'Text'}[b.type]||'Text'}
+// look draws a club piece the way it shows in the email, with grey lines
+// standing in for what's filled in for each member.
+function look(n){var bars=function(k){var o=[];for(var i=0;i<k;i++)o.push(el('span',{'class':'ed-bar'}));return o};
+  switch(n){
+  case 'confirm_button':return el('div',{'class':'ed-look'},[el('span',{'class':'ed-mock-btn',text:'Confirm my email'})]);
+  case 'pay_line':return el('div',{'class':'ed-look'},[el('span',{},['Haven’t paid yet? ',el('u',{text:'Pay your dues'})])]);
+  case 'rides_for_you':return el('div',{'class':'ed-look'},[el('strong',{text:'Rides coming up that suit you'})].concat(bars(3)));
+  case 'ride_tips':return el('div',{'class':'ed-look'},[el('strong',{text:'Where to start riding'})].concat(bars(3)))}
+  return el('div',{'class':'ed-look'},[el('strong',{text:phLabel(n)})])}
 function render(focus,where){host.textContent='';doc.forEach(function(b,i){host.appendChild(gap(i));host.appendChild(card(i))});host.appendChild(gap(doc.length));
   if(focus&&focus._focus){focus._focus(where);var c=focus._card;if(c&&c.scrollIntoView){var r=c.getBoundingClientRect();if(r.top<0||r.bottom>innerHeight)c.scrollIntoView({block:'center'})}}}
 function move(i,d){var b=doc.splice(i,1)[0];doc.splice(i+d,0,b);update();render(b)}
 function remove(i){var b=doc.splice(i,1)[0];update();render();toast('Removed the '+name(b).toLowerCase()+'.',function(){doc.splice(Math.min(i,doc.length),0,b);update();render(b)})}
-function card(i){var b=doc[i],c=el('section',{'class':'ed-card ed-k-'+b.type,'aria-label':name(b)});b._card=c;
+function card(i){var b=doc[i],c=el('section',{'class':'ed-card ed-k-'+b.type,'aria-label':name(b),tabindex:/^(piece|hr|photo)$/.test(b.type)?'0':null});b._card=c;
   c.appendChild(el('div',{'class':'ed-head'},[el('span',{'class':'ed-name',text:name(b)}),el('span',{'class':'ed-tools'},[
     btn('↑','Move up',function(){move(i,-1)},i===0),btn('↓','Move down',function(){move(i,1)},i===doc.length-1),btn('✕','Remove',function(){remove(i)})])]));
   (BODY[b.type]||BODY.text)(b,c,i);return c}
@@ -288,11 +285,11 @@ var BODY={
         split:function(tail){b.items.splice(k+1,0,tail);edit(b);render(b);var n=b._els[k+1];if(n)caret(n);return n},
         drop:function(){if(b.items.length===1){doc.splice(i,1);update();render();return}b.items.splice(k,1);edit(b);render(b);var p=b._els[Math.max(0,k-1)];if(p)caret(p,true)}});
       b._els.push(e);ul.appendChild(el('li',{},[e]))});
-    b._focus=function(){var e=b._els[b._els.length-1];if(e)caret(e,true)};c.appendChild(ul);c.appendChild(el('p',{'class':'muted small',text:'Enter adds another item.'}))},
+    b._focus=function(){var e=b._els[b._els.length-1];if(e)caret(e,true)};c.appendChild(ul)},
   hr:function(b,c){c.appendChild(el('hr'))},
-  piece:function(b,c){var p=PIECES[b.name]||{label:b.name,help:''};c.appendChild(el('p',{'class':'ed-piece'},[el('strong',{text:p.label}),p.help]))},
+  piece:function(b,c){c.appendChild(look(b.name))},
   text:function(b,c){var t=grow(inp(b.raw,function(v){b.raw=v;update()},{rows:3,'aria-label':'Text with marks'}));b._focus=function(){t.focus()};
-    c.appendChild(t);c.appendChild(el('p',{'class':'muted small',text:'This part has marks the easy editor can’t show, so it’s here as text. It sends as it looks in the preview.'}))}
+    c.appendChild(t)}
 };
 // dest picks where a button goes: a page on the site, a link for each member, or any address.
 function dest(href,set){var s=el('select',{'aria-label':'Where it goes'}),u=el('input',{inputmode:'url',autocomplete:'off',placeholder:'https://www.example.com','aria-label':'Web or email address'});
