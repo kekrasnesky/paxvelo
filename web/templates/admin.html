@@ -26,6 +26,36 @@
 shrinkPicked();
 </script>
 <script>
+// Drag handles: each preview window (emails, pages, newsletters), and
+// anything marked data-resize, has a bar under it to drag taller or shorter
+// (arrow keys too). Double-click the bar to go back to the usual size. Each
+// kind of preview remembers its size in this browser.
+(function(){
+  var KINDS=[['.mail-preview iframe','mail-preview'],['.auto-prev iframe','auto-prev'],['.issue-email-frame iframe','issue-email'],['.preview-box','page-preview'],['[data-resize]','']];
+  KINDS.forEach(function(k){document.querySelectorAll(k[0]).forEach(function(box){
+    if(box.nextElementSibling&&box.nextElementSibling.classList.contains('drag-bar'))return;
+    if(box.tagName==='IFRAME'&&box.closest('.preview-box'))return; // the page preview's box is what resizes
+    var key='h:'+(k[1]||box.dataset.resize),bar=document.createElement('div');
+    bar.className='drag-bar';bar.tabIndex=0;bar.title='Drag to resize';
+    bar.setAttribute('role','separator');bar.setAttribute('aria-orientation','horizontal');bar.setAttribute('aria-label','Resize');
+    box.insertAdjacentElement('afterend',bar);
+    function changed(){box.dispatchEvent(new Event('resized'));window.dispatchEvent(new Event('resize'))}
+    function set(h,save){h=Math.max(120,Math.round(h));box.style.height=h+'px';box.style.maxHeight='none';box.dataset.h=h;
+      if(save)try{localStorage.setItem(key,h)}catch(e){}changed()}
+    try{var saved=+localStorage.getItem(key);if(saved)set(saved)}catch(e){}
+    bar.addEventListener('pointerdown',function(e){e.preventDefault();var y=e.clientY,h=box.getBoundingClientRect().height;
+      bar.setPointerCapture(e.pointerId);document.body.classList.add('resizing');
+      function move(ev){set(h+ev.clientY-y,true)}
+      function up(){bar.removeEventListener('pointermove',move);bar.removeEventListener('pointerup',up);bar.removeEventListener('pointercancel',up);document.body.classList.remove('resizing')}
+      bar.addEventListener('pointermove',move);bar.addEventListener('pointerup',up);bar.addEventListener('pointercancel',up)});
+    bar.addEventListener('keydown',function(e){if(e.key!=='ArrowDown'&&e.key!=='ArrowUp')return;e.preventDefault();
+      set(box.getBoundingClientRect().height+(e.key==='ArrowDown'?40:-40),true)});
+    bar.addEventListener('dblclick',function(){box.style.height='';box.style.maxHeight='';delete box.dataset.h;
+      try{localStorage.removeItem(key)}catch(e){}changed();box.dispatchEvent(new Event('fit'))});
+  })});
+})();
+</script>
+<script>
 // Ctrl+S (Cmd+S on a Mac) presses the Save button of the form you're typing
 // in. Only Save buttons, so it never sends or deletes anything; pages with
 // their own Ctrl+S (the page editor, the email draft) handle it first.
@@ -913,7 +943,9 @@ function initMail(form){
     fetch(form.dataset.preview||'/admin/email/preview',{method:'POST',body:fd}).then(function(r){return r.text()}).then(function(h){if(n===asked)frame.srcdoc=h})}
   function later(){clearTimeout(timer);timer=setTimeout(refresh,350)}
   // Grow the preview to fit the email, again as each photo finishes loading.
-  function fit(){try{frame.style.height=frame.contentDocument.documentElement.scrollHeight+'px'}catch(e){}}
+  // (Unless it was resized by hand with the bar under it: then it keeps that size.)
+  function fit(){if(frame.dataset.h)return;try{frame.style.height=frame.contentDocument.documentElement.scrollHeight+'px'}catch(e){}}
+  frame.addEventListener('fit',fit);
   frame.addEventListener('load',function(){fit();try{frame.contentDocument.querySelectorAll('img').forEach(function(i){i.addEventListener('load',fit)})}catch(e){}});
   ta.addEventListener('input',later);subj.addEventListener('input',later);refresh();
   form.querySelectorAll('[data-w]').forEach(function(b){b.addEventListener('click',function(){

@@ -843,3 +843,10 @@ details.auto-row[open]>summary{border-bottom:1px solid var(--line)}
 .ed-bar{display:block;width:70%;height:.55rem;border-radius:.3rem;background:#ece6de}
 .ed-bar+.ed-bar{width:55%}
 .ed-bar+.ed-bar+.ed-bar{width:62%}
+/* The bar under a preview window, to drag it taller or shorter */
+.drag-bar{display:flex;align-items:center;justify-content:center;height:16px;margin:2px auto 0;cursor:ns-resize;touch-action:none}
+.drag-bar::before{content:"";width:48px;height:5px;border-radius:3px;background:#cfc6bd;transition:background .1s,width .1s}
+.drag-bar:hover::before,.drag-bar:focus-visible::before{width:72px;background:var(--red)}
+.drag-bar:focus-visible{outline:none}
+body.resizing,body.resizing *{cursor:ns-resize!important;user-select:none}
+body.resizing iframe{pointer-events:none}
