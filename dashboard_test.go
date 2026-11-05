@@ -29,7 +29,7 @@ func TestHomeDashboard(t *testing.T) {
 	for _, want := range []string{
 		"<h1>Home</h1>", "Needs attention",
 		`href="/admin/members#add"`, `href="/admin/members?dues=unpaid"`, `href="/admin/email"`, `href="/admin/rides/new"`,
-		`Members for ` + itoa(year) + `</a></dt><dd><a href="/admin/members?dues=paid">1</a>`, `Not paid yet</a></dt><dd><a href="/admin/members?dues=unpaid">1</a>`,
+		`Current members</a></dt><dd><a href="/admin/members?dues=paid">1</a>`, `Not paid yet</a></dt><dd><a href="/admin/members?dues=unpaid">1</a>`,
 		"Individual plans</span><strong>0</strong>", "Family plans</span><strong>1</strong>",
 		"Signup Sam", `action="/admin/members/` + itoa(sam.ID) + `/paid"`,
 		"Coffee Ride", "4 joined on Strava", "<strong>Cancelled:</strong>", "Rainy Ride",

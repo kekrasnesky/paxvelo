@@ -58,7 +58,7 @@ func (a *App) saveMember(w http.ResponseWriter, r *http.Request) {
 // their welcome email the first time, and waiver links for the other adults
 // on their Family plan. It returns the flash code.
 func (a *App) payMember(id int) (string, error) {
-	if err := a.store.SetPaid(id, a.cfg.ThisYear(), true); err != nil {
+	if _, err := a.store.Pay(id, false); err != nil {
 		return "", err
 	}
 	code := "paid"

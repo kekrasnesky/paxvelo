@@ -92,6 +92,9 @@ func init() {
 
 func newSite(cfg Config) (*Site, error) {
 	s := &Site{cfg: cfg, dynamic: map[string]*template.Template{}}
+	if cfg.Location != nil {
+		clubTZ = cfg.Location // join days and dues expiry are the club's calendar days (dues.go)
+	}
 	s.instaFeed.Store(new([]InstaPost))
 	static, err := fs.Sub(webFS, "web/static")
 	if err != nil {

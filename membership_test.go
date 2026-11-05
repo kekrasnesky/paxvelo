@@ -213,7 +213,7 @@ func TestMembersPage(t *testing.T) {
 		}
 	}
 	mine := do(t, h, c, "GET", "/admin/members/1", "", nil).Body.String()
-	for _, want := range []string{`value="Sam Rider"`, `value="240-555-0199"`, "Not paid for"} {
+	for _, want := range []string{`value="Sam Rider"`, `value="240-555-0199"`, `<span class="muted">Not paid</span>`} {
 		if !strings.Contains(mine, want) {
 			t.Errorf("member page missing %q", want)
 		}

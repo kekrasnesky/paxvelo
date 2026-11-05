@@ -50,7 +50,7 @@ adult on their Family plan. */}}
     <li class="status {{if .Paid}}done{{else}}todo{{end}}">
       {{template "status-mark" .Paid}}
       <div class="status-body">
-        <h2>{{.Year}} dues</h2>
+        <h2>Dues</h2>
         {{if .Paid}}<p class="status-state">Paid</p>
         <p class="status-meta">{{with .DuesExpire}}{{if not .IsZero}}Good through {{date .}}. {{end}}{{end}}{{if .PaidOn.IsZero}}Confirmed by the club{{else}}Confirmed by the club on {{date .PaidOn}}{{end}}</p>
         {{else}}<p class="status-state">Not paid</p>

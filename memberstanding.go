@@ -9,22 +9,22 @@ import (
 	"time"
 )
 
-// A member's standing for a year. The list holds everyone who ever joined,
+// A member's standing today. The list holds everyone who ever joined,
 // signed up for club emails, or came over from Squarespace (whose export
 // includes newsletter sign-ups and old customers); only those who paid for
 // the year are members for it. Unsubscribing is separate: it's about
 // emails, not membership.
 
 const (
-	standPaid   = "paid"   // paid for the year: a member
-	standUnpaid = "unpaid" // paid an earlier year, or joined on the website and not marked paid yet
+	standPaid   = "paid"   // dues paid up: a member
+	standUnpaid = "unpaid" // dues expired, or joined on the website and not marked paid yet
 	standList   = "list"   // never paid: on the email list only
 )
 
-// Standing is which of those they are for a year.
-func (m Member) Standing(year int) string {
+// Standing is which of those they are today (dues.go).
+func (m Member) Standing() string {
 	switch {
-	case m.PaidFor(year):
+	case m.Paid():
 		return standPaid
 	case m.WelcomePending || len(m.PaidYears) > 0:
 		return standUnpaid

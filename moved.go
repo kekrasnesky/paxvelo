@@ -29,18 +29,6 @@ The link is just for you, so keep this email. You can also reach your page any t
 See you on the road!
 PaxVelo`
 
-// DuesExpire is when their dues run out: the anniversary of the day they
-// joined, in the year after the last year they paid for. Zero if they never
-// paid.
-func (m Member) DuesExpire() time.Time {
-	last := m.LastPaid()
-	if last == 0 || m.Joined.IsZero() {
-		return time.Time{}
-	}
-	j := m.Joined
-	return time.Date(last+1, j.Month(), j.Day(), 12, 0, 0, 0, time.UTC)
-}
-
 // MovedEmail is the site-move email as saved, or the built-in one.
 func (s *Store) MovedEmail() EmailDraft {
 	s.mu.Lock()
@@ -95,10 +83,8 @@ func (a *App) moveMember(id int) error {
 	if !ok {
 		return nil
 	}
-	if !m.PaidFor(year) {
-		if err := a.store.SetPaid(id, year, true); err != nil {
-			return err
-		}
+	if _, err := a.store.Pay(id, false); err != nil { // does nothing if they're paid up
+		return err
 	}
 	if err := a.store.MarkMovedSent(id); err != nil {
 		return err

@@ -239,6 +239,7 @@ var flashText = map[string]string{
 	"exists":               "That email is already on the list.",
 	"deleted":              "Member deleted.",
 	"record-saved":         "Membership record saved.",
+	"renewed":              "Renewed for another year.",
 	"moved-saved":          "Site-move email saved.",
 	"member-saved":         "Saved.",
 	"sending":              "Sending now. It keeps going in the background, so you can close this page.",
@@ -406,7 +407,7 @@ func flashFrom(r *http.Request) (flash, errMsg string) {
 		}
 	} else if code == "moved" {
 		n, _ := strconv.Atoi(q.Get("n"))
-		flash = fmt.Sprintf("Sent the site-move email to %d %s, and marked them paid for this year.", n, plural(n, "member", "members"))
+		flash = fmt.Sprintf("Sent the site-move email to %d %s. Anyone not paid up was marked paid.", n, plural(n, "member", "members"))
 	} else if code == "deleted-many" {
 		n, _ := strconv.Atoi(q.Get("n"))
 		flash = fmt.Sprintf("Deleted %d %s.", n, plural(n, "person", "people"))
@@ -449,7 +450,7 @@ func (a *App) membersPage(w http.ResponseWriter, r *http.Request) {
 	v.Flash, v.Error = flashFrom(r)
 	lq := strings.ToLower(q)
 	for _, m := range a.store.Members() {
-		st := m.Standing(v.Year)
+		st := m.Standing()
 		v.Total++
 		switch st {
 		case standPaid:
@@ -487,10 +488,14 @@ func (a *App) markPaid(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.Atoi(r.PathValue("id"))
 	paid := r.FormValue("paid") == "1"
 	code, err := "unpaid", error(nil)
-	if paid {
+	switch {
+	case r.FormValue("paid") == "renew": // paid up already, paying for the next year early
+		code = "renewed"
+		_, err = a.store.Pay(id, true)
+	case paid:
 		code, err = a.payMember(id)
-	} else {
-		err = a.store.SetPaid(id, a.cfg.ThisYear(), false)
+	default:
+		err = a.store.Unpay(id)
 	}
 	if err != nil {
 		back(w, r, "/admin/members?err=save")
@@ -521,7 +526,7 @@ func (a *App) addMember(w http.ResponseWriter, r *http.Request) {
 	year := a.cfg.ThisYear()
 	m, res, err := a.store.Join(d, year)
 	if err == nil && r.FormValue("paid") != "" {
-		err = a.store.SetPaid(m.ID, year, true)
+		_, err = a.store.Pay(m.ID, false)
 	}
 	switch {
 	case err != nil:
@@ -551,15 +556,14 @@ func (a *App) exportCSV(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	w.Header().Set("Content-Disposition", `attachment; filename="paxvelo-members-`+time.Now().In(a.cfg.Location).Format("2006-01-02")+`.csv"`)
 	cw := csv.NewWriter(w)
-	year := a.cfg.ThisYear()
-	cw.Write([]string{"Name", "Email", "Phone", "Emergency contact", "Emergency phone", "Plan", "Riding", "Rides", fmt.Sprintf("Paid %d", year), "Years paid", "Joined", "Status"})
+	cw.Write([]string{"Name", "Email", "Phone", "Emergency contact", "Emergency phone", "Plan", "Riding", "Rides", "Dues paid up", "Years paid", "Joined", "Status"})
 	for _, m := range a.store.Members() {
 		status := "Active"
 		if !m.Active() {
 			status = "Unsubscribed"
 		}
 		paid := "No"
-		if m.PaidFor(year) {
+		if m.Paid() {
 			paid = "Yes"
 		}
 		years := make([]string, len(m.PaidYears))
@@ -794,7 +798,7 @@ func (a *App) emailView(r *http.Request) adminView {
 			continue
 		}
 		v.Active++
-		if m.PaidFor(v.Year) {
+		if m.Paid() {
 			v.Paid++
 		} else {
 			v.Unpaid++

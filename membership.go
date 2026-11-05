@@ -72,9 +72,9 @@ func (c Config) membershipURL(token string) string {
 
 func (a *App) membershipView(m Member, token string) membershipData {
 	year := a.cfg.ThisYear()
-	d := membershipData{State: "page", Token: token, Member: m, Year: year, Paid: m.PaidFor(year), PlanName: strings.ToLower(m.PlanName()),
+	d := membershipData{State: "page", Token: token, Member: m, Year: year, Paid: m.Paid(), PlanName: strings.ToLower(m.PlanName()),
 		Form: memberDetails{Level: m.Level}, PhoneOnFile: phoneTail(m.Phone)}
-	d.PaidOn = m.PaidOn[year]
+	d.PaidOn = m.PaidOn[m.LastPaid()]
 	d.DuesExpire = m.DuesExpire()
 	if m.EmergencyName != "" {
 		d.EmergencyOnFile = shortName(m.EmergencyName)
@@ -378,7 +378,7 @@ func (a *App) sendConfirm(m Member) error {
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "Hi %s,\n\n%s\n\n[[%s](%s&confirm=1#confirm)]", or(m.FirstName(), "there"), intro, button, a.cfg.membershipURL(m.Token))
-	if pay := a.cfg.PayLink(m.Plan); pay != "" && !m.PaidFor(year) {
+	if pay := a.cfg.PayLink(m.Plan); pay != "" && !m.Paid() {
 		fmt.Fprintf(&b, "\n\nHaven’t paid yet? [Pay your $%d %s dues for %d](%s).", a.cfg.Dues(m.Plan), strings.ToLower(m.PlanName()), year, pay)
 	}
 	if list := rideList(a.ridesFor(m.Level, 3), a.cfg.SiteURL); list != "" {

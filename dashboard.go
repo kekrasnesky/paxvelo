@@ -50,11 +50,10 @@ type memberSnapshot struct {
 
 func (a *App) memberSnapshot() memberSnapshot {
 	var s memberSnapshot
-	year := a.cfg.ThisYear()
 	now := time.Now()
 	for _, m := range a.store.Members() {
-		paid := m.PaidFor(year)
-		switch m.Standing(year) {
+		paid := m.Paid()
+		switch m.Standing() {
 		case standPaid:
 			s.Paid++
 			if m.Plan == "family" {

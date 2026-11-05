@@ -82,7 +82,7 @@ func readHousehold(rows []adultRow, own string) ([]HouseholdAdult, string) {
 // their first names. Otherwise it sends nothing, and marking the dues paid
 // sends them.
 func (a *App) emailHousehold(m Member, adults []HouseholdAdult) []string {
-	if !m.PaidFor(a.cfg.ThisYear()) || len(adults) == 0 {
+	if !m.Paid() || len(adults) == 0 {
 		return nil
 	}
 	var names, emails []string

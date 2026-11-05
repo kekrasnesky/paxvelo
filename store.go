@@ -448,7 +448,7 @@ func (s *Store) join(d memberDetails, year int, admin bool) (Member, JoinResult,
 			}
 			m.Unconfirmed = false // an admin vouches for the address
 			m.update(d)
-			if !m.PaidFor(year) {
+			if !m.Paid() {
 				m.Plan = d.Plan
 			}
 		case !m.Active():
@@ -539,7 +539,7 @@ func (s *Store) TakeWelcome(id, year int) (Member, bool, error) {
 	if m == nil {
 		return Member{}, false, nil
 	}
-	if !m.WelcomePending || m.Unconfirmed || !m.PaidFor(year) {
+	if !m.WelcomePending || m.Unconfirmed || !m.Paid() {
 		return *m, false, nil
 	}
 	m.WelcomePending = false
@@ -841,9 +841,9 @@ func randHex(n int) string {
 func inAudience(m Member, audience string, year int, signed map[int]bool) bool {
 	switch audience {
 	case "paid":
-		return m.PaidFor(year)
+		return m.Paid()
 	case "unpaid":
-		return !m.PaidFor(year)
+		return !m.Paid()
 	case "unsigned":
 		return !signed[m.ID]
 	}
@@ -856,9 +856,9 @@ func inAudience(m Member, audience string, year int, signed map[int]bool) bool {
 func audienceLabel(audience string, year int) string {
 	switch audience {
 	case "paid":
-		return fmt.Sprintf("Paid for %d", year)
+		return "Dues paid up"
 	case "unpaid":
-		return fmt.Sprintf("Not paid for %d", year)
+		return "Dues not paid up"
 	case "unsigned":
 		return fmt.Sprintf("Haven’t signed the %d waiver", year)
 	}

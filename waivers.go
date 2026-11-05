@@ -500,7 +500,7 @@ func (a *App) unsignedRiders(year int) []unsignedRider {
 	for _, m := range a.store.Members() {
 		// Members for the year, and website joiners not marked paid yet:
 		// not everyone on the email list rides.
-		if st := m.Standing(year); st == standList || (st == standUnpaid && !m.WelcomePending) {
+		if st := m.Standing(); st == standList || (st == standUnpaid && !m.WelcomePending) {
 			continue
 		}
 		if _, ok := a.store.WaiverFor(m.ID, year); !ok {

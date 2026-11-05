@@ -26,8 +26,8 @@ func TestMemberStanding(t *testing.T) {
 
 	page := do(t, h, admin, "GET", "/admin/members", "", nil).Body.String()
 	for _, want := range []string{
-		"1 member for " + itoa(year) + ". 5 on the list in all, 1 of them unsubscribed from emails.",
-		"Members for " + itoa(year) + " (1)", "Not paid yet (2)", "Email list only (2)", "Everyone (5)",
+		"1 current member (dues not expired). 5 on the list in all, 1 of them unsubscribed from emails.",
+		"Current members (1)", "Not paid yet (2)", "Email list only (2)", "Everyone (5)",
 		"Last paid " + itoa(year-2),
 	} {
 		if !strings.Contains(page, want) {

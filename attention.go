@@ -125,7 +125,7 @@ func (a *App) attention() []attentionItem {
 	year := a.cfg.ThisYear()
 	unsigned := 0
 	for _, u := range a.unsignedRiders(year) {
-		if u.Member.PaidFor(year) {
+		if u.Member.Paid() {
 			unsigned++
 		}
 	}
