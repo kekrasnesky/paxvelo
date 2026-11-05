@@ -125,6 +125,9 @@ func (a *App) movedMany(w http.ResponseWriter, r *http.Request) {
 		}
 		n++
 	}
+	if e := a.store.MovedEmail(); n > 0 {
+		a.store.RecordSent(e.Subject, e.Body, "Site-move email", n) // a line in Email → Sent emails
+	}
 	ret := r.FormValue("return")
 	if u, err := url.Parse(ret); err == nil && (strings.HasPrefix(u.Path, "/admin/members") || u.Path == "/admin/email/auto") {
 		q := u.Query()

@@ -205,6 +205,10 @@ func TestSiteMoveSendFromAutomations(t *testing.T) {
 	if page := do(t, h, admin, "GET", "/admin/email/auto", "", nil).Body.String(); !strings.Contains(page, `value="`+strconv.Itoa(m.ID)+`" data-sent`) {
 		t.Error("the list should show it went")
 	}
+	// It also gets a line in Email → Sent emails.
+	if page := do(t, h, admin, "GET", "/admin/email", "", nil).Body.String(); !strings.Contains(page, "1 of 1 sent") {
+		t.Error("the Sent emails table should list the site-move send")
+	}
 }
 
 // The confirm email has a switch too. Off, a new joiner isn't asked to

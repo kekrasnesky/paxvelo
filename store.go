@@ -736,6 +736,22 @@ func (s *Store) startCampaign(issue int, topic, subject, body, audience string, 
 	return *c, s.save()
 }
 
+// RecordSent adds a line to Email → Sent emails for an email that went out by
+// itself, not through the background sender (the site-move email): already
+// "sent", nothing pending, so it is never sent again.
+func (s *Store) RecordSent(subject, body, audience string, n int) error {
+	if n <= 0 {
+		return nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	now := time.Now().UTC()
+	s.d.Campaigns = append(s.d.Campaigns, &Campaign{ID: s.d.NextCampaign, Subject: subject, Body: body, Created: now, Finished: &now,
+		Status: "sent", Audience: audience, Total: n, Sent: n})
+	s.d.NextCampaign++
+	return s.save()
+}
+
 func (s *Store) finish(c *Campaign, status string) {
 	now := time.Now().UTC()
 	c.Status = status
