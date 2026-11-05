@@ -217,6 +217,8 @@ func (a *App) routes() http.Handler {
 	mux.Handle("POST /admin/members/paid", a.auth(a.markPaidMany))
 	mux.Handle("POST /admin/members/{id}/delete", a.auth(a.deleteMember))
 	mux.Handle("POST /admin/members/{id}/paid", a.auth(a.markPaid))
+	mux.Handle("POST /admin/members/delete", a.auth(a.deleteMembers))
+	mux.Handle("POST /admin/members/{id}/record", a.auth(a.saveRecord))
 	mux.Handle("GET /admin/members.csv", a.auth(a.exportCSV))
 	mux.Handle("GET /admin/waivers", a.auth(a.waiversPage))
 	mux.Handle("GET /admin/waivers.csv", a.auth(a.exportWaivers))

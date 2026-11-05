@@ -34,12 +34,13 @@ type adminView struct {
 	PhotoJS                           template.JS // photos.js: photos shrink before they upload
 	Year                              int
 	// Members tab
-	Q, Dues       string // search text; dues filter: "", "paid", "unpaid"
+	Q, Dues       string // search text; standing filter: "", "paid", "unpaid", "list" (memberstanding.go)
 	Members       []Member
 	MemberPage    *memberView  // one member's page
 	Signed        map[int]bool // members who signed their own waiver for Year
-	Active, Unsub int
-	Paid, Unpaid  int // active members paid / not paid for Year
+	Active, Unsub int          // Email tab: on the email list / unsubscribed
+	Paid, Unpaid  int          // members paid for Year / paid before or joined, not paid yet
+	List, Total   int          // Members tab: never paid; everyone on the list
 	Allowance     emailAllowance
 	// Waivers tab: Year's signed waivers, and who hasn't signed: active
 	// members and the adults on their Family plans
@@ -236,6 +237,7 @@ var flashText = map[string]string{
 	"added":                "Member added.",
 	"exists":               "That email is already on the list.",
 	"deleted":              "Member deleted.",
+	"record-saved":         "Membership record saved.",
 	"member-saved":         "Saved.",
 	"sending":              "Sending now. It keeps going in the background, so you can close this page.",
 	"stopped":              "Sending stopped.",
@@ -322,6 +324,8 @@ var errorText = map[string]string{
 	"emergency":       "Enter the emergency contact’s name.",
 	"emergency-phone": "Enter the emergency contact’s phone number, with its area code.",
 	"president-only":  "Only the president can do that.",
+	"bad-years":       "Type the years paid as four-digit years, like 2024, 2025.",
+	"bad-date":        "That join date isn’t a date.",
 	"file":            "Choose a CSV file to import.",
 	"csv":             "That file couldn’t be read as a CSV. Export it from your spreadsheet as “CSV” and try again.",
 	"nocol":           "Couldn’t find an email column in that file.",
@@ -398,6 +402,9 @@ func flashFrom(r *http.Request) (flash, errMsg string) {
 		if welcomes > 0 {
 			flash += fmt.Sprintf(" %d welcome %s on the way.", welcomes, plural(welcomes, "email is", "emails are"))
 		}
+	} else if code == "deleted-many" {
+		n, _ := strconv.Atoi(q.Get("n"))
+		flash = fmt.Sprintf("Deleted %d %s.", n, plural(n, "person", "people"))
 	} else if code == "event-added" {
 		flash = "The event is in this issue, after the rides. Add a few words if you like, then save."
 	} else if code == "newsletter-added" {
@@ -437,21 +444,23 @@ func (a *App) membersPage(w http.ResponseWriter, r *http.Request) {
 	v.Flash, v.Error = flashFrom(r)
 	lq := strings.ToLower(q)
 	for _, m := range a.store.Members() {
-		paid := m.PaidFor(v.Year)
-		if m.Active() {
-			v.Active++
-			if paid {
-				v.Paid++
-			} else {
-				v.Unpaid++
-			}
-		} else {
+		st := m.Standing(v.Year)
+		v.Total++
+		switch st {
+		case standPaid:
+			v.Paid++
+		case standUnpaid:
+			v.Unpaid++
+		default:
+			v.List++
+		}
+		if !m.Active() {
 			v.Unsub++
 		}
 		if lq != "" && !m.matches(lq) {
 			continue
 		}
-		if (dues == "paid" && !paid) || (dues == "unpaid" && paid) {
+		if dues != "" && dues != st {
 			continue
 		}
 		v.Members = append(v.Members, m)

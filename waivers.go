@@ -498,7 +498,9 @@ type unsignedRider struct {
 func (a *App) unsignedRiders(year int) []unsignedRider {
 	var out []unsignedRider
 	for _, m := range a.store.Members() {
-		if !m.Active() {
+		// Members for the year, and website joiners not marked paid yet:
+		// not everyone on the email list rides.
+		if st := m.Standing(year); st == standList || (st == standUnpaid && !m.WelcomePending) {
 			continue
 		}
 		if _, ok := a.store.WaiverFor(m.ID, year); !ok {

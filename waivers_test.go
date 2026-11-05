@@ -138,6 +138,11 @@ func TestMinorWaivers(t *testing.T) {
 			t.Errorf("the signed copy should show %q", want)
 		}
 	}
+	// The unsigned list is members for the year, not everyone on the email list.
+	if page := do(t, h, admin, "GET", "/admin/waivers?show=unsigned", "", nil).Body.String(); strings.Contains(page, "pat@example.com") {
+		t.Error("someone who hasn't paid isn't on the unsigned list")
+	}
+	a.store.SetPaid(m.ID, year, true)
 	if page := do(t, h, admin, "GET", "/admin/waivers?show=unsigned", "", nil).Body.String(); !strings.Contains(page, "pat@example.com") {
 		t.Error("the member still hasn't signed their own waiver")
 	}

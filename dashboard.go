@@ -38,14 +38,14 @@ type dashboardView struct {
 }
 
 type memberSnapshot struct {
-	Active, Paid, Unpaid int
-	New                  int // active members who joined in the last newMemberDays
-	Family, Individual   int // active members on each plan
-	PaidFamily           int // of those, paid for this year
-	PaidIndividual       int
-	Dues                 int // this year's paid memberships at today's prices
-	Signups              []Member
-	MoreSignups          int // waiting, but not listed
+	Paid, Unpaid   int // members for this year; paid before or joined and not paid yet (memberstanding.go)
+	List           int // never paid: on the email list only
+	New            int // joined in the last newMemberDays
+	PaidFamily     int // members for this year on each plan
+	PaidIndividual int
+	Dues           int // this year's paid memberships at today's prices
+	Signups        []Member
+	MoreSignups    int // waiting, but not listed
 }
 
 func (a *App) memberSnapshot() memberSnapshot {
@@ -53,29 +53,22 @@ func (a *App) memberSnapshot() memberSnapshot {
 	year := a.cfg.ThisYear()
 	now := time.Now()
 	for _, m := range a.store.Members() {
-		if !m.Active() {
-			continue
-		}
 		paid := m.PaidFor(year)
-		s.Active++
-		if paid {
+		switch m.Standing(year) {
+		case standPaid:
 			s.Paid++
-		} else {
-			s.Unpaid++
-		}
-		if now.Sub(m.Joined) < newMemberDays*24*time.Hour {
-			s.New++
-		}
-		if m.Plan == "family" {
-			s.Family++
-			if paid {
+			if m.Plan == "family" {
 				s.PaidFamily++
-			}
-		} else {
-			s.Individual++
-			if paid {
+			} else {
 				s.PaidIndividual++
 			}
+		case standUnpaid:
+			s.Unpaid++
+		default:
+			s.List++
+		}
+		if m.WelcomePending && now.Sub(m.Joined) < newMemberDays*24*time.Hour {
+			s.New++
 		}
 		// Joined on the website and not marked paid yet: the signup email
 		// went to the admins, and this is where they act on it.
