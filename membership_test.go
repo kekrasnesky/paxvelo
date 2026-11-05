@@ -349,10 +349,10 @@ func TestJoinRidingAnswers(t *testing.T) {
 // as the built-in text, or cleared, stays the built-in advice.
 func TestWelcomeTipsEditable(t *testing.T) {
 	a, h, admin := testApp(t)
-	page := do(t, h, admin, "GET", "/admin/email", "", nil).Body.String()
+	page := do(t, h, admin, "GET", "/admin/email/auto/welcome", "", nil).Body.String()
 	for _, c := range riderLevels {
 		if !strings.Contains(page, `name="tips_`+c.Value+`"`) {
-			t.Errorf("the Email tab should have a box for %q", c.Value)
+			t.Errorf("the welcome email's editor should have a box for %q", c.Value)
 		}
 	}
 	ct, body := form(url.Values{"enabled": {"on"}, "subject": {"Welcome"}, "body": {"Hi\n\n{ride_tips}"},

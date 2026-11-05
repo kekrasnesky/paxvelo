@@ -15,7 +15,8 @@ The club's website: public pages, membership signup with PayPal dues, a ride cal
 | **Members → Waivers** | See who has signed this year's insurance waiver. Each January, email members asking them to sign again. |
 | **Rides / Calendar** | Set up weekly rides, add one-off events, change leaders, cancel rides. Approve rides that members submit. Tick **Virtual** for a Zwift ride (rides mentioning Zwift, virtual or a trainer ride are ticked automatically). |
 | **Newsletter** | Build the monthly issue from blocks, preview it, publish it, then email members about it. |
-| **Email** | Send email to all members or a group (such as only those who haven't paid). Always **Send test** to yourself first. Pick **About**: club news and notices (dues, waivers) reach everyone; **Rides and events** skips members who turned those emails off. |
+| **Email → Send an email** | Send email to all members or a group (such as only those who haven't paid). Always **Send test** to yourself first. Pick **About**: club news and notices (dues, waivers) reach everyone; **Rides and events** skips members who turned those emails off. |
+| **Email → Automations** | Emails the site sends by itself, like the welcome email. Press one to see it, **Edit** its words, or **Pause** it. **New automated email** adds your own, such as a reminder a few days after someone joins if they haven't paid. |
 | **Website → Gallery** | Albums of ride photos. This is where the club's photos live: the newsletter picks its photos from here. Drag albums into order, **Feature** one to show it first and big, or **Hide** one to take it off the website without deleting it. |
 | **Website → Photos to review** | Photos members shared wait here. Each person's photos are one card: press **Approve** to put them in the gallery, or **Reject**. Both can be undone. |
 | **Instagram** | Choose which club posts show on the home page. |

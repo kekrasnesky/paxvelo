@@ -1,0 +1,348 @@
+{{/* Email → Automations: the list of emails the site sends by itself, the
+editor for one, and the easy editor every email box uses (mail-cards). */}}
+
+{{define "auto"}}{{template "head" .}}{{$v := .Auto}}
+{{if not .Live}}<p class="flash warn">Test mode: emails are written to the server log instead of being sent. Add the SMTP settings to paxvelo.conf to send for real.</p>{{end}}
+{{with $v.Removed}}<form class="flash warn undo-flash" method="post" action="/admin/email/auto/{{.}}/restore">Removed the automated email. <button class="link">{{icon "undo"}}Undo</button></form>{{end}}
+<div class="title-row"><h1>Automations</h1><a class="btn auto-new" href="/admin/email/auto/new">＋ New automated email</a></div>
+<p class="muted small lede">Emails the site sends by itself. Press one to see more, change its words, or pause it.</p>
+
+<div class="auto-list">{{range $v.Autos}}{{template "auto-row" .}}{{end}}</div>
+
+<h2 class="section">Sent by hand</h2>
+<div class="auto-list">{{range $v.Manual}}{{template "auto-row" .}}{{end}}</div>
+
+<details class="auto-fixed">
+  <summary><h2>Notices the site writes itself</h2> <span class="muted small">{{len $v.Builtin}} more emails, for admins and members, that can’t be changed here</span></summary>
+  <div class="auto-list">{{range $v.Builtin}}<div class="auto-row auto-plain"><div class="auto-sum"><span class="auto-state fixed">Built in</span>
+    <span class="auto-main"><strong>{{.Name}}</strong><span>{{.When}}</span></span><span class="auto-count">To: {{.Who}}</span></div>
+    <p class="muted small auto-about">{{.About}}</p></div>{{end}}</div>
+</details>
+
+<script>
+// Each row opens to show its details and a preview, drawn the first time.
+document.querySelectorAll('details.auto-row').forEach(function(d){d.addEventListener('toggle',function(){
+  var f=d.querySelector('iframe[data-src]');if(!d.open||!f)return;var u=f.dataset.src;f.removeAttribute('data-src');
+  fetch(u).then(function(r){return r.text()}).then(function(h){f.srcdoc=h})})});
+// Pause and Resume answer in place.
+document.querySelectorAll('form.auto-pause').forEach(function(f){f.addEventListener('submit',function(e){e.preventDefault();
+  var b=f.querySelector('button'),p=f.paused.value==='1',row=f.closest('.auto-row');b.disabled=true;
+  fetch(f.action,{method:'POST',headers:{Accept:'application/json'},body:new URLSearchParams(new FormData(f))}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(j){
+    var st=row.querySelector('.auto-state');st.textContent=j.paused?'Paused':'On';st.classList.toggle('off',j.paused);
+    f.paused.value=j.paused?'0':'1';b.innerHTML=j.paused?{{icon "play"}}+'Resume':{{icon "pause"}}+'Pause';b.disabled=false;
+    row.querySelector('.auto-paused-note').hidden=!j.paused})
+  .catch(function(){f.submit()})})});
+// Open the row a link points to (#a-welcome), after saving.
+(function(){var d=location.hash&&document.getElementById(location.hash.slice(1));if(d&&d.tagName==='DETAILS'){d.open=true;d.dispatchEvent(new Event('toggle'))}})();
+</script>
+{{template "foot" .}}{{end}}
+
+{{define "auto-row"}}<details class="auto-row" id="a-{{.Key}}">
+  <summary class="auto-sum">
+    <span class="auto-state{{if .Paused}} off{{end}}">{{if .Paused}}Paused{{else if .CanPause}}On{{else if eq .Key "moved"}}By hand{{else}}Always on{{end}}</span>
+    <span class="auto-main"><strong>{{.Name}}</strong><span>{{.When}}</span></span>
+    <span class="auto-count">{{if .Sent}}Sent {{.Sent}} · last {{date .Last}}{{else}}Not sent yet{{end}}</span>
+  </summary>
+  <div class="auto-body">
+    <div class="auto-info">
+      <dl class="auto-facts">
+        <div><dt>When</dt><dd>{{.When}}</dd></div>
+        <div><dt>Goes to</dt><dd>{{.Who}}</dd></div>
+        <div><dt>Subject</dt><dd>{{.Subject}}</dd></div>
+      </dl>
+      {{with .About}}<p class="muted small">{{.}}</p>{{end}}
+      <p class="muted small auto-paused-note"{{if not .Paused}} hidden{{end}}>Paused: nothing goes out until you resume it.{{if .CanRemove}} Members who reach it while it’s paused get it if you resume within a week.{{end}}</p>
+      <div class="auto-actions">
+        {{if .CanEdit}}<a class="btn" href="/admin/email/auto/{{.Key}}">{{icon "pencil"}}Edit</a>{{end}}
+        {{if .CanPause}}<form class="auto-pause" method="post" action="/admin/email/auto/{{.Key}}/pause"><input type="hidden" name="paused" value="{{if .Paused}}0{{else}}1{{end}}"><button class="ghost">{{if .Paused}}{{icon "play"}}Resume{{else}}{{icon "pause"}}Pause{{end}}</button></form>{{end}}
+        {{if .CanRemove}}<form method="post" action="/admin/email/auto/{{.Key}}/remove" onsubmit="return confirm('Remove “{{.Name}}”? It stops sending.')"><button class="link danger">{{icon "trash"}}Remove</button></form>{{end}}
+      </div>
+    </div>
+    <div class="auto-prev"><iframe title="Preview of {{.Name}}" sandbox="allow-same-origin" data-src="/admin/email/auto/{{.Key}}/preview"></iframe>
+      <p class="muted small">As a sample member, Pat, would get it.</p></div>
+  </div>
+</details>{{end}}
+
+{{define "auto-edit"}}{{template "head" .}}{{$f := .Auto.Form}}
+<p class="crumb"><a href="/admin/email/auto">← Automations</a></p>
+<div class="title-row"><h1>{{if $f.New}}New automated email{{else}}{{$f.Name}}{{end}}</h1>{{if $f.Paused}}<span class="auto-state off">Paused</span>{{end}}</div>
+{{with $f.About}}<p class="muted small lede">{{.}}</p>{{end}}
+<form class="card mail-form auto-form" method="post" action="/admin/email/auto/{{$f.Key}}/save" data-preview="/admin/email/auto/{{$f.Key}}/preview" data-test="/admin/email/auto/{{$f.Key}}/test">
+  {{if $f.Custom}}<div class="auto-setup">
+    <label>Name <span class="muted small">(only admins see it)</span> <input name="name" required maxlength="80" value="{{$f.Name}}" placeholder="Dues reminder"></label>
+    <fieldset class="auto-when"><legend>When it goes</legend>
+      <div class="when-row">
+        <input type="number" name="days" min="0" max="365" value="{{$f.Days}}" aria-label="Days" class="when-days">
+        <span class="when-word">days after</span>
+        <select name="trigger" aria-label="What happens">{{range $.Auto.Triggers}}<option value="{{.Key}}" data-before="{{.Before}}" data-help="{{.Help}}"{{if eq .Key $f.Trigger}} selected{{end}}>{{.Label}}</option>{{end}}</select>
+      </div>
+      <p class="muted small when-help"></p>
+      <p class="muted small">It goes to members who get there from {{if $f.New}}today{{else}}the day it was made{{end}} on, once each time, unless they unsubscribed. Nothing goes to anyone who got there before. Emails go out from 9 in the morning.</p>
+    </fieldset>
+  </div>{{end}}
+  <label>Subject <input name="subject" required maxlength="200" value="{{$f.Subject}}" placeholder="What it’s about"></label>
+  <div class="mail-edit">
+    <div class="mail-write">
+      {{template "mail-pieces" $f.Pieces}}
+      <div class="text-ed">
+      {{template "mail-bar"}}
+      <label>Message <textarea name="body" rows="16" required>{{$f.Body}}</textarea></label>
+      <details class="muted small"><summary>Typing the marks yourself</summary><p>**bold**, *italics*, [words to click](https://…), ## Heading, - list item, [[Button words](https://…)] for a button, and a blank line between paragraphs. {{range $f.Pieces}}{{"{"}}{{.Key}}{{"}"}} {{.Label}} · {{end}}</p></details>
+      </div>
+    </div>
+    {{template "mail-preview"}}
+  </div>
+  {{if $f.Welcome}}<details class="auto-tips"><summary><strong>Where to start riding</strong> <span class="muted small">what the Where to start riding piece says for each answer on the join form</span></summary>
+    <fieldset class="tips"><input type="hidden" name="tips" value="1">
+      <p class="muted small">Each new member gets exactly one of these, from how they answered “Which sounds like you?”, with the rides coming up that suit them. Members you add yourself get none. Clear a box to go back to the built-in advice.</p>
+      {{range riderLevels}}<label>{{.Label}} <textarea name="tips_{{.Value}}" rows="5">{{$.Welcome.Tip .Value}}</textarea></label>
+      {{end}}
+    </fieldset></details>{{end}}
+  <div class="send-row mail-save">
+    <button>{{icon "save"}}Save</button>
+    <span class="test-to"><input type="email" name="test_to" value="{{.TestTo}}" aria-label="Send test to"><button type="button" class="ghost auto-test">{{icon "mail"}}Send test</button></span>
+    <span class="muted small auto-test-state" role="status"></span>
+  </div>
+</form>
+<script>
+(function(){var f=document.querySelector('.auto-form'),sel=f.querySelector('select[name=trigger]'),saved=false,dirty=false;
+  // "days after" or "days before", and what the choice means.
+  function when(){if(!sel)return;var o=sel.selectedOptions[0];f.querySelector('.when-word').textContent=o.dataset.before==='true'?'days before':'days after';
+    f.querySelector('.when-help').textContent=o.dataset.help+' 0 days means the same day.'}
+  if(sel){sel.addEventListener('change',when);when()}
+  // Send test: what's in the editor now, without saving it.
+  f.querySelector('.auto-test').addEventListener('click',function(){var st=f.querySelector('.auto-test-state'),fd=new URLSearchParams();
+    fd.set('subject',f.subject.value);fd.set('body',f.body.value);fd.set('test_to',f.test_to.value);st.textContent='Sending…';st.classList.remove('err-text');
+    fetch(f.dataset.test,{method:'POST',body:fd}).then(function(r){return r.json()}).then(function(j){st.textContent=j.message;st.classList.toggle('err-text',!j.ok)})
+      .catch(function(){st.textContent='The test didn’t send. Check your connection.';st.classList.add('err-text')})});
+  // Ask before leaving with changes that aren't saved.
+  f.addEventListener('input',function(){dirty=true});f.addEventListener('change',function(){dirty=true});f.addEventListener('submit',function(){saved=true});
+  window.addEventListener('beforeunload',function(e){if(dirty&&!saved){e.preventDefault();e.returnValue=''}});
+})();
+</script>
+{{template "mail-tools" .}}
+{{template "foot" .}}{{end}}
+
+{{/* The pieces an email can hold for each member, for the easy editor. */}}
+{{define "mail-pieces"}}<select class="mail-pieces" hidden aria-hidden="true" tabindex="-1">{{range .}}<option value="{{.Key}}" title="{{.Help}}">{{.Label}}</option>{{end}}</select>{{end}}
+
+{{define "mail-cards"}}<script>
+// The easy editor for emails, like the page editor's: each part of the email
+// is a card (paragraph, heading, button, photo, list, line, or a club piece
+// like the Confirm button). It writes the email back into the message box as
+// the same marks, so saving, sending and the preview don't change. A part it
+// can't show as a card stays as text in a Text card. "Edit as text" goes back
+// to the plain box (remembered in this browser).
+function mailCards(form){
+var ta=form.querySelector('textarea[name=body]'),write=form.querySelector('.mail-write'),textEd=write.querySelector('.text-ed'),
+  pageSel=document.querySelector('#mail-link-box [name=page]'),doc=[],mode='cards',last=null,lastRange=null;
+try{if(localStorage.getItem('mail-editor')==='text')mode='text'}catch(e){}
+var PIECES={},BLOCKS={ride_tips:1,confirm_button:1,pay_line:1,rides_for_you:1};
+[].forEach.call((form.querySelector('select.mail-pieces')||{options:[]}).options,function(o){PIECES[o.value]={label:o.textContent,help:o.title}});
+var LINKS=[['{pay_link}','Their pay link'],['{my_link}','Their membership page'],['{strava}','The club on Strava']].filter(function(l){return PIECES[l[0].slice(1,-1)]});
+var linkG=/\[([^\]]*)\]\(\s*([^)\s]*)\s*\)/g;
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function el(tag,attrs,kids){var e=document.createElement(tag);for(var k in attrs||{}){var v=attrs[k];if(v==null||v===false)continue;
+    if(k==='text')e.textContent=v;else if(k==='value')e.value=v;else if(k==='html')e.innerHTML=v;else if(k.slice(0,2)==='on')e.addEventListener(k.slice(2),v);else e.setAttribute(k,v===true?'':v)}
+  (kids||[]).forEach(function(c){if(c!=null)e.appendChild(typeof c==='string'?document.createTextNode(c):c)});return e}
+function btn(text,title,fn,off){return el('button',{type:'button','class':'ghost',title:title,'aria-label':title,disabled:off,onclick:fn,text:text})}
+function phLabel(n){return PIECES[n]?PIECES[n].label:n}
+
+// ---- Words with bold, italics, links and pieces, in a box and as marks ----
+function textHtml(s){return esc(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/\*([^*\s][^*]*?)\*/g,'<i>$1</i>')
+  .replace(/\{([a-z0-9_]+)\}/g,function(v,n){return '<span class="ph" contenteditable="false" data-ph="'+n+'">'+esc(phLabel(n))+'</span>'}).replace(/\n/g,'<br>')}
+function mdHtml(s){var out='',lastI=0,m;linkG.lastIndex=0;
+  while((m=linkG.exec(s))){if(s[m.index-1]==='!'||s[m.index-1]==='[')continue;out+=textHtml(s.slice(lastI,m.index));lastI=linkG.lastIndex;
+    out+='<a data-href="'+esc(m[2])+'" title="Goes to '+esc(m[2])+'">'+textHtml(m[1])+'</a>'}
+  return out+textHtml(s.slice(lastI))}
+function runs(node,f,out){f=f||{};out=out||[];
+  for(var c=node.firstChild;c;c=c.nextSibling){
+    if(c.nodeType===3){var s=c.data.replace(/[ \t\r\n ]+/g,' ');if(s)out.push({t:s,b:f.b,i:f.i,h:f.h});continue}
+    if(c.nodeType!==1||/^(SCRIPT|STYLE|META|TITLE|HEAD|TEMPLATE|IMG)$/.test(c.tagName))continue;
+    if(c.getAttribute('data-ph')){out.push({ph:c.getAttribute('data-ph'),b:f.b,i:f.i,h:f.h});continue}
+    if(c.tagName==='BR'){out.push({t:'\n'});continue}
+    var g={b:f.b,i:f.i,h:f.h},st=c.style||{},w=st.fontWeight,tag=c.tagName;
+    if(tag==='B'||tag==='STRONG')g.b=true;
+    if(tag==='I'||tag==='EM')g.i=true;
+    if(w)g.b=w==='bold'||w==='bolder'||parseInt(w,10)>=600;
+    if(st.fontStyle)g.i=/italic|oblique/.test(st.fontStyle);
+    if(tag==='A'){var h=c.getAttribute('data-href')||c.getAttribute('href')||'';if(c.getAttribute('data-href')||/^(https?:|mailto:|tel:)/i.test(h))g.h=h}
+    var blk=/^(P|DIV|LI|H[1-6]|BLOCKQUOTE|TR|UL|OL|TABLE)$/.test(tag);if(blk)out.push({p:1});runs(c,g,out);if(blk)out.push({p:1})}
+  return out}
+function md(rs){var out='',i=0;
+  while(i<rs.length){var h=rs[i].h||'',j=i;while(j<rs.length&&(rs[j].h||'')===h)j++;
+    var inner=marks(rs.slice(i,j));out+=h&&inner.trim()?pad(inner,'['+inner.trim()+']('+h+')'):inner;i=j}
+  return out}
+function marks(rs){var out='',i=0;
+  while(i<rs.length){if(rs[i].t==='\n'){out+='\n';i++;continue}var b=!!rs[i].b,it=!!rs[i].i,j=i,s='';
+    while(j<rs.length&&rs[j].t!=='\n'&&!!rs[j].b===b&&!!rs[j].i===it){s+=rs[j].ph?'{'+rs[j].ph+'}':rs[j].t;j++}
+    var mk=(b?'**':'')+(it?'*':'');out+=mk&&s.trim()?pad(s,mk+s.trim()+mk):s;i=j}
+  return out}
+function pad(s,x){return s.match(/^\s*/)[0]+x+s.match(/\s*$/)[0]}
+function boxMd(e){var rs=runs(e).map(function(r){return r.p?{t:'\n'}:r});return md(rs).replace(/ *\n */g,'\n').replace(/^\n+|\n+$/g,'').replace(/\n{2,}/g,'\n').replace(/ +$/,'').replace(/^ +/,'')}
+function mdOk(s){var d=el('div');d.innerHTML=mdHtml(s);return boxMd(d)===s}
+
+// ---- Reading the email into cards, and writing it back ----
+function parse(src){return src.replace(/\r\n/g,'\n').split(/\n[ \t]*\n+/).map(function(s){return s.replace(/^\n+|\s+$/g,'')}).filter(Boolean).map(classify)}
+function classify(raw){var m,lines=raw.split('\n');
+  if(/^(-{3,}|\*{3,})$/.test(raw))return {type:'hr',raw:raw};
+  if((m=/^##\s+(.+)$/.exec(raw))&&lines.length===1)return {type:'h2',text:m[1],raw:raw};
+  if((m=/^\[\[([^\]]+)\]\(\s*([^)\s]+)\s*\)\]$/.exec(raw)))return {type:'button',label:m[1],href:m[2],raw:raw};
+  if((m=/^!\[([^\]]*)\]\(\s*([^)\s]+)\s*\)$/.exec(raw)))return {type:'photo',alt:m[1],url:m[2],raw:raw};
+  if((m=/^\{([a-z_]+)\}$/.exec(raw))&&BLOCKS[m[1]])return {type:'piece',name:m[1],raw:raw};
+  if(lines.every(function(l){return /^[-*] \S/.test(l)})){var items=lines.map(function(l){return l.slice(2)});
+    if(items.every(mdOk))return {type:'list',items:items,raw:raw}}
+  if(mdOk(raw))return {type:'p',md:raw,raw:raw};
+  return {type:'text',raw:raw}}
+function blockText(b){if(b.raw!=null)return b.raw;
+  switch(b.type){case 'hr':return '---';case 'h2':return '## '+b.text.trim();case 'button':return '[['+b.label.trim()+']('+b.href+')]';
+    case 'photo':return '!['+b.alt.replace(/[\[\]]/g,'')+']('+b.url+')';case 'piece':return '{'+b.name+'}';
+    case 'list':return b.items.map(function(x){return '- '+x}).join('\n');case 'p':return b.md}
+  return b.raw||''}
+function out(){return doc.map(blockText).filter(function(s){return s.trim()}).join('\n\n')}
+function update(){ta.value=out();ta.dispatchEvent(new Event('input',{bubbles:true}))}
+function edit(b){b.raw=null;update()}
+
+// ---- The bar: bold, italics, link, and pieces, for the box being typed in ----
+var host=el('div',{'class':'ed-cards mail-cards'}),bar=el('div',{'class':'mail-bar mail-fmt',role:'toolbar','aria-label':'Formatting'});
+function keep(b){b.addEventListener('mousedown',function(e){e.preventDefault()});return b}
+bar.appendChild(keep(el('button',{type:'button','class':'ghost',title:'Bold (Ctrl+B)',html:'<strong>B</strong>',onclick:function(){if(back())document.execCommand('bold')}})));
+bar.appendChild(keep(el('button',{type:'button','class':'ghost',title:'Italics (Ctrl+I)',html:'<em>I</em>',onclick:function(){if(back())document.execCommand('italic')}})));
+bar.appendChild(keep(el('button',{type:'button','class':'ghost',title:'Link (Ctrl+K)',text:'Link',onclick:function(){if(back())boxLink(last)}})));
+var ins=el('select',{'aria-label':'Put in a piece for each member',title:'Words filled in for each member'});
+ins.appendChild(el('option',{value:'',text:'Insert for each member…'}));
+for(var k in PIECES)if(!BLOCKS[k])ins.appendChild(el('option',{value:k,text:PIECES[k].label,title:PIECES[k].help}));
+ins.addEventListener('change',function(){var n=ins.value;ins.value='';if(!n)return;if(!back()){alert('Click into a paragraph first, where it should go.');return}
+  insertHtml('<span class="ph" contenteditable="false" data-ph="'+n+'">'+esc(phLabel(n))+'</span>&nbsp;')});
+bar.appendChild(ins);
+bar.appendChild(el('span',{'class':'muted small',text:'Select words, then press B, I or Link. Shift+Enter starts a new line.'}));
+// back puts the cursor back where it was in the last box typed in.
+function back(){if(!last||!host.contains(last))return false;last.focus();if(lastRange){var s=getSelection();s.removeAllRanges();s.addRange(lastRange)}return true}
+document.addEventListener('selectionchange',function(){var s=getSelection();if(!s.rangeCount)return;var n=s.anchorNode,r=n&&(n.nodeType===1?n:n.parentNode);
+  r=r&&r.closest&&r.closest('.rich');if(r&&host.contains(r)){last=r;lastRange=s.getRangeAt(0).cloneRange()}});
+function insertHtml(h){var sel=getSelection();if(!sel.rangeCount)return;var tp=document.createElement('template');tp.innerHTML=h;
+  var r=sel.getRangeAt(0),lastN=tp.content.lastChild;r.deleteContents();r.insertNode(tp.content);
+  if(lastN){r.setStartAfter(lastN);r.collapse(true);sel.removeAllRanges();sel.addRange(r)}
+  if(last)last.dispatchEvent(new Event('input'))}
+function boxLink(ed){var s=getSelection(),r=s.rangeCount?s.getRangeAt(0).cloneRange():null,a=r&&r.startContainer.parentNode&&r.startContainer.parentNode.closest&&r.startContainer.parentNode.closest('a[data-href]'),
+    said=(a?a.textContent:r?r.toString():'').trim();
+  openMailLink(said,function(words,href,big){ed.focus();var s=getSelection();
+    if(big){var at=findCard(ed);var nb={type:'button',label:words,href:href};doc.splice(at+1,0,nb);update();render(nb);return}
+    if(a){a.setAttribute('data-href',href);a.title='Goes to '+href;if(words!==said)a.textContent=words}
+    else{if(r){s.removeAllRanges();s.addRange(r)}else{r=document.createRange();r.selectNodeContents(ed);r.collapse(false)}
+      var n=el('a',{'data-href':href,title:'Goes to '+href});
+      if(said&&words===said)n.appendChild(r.extractContents());else{r.deleteContents();n.textContent=words}
+      r.insertNode(n);r.setStartAfter(n);r.collapse(true);s.removeAllRanges();s.addRange(r)}
+    ed.dispatchEvent(new Event('input'))})}
+function findCard(ed){for(var i=0;i<doc.length;i++)if(doc[i]._el===ed||(doc[i]._els||[]).indexOf(ed)>=0)return i;return doc.length-1}
+
+// rich makes a box for words. o.split (Enter) gets the words after the
+// cursor; o.drop (Backspace in an empty box) removes it.
+function rich(val,set,o){o=o||{};var e=el('div',{'class':'rich',contenteditable:'true',role:'textbox','aria-label':o.label||'Text','data-empty':o.empty||'Type here'});
+  e.innerHTML=mdHtml(val);
+  e.addEventListener('input',function(){set(boxMd(e))});
+  e.addEventListener('keydown',function(ev){var k=ev.key.toLowerCase();
+    if((ev.ctrlKey||ev.metaKey)&&!ev.altKey){if(k==='k'){ev.preventDefault();boxLink(e)}else if(k==='u')ev.preventDefault();else if(k==='b'||k==='i'){ev.preventDefault();document.execCommand(k==='b'?'bold':'italic')}}
+    else if(ev.key==='Enter'&&ev.shiftKey){ev.preventDefault();document.execCommand('insertLineBreak')}
+    else if(ev.key==='Enter'){ev.preventDefault();if(o.split)o.split(splitAt(e))}
+    else if(ev.key==='Backspace'&&o.drop&&!boxMd(e)){ev.preventDefault();o.drop()}});
+  e.addEventListener('paste',function(ev){var d=ev.clipboardData;if(!d)return;ev.preventDefault();var html=d.getData('text/html'),paras=[],cur=[];
+    if(html){runs(new DOMParser().parseFromString(html,'text/html').body).forEach(function(r){if(r.p||r.t==='\n'){if(cur.length)paras.push(cur);cur=[]}else cur.push(r)});if(cur.length)paras.push(cur)}
+    else d.getData('text/plain').split(/\r?\n/).forEach(function(l){paras.push([{t:l}])});
+    paras=paras.map(function(p){return md(p).replace(/\s+/g,' ').trim()}).filter(Boolean);if(!paras.length)return;
+    if(!o.split)paras=[paras.join(' ')];
+    insertHtml(mdHtml(paras[0]));var box=e;for(var i=1;i<paras.length;i++){box=o.split(splitAt(box));if(!box)break;box.focus();insertHtml(mdHtml(paras[i]))}});
+  e.addEventListener('drop',function(ev){ev.preventDefault()});
+  return e}
+function splitAt(e){var s=getSelection();if(!s.rangeCount)return '';var r=s.getRangeAt(0);r.deleteContents();
+  var tail=document.createRange();tail.setStart(r.startContainer,r.startOffset);tail.setEnd(e,e.childNodes.length);
+  var d=el('div');d.appendChild(tail.extractContents());e.dispatchEvent(new Event('input'));return boxMd(d)}
+function caret(e,end){e.focus();var r=document.createRange();r.selectNodeContents(e);r.collapse(!end);var s=getSelection();s.removeAllRanges();s.addRange(r)}
+
+// ---- Drawing the cards ----
+function name(b){return {p:'Paragraph',h2:'Heading',button:'Button',photo:'Photo',list:'List',hr:'Line',piece:'Club piece',text:'Text'}[b.type]||'Text'}
+function render(focus,where){host.textContent='';doc.forEach(function(b,i){host.appendChild(gap(i));host.appendChild(card(i))});host.appendChild(gap(doc.length));
+  if(focus&&focus._focus){focus._focus(where);var c=focus._card;if(c&&c.scrollIntoView){var r=c.getBoundingClientRect();if(r.top<0||r.bottom>innerHeight)c.scrollIntoView({block:'center'})}}}
+function move(i,d){var b=doc.splice(i,1)[0];doc.splice(i+d,0,b);update();render(b)}
+function remove(i){var b=doc.splice(i,1)[0];update();render();toast('Removed the '+name(b).toLowerCase()+'.',function(){doc.splice(Math.min(i,doc.length),0,b);update();render(b)})}
+function card(i){var b=doc[i],c=el('section',{'class':'ed-card ed-k-'+b.type,'aria-label':name(b)});b._card=c;
+  c.appendChild(el('div',{'class':'ed-head'},[el('span',{'class':'ed-name',text:name(b)}),el('span',{'class':'ed-tools'},[
+    btn('↑','Move up',function(){move(i,-1)},i===0),btn('↓','Move down',function(){move(i,1)},i===doc.length-1),btn('✕','Remove',function(){remove(i)})])]));
+  (BODY[b.type]||BODY.text)(b,c,i);return c}
+function inp(val,set,attrs){var a={value:val,oninput:function(){set(this.value)}};for(var k in attrs||{})a[k]=attrs[k];return el(attrs&&attrs.rows?'textarea':'input',a)}
+function grow(t){function f(){if(!t.offsetParent)return;t.style.height='auto';t.style.height=t.scrollHeight+2+'px'}t.addEventListener('input',f);setTimeout(f);return t}
+var BODY={
+  p:function(b,c,i){var e=rich(b.md,function(v){b.md=v;edit(b)},{label:'Paragraph',empty:'Type the paragraph here',
+      split:function(tail){var nb={type:'p',md:tail};doc.splice(i+1,0,nb);update();render(nb);return nb._el},
+      drop:function(){doc.splice(i,1);var p=doc[i-1];update();render(p,'end')}});
+    b._el=e;b._focus=function(w){caret(e,w==='end')};c.appendChild(e)},
+  h2:function(b,c){var t=inp(b.text,function(v){b.text=v;edit(b)},{'class':'ed-h2-input','aria-label':'Heading',placeholder:'Heading'});b._focus=function(){t.focus()};c.appendChild(t)},
+  button:function(b,c){var w=inp(b.label,function(v){b.label=v;edit(b)},{'class':'ed-btn-words','aria-label':'Words on the button',placeholder:'Words on the button'});
+    b._focus=function(){w.focus()};c.appendChild(el('div',{'class':'ed-button'},[w,dest(b.href,function(h){b.href=h;edit(b)})]))},
+  photo:function(b,c){var img=el('img',{src:b.url,alt:''}),msg=el('p',{'class':'ed-status small',role:'status'});
+    c.appendChild(el('figure',{'class':'ed-photo'},[img,el('label',{'class':'ed-field'},['Describe it for people who can’t see it',inp(b.alt,function(v){b.alt=v;edit(b)})]),
+      el('div',{'class':'ed-row'},[pick('Replace the photo',function(u){b.url=u;img.src=u;edit(b)},msg)]),msg]))},
+  list:function(b,c,i){var ul=el('ul',{'class':'ed-items'});b._els=[];
+    b.items.forEach(function(x,k){var e=rich(x,function(v){b.items[k]=v;edit(b)},{label:'List item',empty:'List item',
+        split:function(tail){b.items.splice(k+1,0,tail);edit(b);render(b);var n=b._els[k+1];if(n)caret(n);return n},
+        drop:function(){if(b.items.length===1){doc.splice(i,1);update();render();return}b.items.splice(k,1);edit(b);render(b);var p=b._els[Math.max(0,k-1)];if(p)caret(p,true)}});
+      b._els.push(e);ul.appendChild(el('li',{},[e]))});
+    b._focus=function(){var e=b._els[b._els.length-1];if(e)caret(e,true)};c.appendChild(ul);c.appendChild(el('p',{'class':'muted small',text:'Enter adds another item.'}))},
+  hr:function(b,c){c.appendChild(el('hr'))},
+  piece:function(b,c){var p=PIECES[b.name]||{label:b.name,help:''};c.appendChild(el('p',{'class':'ed-piece'},[el('strong',{text:p.label}),p.help]))},
+  text:function(b,c){var t=grow(inp(b.raw,function(v){b.raw=v;update()},{rows:3,'aria-label':'Text with marks'}));b._focus=function(){t.focus()};
+    c.appendChild(t);c.appendChild(el('p',{'class':'muted small',text:'This part has marks the easy editor can’t show, so it’s here as text. It sends as it looks in the preview.'}))}
+};
+// dest picks where a button goes: a page on the site, a link for each member, or any address.
+function dest(href,set){var s=el('select',{'aria-label':'Where it goes'}),u=el('input',{inputmode:'url',autocomplete:'off',placeholder:'https://www.example.com','aria-label':'Web or email address'});
+  s.innerHTML=(LINKS.length?'<optgroup label="For each member">'+LINKS.map(function(l){return '<option value="'+l[0]+'">'+esc(l[1])+'</option>'}).join('')+'</optgroup>':'')+
+    '<optgroup label="Pages on the club website">'+(pageSel?pageSel.innerHTML:'')+'</optgroup><optgroup label="Somewhere else"><option value="">Another website or an email address…</option></optgroup>';
+  var site=location.origin,v=href.indexOf(site)===0?href.slice(site.length)||'/':href,has=[].some.call(s.options,function(o){return o.value&&o.value===v});
+  s.value=has?v:'';u.value=has?'':href;u.hidden=has;
+  function web(x){return /^[a-z]+:|^\{/i.test(x)?x:(x.indexOf('@')>0?'mailto:':'https://')+x}
+  s.addEventListener('change',function(){u.hidden=!!s.value;if(s.value)set(s.value);else{u.focus();if(u.value.trim())set(web(u.value.trim()))}});
+  u.addEventListener('input',function(){if(u.value.trim())set(web(u.value.trim()))});
+  return el('span',{'class':'ed-dest'},['Goes to ',s,u])}
+function pick(label,done,msg){var f=el('input',{type:'file',accept:'image/jpeg,image/png,image/webp'});
+  f.addEventListener('change',function(){var file=f.files[0];f.value='';if(file)upload(file,done,msg)});return el('label',{'class':'ghost mail-photo'},[label,f])}
+function upload(file,done,msg){var fd=new FormData();fd.append('photo',file);function say(t,bad){if(msg){msg.textContent=t;msg.classList.toggle('err-text',!!bad)}else if(bad)alert(t)}
+  say('Uploading the photo…');
+  fetch('/admin/pages/photo',{method:'POST',body:fd}).then(function(r){return r.json()}).then(function(j){if(j.error){say('That photo didn’t upload: '+j.error,true);return}
+    say('');var m=/\]\(([^)]*)\)$/.exec(j.markdown);if(m)done(m[1])}).catch(function(){say('The photo didn’t upload. Check your connection and try again.',true)})}
+
+// ---- The ＋ Add buttons between cards ----
+function gap(i){var g=el('div',{'class':'ed-gap'}),a=el('button',{type:'button','class':'ed-add','aria-expanded':'false',text:'＋ Add'});
+  a.addEventListener('click',function(){var open=g.querySelector('.ed-menu');closeMenus();if(open)return;a.setAttribute('aria-expanded','true');
+    var m=el('div',{'class':'ed-menu'}),kinds=[['p','Paragraph'],['h2','Heading'],['button','Button'],['photo','Photo'],['list','List'],['hr','Line across']];
+    for(var k in PIECES)if(BLOCKS[k])kinds.push(['piece:'+k,PIECES[k].label]);
+    kinds.forEach(function(k){m.appendChild(el('button',{type:'button','class':'ghost',text:k[1],onclick:function(){closeMenus();add(i,k[0])}}))});
+    g.appendChild(m);m.firstChild.focus()});
+  g.appendChild(a);return g}
+function closeMenus(){host.querySelectorAll('.ed-menu').forEach(function(m){m.previousSibling.setAttribute('aria-expanded','false');m.remove()})}
+document.addEventListener('click',function(e){if(!e.target.closest||!e.target.closest('.ed-gap'))closeMenus()});
+function add(i,k){var nb;
+  if(k==='photo'){var f=el('input',{type:'file',accept:'image/jpeg,image/png,image/webp'});
+    f.addEventListener('change',function(){if(f.files[0])upload(f.files[0],function(u){var nb={type:'photo',alt:'',url:u};doc.splice(i,0,nb);update();render(nb)})});f.click();return}
+  if(k.indexOf('piece:')===0)nb={type:'piece',name:k.slice(6)};
+  else nb={p:{type:'p',md:''},h2:{type:'h2',text:''},button:{type:'button',label:'',href:LINKS.length?LINKS[0][0]:'/calendar'},list:{type:'list',items:['']},hr:{type:'hr'}}[k];
+  doc.splice(i,0,nb);update();render(nb)}
+var toastEl=document.querySelector('.ed-toast')||el('div',{'class':'ed-toast',role:'status',hidden:true}),toastT;if(!toastEl.parentNode)document.body.appendChild(toastEl);
+function toast(msg,undo){toastEl.textContent=msg+' ';toastEl.appendChild(el('button',{type:'button','class':'link light',text:'Undo',onclick:function(){toastEl.hidden=true;undo()}}));
+  toastEl.hidden=false;clearTimeout(toastT);toastT=setTimeout(function(){toastEl.hidden=true},12000)}
+
+// ---- Easy editor or text ----
+var modeBar=el('div',{'class':'ed-mode'},[el('span',{'class':'seg',role:'group','aria-label':'How to edit'},[
+  el('button',{type:'button','class':'ghost','data-mode':'cards',text:'Easy editor'}),el('button',{type:'button','class':'ghost','data-mode':'text',text:'Edit as text'})])]);
+modeBar.querySelectorAll('[data-mode]').forEach(function(b){b.addEventListener('click',function(){setMode(b.dataset.mode)})});
+write.insertBefore(modeBar,textEd);write.insertBefore(bar,textEd);write.insertBefore(host,textEd);
+function setMode(m){mode=m;try{localStorage.setItem('mail-editor',m)}catch(e){}
+  modeBar.querySelectorAll('[data-mode]').forEach(function(b){b.setAttribute('aria-pressed',b.dataset.mode===m)});
+  var cards=m==='cards';host.hidden=!cards;bar.hidden=!cards;textEd.hidden=cards;
+  if(cards){doc=parse(ta.value);if(!doc.length)doc=[{type:'p',md:''}];render()}}
+setMode(mode);
+// For checking in the browser console: f.cards.text(f.cards.parse(src))===src
+form.cards={parse:parse,text:function(d){return d.map(blockText).filter(function(s){return s.trim()}).join('\n\n')}};
+}
+document.querySelectorAll('form.mail-form').forEach(mailCards);
+</script>{{end}}

@@ -370,8 +370,11 @@ func (a *App) sendConfirm(m Member) error {
 		intro = "Someone, probably you, filled in PaxVelo’s join form with this email address. Press the button to confirm it was you: that " + a.renewalDoes(m) + "."
 	case renewing:
 		intro = "Thanks for joining PaxVelo! Press the button to confirm this is your email, so club news and ride updates reach you. It also " + a.renewalDoes(m) + " on the join form."
-	default:
-		intro = "Thanks for joining PaxVelo! Press the button to confirm this is your email, so club news and ride updates reach you."
+	}
+	if intro == "" { // a new joiner: the email as admins wrote it (Email → Automations)
+		e := a.store.ConfirmText()
+		mine := a.mailer.personalize(a.fillConfirm(e.Body, m), m)
+		return a.mailer.SendMine(mailConfirm, m, a.mailer.personalize(e.Subject, m), mine)
 	}
 	if unexpected == "" {
 		unexpected = "If you didn’t sign up for PaxVelo, no action is needed: this address won’t get club emails unless it’s confirmed."

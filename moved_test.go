@@ -54,7 +54,7 @@ func TestSiteMoveEmail(t *testing.T) {
 	if page := do(t, h, nil, "GET", "/membership?t="+ollie.Token, "", nil).Body.String(); !strings.Contains(page, "Good through") {
 		t.Error("their page should show when their dues run out")
 	}
-	if page := do(t, h, admin, "GET", "/admin/email", "", nil).Body.String(); !strings.Contains(page, `id="moved"`) {
+	if page := do(t, h, admin, "GET", "/admin/email/auto/moved", "", nil).Body.String(); !strings.Contains(page, `action="/admin/email/auto/moved/save"`) {
 		t.Error("the Email page should let admins edit the site-move email")
 	}
 }

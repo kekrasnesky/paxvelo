@@ -71,6 +71,7 @@ type adminView struct {
 	Draft         EmailDraft
 	Welcome       WelcomeEmail
 	Moved         EmailDraft // the site-move email (moved.go)
+	Auto          *autoView  // Email → Automations (automations.go)
 	TestTo        string
 	Live, Sending bool
 	// Newsletter tab
@@ -247,6 +248,11 @@ var flashText = map[string]string{
 	"stopped":              "Sending stopped.",
 	"resumed":              "Sending resumed.",
 	"welcome":              "Welcome email saved.",
+	"auto-saved":           "Saved.",
+	"auto-paused":          "Paused: it won’t send until you resume it.",
+	"auto-resumed":         "Resumed: it sends again.",
+	"auto-removed":         "Removed.",
+	"auto-restored":        "Put back.",
 	"paid":                 "Marked as paid.",
 	"paid-welcome":         "Marked as paid, and their welcome email is on its way.",
 	"paid-wait":            "Marked as paid. Their welcome email goes once they confirm their email, from the link we sent them.",
@@ -805,7 +811,7 @@ func (a *App) backup(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) emailView(r *http.Request) adminView {
 	v := adminView{
-		Title: "Email", Tab: "email", Campaigns: a.store.Campaigns(), Draft: a.store.Draft(),
+		Title: "Send an email", Tab: "email", Campaigns: a.store.Campaigns(), Draft: a.store.Draft(),
 		Welcome: a.store.Welcome(), Moved: a.store.MovedEmail(), TestTo: a.cfg.AdminEmail, Live: a.mailer.live(), Year: a.cfg.ThisYear(),
 		Allowance: emailAllowance{Sent: a.store.EmailsToday(), Limit: a.cfg.EmailLimit},
 	}
@@ -961,12 +967,12 @@ func (a *App) saveWelcome(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if we.Subject == "" || we.Body == "" {
-		back(w, r, "/admin/email?err=welcome#welcome")
+		back(w, r, "/admin/email/auto/welcome?err=welcome")
 		return
 	}
 	if err := a.store.SetWelcome(we); err != nil {
-		back(w, r, "/admin/email?err=save#welcome")
+		back(w, r, "/admin/email/auto/welcome?err=save")
 		return
 	}
-	back(w, r, "/admin/email?ok=welcome#welcome")
+	back(w, r, "/admin/email/auto?ok=welcome#a-welcome")
 }

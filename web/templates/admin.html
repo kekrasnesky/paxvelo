@@ -830,29 +830,29 @@ body.addEventListener('submit',function(e){var f=e.target;if(!f.classList.contai
 
 {{define "email"}}{{template "head" .}}
 {{if not .Live}}<p class="flash warn">Test mode: emails are written to the server log instead of being sent. Add the SMTP settings to paxvelo.conf to send for real.</p>{{end}}
-<h1>Email members</h1>
-{{if and .Live (gt .Allowance.Limit 0)}}{{with .Allowance}}<div class="card allowance">
-  <p><strong>{{.Left}} emails left today</strong> <span class="muted">· {{.Sent}} of {{.Limit}} sent, starts over {{.Resets}}</span></p>
-  <div class="meter{{if ge .Percent 80}} high{{end}}" role="img" aria-label="{{.Sent}} of {{.Limit}} emails sent today"><span style="width:{{.Percent}}%"></span></div>
-  <p class="muted small">Counts every email the site sends (newsletters, welcome emails, membership links, ride notices, tests) since midnight UTC. A send to more people than are left pauses at the limit and picks up again with Resume after it starts over.</p>
-</div>{{end}}{{end}}
-<form class="card compose" method="post">
-  <label>Subject <input name="subject" maxlength="200" value="{{.Draft.Subject}}"></label>
+<div class="title-row"><h1>Send an email</h1>
+  {{if and .Live (gt .Allowance.Limit 0)}}{{with .Allowance}}<p class="allowance-pill" title="Counts every email the site sends since midnight UTC. A send to more people than are left pauses at the limit and picks up again with Resume after it starts over."><strong>{{.Left}} emails left today</strong> <span class="muted">· {{.Sent}} of {{.Limit}} sent, starts over {{.Resets}}</span> <span class="meter{{if ge .Percent 80}} high{{end}}" role="img" aria-label="{{.Sent}} of {{.Limit}} emails sent today"><span style="width:{{.Percent}}%"></span></span></p>{{end}}{{end}}
+</div>
+<p class="muted small lede">To everyone, or a group. Emails the site sends by itself, like the welcome email, are under <a href="/admin/email/auto">Automations</a>.</p>
+<form class="card compose mail-form" method="post">
+  <label>Subject <input name="subject" maxlength="200" value="{{.Draft.Subject}}" placeholder="What it’s about"></label>
   <div class="mail-edit">
     <div class="mail-write">
+      {{template "mail-pieces" (mailPieces "member")}}
+      <div class="text-ed">
       {{template "mail-bar"}}
       <label>Message <textarea name="body" rows="16">{{.Draft.Body}}</textarea></label>
-      <p class="muted small">Select some words and use the buttons above, or type the marks yourself: **bold**, [words to click](https://…), ## Heading, - list item, and [[Button words](https://…)] for a button. Leave a blank line between paragraphs; web addresses become links on their own. {first_name} greets each member by name, and {pay_link} is a link to pay their dues ({dues} and {year} work too), {my_link} is their membership page, to check dues and update their details, and {strava} is the club on Strava.</p>
+      <details class="muted small"><summary>Typing the marks yourself</summary><p>Select some words and use the buttons above, or type the marks yourself: **bold**, [words to click](https://…), ## Heading, - list item, and [[Button words](https://…)] for a button. Leave a blank line between paragraphs; web addresses become links on their own. {first_name} greets each member by name, and {pay_link} is a link to pay their dues ({dues} and {year} work too).</p></details>
+      </div>
     </div>
     {{template "mail-preview"}}
   </div>
-  <div class="send-row">
-    <input type="email" name="test_to" value="{{.TestTo}}" aria-label="Send test to">
-    <button class="ghost" formaction="/admin/email/test">{{icon "mail"}}Send test</button>
+  <div class="send-row mail-actions">
+    <span class="test-to"><input type="email" name="test_to" value="{{.TestTo}}" aria-label="Send test to"><button class="ghost" formaction="/admin/email/test">{{icon "mail"}}Send test</button></span>
     <button class="link danger draft-discard" formaction="/admin/email/discard" onclick="return confirm('Discard this draft?')"{{if not (or .Draft.Subject .Draft.Body)}} hidden{{end}}>{{icon "trash"}}Discard draft</button>
-    <span class="muted small draft-status" role="status"></span>
+    <span class="draft-status muted small" role="status"></span>
   </div>
-  <div class="send-row">
+  <div class="send-row mail-actions">
     <label class="inline-label">About
       <select name="topic" class="email-topic"><option value="">Club news and notices</option><option value="events">Rides and events</option></select>
     </label>
@@ -861,7 +861,7 @@ body.addEventListener('submit',function(e){var f=e.target;if(!f.classList.contai
     </label>
     <button formaction="/admin/email/send" onclick="return confirm('Send this email to: '+this.form.audience.selectedOptions[0].text+'?')">{{icon "send"}}Send email</button>
   </div>
-  <p class="muted small">The counts leave out members who unsubscribed, and new members until they confirm their email from the link we send them. Rides and events emails also skip members who turned those off.</p>
+  <p class="muted small">The counts leave out members who unsubscribed, and new members until they confirm their email. Rides and events emails also skip members who turned those off.</p>
 </form>
 <script>
 // The counts follow what the email is about.
@@ -884,10 +884,10 @@ body.addEventListener('submit',function(e){var f=e.target;if(!f.classList.contai
 </script>
 
 <div class="title-row section-row"><h2>Sent emails</h2><a href="/admin/stats">How many opened and clicked</a></div>
-<div class="table-wrap"><table>
+<div class="table-wrap"><table class="sent-list">
   <thead><tr><th>Date</th><th>Subject</th><th>Sent to</th><th>Progress</th><th>Status</th><th><span class="sr">Actions</span></th></tr></thead>
   <tbody>
-  {{range .Campaigns}}<tr data-id="{{.ID}}">
+  {{range $i, $c := .Campaigns}}<tr data-id="{{.ID}}"{{if ge $i 5}} class="sent-more" hidden{{end}}>
     <td class="nowrap">{{datetime .Created}}</td>
     <td>{{.Subject}}</td>
     <td>{{or .Audience "Everyone"}}</td>
@@ -899,49 +899,21 @@ body.addEventListener('submit',function(e){var f=e.target;if(!f.classList.contai
   {{end}}
   </tbody>
 </table></div>
+{{if gt (len .Campaigns) 5}}<p class="show-more"><button type="button" class="link" onclick="document.querySelectorAll('tr.sent-more').forEach(function(r){r.hidden=false});this.parentNode.remove()">Show all {{len .Campaigns}}</button> · <a href="/admin/email/log">Every email in the sent log</a></p>{{end}}
+{{template "mail-tools" .}}
+{{if .Sending}}<script>
+(function poll(){setTimeout(function(){fetch('/admin/email/status').then(function(r){return r.json()}).then(function(list){var busy=false;list.forEach(function(c){var tr=document.querySelector('tr[data-id="'+c.id+'"]');if(!tr)return;tr.querySelector('.prog').textContent=c.progress;tr.querySelector('.st').textContent=c.status+(c.error?' – '+c.error:'');if(c.status==='Sending')busy=true;else tr.querySelector('.act').textContent=''});if(busy)poll()}).catch(poll)},3000)})();
+</script>{{end}}
+{{template "foot" .}}{{end}}
 
-<h2 class="section" id="welcome">Welcome email</h2>
-<form class="card" method="post" action="/admin/welcome">
-  <label class="check"><input type="checkbox" name="enabled"{{if .Welcome.Enabled}} checked{{end}}> Send automatically when someone who joined on the website is marked paid</label>
-  <label>Subject <input name="subject" required maxlength="200" value="{{.Welcome.Subject}}"></label>
-  <div class="mail-edit">
-    <div class="mail-write">
-      {{template "mail-bar"}}
-      <label>Message <textarea name="body" rows="14" required>{{.Welcome.Body}}</textarea></label>
-      <p class="muted small">The same buttons and marks work here. {first_name} becomes the new member’s first name, {pay_link} their PayPal link, {year} the current year, {site} the website address, {strava} the club on Strava, and {ride_tips} where to start riding, from their answer on the join form (below). The preview shows the advice for “Some group rides” as last saved.</p>
-    </div>
-    {{template "mail-preview"}}
-  </div>
-  <fieldset class="tips">
-    <legend>Where to start riding: what {ride_tips} says for each answer</legend>
-    <p class="muted small">Each new member gets exactly one of these, from how they answered “Which sounds like you?” A line pointing to Strava and the Rides page follows it. Members you add yourself get none. Clear a box to go back to the built-in advice.</p>
-    {{range riderLevels}}<label>{{.Label}} <textarea name="tips_{{.Value}}" rows="6">{{$.Welcome.Tip .Value}}</textarea></label>
-    {{end}}
-  </fieldset>
-  <button>{{icon "save"}}Save welcome email</button>
-</form>
-
-<h2 class="section" id="moved">Site-move email</h2>
-<form class="card" method="post" action="/admin/moved">
-  <p class="muted small">For members who paid on the old site. Send it from Members: tick them and press <strong>Mark paid &amp; send site-move email</strong>, or use the button on a member’s page. It goes instead of the welcome email.</p>
-  <label>Subject <input name="subject" required maxlength="200" value="{{.Moved.Subject}}"></label>
-  <div class="mail-edit">
-    <div class="mail-write">
-      {{template "mail-bar"}}
-      <label>Message <textarea name="body" rows="14" required>{{.Moved.Body}}</textarea></label>
-      <p class="muted small">{dues_expire} becomes the day their dues run out (the day they joined, the year after they last paid), {my_link} their membership page, {first_name} their first name, {site} the website address.</p>
-    </div>
-    {{template "mail-preview"}}
-  </div>
-  <button>{{icon "save"}}Save site-move email</button>
-</form>
+{{define "mail-tools"}}
 <script>
 // Formatting buttons and the live preview for each email on this page.
 function initMail(form){
   var ta=form.querySelector('textarea[name=body]'),subj=form.querySelector('input[name=subject]'),
       frame=form.querySelector('.mail-preview iframe'),file=form.querySelector('.mail-photo input'),timer,asked=0;
   function refresh(){var n=++asked,fd=new FormData();fd.append('subject',subj.value);fd.append('body',ta.value);
-    fetch('/admin/email/preview',{method:'POST',body:fd}).then(function(r){return r.text()}).then(function(h){if(n===asked)frame.srcdoc=h})}
+    fetch(form.dataset.preview||'/admin/email/preview',{method:'POST',body:fd}).then(function(r){return r.text()}).then(function(h){if(n===asked)frame.srcdoc=h})}
   function later(){clearTimeout(timer);timer=setTimeout(refresh,350)}
   // Grow the preview to fit the email, again as each photo finishes loading.
   function fit(){try{frame.style.height=frame.contentDocument.documentElement.scrollHeight+'px'}catch(e){}}
@@ -1005,10 +977,8 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
     <div class="send-row"><button value="ok">{{icon "check"}}Add link</button><button value="" class="link">Cancel</button></div>
   </form>
 </dialog>
-{{if .Sending}}<script>
-(function poll(){setTimeout(function(){fetch('/admin/email/status').then(function(r){return r.json()}).then(function(list){var busy=false;list.forEach(function(c){var tr=document.querySelector('tr[data-id="'+c.id+'"]');if(!tr)return;tr.querySelector('.prog').textContent=c.progress;tr.querySelector('.st').textContent=c.status+(c.error?' – '+c.error:'');if(c.status==='Sending')busy=true;else tr.querySelector('.act').textContent=''});if(busy)poll()}).catch(poll)},3000)})();
-</script>{{end}}
-{{template "foot" .}}{{end}}
+{{template "mail-cards"}}
+{{end}}
 
 {{define "mail-bar"}}<div class="mail-bar" role="toolbar" aria-label="Formatting">
   <button type="button" class="ghost" data-do="bold" title="Bold (Ctrl+B)"><strong>B</strong></button>

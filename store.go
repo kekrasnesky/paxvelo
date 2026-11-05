@@ -182,7 +182,11 @@ type storeData struct {
 	Members       []*Member      `json:"members"`
 	Campaigns     []*Campaign    `json:"campaigns"`
 	Welcome       WelcomeEmail   `json:"welcome_email"`
-	Moved         EmailDraft     `json:"moved_email,omitempty"` // the site-move email (moved.go); blank = built in
+	Moved         EmailDraft     `json:"moved_email,omitempty"`   // the site-move email (moved.go); blank = built in
+	Confirm       EmailDraft     `json:"confirm_email,omitempty"` // the confirm-your-email email (automations.go); blank = built in
+	NextAuto      int            `json:"next_automation_id,omitempty"`
+	Automations   []*Automation  `json:"automations,omitempty"`        // admins' own automated emails (automations.go)
+	RemovedAuto   *Automation    `json:"removed_automation,omitempty"` // the one removed last, for Undo
 	Draft         EmailDraft     `json:"draft"`
 	NextIssue     int            `json:"next_issue_id,omitempty"`
 	Issues        []*Issue       `json:"newsletter,omitempty"`

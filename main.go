@@ -69,6 +69,7 @@ func main() {
 	go app.instagramSyncLoop(ctx)
 	go app.stats.run(ctx)
 	go app.upcomingLoop(ctx)
+	go app.automationLoop(ctx)
 	go app.sizeOldPhotos()
 	go app.convertOldMinutes() // Word minutes from before LibreOffice was installed
 
@@ -240,6 +241,15 @@ func (a *App) routes() http.Handler {
 	mux.Handle("POST /admin/email/discard", a.auth(a.discardDraft))
 	mux.Handle("POST /admin/email/draft", a.auth(a.saveDraft))
 	mux.Handle("GET /admin/email/log", a.auth(a.sentLogPage))
+	mux.Handle("GET /admin/email/auto", a.auth(a.autoPage))
+	mux.Handle("GET /admin/email/auto/{key}", a.auth(a.autoEditPage))
+	mux.Handle("POST /admin/email/auto/{key}/save", a.auth(a.autoSave))
+	mux.Handle("GET /admin/email/auto/{key}/preview", a.auth(a.autoPreview))
+	mux.Handle("POST /admin/email/auto/{key}/preview", a.auth(a.autoPreview))
+	mux.Handle("POST /admin/email/auto/{key}/test", a.auth(a.autoTest))
+	mux.Handle("POST /admin/email/auto/{key}/pause", a.auth(a.autoPause))
+	mux.Handle("POST /admin/email/auto/{key}/remove", a.auth(a.autoRemove))
+	mux.Handle("POST /admin/email/auto/{key}/restore", a.auth(a.autoRestore))
 	mux.Handle("GET /admin/newsletter/{id}/email-preview", a.auth(a.issueEmailPreview))
 	mux.Handle("POST /admin/newsletter/{id}/email-test", a.auth(a.testIssueEmail))
 	mux.Handle("POST /admin/newsletter/{id}/email-send", a.auth(a.sendIssueEmail))

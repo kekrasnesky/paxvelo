@@ -140,12 +140,12 @@ func (a *App) movedMany(w http.ResponseWriter, r *http.Request) {
 func (a *App) saveMoved(w http.ResponseWriter, r *http.Request) {
 	e := EmailDraft{Subject: strings.TrimSpace(r.FormValue("subject")), Body: strings.TrimSpace(strings.ReplaceAll(r.FormValue("body"), "\r\n", "\n"))}
 	if e.Subject == "" || e.Body == "" {
-		back(w, r, "/admin/email?err=welcome#moved")
+		back(w, r, "/admin/email/auto/moved?err=welcome")
 		return
 	}
 	if err := a.store.SetMovedEmail(e); err != nil {
-		back(w, r, "/admin/email?err=save#moved")
+		back(w, r, "/admin/email/auto/moved?err=save")
 		return
 	}
-	back(w, r, "/admin/email?ok=moved-saved#moved")
+	back(w, r, "/admin/email/auto?ok=moved-saved#a-moved")
 }
