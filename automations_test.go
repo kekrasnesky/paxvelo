@@ -1,6 +1,8 @@
 package main
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strconv"
 	"strings"
@@ -225,5 +227,47 @@ func TestConfirmEmailSwitch(t *testing.T) {
 	do(t, h, admin, "POST", "/admin/email/auto/confirm/pause", ct, body)
 	if m, _, _ := a.store.JoinPublic(memberDetails{Name: "Kim Lee", Email: "kim@example.com", Plan: "individual", Terms: true}, a.cfg.ThisYear()); !m.Unconfirmed {
 		t.Error("back on, new joiners confirm first")
+	}
+}
+
+// Automations are the president's: other admins don't see the screen in the
+// menu, can't open it, and can't change, pause or remove an automation.
+func TestAutomationsPresidentOnly(t *testing.T) {
+	a, h, _ := testApp(t)
+	pat, _ := a.store.AddAdmin("Pat", "pat@example.com", "")
+	sam, _ := a.store.AddAdmin("Sam", "sam@example.com", "")
+	a.store.SetPresident(pat.ID)
+	as := func(u AdminUser) *http.Cookie {
+		u, _ = a.store.Admin(u.ID)
+		rec := httptest.NewRecorder()
+		a.setSession(rec, accountSession(u), 3600)
+		return rec.Result().Cookies()[0]
+	}
+	au, _ := a.store.SaveAutomation(Automation{Name: "Dues reminder", Trigger: "expiring", Days: 14, Subject: "Dues", Body: "Hi"})
+	id := au.ID
+
+	if page := do(t, h, as(sam), "GET", "/admin/email", "", nil).Body.String(); strings.Contains(page, `href="/admin/email/auto"`) {
+		t.Error("a non-president shouldn't see Automations in the menu")
+	}
+	if loc := do(t, h, as(sam), "GET", "/admin/email/auto", "", nil).Header().Get("Location"); loc != "/admin/email?err=president-only" {
+		t.Errorf("a non-president opening Automations went to %q", loc)
+	}
+	key := strconv.Itoa(id)
+	ct, body := form(url.Values{"paused": {"1"}})
+	do(t, h, as(sam), "POST", "/admin/email/auto/"+key+"/pause", ct, body)
+	do(t, h, as(sam), "POST", "/admin/email/auto/"+key+"/remove", "", nil)
+	ct, body = form(url.Values{"enabled": {"on"}, "subject": {"Hacked"}, "body": {"Hacked"}})
+	do(t, h, as(sam), "POST", "/admin/welcome", ct, body)
+	if au, ok := a.store.Automation(id); !ok || au.Paused || a.store.Welcome().Subject == "Hacked" {
+		t.Fatal("a non-president changed an automation")
+	}
+
+	if page := do(t, h, as(pat), "GET", "/admin/email/auto", "", nil).Body.String(); !strings.Contains(page, "Dues reminder") || !strings.Contains(page, `href="/admin/email/auto"`) {
+		t.Error("the president should see Automations")
+	}
+	ct, body = form(url.Values{"paused": {"1"}})
+	do(t, h, as(pat), "POST", "/admin/email/auto/"+key+"/pause", ct, body)
+	if au, _ := a.store.Automation(id); !au.Paused {
+		t.Error("the president should be able to pause an automation")
 	}
 }

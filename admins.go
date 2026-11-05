@@ -281,6 +281,22 @@ func (a *App) canManage(r *http.Request) bool {
 	return ok && (u.President || u.ID == 0)
 }
 
+// president is auth for the president's own screens (Automations): anyone
+// else is sent back to Send an email.
+func (a *App) president(h http.HandlerFunc) http.Handler {
+	return a.auth(func(w http.ResponseWriter, r *http.Request) {
+		if !a.canManage(r) {
+			if strings.Contains(r.Header.Get("Accept"), "application/json") {
+				http.Error(w, "Only the president can do that.", http.StatusForbidden)
+				return
+			}
+			back(w, r, "/admin/email?err=president-only")
+			return
+		}
+		h(w, r)
+	})
+}
+
 // canNamePresident reports whether the logged-in admin may choose the
 // president: the president can hand it on, and until there is one, any admin
 // can name the first.

@@ -215,7 +215,7 @@ func (a *App) renderAdmin(w http.ResponseWriter, r *http.Request, status int, na
 	v.CSS, v.SiteURL, v.PhotoJS = a.site.adminCSS, a.cfg.SiteURL, a.site.photoJS
 	v.Me, _ = a.adminName(r)
 	if v.Tab != "" {
-		v.Nav = adminNavFor(v.Tab, len(a.attention()))
+		v.Nav = adminNavFor(v.Tab, len(a.attention()), a.canManage(r))
 	}
 	var buf bytes.Buffer
 	if err := a.site.admin.ExecuteTemplate(&buf, name, v); err != nil {
@@ -310,7 +310,7 @@ var flashText = map[string]string{
 	"invited":              "Added. They’ve been emailed a link to choose their password.",
 	"link-sent":            "A new password link is on its way.",
 	"admin-removed":        "Admin removed. They can’t log in anymore.",
-	"president":            "Saved. The president is marked below, and is the one admin who can remove admins and delete members.",
+	"president":            "Saved. The president is marked below, and is the one admin who can remove admins, delete members and use Automations.",
 	"password-set":         "Your password is set. Next time, log in with your email and this password.",
 	"password-changed":     "Password changed. Any other devices you were logged in on are logged out.",
 	"series-deleted":       "Weekly ride removed. Dates that already had a leader stay on the calendar.",
