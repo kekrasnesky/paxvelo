@@ -57,4 +57,4 @@ Ride fields: `date` (required), `name` (required), `time` (24-hour), `place`, `d
 - Admin "Download a full backup" is president-only, text data only (no photos/files, no signing key).
 
 ## Squarespace import
-Members → Import from a spreadsheet (CSV with email and name columns); skips duplicates, sends no welcome email. From a Squarespace profiles export it reads `Member Areas` as the plan and works out paid years from `Customer Since`, `Last Order Date` and `Order Count` (one payment a year).
+Members → Import from a spreadsheet (CSV with email and name columns); skips duplicates, sends no welcome email. From a Squarespace profiles export it reads `Member Areas` as the plan and works out paid years from `Customer Since`, `Last Order Date` and `Order Count` (one payment a year). A Squarespace **orders** export (`orders.go`, spotted by its `Paid at` + `Lineitem name` columns) instead sets each payer's dues to end a year after their latest membership payment (join day moves to the payment day, first-join year kept; refunded/cancelled/non-membership orders ignored) and adds payers not on the list; the flash names who was added (IDs in the URL, never emails).

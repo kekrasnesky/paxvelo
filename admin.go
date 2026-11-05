@@ -332,6 +332,7 @@ var errorText = map[string]string{
 	"file":            "Choose a CSV file to import.",
 	"csv":             "That file couldn’t be read as a CSV. Export it from your spreadsheet as “CSV” and try again.",
 	"nocol":           "Couldn’t find an email column in that file.",
+	"no-orders":       "That orders file has no paid membership orders in it.",
 	"empty":           "Add a subject and a message first.",
 	"welcome":         "The welcome email needs a subject and a message.",
 	"save":            "Couldn’t save. Check the server log.",
@@ -448,6 +449,9 @@ func (a *App) membersPage(w http.ResponseWriter, r *http.Request) {
 	v := adminView{Title: "Members", Tab: "members", Q: q, Dues: dues, Year: a.cfg.ThisYear(), CanManage: a.canManage(r)}
 	v.Signed = a.store.SignedWaivers(v.Year)
 	v.Flash, v.Error = flashFrom(r)
+	if r.URL.Query().Get("ok") == "orders" {
+		v.Flash = a.ordersFlash(r)
+	}
 	lq := strings.ToLower(q)
 	for _, m := range a.store.Members() {
 		st := m.Standing()
@@ -584,7 +588,17 @@ func (a *App) importCSV(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer f.Close()
-	rows, bad, err := parseImport(f)
+	data, err := io.ReadAll(f)
+	if err != nil {
+		back(w, r, "/admin/members?err=file")
+		return
+	}
+	// A Squarespace orders export sets dues from payment dates (orders.go).
+	if records, err := readCSV(bytes.NewReader(data)); err == nil && len(records) > 0 && isOrdersExport(records[0]) {
+		a.importOrders(w, r, records)
+		return
+	}
+	rows, bad, err := parseImport(bytes.NewReader(data))
 	if err != nil {
 		code := "csv"
 		if errors.Is(err, errNoEmailColumn) {

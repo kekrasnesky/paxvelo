@@ -603,6 +603,7 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
   <form class="card" method="post" action="/admin/import" enctype="multipart/form-data">
     <h2>Import from a spreadsheet</h2>
     <p class="muted small">Upload a CSV with an email column, such as the Squarespace contacts export or this page’s Export CSV. Names, phone numbers, emergency contacts, plan, years paid, and join dates come across automatically. People who opted out of emails are imported as unsubscribed. Emails already on the list are skipped.</p>
+    <p class="muted small">A Squarespace <strong>orders</strong> export (Commerce → Orders → Download CSV) works too: each member who paid is then paid up until a year after their latest payment date, and payers not on the list are added. Nothing is emailed.</p>
     <input type="file" name="file" accept=".csv,text/csv" required aria-label="CSV file">
     <label>Who to import
       <select name="who">
