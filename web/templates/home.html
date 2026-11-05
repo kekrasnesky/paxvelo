@@ -1,6 +1,11 @@
 {{define "content"}}
 <div class="hero">
-  {{if .Hero.Photo}}<img class="hero-bg" src="{{.Hero.Photo}}" alt="{{or .Hero.Alt "A PaxVelo club ride"}}" fetchpriority="high" decoding="async"{{with .Hero.Focus}} style="{{focusStyle .}}"{{end}}>
+  {{if .Hero.Phone}}<style>@media (max-width:767px){.hero .hero-bg{object-position:50% 50%}}{{with .Hero.Focus}}@media (min-width:768px){.hero .hero-bg{ {{focusStyle .}} }}{{end}}</style>
+  <picture>
+    <source media="(max-width: 767px)" srcset="{{.Hero.Phone}}" width="800" height="800">
+    <img class="hero-bg" src="{{.Hero.Photo}}" alt="{{or .Hero.Alt "A PaxVelo club ride"}}" fetchpriority="high" decoding="async">
+  </picture>
+  {{else if .Hero.Photo}}<img class="hero-bg" src="{{.Hero.Photo}}" alt="{{or .Hero.Alt "A PaxVelo club ride"}}" fetchpriority="high" decoding="async"{{with .Hero.Focus}} style="{{focusStyle .}}"{{end}}>
   {{else}}<picture>
     <source media="(max-width: 767px)" srcset="/photos/hero-phone.webp?v={{.V}}" width="800" height="800">
     <img class="hero-bg" src="/photos/hero.webp?v={{.V}}" alt="{{or .Hero.Alt "PaxVelo riders on a group ride along a country road"}}" width="1800" height="818" fetchpriority="high" decoding="async"{{with .Hero.Focus}} style="{{focusStyle .}}"{{end}}>

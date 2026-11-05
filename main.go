@@ -57,6 +57,7 @@ func main() {
 	app.mailer = newMailer(cfg, store, site)
 	app.mailer.stats = stats
 	app.refreshNewsletter()
+	app.ensureHeroPhone()
 	if err := app.rebuildContent(); err != nil {
 		log.Fatal(err)
 	}
