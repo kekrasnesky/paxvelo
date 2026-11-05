@@ -26,6 +26,7 @@ type membershipData struct {
 	Year                         int
 	Paid                         bool
 	PaidOn                       time.Time // when the club marked this year paid; zero if not known
+	DuesExpire                   time.Time // when their dues run out (moved.go)
 	LevelName                    string    // their riding answer, briefly
 	DetailsDone                  bool      // phone, emergency contact and riding answer all on file
 	PlanName                     string    // "individual" or "family", for "your 2026 family dues"
@@ -74,6 +75,7 @@ func (a *App) membershipView(m Member, token string) membershipData {
 	d := membershipData{State: "page", Token: token, Member: m, Year: year, Paid: m.PaidFor(year), PlanName: strings.ToLower(m.PlanName()),
 		Form: memberDetails{Level: m.Level}, PhoneOnFile: phoneTail(m.Phone)}
 	d.PaidOn = m.PaidOn[year]
+	d.DuesExpire = m.DuesExpire()
 	if m.EmergencyName != "" {
 		d.EmergencyOnFile = shortName(m.EmergencyName)
 		if tail := phoneTail(m.EmergencyPhone); tail != "" {

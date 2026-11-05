@@ -70,6 +70,7 @@ type adminView struct {
 	Campaigns     []Campaign
 	Draft         EmailDraft
 	Welcome       WelcomeEmail
+	Moved         EmailDraft // the site-move email (moved.go)
 	TestTo        string
 	Live, Sending bool
 	// Newsletter tab
@@ -238,6 +239,7 @@ var flashText = map[string]string{
 	"exists":               "That email is already on the list.",
 	"deleted":              "Member deleted.",
 	"record-saved":         "Membership record saved.",
+	"moved-saved":          "Site-move email saved.",
 	"member-saved":         "Saved.",
 	"sending":              "Sending now. It keeps going in the background, so you can close this page.",
 	"stopped":              "Sending stopped.",
@@ -402,6 +404,9 @@ func flashFrom(r *http.Request) (flash, errMsg string) {
 		if welcomes > 0 {
 			flash += fmt.Sprintf(" %d welcome %s on the way.", welcomes, plural(welcomes, "email is", "emails are"))
 		}
+	} else if code == "moved" {
+		n, _ := strconv.Atoi(q.Get("n"))
+		flash = fmt.Sprintf("Sent the site-move email to %d %s, and marked them paid for this year.", n, plural(n, "member", "members"))
 	} else if code == "deleted-many" {
 		n, _ := strconv.Atoi(q.Get("n"))
 		flash = fmt.Sprintf("Deleted %d %s.", n, plural(n, "person", "people"))
@@ -781,7 +786,7 @@ func (a *App) backup(w http.ResponseWriter, r *http.Request) {
 func (a *App) emailView(r *http.Request) adminView {
 	v := adminView{
 		Title: "Email", Tab: "email", Campaigns: a.store.Campaigns(), Draft: a.store.Draft(),
-		Welcome: a.store.Welcome(), TestTo: a.cfg.AdminEmail, Live: a.mailer.live(), Year: a.cfg.ThisYear(),
+		Welcome: a.store.Welcome(), Moved: a.store.MovedEmail(), TestTo: a.cfg.AdminEmail, Live: a.mailer.live(), Year: a.cfg.ThisYear(),
 		Allowance: emailAllowance{Sent: a.store.EmailsToday(), Limit: a.cfg.EmailLimit},
 	}
 	for _, m := range a.store.Members() {
@@ -834,7 +839,7 @@ func draftFrom(r *http.Request) EmailDraft {
 func (a *App) emailPreview(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 256<<10)
 	d := draftFrom(r)
-	pat := Member{Name: "Pat Rider", Plan: "individual", Level: "some"}
+	pat := Member{Name: "Pat Rider", Plan: "individual", Level: "some", PaidYears: []int{a.cfg.ThisYear()}, Joined: time.Date(a.cfg.ThisYear()-2, time.March, 14, 12, 0, 0, 0, time.UTC)}
 	page, err := a.site.renderEmail(a.mailer.personalize(d.Subject, pat), a.mailer.personalize(d.Body, pat), memberLinks{Mine: "#", Unsub: "#"}, "")
 	if err != nil {
 		http.Error(w, "The preview couldn’t be made.", http.StatusInternalServerError)

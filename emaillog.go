@@ -34,6 +34,7 @@ const (
 	mailWaiverLink = "Waiver link"
 	mailMyLink     = "Membership link"
 	mailConfirm    = "Email check"
+	mailMoved      = "Site-move email"
 )
 
 type sentEmail struct {

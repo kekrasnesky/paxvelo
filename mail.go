@@ -127,11 +127,20 @@ func (m *Mailer) personalize(s string, mem Member) string {
 		"{year}", strconv.Itoa(m.cfg.ThisYear()),
 		"{ride_tips}", tips,
 		"{my_link}", m.cfg.membershipURL(mem.Token),
+		"{dues_expire}", duesExpireText(mem),
 	).Replace(s)
 	return extraBlankLines.ReplaceAllString(s, "\n\n") // where {ride_tips} came out empty
 }
 
 var extraBlankLines = regexp.MustCompile(`\n{3,}`)
+
+// duesExpireText is {dues_expire}: the day their dues run out.
+func duesExpireText(mem Member) string {
+	if t := mem.DuesExpire(); !t.IsZero() {
+		return t.Format("January 2, 2006")
+	}
+	return "the end of the year"
+}
 
 // sendCampaign sends a member their copy of an email to members, marked so
 // its opens and clicks are counted without saying whose it is (stats.go).

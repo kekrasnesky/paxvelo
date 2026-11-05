@@ -44,6 +44,8 @@ type Member struct {
 	// admin marks their dues paid, which sends their welcome email. Members
 	// added by an admin or imported never get one.
 	WelcomePending bool `json:"welcome_pending,omitempty"`
+	// MovedSent is when they were sent the site-move email (moved.go).
+	MovedSent *time.Time `json:"moved_sent,omitempty"`
 	// Unconfirmed is set for someone who joined on the website, or came back
 	// after unsubscribing, until they press Confirm on their membership page
 	// from the link we email them. Club emails skip them until then, so a
@@ -180,6 +182,7 @@ type storeData struct {
 	Members       []*Member      `json:"members"`
 	Campaigns     []*Campaign    `json:"campaigns"`
 	Welcome       WelcomeEmail   `json:"welcome_email"`
+	Moved         EmailDraft     `json:"moved_email,omitempty"` // the site-move email (moved.go); blank = built in
 	Draft         EmailDraft     `json:"draft"`
 	NextIssue     int            `json:"next_issue_id,omitempty"`
 	Issues        []*Issue       `json:"newsletter,omitempty"`
