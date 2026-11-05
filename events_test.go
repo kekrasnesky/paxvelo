@@ -61,6 +61,18 @@ func TestEventInNewsletter(t *testing.T) {
 	now := a.today()
 	is, _ := a.store.SaveIssue(Issue{Month: int(now.Month()), Year: now.Year(), Blocks: []Block{{ID: "aaaa", Kind: "rides"}, {ID: "bbbb", Kind: "share"}}})
 
+	// A meeting has a building beside its label on the calendars and its page.
+	for _, path := range []string{"/calendar", "/calendar/ride/" + ev.Key} {
+		if b := do(t, h, nil, "GET", path, "", nil).Body.String(); !strings.Contains(b, `class="kind-icon"`) {
+			t.Errorf("%s: no building icon for the meeting", path)
+		}
+	}
+	for _, path := range []string{"/admin/rides", "/admin/calendar"} {
+		if b := do(t, h, admin, "GET", path, "", nil).Body.String(); !strings.Contains(b, `class="kind-icon"`) {
+			t.Errorf("%s: no building icon for the meeting", path)
+		}
+	}
+
 	// From the event's admin page.
 	page := do(t, h, admin, "GET", "/admin/rides/"+ev.Key, "", nil).Body.String()
 	if !strings.Contains(page, `action="/admin/rides/`+ev.Key+`/newsletter"`) {

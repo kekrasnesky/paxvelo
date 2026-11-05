@@ -1678,7 +1678,7 @@ document.querySelectorAll('.copy-link').forEach(function(b){b.addEventListener('
   <tbody>
   {{range .Upcoming}}<tr{{if .Cancelled}} class="off"{{end}}>
     <td class="nowrap">{{.DateLabel}}<br><span class="muted small">{{.TimeLabel}}</span></td>
-    <td><a href="/admin/rides/{{.Key}}">{{.Name}}</a>{{if .IsVirtual}} {{template "virtual-badge" .}}{{end}}{{if not .IsRide}} <span class="tag">{{.KindName}}</span>{{end}}{{if .Custom}} <span class="tag">One-off</span>{{end}}{{if .Cancelled}} <span class="tag">Cancelled</span>{{end}}</td>
+    <td><a href="/admin/rides/{{.Key}}">{{.Name}}</a>{{if .IsVirtual}} {{template "virtual-badge" .}}{{end}}{{if not .IsRide}} <span class="tag">{{template "kind-icon" .}}{{.KindName}}</span>{{end}}{{if .Custom}} <span class="tag">One-off</span>{{end}}{{if .Cancelled}} <span class="tag">Cancelled</span>{{end}}</td>
     <td>{{if not .IsRide}}{{with .Leaders}}{{(index . 0).Name}}{{else}}<span class="muted">–</span>{{end}}{{else}}{{range .Slots}}<span class="leader-line">{{with .Group}}<span class="muted">{{.}}:</span> {{end}}{{with .Leader}}{{.Name}}{{else}}<span class="danger">needs a leader</span>{{end}}</span>{{end}}{{end}}</td>
     <td class="right nowrap row-acts"><a class="btn mini ghost" href="/admin/rides/{{.Key}}">{{icon "pencil"}}Edit</a>
       <form method="post" action="/admin/rides/{{.Key}}/cancel" class="inline"><input type="hidden" name="return" value="rides">{{if .Cancelled}}<input type="hidden" name="cancel" value="0"><button class="link small">{{icon "undo"}}Put back</button>{{else}}<input type="hidden" name="cancel" value="1"><button class="link danger small" onclick="return confirm('Cancel {{.Name}} on {{.ShortDate}}? It shows as cancelled on the calendar and the club is emailed.')">{{icon "ban"}}Cancel</button>{{end}}</form></td>
@@ -1784,6 +1784,9 @@ document.querySelectorAll('.copy-link').forEach(function(b){b.addEventListener('
 {{define "zwift"}}<span class="zwift" title="Virtual: on Zwift"><svg viewBox="0 0 980 908" width="17" height="16" aria-hidden="true" focusable="false"><path fill="#fa6618" d="M144 0L114 4L74 20L47 40L23 70L9 100L2 134L3 173L11 204L19 222L37 248L60 269L93 287L133 297L257 299L257 301L19 689L6 720L0 754L1 778L9 809L23 838L42 863L64 882L87 895L112 903L143 907L731 906L750 903L776 895L799 883L823 863L837 846L851 821L858 802L864 769L863 734L857 708L846 683L831 661L814 644L794 630L754 614L733 610L607 608L607 606L980 0Z"/></svg><span class="zwift-text">Zwift</span></span>{{end}}
 {{/* How a virtual ride shows: the Zwift logo, or a plain "Virtual" label for one on another app */}}
 {{define "virtual-badge"}}{{if .IsVirtual}}{{if .OnZwift}}{{template "zwift"}}{{else}}<span class="virtual-tag" title="Virtual ride">Virtual</span>{{end}}{{end}}{{end}}
+{{/* An event's label on the calendar, like "Club meeting"; a meeting has a building beside it */}}
+{{define "kind-badge"}}<span class="cal-kind">{{template "kind-icon" .}}{{.KindName}}</span>{{end}}
+{{define "kind-icon"}}{{if eq .Kind "meeting"}}<svg class="kind-icon" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 .8 1 4.3V6h14V4.3zM2.3 7h1.6v5H2.3zm3.3 0h1.6v5H5.6zm3.2 0h1.6v5H8.8zm3.3 0h1.6v5h-1.6zM1 12.8h14V15H1z"/></svg>{{end}}{{end}}
 {{define "virtual-check"}}<label class="check virtual-check"><input type="checkbox" name="virtual"{{if .IsVirtual}} checked{{end}}> Virtual: on Zwift, another app or an indoor trainer</label>
   <input type="hidden" name="virtual_was" value="{{if .IsVirtual}}1{{else}}0{{end}}">
   <label class="check zwift-check"><input type="checkbox" name="zwift"{{if or .OnZwift (not .IsVirtual)}} checked{{end}}> {{template "zwift"}} Show the Zwift logo on the calendar</label>
@@ -1840,11 +1843,11 @@ document.querySelectorAll('.copy-link').forEach(function(b){b.addEventListener('
   <thead><tr><th>Sun</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th></tr></thead>
   <tbody>{{range $m.Weeks}}<tr>{{range .}}<td class="{{if not .InMonth}}out {{end}}{{if .Today}}today {{end}}{{if .Past}}past{{end}}">
     <div class="cal-day"><span>{{.Day}}</span>{{if not .Past}}<a href="/admin/rides/new?date={{.Date}}" aria-label="Add a ride on {{.Date}}">+</a>{{end}}</div>
-    {{range .Rides}}<a class="cal-ride {{.Status}}" href="/admin/rides/{{.Key}}">{{if .IsVirtual}}{{template "virtual-badge" .}} {{end}}<span class="muted">{{.TimeLabel}}</span> {{.Name}}{{if not .IsRide}} <span class="cal-kind">{{.KindName}}</span>{{end}}<span class="lvls">{{range .Levels}}<span class="lvl lvl-{{.Key}}">{{.Name}}</span>{{end}}</span><span class="cal-lead">{{.LeaderSummary}}</span></a>{{end}}
+    {{range .Rides}}<a class="cal-ride {{.Status}}" href="/admin/rides/{{.Key}}">{{if .IsVirtual}}{{template "virtual-badge" .}} {{end}}<span class="muted">{{.TimeLabel}}</span> {{.Name}}{{if not .IsRide}} {{template "kind-badge" .}}{{end}}<span class="lvls">{{range .Levels}}<span class="lvl lvl-{{.Key}}">{{.Name}}</span>{{end}}</span><span class="cal-lead">{{.LeaderSummary}}</span></a>{{end}}
   </td>{{end}}</tr>{{end}}</tbody>
 </table></div>
 <ol class="cal-list">{{range $m.Days}}<li><h3>{{(index .Rides 0).DateLabel}}</h3>
-  {{range .Rides}}<a class="cal-ride {{.Status}}" href="/admin/rides/{{.Key}}">{{if .IsVirtual}}{{template "virtual-badge" .}} {{end}}<span class="muted">{{.TimeLabel}}</span> {{.Name}}{{if not .IsRide}} <span class="cal-kind">{{.KindName}}</span>{{end}}<span class="lvls">{{range .Levels}}<span class="lvl lvl-{{.Key}}">{{.Name}}</span>{{end}}</span><span class="cal-lead">{{.LeaderSummary}}</span></a>{{end}}</li>
+  {{range .Rides}}<a class="cal-ride {{.Status}}" href="/admin/rides/{{.Key}}">{{if .IsVirtual}}{{template "virtual-badge" .}} {{end}}<span class="muted">{{.TimeLabel}}</span> {{.Name}}{{if not .IsRide}} {{template "kind-badge" .}}{{end}}<span class="lvls">{{range .Levels}}<span class="lvl lvl-{{.Key}}">{{.Name}}</span>{{end}}</span><span class="cal-lead">{{.LeaderSummary}}</span></a>{{end}}</li>
   {{else}}<li class="empty">{{$m.NoDays}}</li>{{end}}</ol>
 {{template "foot" .}}{{end}}
 

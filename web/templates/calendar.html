@@ -14,7 +14,7 @@
       {{range .Upcoming}}<li><a class="cal-ride {{.Status}}" href="/calendar/ride/{{.Key}}">
         {{with .Route}}{{if and .Shown .Map}}<img class="cal-up-map" src="{{.Map}}" alt="" loading="lazy">{{end}}{{end}}
         <span class="cal-up-date">{{.ShortDate}}</span>
-        {{if .IsVirtual}}{{template "virtual-badge" .}} {{end}}<span class="cal-time">{{.TimeLabel}}</span> {{.Name}}{{if not .IsRide}} <span class="cal-kind">{{.KindName}}</span>{{end}}
+        {{if .IsVirtual}}{{template "virtual-badge" .}} {{end}}<span class="cal-time">{{.TimeLabel}}</span> {{.Name}}{{if not .IsRide}} {{template "kind-badge" .}}{{end}}
         {{with .Place}}<span class="cal-place">{{.}}</span>{{end}}
         <span class="lvls">{{range .Levels}}<span class="lvl lvl-{{.Key}}">{{.Name}}</span>{{end}}</span>
         {{template "cal-lead" .}}
@@ -40,7 +40,7 @@
         <div class="cal-day"><span>{{.Day}}</span>{{if and .InMonth (not .Past)}}<a class="cal-add" href="/calendar/new?date={{.Date}}" aria-label="Add a ride on {{.Date}}">+</a>{{end}}</div>
         {{range .Rides}}<div class="cal-item">
           <a class="cal-ride {{.Status}}" href="/calendar/ride/{{.Key}}" aria-describedby="pop-{{.Key}}">
-            {{if .IsVirtual}}{{template "virtual-badge" .}} {{end}}<span class="cal-time">{{.TimeLabel}}</span> {{.Name}}{{if not .IsRide}} <span class="cal-kind">{{.KindName}}</span>{{end}}
+            {{if .IsVirtual}}{{template "virtual-badge" .}} {{end}}<span class="cal-time">{{.TimeLabel}}</span> {{.Name}}{{if not .IsRide}} {{template "kind-badge" .}}{{end}}
             <span class="lvls">{{range .Levels}}<span class="lvl lvl-{{.Key}}">{{.Name}}</span>{{end}}</span>
             {{template "cal-lead" .}}
           </a>
@@ -63,7 +63,7 @@
     {{range .Days}}<li>
       <h3>{{(index .Rides 0).DateLabel}}</h3>
       {{range .Rides}}<a class="cal-ride {{.Status}}" href="/calendar/ride/{{.Key}}">
-        {{if .IsVirtual}}{{template "virtual-badge" .}} {{end}}<span class="cal-time">{{.TimeLabel}}</span> {{.Name}}{{if not .IsRide}} <span class="cal-kind">{{.KindName}}</span>{{end}}
+        {{if .IsVirtual}}{{template "virtual-badge" .}} {{end}}<span class="cal-time">{{.TimeLabel}}</span> {{.Name}}{{if not .IsRide}} {{template "kind-badge" .}}{{end}}
         {{with .Place}}<span class="cal-place">{{.}}</span>{{end}}
         <span class="lvls">{{range .Levels}}<span class="lvl lvl-{{.Key}}">{{.Name}}</span>{{end}}</span>
         {{template "cal-lead" .}}

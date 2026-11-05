@@ -363,6 +363,7 @@ strong{font-weight:500}
 form:not(:has(input[name=virtual]:checked)) .zwift-pick{display:none!important}
 .cal-kind{display:inline-block;padding:0 .35rem;border-radius:3px;background:#5b7f95;color:#fff;font-size:.68rem;font-weight:500;letter-spacing:.03em;vertical-align:.1em}
 .cal-ride.cancelled .cal-kind{background:#999}
+.kind-icon{display:inline-block;width:1.1em;height:1.1em;margin-right:.3em;vertical-align:-.15em}
 /* Add to the calendar: a ride's pace groups and wording only for a ride. */
 .kind-pick{display:grid;gap:.3rem;margin:0;padding:0;border:0}
 .kind-pick legend{margin-bottom:.3rem;font-weight:500}
