@@ -837,3 +837,5 @@ button:has(>.ic),.btn:has(>.ic){display:inline-flex;align-items:center;justify-c
 
 /* No sliding or fading for people who turn motion off on their device */
 @media (prefers-reduced-motion:reduce){.hdr,.dd-menu,.js .nav,.js .nav>*,.dd-btn svg{transition:none!important}}
+.club-terms ul{margin:0 0 .7rem;padding-left:1.2rem}.club-terms li{margin:0 0 .25rem}.club-terms p{margin:0 0 .3rem}
+.club-terms ul,.club-terms li{font-size:inherit;line-height:1.5}
