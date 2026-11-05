@@ -1,8 +1,11 @@
 @font-face{font-family:Poppins;font-weight:300;font-display:swap;src:url(/static/fonts/poppins-300.woff2?v=__V__) format("woff2")}
 @font-face{font-family:Poppins;font-weight:500;font-display:swap;src:url(/static/fonts/poppins-500.woff2?v=__V__) format("woff2")}
 @font-face{font-family:"Patrick Hand";font-display:swap;src:url(/static/fonts/patrick-hand.woff2?v=__V__) format("woff2")}
-:root{--ink:#2d2d2d;--paper:#f5f2ec;--red:#9a2b29;--line:#e4dcd3;--muted:#6f6863;--font:Poppins,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+/* One look for every admin screen: the same corners, borders, shadows and
+   focus ring on buttons, boxes, cards and tables. */
+:root{--ink:#2d2d2d;--paper:#f5f2ec;--red:#9a2b29;--red-dark:#7e211f;--line:#e4dcd3;--edge:#c4b9ae;--muted:#6f6863;--ok:#2f7a3b;--warn:#b7791f;--radius:6px;--radius-lg:10px;--ring:0 0 0 3px rgba(154,43,41,.3);--lift:0 1px 2px rgba(45,45,45,.08),0 1px 3px rgba(45,45,45,.04);--font:Poppins,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
 *,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important} /* hidden means hidden, whatever else styles the element */
 body{margin:0;background:var(--paper);color:var(--ink);font:300 15px/1.6 var(--font);-webkit-font-smoothing:antialiased}
 a{color:inherit;text-underline-offset:3px}
 h1{margin:0;color:var(--red);font-size:1.75rem;font-weight:500;line-height:1.25}
@@ -35,20 +38,41 @@ h2.section{margin:2.75rem 0 .9rem}
 .wrap{max-width:1240px;margin:0 auto;padding:2rem 1.25rem 4rem;overflow-x:clip} /* zoomed photos' scaled boxes (focus.go) don't widen the page */
 .title-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:.25rem 1rem}
 .title-row p{margin:0}
-.card{display:grid;align-content:start;gap:1rem;padding:1.5rem;border:1px solid var(--line);background:#fff}
+.card{display:grid;align-content:start;gap:1rem;padding:1.5rem;border:1px solid var(--line);border-radius:var(--radius-lg);background:#fff;box-shadow:var(--lift)}
 .compose{margin-top:1rem}
 label{display:grid;gap:.3rem;font-size:.9rem;font-weight:500}
-input,textarea,select{width:100%;padding:.6rem .75rem;border:1px solid #cfc6bd;background:#fff;color:var(--ink);font:300 15px/1.5 var(--font)}
+input,textarea,select{width:100%;padding:.6rem .75rem;border:1px solid var(--edge);border-radius:var(--radius);background:#fff;color:var(--ink);font:300 15px/1.5 var(--font);transition:border-color .15s,box-shadow .15s}
+input:hover,textarea:hover,select:hover{border-color:#a3978b}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--red);box-shadow:var(--ring)}
+input[type=checkbox],input[type=radio]{accent-color:var(--red);box-shadow:none}
+input[type=checkbox]:focus-visible,input[type=radio]:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+input:disabled,textarea:disabled,select:disabled{background:#f6f3ef;color:var(--muted);cursor:not-allowed}
 textarea{resize:vertical}
-button,.btn{display:inline-block;padding:.72rem 1.1rem;border:1px solid var(--red);background:var(--red);color:#fff;font:500 .9rem/1 var(--font);text-decoration:none;cursor:pointer;justify-self:start}
-button:hover,.btn:hover{background:#82211f}
-.ghost{border-color:#cfc6bd;background:#fff;color:var(--ink)}
-.ghost:hover{background:#f3eee8}
-.link{padding:0;border:0;background:none;color:var(--ink);font-weight:300;text-decoration:underline}
-.link:hover{background:none}
-.link.light{color:var(--paper)}
+/* Buttons, three kinds: the main action (solid red), other actions (white,
+   outlined) and small actions in lists (underlined words, tinted on hover).
+   Each lifts on hover, sinks when pressed, and rings when tabbed to. */
+button,.btn{display:inline-block;padding:.72rem 1.1rem;border:1px solid var(--red);border-radius:var(--radius);background:var(--red);color:#fff;font:500 .9rem/1 var(--font);text-decoration:none;cursor:pointer;justify-self:start;box-shadow:0 1px 2px rgba(45,45,45,.18);transition:background-color .15s,border-color .15s,color .15s,box-shadow .15s,transform .08s}
+button:hover,.btn:hover{background:var(--red-dark);border-color:var(--red-dark);box-shadow:0 4px 12px rgba(154,43,41,.28)}
+button:active,.btn:active{transform:translateY(1px);box-shadow:none}
+button:focus-visible,.btn:focus-visible{outline:none;box-shadow:var(--ring)}
+button:disabled,button[aria-disabled=true]{opacity:.45;cursor:not-allowed;box-shadow:none;transform:none}
+.ghost{border-color:var(--edge);background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(45,45,45,.06)}
+.ghost:hover{border-color:var(--ink);background:#f7f3ee;color:var(--ink);box-shadow:0 3px 8px rgba(45,45,45,.1)}
+.link{padding:.2rem .3rem;margin:-.2rem -.3rem;border:0;border-radius:4px;background:none;box-shadow:none;color:var(--ink);font-weight:400;text-decoration:underline;text-decoration-color:rgba(45,45,45,.35);text-underline-offset:3px}
+.link:hover{background:#efe8e0;border-color:transparent;box-shadow:none;color:var(--ink);text-decoration-color:currentColor}
+.link:active{transform:none}
+.link.light{color:var(--paper);text-decoration-color:rgba(245,242,236,.5)}
+.link.light:hover{background:rgba(255,255,255,.14);color:#fff}
 .danger{color:var(--red)}
-.table-wrap{position:relative;overflow-x:auto;margin:1rem 0 0;border:1px solid var(--line);background:#fff}
+.link.danger{color:var(--red);text-decoration-color:rgba(154,43,41,.4)}
+.link.danger:hover{background:#fbe9e8;color:var(--red-dark)}
+.ghost.danger{color:var(--red)}
+.ghost.danger:hover{border-color:var(--red);background:#fbe9e8;color:var(--red-dark)}
+/* Buttons drawn as something else (a row to open, a photo, a sort heading, a
+   switch) keep their own look: no shadow, no press. */
+:is(.framer-open,.auto-open,th button.sort,.switch,.fb-shape,.ed-add),:is(.framer-open,.auto-open,th button.sort,.switch,.fb-shape,.ed-add):hover{box-shadow:none}
+:is(.framer-open,.auto-open,th button.sort,.fb-shape):active{transform:none}
+.table-wrap{position:relative;overflow-x:auto;margin:1rem 0 0;border:1px solid var(--line);border-radius:var(--radius-lg);background:#fff;box-shadow:var(--lift)}
 table{width:100%;border-collapse:collapse;font-size:.9rem}
 th,td{padding:.6rem .85rem;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
 th{background:#faf8f5;font-weight:500}
@@ -60,7 +84,7 @@ tr.off td{color:var(--muted)}
 .muted{color:var(--muted)}
 .small{font-size:.82rem}
 .err-text{display:block;color:var(--red)}
-.flash{margin:0 0 1.5rem;padding:.75rem 1rem;border-left:4px solid #3c7a46;background:#fff}
+.flash{margin:0 0 1.5rem;padding:.75rem 1rem;border-left:4px solid #3c7a46;border-radius:var(--radius);background:#fff}
 /* Saved, added, marked paid: a green message with a tick that floats at the
    bottom of the window, so it shows wherever the page lands, then fades after
    8 seconds (hovering holds it). Errors and warnings stay in place, plain. */
@@ -70,10 +94,19 @@ tr.off td{color:var(--muted)}
 @keyframes flash-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 @keyframes flash-out{to{opacity:0;visibility:hidden}}
 @media (prefers-reduced-motion:reduce){.flash:not(.err):not(.warn){animation:flash-out 0s 8s forwards!important}}
-.flash.err{border-color:var(--red)}
-.flash.warn{border-color:#c98a1b}
+/* Problems and warnings stay at the top, with an icon, and slide in so
+   they're noticed; a problem gives a small shake. */
+.flash.err,.flash.warn{display:flex;align-items:center;gap:.7rem;padding:.85rem 1.1rem;border:1px solid;border-left-width:5px;font-weight:400;box-shadow:var(--lift);animation:flash-in .3s ease}
+.flash.err{border-color:#e3b4b2;border-left-color:var(--red);background:#fdf1f0;color:#5e1a18;animation:flash-in .3s ease,shake .4s ease .3s}
+.flash.warn{border-color:#ecd3a6;border-left-color:var(--warn);background:#fdf7ea;color:#5a3d0c}
+.flash.err::before,.flash.warn::before{content:"!";flex:none;display:grid;place-items:center;width:1.4rem;height:1.4rem;border-radius:50%;background:var(--red);color:#fff;font-weight:500;font-size:.9rem;line-height:1}
+.flash.warn::before{content:"i";background:var(--warn)}
+@keyframes shake{20%,60%{transform:translateX(-4px)}40%,80%{transform:translateX(4px)}}
+@media (prefers-reduced-motion:reduce){.flash.err,.flash.warn{animation:none}}
 .tools{display:flex;flex-wrap:wrap;justify-content:space-between;gap:.75rem;margin-top:1.25rem}
 .search{display:flex;flex:1;align-items:center;gap:.5rem;max-width:30rem}
+.search input{min-width:0}
+@media (max-width:700px){.tools .search{flex-basis:100%;max-width:none}}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-top:2rem}
 .send-row{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem}
 .send-row input{flex:1;width:auto;min-width:13rem}
@@ -84,12 +117,13 @@ tr.off td{color:var(--muted)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (max-width:700px){.grid2{grid-template-columns:1fr}}
 .filter{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:1rem}
-.filter a{padding:.35rem .8rem;border:1px solid #cfc6bd;background:#fff;text-decoration:none;font-size:.85rem}
+.filter a{padding:.35rem .85rem;border:1px solid var(--edge);border-radius:999px;background:#fff;text-decoration:none;font-size:.85rem;transition:border-color .15s,background-color .15s}
+.filter a:hover{border-color:var(--ink)}
 .filter a[aria-current]{border-color:var(--ink);background:var(--ink);color:#fff}
 .inline{display:inline}
 .mini{padding:.4rem .65rem;font-size:.78rem}
 .paid{color:#2f6b3a;font-weight:500}
-.tag{display:inline-block;margin-left:.3rem;padding:0 .4rem;border:1px solid var(--line);color:var(--muted);font-size:.75rem}
+.tag{display:inline-block;margin-left:.3rem;padding:0 .5rem;border:1px solid var(--line);border-radius:999px;color:var(--muted);font-size:.75rem}
 .inline-label{display:flex;align-items:center;gap:.6rem;font-weight:500}
 .inline-label select{width:auto}
 .compose .send-row+.send-row{padding-top:.4rem;border-top:1px solid var(--line)}
@@ -138,7 +172,7 @@ tr.off td{color:var(--muted)}
 .trio .pair,.trio .photo-field{grid-template-columns:1fr}
 .rides input{min-width:7rem;padding:.45rem .55rem;font-size:.85rem}
 .rides td{padding:.4rem}
-.save-bar{position:sticky;bottom:0;display:flex;align-items:center;gap:1rem;padding:.9rem 1.5rem;border:1px solid var(--line);background:#fff;box-shadow:0 -6px 18px rgba(0,0,0,.06)}
+.save-bar{position:sticky;bottom:0;z-index:5;display:flex;align-items:center;gap:1rem;padding:.9rem 1.5rem;border:1px solid var(--line);border-radius:var(--radius-lg) var(--radius-lg) 0 0;background:#fff;box-shadow:0 -6px 18px rgba(0,0,0,.08)}
 .send-row .year{flex:none;width:6.5rem;min-width:0}
 .cap{text-transform:capitalize}
 .new-issue{margin-top:2rem}
@@ -313,6 +347,7 @@ form:not(:has(input[name=virtual]:checked)) .zwift-check{display:none}
 .cal-bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:1rem;margin-top:1.25rem}
 .cal-nav{display:flex;align-items:center;gap:.75rem}
 .cal-nav h2{min-width:11rem;text-align:center}
+.cal-nav .btn{display:inline-grid;place-items:center;width:2.5rem;height:2.5rem;padding:0;font-size:1.4rem;line-height:1}
 .cal-key{display:flex;flex-wrap:wrap;align-items:center;gap:.3rem .9rem;margin:.9rem 0 0;color:var(--muted)}
 .dot{display:inline-block;width:.7rem;height:.7rem;border-radius:50%;background:#2f6b3a}
 .dot.partial{background:#4f7f99}.dot.open{background:#c98a1b}.dot.cancelled{background:#b9afa5}
@@ -950,6 +985,7 @@ body.resizing iframe{pointer-events:none}
   .money-pick select[name=cat]{flex:1;width:0;min-width:0}
   .money-add:not([open])>summary.btn{display:inline-flex}
   .money-fields{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .money-fields input{min-width:0}
   .money-fields>label:not(:first-child):not(:nth-child(2)),.money-fields .money-go{grid-column:1/-1}
   .money-list thead{display:none}
   .money-list,.money-list tbody{display:block}
@@ -1027,4 +1063,21 @@ a.tag:hover{border-color:var(--ink);color:var(--ink)}
 .fee-form button{padding:.55rem .8rem}
 .money-in.pct>span{left:auto;right:.65rem}
 .money-in.pct input{padding-left:.75rem;padding-right:1.6rem}
-.fee-row td{background:#faf8f5}
+.fee-row{background:#faf8f5}
+/* ---- Feedback on every admin page (the "foot" template's script) ---- */
+/* A pressed button that sends a form shows a spinner until the next page
+   arrives, and can't be pressed twice. */
+.is-busy{position:relative;color:transparent!important;pointer-events:none;cursor:progress}
+.is-busy>*{visibility:hidden}
+.is-busy::after{content:"";position:absolute;inset:0;width:1.05rem;height:1.05rem;margin:auto;border:2px solid #fff;border-right-color:transparent;border-radius:50%;animation:spin .7s linear infinite}
+.ghost.is-busy::after,.link.is-busy::after{border-color:var(--ink);border-right-color:transparent}
+.link.danger.is-busy::after{border-color:var(--red);border-right-color:transparent}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* The row or box a page jumps to (after Undo or saving) glows for a moment. */
+:target{scroll-margin-top:5rem;animation:glow 2.6s ease-out}
+@keyframes glow{0%,30%{background-color:#fff1bf}100%{background-color:transparent}}
+/* Tables: the row under the pointer is tinted, to follow it across. */
+@media (hover:hover){tbody tr:hover>td{background-color:#fcfaf6}}
+/* The saved message closes when pressed */
+.flash:not(.err):not(.warn){cursor:pointer}
+@media (prefers-reduced-motion:reduce){:target{animation:none}.is-busy::after{animation-duration:2s}}

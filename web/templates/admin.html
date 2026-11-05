@@ -26,6 +26,35 @@
 shrinkPicked();
 </script>
 <script>
+// Feedback on every page. The button pressed to send a form shows a spinner
+// until the next page arrives, and a second press is ignored, so nobody
+// wonders whether it worked or sends things twice. Forms whose own script
+// handles the send (it stops the normal send) are left alone. The green
+// "Saved" message closes when pressed or with Escape.
+(function(){
+  function idle(b){b.classList.remove('is-busy');b.removeAttribute('aria-busy')}
+  document.addEventListener('submit',function(e){
+    var f=e.target;
+    if(e.defaultPrevented||f.target==='_blank')return;
+    if(f.dataset.sending){e.preventDefault();return}
+    var b=e.submitter||f.querySelector('button:not([type=button])');
+    f.dataset.sending='1';
+    if(b){b.classList.add('is-busy');b.setAttribute('aria-busy','true')}
+    setTimeout(function(){delete f.dataset.sending;if(b)idle(b)},15000); // a download or no reply: give it back
+  });
+  window.addEventListener('pageshow',function(){ // back to a page kept in memory
+    document.querySelectorAll('.is-busy').forEach(idle);
+    document.querySelectorAll('form[data-sending]').forEach(function(f){delete f.dataset.sending});
+  });
+  var toast=document.querySelector('.flash:not(.err):not(.warn)');
+  if(toast){
+    toast.setAttribute('role','status');toast.title='Close';
+    toast.addEventListener('click',function(){toast.remove()});
+    document.addEventListener('keydown',function(e){if(e.key==='Escape'&&toast.isConnected)toast.remove()});
+  }
+})();
+</script>
+<script>
 // Drag handles: each preview window (emails, pages, newsletters), and
 // anything marked data-resize, has a bar under it to drag taller or shorter
 // (arrow keys too). Double-click the bar to go back to the usual size. Each
