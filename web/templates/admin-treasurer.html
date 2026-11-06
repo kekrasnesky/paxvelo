@@ -229,6 +229,7 @@ document.querySelectorAll('.money-form select[name=category]').forEach(function(
 {{define "req-step"}}{{/* one answer (reqStep) */}}<li class="step {{with .D}}{{if .OK}}yes{{else}}no{{end}}{{else}}wait{{end}}"><span class="step-role">{{.Role}}</span> {{with .D}}<span title="{{date .At}}">{{.By}}</span>{{else}}<span class="muted">Waiting</span>{{end}}</li>{{end}}
 
 {{define "money-requests"}}{{template "head" .}}{{$q := .Money.Requests}}{{$f := $q.Form}}
+<div class="req-page">
 <div class="money-top"><h1>Requests</h1></div>
 {{if $q.NoTreasurer}}<p class="flash warn">No admin holds the Treasurer role. <a href="/admin/board">Website → Board</a></p>{{end}}
 {{if and $q.NoPresident $q.Board}}<p class="flash warn">No admin is marked president. <a href="/admin/admins">Admins</a></p>{{end}}
@@ -269,7 +270,6 @@ document.querySelectorAll('.money-form select[name=category]').forEach(function(
 {{with $q.Waiting}}<h2 class="section">Waiting</h2>
 {{range .}}{{template "req-card" .}}{{end}}{{end}}
 
-{{if not (or $q.Answer $q.PayBack $q.Mine $q.Waiting)}}<p class="muted req-none">No requests yet.</p>{{end}}
 </div>
 <details class="money-add req-add no-print" id="add"{{if or (not $q.Answer) $.Error $q.Dup}} open{{end}}><summary class="btn">{{icon "plus"}}New request</summary>
 <form class="card money-form req-form" method="post" action="/admin/treasurer/requests" enctype="multipart/form-data"{{if $q.Board}} data-guess="/admin/treasurer/requests/guess"{{end}}>
@@ -384,6 +384,7 @@ document.querySelectorAll('.req-reject,.req-bought').forEach(function(d){d.addEv
   ['what','amount','date'].forEach(function(n){f[n].addEventListener('input',function(){clearTimeout(t);t=setTimeout(guess,350)})});
 })();
 </script>
+</div>
 {{template "foot" .}}{{end}}
 
 {{define "req-card"}}{{/* a waiting request (requestRow) */}}<article class="card req{{if .Decide}} mine{{end}}" id="r{{.ID}}">
