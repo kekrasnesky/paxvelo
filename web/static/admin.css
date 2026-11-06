@@ -3,7 +3,7 @@
 @font-face{font-family:"Patrick Hand";font-display:swap;src:url(/static/fonts/patrick-hand.woff2?v=__V__) format("woff2")}
 /* One look for every admin screen: the same corners, borders, shadows and
    focus ring on buttons, boxes, cards and tables. */
-:root{--ink:#2d2d2d;--paper:#f5f2ec;--red:#9a2b29;--red-dark:#7e211f;--line:#e4dcd3;--edge:#c4b9ae;--muted:#6f6863;--ok:#2f7a3b;--warn:#b7791f;--radius:6px;--radius-lg:10px;--ring:0 0 0 3px rgba(154,43,41,.3);--lift:0 1px 2px rgba(45,45,45,.08),0 1px 3px rgba(45,45,45,.04);--font:Poppins,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+:root{--ink:#2d2d2d;--paper:#f5f2ec;--red:#9a2b29;--red-dark:#7e211f;--line:#e4dcd3;--edge:#c4b9ae;--muted:#6f6863;--ok:#2f7a3b;--warn:#b7791f;--radius:6px;--radius-lg:10px;--ring:0 0 0 3px rgba(154,43,41,.3);--lift:0 1px 2px rgba(45,45,45,.08),0 1px 3px rgba(45,45,45,.04);--gutter:clamp(1.25rem,2.5vw,3rem);--font:Poppins,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
 *,*::before,*::after{box-sizing:border-box}
 html{scrollbar-gutter:stable} /* pages that scroll and pages that don't keep the same margins */
 [hidden]{display:none!important} /* hidden means hidden, whatever else styles the element */
@@ -25,9 +25,6 @@ h2.section{margin:2.75rem 0 .9rem}
 .sub a{flex:none;padding:.35rem .8rem;border-radius:2rem;color:var(--ink);font-size:.9rem;text-decoration:none;white-space:nowrap}
 .sub a:hover{background:#f3eee8}
 .sub a[aria-current]{background:var(--ink);color:var(--paper)}
-/* On a computer the bar and the section tabs line up with the page below
-   (.wrap: 1240px wide, 1.25rem inside). */
-@media (min-width:1101px){.bar,.sub{padding-left:max(1.25rem,calc((100% - 1240px)/2 + 1.25rem));padding-right:max(1.25rem,calc((100% - 1240px)/2 + 1.25rem))}}
 @media (max-width:1100px){.bar{gap:1.25rem;padding:.85rem 1rem}.bar nav{gap:1rem}.sub{padding:.55rem 1rem}}
 @media (max-width:1200px){.bar .me,.corner span{display:none}.corner .ic{margin:0;width:1.25em;height:1.25em}}
 @media (max-width:700px){
@@ -37,10 +34,13 @@ h2.section{margin:2.75rem 0 .9rem}
   .corner .ic{margin:0;width:1.25em;height:1.25em}
 }
 .bar a,.bar form{white-space:nowrap}
+/* The bar, the section tabs and the page share one margin from the
+   window's edges (--gutter), whatever the window's width. */
+.bar,.sub{padding-left:var(--gutter);padding-right:var(--gutter)}
 /* Seven groups don't fit across a phone: they go onto two lines */
 @media (max-width:460px){.bar nav{flex-wrap:wrap;justify-content:flex-start;gap:.15rem 1rem;overflow:visible}}
 .brand{font-weight:500}
-.wrap{max-width:1240px;margin:0 auto;padding:2rem 1.25rem 4rem;overflow-x:clip} /* zoomed photos' scaled boxes (focus.go) don't widen the page */
+.wrap{padding:2rem var(--gutter) 4rem;overflow-x:clip} /* zoomed photos' scaled boxes (focus.go) don't widen the page */
 .title-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:.25rem 1rem}
 .title-row p{margin:0}
 .card{display:grid;align-content:start;gap:1rem;padding:1.5rem;border:1px solid var(--line);border-radius:var(--radius-lg);background:#fff;box-shadow:var(--lift)}
@@ -1149,7 +1149,7 @@ a.tag:hover{border-color:var(--ink);color:var(--ink)}
    as wide as every other page; on a phone, the lists first, then the form. */
 @media (min-width:1000px){
   .req-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:1.5rem;align-items:start}
-  .req-cols>.req-add{order:-1;position:sticky;top:1rem}
+  .req-cols>.req-add{order:-1}
   .req-lists>h2.section:first-child{margin-top:0}
 }
 .req-cols{margin-top:1.5rem}
