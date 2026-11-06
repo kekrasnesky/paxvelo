@@ -1138,6 +1138,87 @@ a.tag:hover{border-color:var(--ink);color:var(--ink)}
   .req-done td.right,.req-done td.right::before{text-align:left}
   .req-bought form{margin-left:0}
 }
+/* Requests: the phone-first form (receipt first, two ways in), the
+   sender's tracker, the treasurer's pay-back list and the email's answer page. */
+.req-add:not([open])>summary.btn{display:inline-flex}
+/* One column on a computer too: cards, the form and the lists line up. */
+.req-add,.my-req,.req,.pay-list{max-width:46rem}
+.req-form{gap:1rem}
+.req-kind{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
+.req-kind span{justify-content:center;height:100%;padding:.7rem .8rem;border-radius:var(--radius);text-align:center;line-height:1.3}
+.snap{display:grid;gap:.5rem}
+.snap-head{margin:0;font-size:.9rem;font-weight:500}
+.snap-pick{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
+.snap-btn{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.35rem;min-height:6.5rem;padding:.8rem;border:2px dashed var(--edge);border-radius:var(--radius-lg);background:#fbf9f6;color:var(--ink);text-align:center;cursor:pointer;transition:border-color .15s,background-color .15s}
+.snap-btn .ic{width:1.8rem;height:1.8rem;margin:0;color:var(--red)}
+.snap-btn:hover{border-color:var(--red);background:#fff}
+.snap-btn:focus-within{box-shadow:var(--ring);border-color:var(--red)}
+.snap-btn input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.snap-btn[aria-busy]{opacity:.6}
+.snap-got{display:flex;align-items:center;gap:.8rem;padding:.6rem;border:1px solid var(--line);border-radius:var(--radius-lg);background:#fbf9f6}
+.snap-got img{width:5rem;height:5rem;object-fit:cover;border-radius:var(--radius)}
+.snap-name{display:inline-flex;align-items:center;gap:.4rem;min-width:0;overflow-wrap:anywhere}
+.snap-got .snap-x{margin-left:auto}
+.req-amount input{font-size:1.25rem;font-weight:500}
+.req-hint{margin:-.5rem 0 0;color:var(--muted);font-size:.85rem}
+.req-hint:empty{display:none}
+.req-hint.over{color:var(--warn);font-weight:500}
+.req-hint.over::before{content:"⚠ "}
+.req>.req-hint,.req-answer .req-hint{margin:0}
+.req-date>summary{display:inline-flex;align-items:center;gap:.4rem;list-style:none;cursor:pointer;font-size:.9rem;color:var(--muted)}
+.req-date>summary::-webkit-details-marker{display:none}
+.req-date[open]>summary{display:none}
+.req-dup{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem;margin:0}
+.req-form .money-go{justify-self:stretch;display:inline-flex;justify-content:center;padding:.9rem}
+h2.section.req-first{margin-top:1.5rem}
+.req-cat select{width:auto;max-width:100%;padding:.4rem .6rem;font-size:.85rem}
+.pay-list{gap:0;margin:0 0 1rem;padding:.4rem 1.2rem;list-style:none}
+.pay-list li{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem 1rem;padding:.8rem 0;border-bottom:1px solid var(--line)}
+.pay-list li:last-child{border-bottom:0}
+.pay-who{display:grid;flex:1;min-width:12rem}
+.pay-how{color:var(--ok);font-weight:500}
+.pay-list form{margin:0}
+.pay-list .receipt-link img{width:2.4rem;height:2.4rem}
+.my-req{gap:.8rem;margin-bottom:1rem}
+.track{display:grid;grid-template-columns:repeat(3,1fr);margin:0;padding:0;list-style:none;counter-reset:step}
+.track li{position:relative;display:grid;justify-items:center;gap:.1rem;padding-top:1.9rem;color:var(--muted);font-size:.82rem;text-align:center}
+.track li::before{content:"";position:absolute;top:0;left:50%;z-index:1;width:1.4rem;height:1.4rem;margin-left:-.7rem;border:2px solid var(--edge);border-radius:50%;background:#fff;font-size:.75rem;line-height:1.1rem;color:#fff}
+.track li+li::after{content:"";position:absolute;top:.6rem;right:50%;width:100%;height:2px;background:var(--line)}
+.track li.done{color:var(--ink)}
+.track li.done::before{content:"✓";border-color:var(--ok);background:var(--ok)}
+.track li.done::after{background:var(--ok)}
+.track li.now{color:var(--ink);font-weight:500}
+.track li.now::before{border-color:var(--warn);box-shadow:0 0 0 3px rgba(183,121,31,.2)}
+.track li.no{color:var(--red);font-weight:500}
+.track li.no::before{content:"✕";border-color:var(--red);background:var(--red)}
+.track small{color:var(--muted);font-weight:300}
+.req-why{margin:0;padding:.5rem .75rem;border-left:3px solid var(--red);background:#fdf1f0;border-radius:var(--radius)}
+.req-limit{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem;margin-left:auto}
+.req-limit .inline-label{font-weight:300}
+.req-paypal{margin:-.4rem 0 0}
+.cam{gap:.6rem;padding:.8rem}
+.cam video{display:block;width:100%;max-height:60vh;border-radius:var(--radius);background:#111;object-fit:contain}
+.cam-err{margin:0;animation:none}
+.cam-acts{display:flex;gap:.6rem}
+.cam-acts .cam-snap{flex:1;display:inline-flex;justify-content:center}
+.req-limit .money-in{width:6rem}
+.req-answer{max-width:26rem;margin-top:8vh;gap:.6rem}
+.req-answer .tag{justify-self:start;margin:0}
+.req-answer p{margin:0}
+.answer-receipt img{display:block;width:100%;max-height:22rem;object-fit:contain;border:1px solid var(--line);border-radius:var(--radius)}
+.answer-receipt{display:inline-flex;align-items:center;gap:.4rem}
+.answer-acts{display:grid;gap:.6rem;margin-top:.4rem}
+.answer-acts form{display:grid;gap:.6rem;margin:0}
+.answer-acts>form>button,.answer-acts summary{width:100%;justify-content:center}
+.answer-acts .req-reject[open]>summary{display:none}
+.answer-acts .req-reject form{display:grid}
+.req-bought .snap-pick{grid-template-columns:1fr}
+.req-bought .snap-btn{min-height:3.2rem;flex-direction:row}
+.req-bought .snap-btn .ic{width:1.2rem;height:1.2rem}
+@media (max-width:700px){
+  .req-kind span{font-size:.85rem}
+  .req-answer{margin-top:1rem}
+}
 /* Board page: the member picker marks admins with a gold crown. Browsers
    that can draw pictures in a dropdown get the crown; others show ♛. */
 .crown{width:1.05em;height:1.05em;flex:none;vertical-align:-.15em}

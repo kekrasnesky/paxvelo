@@ -194,6 +194,7 @@ func (a *App) automationLoop(ctx context.Context) {
 	defer t.Stop()
 	for {
 		a.runAutomations(time.Now())
+		a.runRequestReminders(time.Now()) // requestreminders.go
 		select {
 		case <-t.C:
 		case <-ctx.Done():
@@ -482,6 +483,11 @@ var builtinAutos = []autoRow{
 	{Key: "my-link", Name: "Membership link", When: "When someone asks for it on the website", Who: "The member who asked", About: "A link to their own membership page. Someone who hasn’t confirmed their email gets the Confirm your email email instead."},
 	{Key: "family-waiver", Name: "Family waiver link", When: "When a Family plan is marked paid", Who: "Each other adult on the plan", About: "A private link to sign their own waiver."},
 	{Key: "ride-notice", Name: "Ride notices", When: "When a ride is added, changed or needs a leader", Who: "The club’s rides inbox", About: "So whoever watches the rides inbox knows what changed on the calendar."},
+	{Key: "request-ask", Name: "Spending request", When: "Right away when someone sends a spending request", Who: "The treasurer, and the president when their OK is needed", About: "The receipt, amount and what for, with Approve and Reject buttons that work without logging in."},
+	{Key: "request-nudge", Name: "Request reminder", When: "3 days after a spending request is sent, if still waiting", Who: "Whoever hasn’t answered", About: "Once, with the same Approve and Reject buttons."},
+	{Key: "request-paylist", Name: "To pay back", When: "Mondays, when approved requests aren’t paid back yet", Who: "The treasurer", About: "Who to pay, how much and how they want it."},
+	{Key: "request-receipt", Name: "Receipt reminder", When: "10 days after a purchase is approved, if no receipt yet", Who: "Whoever asked to buy it", About: "Once, with a link to add the receipt."},
+	{Key: "request-paid", Name: "Reimbursement receipt", When: "When the treasurer presses Paid on a request", Who: "PaxVeloClub@gmail.com only", About: "Who was paid, how much, the PayPal address, who approved it and what it was for."},
 	{Key: "password", Name: "Admin password link", When: "When an admin is added or forgets their password", Who: "That admin", About: "A one-time link to choose a password."},
 }
 

@@ -41,6 +41,11 @@ type Treasury struct {
 	// (requests.go).
 	NextRequest int             `json:"next_request_id,omitempty"`
 	Requests    []*SpendRequest `json:"requests,omitempty"`
+	// OneLimit is the most the treasurer's yes alone approves (within the
+	// category's budget); nil = defaultOneLimit, 0 = always two answers.
+	OneLimit *int64 `json:"one_ok_limit_cents,omitempty"`
+	// PayListSent is the Monday the treasurer last got the pay-back list.
+	PayListSent string `json:"pay_list_sent,omitempty"`
 }
 
 // LedgerEntry is one expense or income line.

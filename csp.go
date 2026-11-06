@@ -69,7 +69,7 @@ func cspFor(path, public string) string {
 	switch {
 	case strings.HasPrefix(path, "/files/"), strings.HasPrefix(path, "/media/"):
 		return ""
-	case path == "/admin" || strings.HasPrefix(path, "/admin/"):
+	case path == "/admin" || strings.HasPrefix(path, "/admin/"), strings.HasPrefix(path, answerPath):
 		return adminCSP
 	}
 	return public

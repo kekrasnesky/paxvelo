@@ -63,13 +63,13 @@ func TestSpendRequests(t *testing.T) {
 	}
 
 	// A missing "what for" comes back with the form filled in.
-	if w := send(allie, map[string]string{"kind": "report", "date": "2026-11-01", "amount": "45", "category": "Club Rides & Parties:Food & Drink"}, "", nil); w.Code != 200 || !strings.Contains(w.Body.String(), "Say what it’s for.") || !strings.Contains(w.Body.String(), `value="45.00"`) {
+	if w := send(allie, map[string]string{"kind": "report", "date": "2026-11-01", "amount": "45"}, "", nil); w.Code != 200 || !strings.Contains(w.Body.String(), "Say what it’s for.") || !strings.Contains(w.Body.String(), `value="45.00"`) {
 		t.Fatalf("missing what: %d", w.Code)
 	}
 
 	// Allie (VP) sends an expense report with a receipt: both answers wanted.
 	pdf := []byte("%PDF-1.4\n% pizza\n%%EOF\n")
-	w := send(allie, map[string]string{"kind": "report", "date": "2026-11-01", "amount": "$86.40", "category": "Club Rides & Parties:Food & Drink", "what": "Pizza for the kickoff ride", "note": "Two large pies"}, "pizza.pdf", pdf)
+	w := send(allie, map[string]string{"kind": "report", "date": "2026-11-01", "amount": "$86.40", "what": "Pizza for the kickoff ride", "note": "Two large pies"}, "pizza.pdf", pdf)
 	if !strings.Contains(w.Header().Get("Location"), "ok=request-sent") {
 		t.Fatalf("send: %d %s", w.Code, w.Header().Get("Location"))
 	}
@@ -78,7 +78,7 @@ func TestSpendRequests(t *testing.T) {
 		t.Fatalf("new request: %+v", q)
 	}
 	got := sent()
-	if len(got) != 2 || !strings.Contains(strings.Join(got, "\n"), "gabe@example.com|Expense report from Allie Kampmeyer: $86.40") ||
+	if len(got) != 2 || !strings.Contains(strings.Join(got, "\n"), "gabe@example.com|Reimburse Allie Kampmeyer $86.40: Pizza for the kickoff ride") ||
 		!strings.Contains(strings.Join(got, "\n"), "karl@example.com|") || !strings.Contains(got[0], "Pizza for the kickoff ride") {
 		t.Fatalf("the treasurer and president should be emailed: %q", got)
 	}
@@ -125,7 +125,7 @@ func TestSpendRequests(t *testing.T) {
 	if e.Date != "2026-11-01" || e.Cents != 86_40 || e.Category != "Club Rides & Parties:Food & Drink" || e.Who != "Allie Kampmeyer" || e.Receipt != q.Receipt || e.Request != 1 {
 		t.Errorf("expense line: %+v", e)
 	}
-	if got := sent(); len(got) != 1 || !strings.HasPrefix(got[0], "allie@example.com|Approved: Pizza for the kickoff ride|") || !strings.Contains(got[0], "pay you back") {
+	if got := sent(); len(got) != 1 || !strings.HasPrefix(got[0], "allie@example.com|Approved: Pizza for the kickoff ride|") || !strings.Contains(got[0], "reimburse you by PayPal") {
 		t.Errorf("Allie should hear it's approved: %q", got)
 	}
 	found := false
@@ -136,7 +136,7 @@ func TestSpendRequests(t *testing.T) {
 		t.Error("the approved expense should be on the report")
 	}
 	// The treasurer pays it back; removing the line keeps the request's receipt.
-	if home := do(t, h, as(gabe), "GET", "/admin", "", nil).Body.String(); !strings.Contains(home, "1 approved expense report to pay back.") {
+	if home := do(t, h, as(gabe), "GET", "/admin", "", nil).Body.String(); !strings.Contains(home, "1 approved request to reimburse.") {
 		t.Error("Home should remind the treasurer to pay it back")
 	}
 	post(gabe, "/admin/treasurer/requests/1/paid", url.Values{"paid": {"1"}})
@@ -153,7 +153,7 @@ func TestSpendRequests(t *testing.T) {
 	}
 
 	// A rejection needs a reason and tells the sender why.
-	send(allie, map[string]string{"kind": "purchase", "date": "2026-11-20", "amount": "300", "category": "Kit Expenses:Sock Order", "what": "Club socks"}, "", nil)
+	send(allie, map[string]string{"kind": "purchase", "date": "2026-11-20", "amount": "300", "what": "Club socks"}, "", nil)
 	sent()
 	if loc := post(karl, "/admin/treasurer/requests/2/reject", nil); !strings.Contains(loc, "err=request-reason") {
 		t.Errorf("reject without a reason: %s", loc)
@@ -171,12 +171,12 @@ func TestSpendRequests(t *testing.T) {
 
 	// The treasurer's own purchase request needs only the president; once
 	// bought, its receipt and final amount update the expense line.
-	send(gabe, map[string]string{"kind": "purchase", "date": "2026-11-15", "amount": "120", "category": "Office Expenses:PO Box Rental", "what": "PO box renewal"}, "", nil)
+	send(gabe, map[string]string{"kind": "purchase", "date": "2026-11-15", "amount": "120", "what": "PO box renewal"}, "", nil)
 	q, _ = a.store.SpendRequest(3)
 	if q.Treasurer == nil || !q.Treasurer.Own || q.President != nil {
 		t.Fatalf("the treasurer's own answer should count: %+v", q)
 	}
-	if got := sent(); len(got) != 1 || !strings.HasPrefix(got[0], "karl@example.com|Purchase request from Gabriel Murray: $120.00") {
+	if got := sent(); len(got) != 1 || !strings.HasPrefix(got[0], "karl@example.com|OK to buy? PO box renewal, $120.00 (Gabriel Murray)") {
 		t.Errorf("only the president should be asked: %q", got)
 	}
 	post(karl, "/admin/treasurer/requests/3/approve", nil)
@@ -197,7 +197,7 @@ func TestSpendRequests(t *testing.T) {
 	}
 
 	// Withdraw, with Undo.
-	send(allie, map[string]string{"kind": "report", "date": "2026-11-03", "amount": "20", "category": "Bank Fees", "what": "Wire fee"}, "", nil)
+	send(allie, map[string]string{"kind": "report", "date": "2026-11-03", "amount": "20", "what": "Wire fee"}, "", nil)
 	sent()
 	if loc := post(gabe, "/admin/treasurer/requests/4/withdraw", nil); !strings.Contains(loc, "err=request-not-yours") {
 		t.Error("only the sender withdraws")

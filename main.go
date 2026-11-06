@@ -209,6 +209,7 @@ func (a *App) routes() http.Handler {
 	mux.Handle("POST /admin/admins/{id}/remove", a.president("/admin/admins", a.removeAdmin))
 	mux.Handle("POST /admin/admins/{id}/president", a.auth(a.makePresident))
 	mux.Handle("POST /admin/admins/password", a.auth(a.changePassword))
+	mux.Handle("POST /admin/admins/paypal", a.auth(a.setPayPal))
 	mux.Handle("GET /admin/security", a.boardOnly(a.securityPage))
 	mux.Handle("POST /admin/security", a.boardOnly(a.securityAction))
 	mux.Handle("GET /admin", a.auth(a.attentionPage))
@@ -238,6 +239,14 @@ func (a *App) routes() http.Handler {
 	mux.Handle("POST /admin/treasurer/requests/{id}/restore", a.auth(a.restoreRequest))
 	mux.Handle("POST /admin/treasurer/requests/{id}/bought", a.auth(a.boughtRequest))
 	mux.Handle("POST /admin/treasurer/requests/{id}/paid", a.boardOnly(a.paidBackRequest))
+	mux.Handle("POST /admin/treasurer/requests/{id}/category", a.boardOnly(a.categoryRequest))
+	mux.Handle("POST /admin/treasurer/budget/one-ok", a.boardOnly(a.oneLimit))
+	mux.Handle("GET /admin/treasurer/requests/guess", a.boardOnly(a.guessRequest))
+	// Approve or Reject from the email (requestanswer.go): no login, the
+	// link is signed for one approver; only the page's button answers.
+	mux.Handle("GET /request-answer/{token}", http.HandlerFunc(a.answerPage))
+	mux.Handle("POST /request-answer/{token}", http.HandlerFunc(a.answerPost))
+	mux.Handle("GET /request-answer/{token}/receipt", http.HandlerFunc(a.answerReceipt))
 	mux.Handle("GET /admin/treasurer/budget", a.boardOnly(a.budgetPage))
 	mux.Handle("POST /admin/treasurer/budget", a.boardOnly(a.saveBudget))
 	mux.Handle("GET /admin/treasurer/reports", a.boardOnly(a.reportsPage))

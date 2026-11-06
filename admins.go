@@ -41,6 +41,17 @@ type AdminUser struct {
 	President bool `json:"president,omitempty"`
 	// SeenGuide: they've opened How the site works, or dismissed Home's welcome card.
 	SeenGuide bool `json:"seen_guide,omitempty"`
+	// PayPal is where their spending-request reimbursements go, when it
+	// isn't the email they log in with (empty = Email).
+	PayPal string `json:"paypal,omitempty"`
+}
+
+// PayPalEmail is where PayPal reimbursements to them go.
+func (u AdminUser) PayPalEmail() string {
+	if u.PayPal != "" {
+		return u.PayPal
+	}
+	return u.Email
 }
 
 // HasPassword reports whether they've set their password yet.
@@ -603,6 +614,45 @@ func (a *App) makePresident(w http.ResponseWriter, r *http.Request) {
 }
 
 // changePassword lets a logged-in admin pick a new password.
+// SetAdminPayPal saves the PayPal email an admin's reimbursements go to
+// (empty: their login email).
+func (s *Store) SetAdminPayPal(id int, email string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	u := s.adminWhere(func(u *AdminUser) bool { return u.ID == id })
+	if u == nil {
+		return errors.New("that admin was removed")
+	}
+	if strings.EqualFold(email, u.Email) {
+		email = ""
+	}
+	u.PayPal = email
+	return s.save()
+}
+
+// setPayPal is "PayPal for reimbursements" on the logged-in admin's own
+// Admins entry.
+func (a *App) setPayPal(w http.ResponseWriter, r *http.Request) {
+	u, _ := a.currentAdmin(r)
+	if u.ID == 0 {
+		back(w, r, "/admin/admins")
+		return
+	}
+	email := ""
+	if raw := strings.TrimSpace(r.FormValue("paypal")); raw != "" {
+		var ok bool
+		if email, ok = cleanEmail(raw); !ok {
+			back(w, r, "/admin/admins?err=paypal-email#paypal")
+			return
+		}
+	}
+	if a.store.SetAdminPayPal(u.ID, email) != nil {
+		back(w, r, "/admin/admins?err=save")
+		return
+	}
+	back(w, r, "/admin/admins?ok=paypal-saved#paypal")
+}
+
 func (a *App) changePassword(w http.ResponseWriter, r *http.Request) {
 	u, _ := a.currentAdmin(r)
 	if u.ID == 0 {

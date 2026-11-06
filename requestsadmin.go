@@ -1,6 +1,9 @@
 package main
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -8,28 +11,51 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 )
 
-// Treasurer → Requests (requests.go has the rules): the form to send an
-// expense report or purchase request, the ones waiting with Approve and
-// Reject for the treasurer and the president, and the ones settled.
+// Treasurer → Requests (requests.go has the rules): the sender's own
+// requests as a tracker, the form to send one, the ones waiting with Approve
+// and Reject for the treasurer and the president, who to pay back, and the
+// ones settled.
 
 type requestsView struct {
-	Waiting, Done []requestRow
-	Form          SpendRequest
-	Cats          []string
+	Answer  []requestRow // waiting for this admin's answer
+	PayBack []requestRow // approved, to pay back (officers)
+	Mine    []requestRow // the logged-in admin's own, for the tracker
+	Waiting []requestRow // the rest still waiting (board)
+	Done    []requestRow // settled (board)
+	Form    SpendRequest
+	Kept    string // a receipt already uploaded with the form, signed
+	Dup     string // "You sent $45.00 on Nov 1 already."
+	Hint    string // the budget line by the amount (board)
+	Over    bool
+	Board   bool // sees budgets and everyone's requests
+	Events  []reqEventChoice
+	Cats    []string
+	PayPal  string // the sender's email, where PayPal reimburses them
 	// No admin holds the role, so requests would wait forever.
 	NoTreasurer, NoPresident bool
 	Withdrawn                int // the one just withdrawn, for Undo
 }
 
+// reqEventChoice is a ride or event in the form's picker.
+type reqEventChoice struct{ Key, Label string }
+
 // requestRow is a request with what the logged-in admin may do to it.
 type requestRow struct {
 	SpendRequest
-	Decide    bool // their answer is wanted
-	Withdraw  bool // they sent it and it's still waiting
-	AddBought bool // an approved purchase: add the receipt and final amount
-	PayBack   bool // an approved expense report: mark it paid back
+	Decide    bool   // their answer is wanted
+	SetCat    bool   // they may change its category (treasurer or president, while waiting)
+	Withdraw  bool   // they sent it and it's still waiting
+	AddBought bool   // an approved purchase: add the receipt and final amount
+	PayBack   bool   // an approved expense report: mark it paid back
+	Hint      string // budget line for the board
+	Over      bool
+	PayTo     string   // "PayPal allie@example.com"
+	First     string   // the sender's first name
+	Cats      []string // for SetCat
+	Shown     bool     // drawn as a card above the Done table
 }
 
 func (a *App) isTreasurer(u AdminUser) bool {
@@ -61,34 +87,88 @@ func ownRequest(q SpendRequest, u AdminUser) bool {
 	return q.ByID == u.ID && (u.ID != 0 || sameName(q.By, u.Name))
 }
 
-// wantsAnswer reports whether a waiting request needs this admin's answer.
+// wantsAnswer reports whether a waiting request needs this admin's answer:
+// the treasurer's always, the president's unless one answer is enough.
 func (a *App) wantsAnswer(q SpendRequest, u AdminUser) bool {
 	if q.Status != reqWaiting || ownRequest(q, u) {
 		return false
 	}
-	return (q.Treasurer == nil && a.isTreasurer(u)) || (q.President == nil && isPresident(u))
+	return (q.Treasurer == nil && a.isTreasurer(u)) || (q.President == nil && q.presidentNeeded() && isPresident(u))
+}
+
+func (a *App) officer(u AdminUser) bool { return a.isTreasurer(u) || isPresident(u) }
+
+// payTo is where the treasurer sends a reimbursement: always PayPal, to
+// the sender's email (as their account has it now).
+func (a *App) payTo(q SpendRequest) string {
+	email := q.ByEmail
+	if q.ByID != 0 {
+		if u, ok := a.store.Admin(q.ByID); ok && u.PayPalEmail() != "" {
+			email = u.PayPalEmail()
+		}
+	}
+	return strings.TrimSpace("PayPal " + email)
+}
+
+func firstWord(s string) string {
+	if f := strings.Fields(s); len(f) > 0 {
+		return f[0]
+	}
+	return s
 }
 
 func (a *App) requestRowFor(q SpendRequest, u AdminUser) requestRow {
-	officer := a.isTreasurer(u) || isPresident(u)
-	return requestRow{SpendRequest: q,
+	officer := a.officer(u)
+	row := requestRow{SpendRequest: q,
 		Decide:    a.wantsAnswer(q, u),
+		SetCat:    q.Status == reqWaiting && officer,
 		Withdraw:  q.Status == reqWaiting && ownRequest(q, u),
 		AddBought: q.Status == reqApproved && q.Kind == reqPurchase && (officer || ownRequest(q, u)),
 		PayBack:   q.Status == reqApproved && q.Kind == reqReport && officer,
+		First:     firstWord(q.By),
 	}
+	if q.Kind == reqReport {
+		row.PayTo = a.payTo(q)
+	}
+	if row.SetCat {
+		_, row.Cats, _ = a.store.TreasuryCats()
+	}
+	return row
 }
 
 const requestsPath = "/admin/treasurer/requests"
 
 func (a *App) requestsPage(w http.ResponseWriter, r *http.Request) {
-	a.renderRequests(w, r, SpendRequest{}, "")
+	a.renderRequests(w, r, requestsView{})
 }
 
-func (a *App) renderRequests(w http.ResponseWriter, r *http.Request, form SpendRequest, problem string) {
+// reqEventChoices are the rides and events of the last three weeks and the
+// next month, for the form's picker.
+func (a *App) reqEventChoices() []reqEventChoice {
+	today := a.today()
+	var out []reqEventChoice
+	for _, o := range a.store.Rides(today.AddDate(0, 0, -21), today.AddDate(0, 0, 31)) {
+		if o.Cancelled {
+			continue
+		}
+		t, _ := time.Parse("2006-01-02", o.Date)
+		out = append(out, reqEventChoice{Key: o.Key, Label: t.Format("Mon Jan 2") + " · " + o.Name})
+	}
+	return out
+}
+
+// renderRequests draws the page; in carries the form (and its problem) when
+// it comes back.
+func (a *App) renderRequests(w http.ResponseWriter, r *http.Request, in requestsView, problem ...string) {
 	u, _ := a.currentAdmin(r)
+	if u.ID != 0 {
+		u, _ = a.store.Admin(u.ID) // with their saved payback
+	}
 	_, expense, _ := a.store.TreasuryCats()
-	rv := &requestsView{Cats: expense, NoTreasurer: true, NoPresident: true}
+	rv := &in
+	rv.Cats, rv.NoTreasurer, rv.NoPresident = expense, true, true
+	rv.Board, rv.Events = a.isBoard(r), a.reqEventChoices()
+	rv.PayPal = u.PayPalEmail()
 	for _, ad := range a.store.Admins() {
 		if a.isTreasurer(ad) {
 			rv.NoTreasurer = false
@@ -98,100 +178,185 @@ func (a *App) renderRequests(w http.ResponseWriter, r *http.Request, form SpendR
 		}
 	}
 	rv.Withdrawn, _ = strconv.Atoi(r.URL.Query().Get("withdrawn"))
-	board := a.isBoard(r)
+	recent := time.Now().AddDate(0, 0, -30)
 	for _, q := range a.store.SpendRequests() {
-		if !board && !ownRequest(q, u) {
+		own := ownRequest(q, u)
+		if !rv.Board && !own {
 			continue // website admins see only their own
 		}
 		row := a.requestRowFor(q, u)
-		if q.Status == reqWaiting {
-			rv.Waiting = append(rv.Waiting, row)
-		} else if len(rv.Done) < 60 {
+		if rv.Board && q.Status == reqWaiting {
+			row.Hint, row.Over = a.budgetHint(q.Category, q.Cents, q.Date)
+		}
+		card := row
+		card.Shown = true
+		switch {
+		case row.Decide:
+			rv.Answer = append(rv.Answer, card)
+		case own && q.Status != reqWithdrawn && (!q.Finished() || q.Sent.After(recent)):
+			rv.Mine = append(rv.Mine, card)
+		case q.Status == reqWaiting:
+			rv.Waiting = append(rv.Waiting, card)
+		default:
+			card.Shown = false
+		}
+		row.Shown = card.Shown
+		if row.PayBack && q.PaidBack == nil {
+			rv.PayBack = append(rv.PayBack, row)
+		}
+		if rv.Board && q.Status != reqWaiting && len(rv.Done) < 60 {
 			rv.Done = append(rv.Done, row)
 		}
 	}
-	// Those waiting for this admin come first, oldest first.
+	// Waiting ones oldest first.
+	slices.Reverse(rv.Answer)
 	slices.Reverse(rv.Waiting)
-	slices.SortStableFunc(rv.Waiting, func(x, y requestRow) int {
-		if x.Decide == y.Decide {
-			return 0
-		}
-		if x.Decide {
-			return -1
-		}
-		return 1
-	})
-	if form.Date == "" {
-		form = SpendRequest{Kind: reqReport, Date: a.today().Format("2006-01-02")}
+	slices.Reverse(rv.PayBack)
+	if rv.Form.Date == "" {
+		rv.Form.Kind, rv.Form.Date = reqReport, a.today().Format("2006-01-02")
 	}
-	rv.Form = form
 	v := adminView{Title: "Requests", Tab: "requests", Money: &moneyView{Requests: rv}}
 	v.Flash, v.Error = flashFrom(r)
-	if problem != "" {
-		v.Flash, v.Error = "", problem
+	if len(problem) > 0 && problem[0] != "" {
+		v.Flash, v.Error = "", problem[0]
 	}
 	a.renderAdmin(w, r, http.StatusOK, "money-requests", v)
 }
 
 // readAmountDate reads the date, amount and receipt boxes shared by the
-// request form and the purchase's receipt form.
+// request form and the purchase's receipt form. The form has two receipt
+// boxes (the camera, and a photo or PDF already on the device); whichever
+// was used counts.
 func (a *App) readAmountDate(w http.ResponseWriter, r *http.Request) (date string, cents int64, receipt, receiptName, problem string) {
 	r.Body = http.MaxBytesReader(w, r.Body, maxReceipt+(1<<20))
 	if err := r.ParseMultipartForm(8 << 20); err != nil && !errors.Is(err, http.ErrNotMultipart) {
 		return "", 0, "", "", "That receipt is too big. Receipts can be up to 20 MB."
 	}
+	if r.MultipartForm != nil {
+		for _, hdr := range r.MultipartForm.File["receipt"] {
+			if hdr.Size == 0 {
+				continue
+			}
+			name, err := a.saveReceipt(hdr)
+			if err != nil && err != errNoReceipt {
+				return "", 0, "", "", "The receipt wasn’t saved: " + err.Error()
+			}
+			if err == nil {
+				receipt, receiptName = name, filepath.Base(hdr.Filename)
+				break
+			}
+		}
+	}
 	date = strings.TrimSpace(r.FormValue("date"))
 	c, ok := parseMoney(r.FormValue("amount"))
 	switch {
 	case !validDate(date):
-		return date, c, "", "", "Enter the date."
+		return date, c, receipt, receiptName, "Enter the date."
 	case !ok || c <= 0:
-		return date, c, "", "", "Enter the amount, like 45.00."
-	}
-	if r.MultipartForm != nil && len(r.MultipartForm.File["receipt"]) > 0 {
-		hdr := r.MultipartForm.File["receipt"][0]
-		name, err := a.saveReceipt(hdr)
-		if err != nil && err != errNoReceipt {
-			return date, c, "", "", "The receipt wasn’t saved: " + err.Error()
-		}
-		if err == nil {
-			receipt, receiptName = name, filepath.Base(hdr.Filename)
-		}
+		return date, c, receipt, receiptName, "Enter the amount, like 45.00."
 	}
 	return date, c, receipt, receiptName, ""
 }
 
-// sendRequest saves a new expense report or purchase request and emails the
-// treasurer and the president.
+// A receipt uploaded with a form that comes back (a missing box, or the
+// duplicate warning) is kept, so it needn't be picked again: the form
+// carries its file name, signed for this admin.
+func (a *App) keepKey() []byte {
+	k := sha256.Sum256([]byte("spend-keep\x00" + a.store.Secret()))
+	return k[:]
+}
+
+func (a *App) keptReceipt(u AdminUser, name, orig string) string {
+	if name == "" {
+		return ""
+	}
+	v := name + "|" + orig
+	return v + "|" + sign(a.keepKey(), fmt.Sprintf("%d|%s", u.ID, v))[:32]
+}
+
+func (a *App) readKept(u AdminUser, kept string) (name, orig string) {
+	i := strings.LastIndex(kept, "|")
+	if i < 0 {
+		return "", ""
+	}
+	v, sig := kept[:i], kept[i+1:]
+	if !hmac.Equal([]byte(sig), []byte(sign(a.keepKey(), fmt.Sprintf("%d|%s", u.ID, v))[:32])) {
+		return "", ""
+	}
+	name, orig, _ = strings.Cut(v, "|")
+	if !receiptName.MatchString(name) || a.store.ReceiptInUse(name) {
+		return "", ""
+	}
+	return name, orig
+}
+
+// duplicateOf finds a request from the same sender for the same amount
+// within three days, which is most likely the same one sent twice.
+func (a *App) duplicateOf(q SpendRequest, u AdminUser) (SpendRequest, bool) {
+	d, err := time.Parse("2006-01-02", q.Date)
+	if err != nil {
+		return SpendRequest{}, false
+	}
+	for _, p := range a.store.SpendRequests() {
+		if !ownRequest(p, u) || p.Cents != q.Cents || p.Status == reqWithdrawn || p.Status == reqRejected {
+			continue
+		}
+		pd, err := time.Parse("2006-01-02", p.Date)
+		if err == nil && pd.Sub(d).Abs() <= 3*24*time.Hour {
+			return p, true
+		}
+	}
+	return SpendRequest{}, false
+}
+
+// sendRequest saves a new request and emails whoever's answer it needs.
 func (a *App) sendRequest(w http.ResponseWriter, r *http.Request) {
 	u, _ := a.currentAdmin(r)
+	if u.ID != 0 {
+		u, _ = a.store.Admin(u.ID)
+	}
 	q := SpendRequest{Kind: reqReport}
 	date, cents, receipt, receiptName, problem := a.readAmountDate(w, r)
+	if receipt == "" {
+		receipt, receiptName = a.readKept(u, r.FormValue("kept"))
+	}
 	if r.FormValue("kind") == reqPurchase {
 		q.Kind = reqPurchase
 	}
 	q.Date, q.Cents, q.Receipt, q.ReceiptName = date, cents, receipt, receiptName
-	q.What, q.Category = cleanName(r.FormValue("what")), r.FormValue("category")
+	q.What = cleanName(r.FormValue("what"))
 	q.Note = strings.TrimSpace(r.FormValue("note"))
 	if len(q.Note) > 1000 {
 		q.Note = q.Note[:1000]
 	}
-	_, cats, _ := a.store.TreasuryCats()
-	if problem == "" {
-		switch {
-		case !slices.Contains(cats, q.Category):
-			problem = "Pick a category."
-		case q.What == "":
-			problem = "Say what it’s for."
+	if key := r.FormValue("event"); key != "" {
+		for _, e := range a.store.Rides(a.today().AddDate(0, 0, -60), a.today().AddDate(0, 0, 60)) {
+			if e.Key == key {
+				q.EventKey, q.EventName, q.EventDate = e.Key, e.Name, e.Date
+			}
 		}
 	}
+	q.By, q.ByID, q.ByEmail = u.Name, u.ID, u.Email
+	q.Category = a.guessFor(q.What, u)
+	if problem == "" && q.What == "" {
+		problem = "Say what it’s for."
+	}
+	again := func(problem, dup string) {
+		in := requestsView{Form: q, Kept: a.keptReceipt(u, q.Receipt, q.ReceiptName), Dup: dup}
+		if a.isBoard(r) {
+			in.Hint, in.Over = a.budgetHint(q.Category, q.Cents, q.Date)
+		}
+		a.renderRequests(w, r, in, problem)
+	}
 	if problem != "" {
-		a.dropReceipt(q.Receipt)
-		q.Receipt = ""
-		a.renderRequests(w, r, q, problem)
+		again(problem, "")
 		return
 	}
-	q.By, q.ByID, q.ByEmail = u.Name, u.ID, u.Email
+	if p, dup := a.duplicateOf(q, u); dup && r.FormValue("dup_ok") == "" {
+		t, _ := time.Parse("2006-01-02", p.Date)
+		again("", fmt.Sprintf("You sent %s on %s already.", money(p.Cents), t.Format("Jan 2")))
+		return
+	}
 	// The sender's own role counts as said.
 	own := &Decision{By: u.Name, OK: true, Own: true}
 	if a.isTreasurer(u) {
@@ -202,6 +367,7 @@ func (a *App) sendRequest(w http.ResponseWriter, r *http.Request) {
 		d := *own
 		q.President = &d
 	}
+	q.One = a.oneApproval(q)
 	saved, err := a.store.AddSpendRequest(q)
 	if err != nil {
 		a.dropReceipt(q.Receipt)
@@ -217,6 +383,18 @@ func (a *App) sendRequest(w http.ResponseWriter, r *http.Request) {
 	back(w, r, fmt.Sprintf("%s?ok=request-sent#r%d", requestsPath, saved.ID))
 }
 
+// guessRequest answers the form as it's typed in: the category the site
+// would file it under and what's left of its budget (board only).
+func (a *App) guessRequest(w http.ResponseWriter, r *http.Request) {
+	u, _ := a.currentAdmin(r)
+	q := r.URL.Query()
+	cat := a.guessFor(q.Get("what"), u)
+	cents, _ := parseMoney(q.Get("amount"))
+	hint, over := a.budgetHint(cat, cents, q.Get("date"))
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{"category": cat, "hint": hint, "over": over})
+}
+
 func (a *App) requestFromPath(w http.ResponseWriter, r *http.Request) (SpendRequest, AdminUser, bool) {
 	id, _ := strconv.Atoi(r.PathValue("id"))
 	u, _ := a.currentAdmin(r)
@@ -225,6 +403,16 @@ func (a *App) requestFromPath(w http.ResponseWriter, r *http.Request) (SpendRequ
 		back(w, r, requestsPath+"?err=money-gone")
 	}
 	return q, u, ok
+}
+
+// decide records u's answer and emails the sender once it's settled. It
+// reports whether it was settled.
+func (a *App) decide(q SpendRequest, u AdminUser, ok bool, reason string) (SpendRequest, bool, error) {
+	q, settled, err := a.store.DecideSpendRequest(q.ID, a.isTreasurer(u), isPresident(u), Decision{By: u.Name, OK: ok, Reason: reason})
+	if err == nil && settled {
+		a.mailer.Go(func() { a.mailRequestSettled(q) })
+	}
+	return q, settled, err
 }
 
 // decideRequest is Approve (ok) or Reject, by the treasurer or the president.
@@ -244,18 +432,72 @@ func (a *App) decideRequest(ok bool) http.HandlerFunc {
 			back(w, r, fmt.Sprintf(to, "err=request-reason"))
 			return
 		}
-		q, settled, err := a.store.DecideSpendRequest(q.ID, a.isTreasurer(u), isPresident(u), Decision{By: u.Name, OK: ok, Reason: reason})
+		_, settled, err := a.decide(q, u, ok, reason)
 		if err != nil {
 			back(w, r, fmt.Sprintf(to, "err=request-not-yours"))
 			return
 		}
 		flash := "request-ok"
 		if settled {
-			a.mailer.Go(func() { a.mailRequestSettled(q) })
 			flash = map[bool]string{true: "request-approved", false: "request-rejected"}[ok]
 		}
 		back(w, r, fmt.Sprintf(to, "ok="+flash))
 	}
+}
+
+// categoryRequest is the treasurer (or the president) changing a waiting
+// request's category, which can change whether one answer is enough.
+func (a *App) categoryRequest(w http.ResponseWriter, r *http.Request) {
+	q, u, found := a.requestFromPath(w, r)
+	if !found {
+		return
+	}
+	_, cats, _ := a.store.TreasuryCats()
+	cat := r.FormValue("category")
+	if !a.requestRowFor(q, u).SetCat || !slices.Contains(cats, cat) {
+		back(w, r, fmt.Sprintf("%s?err=request-not-yours#r%d", requestsPath, q.ID))
+		return
+	}
+	q.Category = cat
+	saved, settled, err := a.store.ReweighSpendRequest(q.ID, cat, a.oneApproval(q))
+	if err != nil {
+		back(w, r, requestsPath+"?err=save")
+		return
+	}
+	if settled {
+		a.mailer.Go(func() { a.mailRequestSettled(saved) })
+		back(w, r, fmt.Sprintf("%s?ok=request-approved#r%d", requestsPath, q.ID))
+		return
+	}
+	back(w, r, fmt.Sprintf("%s?ok=money-saved#r%d", requestsPath, q.ID))
+}
+
+// oneLimit saves the most the treasurer's yes alone approves, and weighs
+// the requests waiting again.
+func (a *App) oneLimit(w http.ResponseWriter, r *http.Request) {
+	c, ok := parseMoney(r.FormValue("limit"))
+	if strings.TrimSpace(r.FormValue("limit")) == "" {
+		c, ok = 0, true
+	}
+	if !ok || c < 0 {
+		back(w, r, "/admin/treasurer/budget?err=request-limit")
+		return
+	}
+	if a.store.SetOneLimit(c) != nil {
+		back(w, r, "/admin/treasurer/budget?err=save")
+		return
+	}
+	for _, q := range a.store.SpendRequests() {
+		if q.Status != reqWaiting {
+			continue
+		}
+		if one := a.oneApproval(q); one != q.One {
+			if saved, settled, err := a.store.ReweighSpendRequest(q.ID, "", one); err == nil && settled {
+				a.mailer.Go(func() { a.mailRequestSettled(saved) })
+			}
+		}
+	}
+	back(w, r, "/admin/treasurer/budget?ok=money-saved")
 }
 
 func (a *App) withdrawRequest(w http.ResponseWriter, r *http.Request) {
@@ -295,7 +537,7 @@ func (a *App) boughtRequest(w http.ResponseWriter, r *http.Request) {
 	date, cents, receipt, receiptName, problem := a.readAmountDate(w, r)
 	if problem != "" {
 		a.dropReceipt(receipt)
-		a.renderRequests(w, r, SpendRequest{}, problem)
+		a.renderRequests(w, r, requestsView{}, problem)
 		return
 	}
 	old, err := a.store.BoughtSpendRequest(q.ID, cents, date, receipt, receiptName)
@@ -315,11 +557,43 @@ func (a *App) paidBackRequest(w http.ResponseWriter, r *http.Request) {
 	if !found {
 		return
 	}
-	if !a.requestRowFor(q, u).PayBack || a.store.PaidBackSpendRequest(q.ID, r.FormValue("paid") != "") != nil {
+	paid := r.FormValue("paid") != ""
+	if !a.requestRowFor(q, u).PayBack || a.store.PaidBackSpendRequest(q.ID, paid) != nil {
 		back(w, r, requestsPath+"?err=request-not-yours")
 		return
 	}
+	if paid && q.PaidBack == nil {
+		q, _ = a.store.SpendRequest(q.ID)
+		a.mailer.Go(func() { a.mailReimbursed(q, u.Name) })
+	}
 	back(w, r, fmt.Sprintf("%s?ok=money-saved#r%d", requestsPath, q.ID))
+}
+
+// clubInbox gets the club's copy of every reimbursement, and nobody else
+// does: the person reimbursed has PayPal's own receipt.
+const clubInbox = "PaxVeloClub@gmail.com"
+
+// mailReimbursed is the reimbursement receipt for the club's records, sent
+// when the treasurer presses Paid.
+func (a *App) mailReimbursed(q SpendRequest, by string) {
+	approved := []string{}
+	for _, d := range []*Decision{q.Treasurer, q.President} {
+		if d != nil && d.OK {
+			approved = append(approved, d.By)
+		}
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "**%s** was reimbursed %s by PayPal.\n\n", q.By, money(q.Cents))
+	b.WriteString("- **Paid to:** " + a.payTo(q) + "\n")
+	b.WriteString("- **Paid on:** " + q.PaidBackLabel() + ", marked by " + by + "\n")
+	b.WriteString("- **Approved by:** " + andList(approved) + "\n")
+	b.WriteString(requestDetails(q))
+	if q.Receipt != "" {
+		b.WriteString("- **Receipt:** on the request\n")
+	}
+	fmt.Fprintf(&b, "\n[Open the request](%s)", a.requestLink(q))
+	subject := fmt.Sprintf("Reimbursed: %s %s, %s", q.By, money(q.Cents), q.What)
+	a.mailer.SendDirect(mailRequest, a.cfg.FromName, clubInbox, subject, b.String())
 }
 
 // ---- Emails ----
@@ -333,33 +607,58 @@ func requestDetails(q SpendRequest) string {
 		"- **Amount:** " + money(q.Amount()) + "\n" +
 		"- **Category:** " + q.Category + "\n" +
 		"- **Date:** " + q.DateLabel() + "\n"
+	if e := q.EventLabel(); e != "" {
+		s += "- **For:** " + e + "\n"
+	}
 	if q.Note != "" {
 		s += "- **Notes:** " + strings.Join(strings.Fields(q.Note), " ") + "\n"
-	}
-	if q.Receipt != "" {
-		s += "- **Receipt:** attached on the site\n"
 	}
 	return s
 }
 
-// mailRequestSent asks the treasurer and the president (whichever answer is
-// still wanted) to look at a new request.
+// requestAsk is the email's first line, like "Allie bought something for
+// the club for $45.00."
+func requestAsk(q SpendRequest) string {
+	if q.Kind == reqPurchase {
+		return fmt.Sprintf("**%s** wants to buy something for %s.", q.By, money(q.Cents))
+	}
+	return fmt.Sprintf("**%s** bought something for the club for %s.", q.By, money(q.Cents))
+}
+
+func requestSubject(q SpendRequest) string {
+	if q.Kind == reqPurchase {
+		return fmt.Sprintf("OK to buy? %s, %s (%s)", q.What, money(q.Cents), q.By)
+	}
+	return fmt.Sprintf("Reimburse %s %s: %s", q.By, money(q.Cents), q.What)
+}
+
+// mailRequestAsk asks one approver for their answer, with the receipt and
+// buttons that answer from the email (requestanswer.go). A reminder says so.
+func (a *App) mailRequestAsk(q SpendRequest, u AdminUser, reminder bool) {
+	link := a.answerURL(q, u)
+	var b strings.Builder
+	subject := requestSubject(q)
+	if reminder {
+		subject = "Reminder: " + subject
+		fmt.Fprintf(&b, "This has been waiting for your answer since %s.\n\n", q.Sent.In(clubTZ).Format("Monday, January 2"))
+	}
+	b.WriteString(requestAsk(q) + "\n\n")
+	if q.Receipt != "" && !q.ReceiptPDF() {
+		fmt.Fprintf(&b, "![Receipt](%s/receipt)\n\n", link)
+	}
+	b.WriteString(requestDetails(q))
+	if q.Receipt != "" && q.ReceiptPDF() {
+		fmt.Fprintf(&b, "- **Receipt:** [%s](%s/receipt)\n", or(q.ReceiptName, "PDF"), link)
+	}
+	fmt.Fprintf(&b, "\n[[Approve](%s?do=approve)]\n\n[Reject](%s?do=reject) · [Open on the site](%s)", link, link, a.requestLink(q))
+	a.mailer.SendDirect(mailRequest, u.Name, u.Email, subject, b.String()) // a failure is logged by send
+}
+
+// mailRequestSent asks whoever's answer is wanted to look at a new request.
 func (a *App) mailRequestSent(q SpendRequest) {
-	who := map[bool]string{true: "the treasurer’s", false: "the president’s"}
-	need := []string{}
-	if q.Treasurer == nil {
-		need = append(need, who[true])
-	}
-	if q.President == nil {
-		need = append(need, who[false])
-	}
-	subject := fmt.Sprintf("%s from %s: %s", q.KindLabel(), q.By, money(q.Cents))
-	what := map[string]string{reqReport: "an expense report", reqPurchase: "a purchase request"}[q.Kind]
-	body := fmt.Sprintf("**%s** sent %s.\n\n%s\nIt needs %s OK.\n\n[Open the request](%s)",
-		q.By, what, requestDetails(q), strings.Join(need, " and "), a.requestLink(q))
 	for _, u := range a.store.Admins() {
 		if u.Email != "" && a.wantsAnswer(q, u) {
-			a.mailer.SendDirect(mailRequest, u.Name, u.Email, subject, body) // a failure is logged by send
+			a.mailRequestAsk(q, u, false)
 		}
 	}
 }
@@ -372,17 +671,17 @@ func (a *App) mailRequestSettled(q SpendRequest) {
 	var subject, body string
 	if no := q.Rejection(); no != nil {
 		subject = "Not approved: " + q.What
-		body = fmt.Sprintf("Your %s for **%s** (%s) wasn’t approved by %s.\n\n**Why:** %s\n\n[Open the request](%s)",
-			strings.ToLower(q.KindLabel()), q.What, money(q.Cents), no.By, no.Reason, a.requestLink(q))
+		body = fmt.Sprintf("Your request for **%s** (%s) wasn’t approved by %s.\n\n**Why:** %s\n\n[Open the request](%s)",
+			q.What, money(q.Cents), no.By, no.Reason, a.requestLink(q))
 	} else if q.Kind == reqPurchase {
 		subject = "Approved: " + q.What
-		body = fmt.Sprintf("Your purchase request for **%s** (%s) is approved by the treasurer and the president. Go ahead and buy it.\n\n"+
-			"It’s on the club’s expenses already. When you have the receipt, add it on the request with the final amount.\n\n[Add the receipt](%s)",
+		body = fmt.Sprintf("Your request to buy **%s** (%s) is approved. Go ahead and buy it.\n\n"+
+			"When you have the receipt, snap or upload it on the request with the final amount.\n\n[[Add the receipt](%s)]",
 			q.What, money(q.Cents), a.requestLink(q))
 	} else {
 		subject = "Approved: " + q.What
-		body = fmt.Sprintf("Your expense report for **%s** (%s) is approved by the treasurer and the president. It’s on the club’s expenses, and the treasurer will pay you back.\n\n[Open the request](%s)",
-			q.What, money(q.Cents), a.requestLink(q))
+		body = fmt.Sprintf("Your request for **%s** (%s) is approved. The treasurer will reimburse you by PayPal to %s.\n\n[Open the request](%s)",
+			q.What, money(q.Cents), strings.TrimPrefix(a.payTo(q), "PayPal "), a.requestLink(q))
 	}
 	a.mailer.SendDirect(mailRequest, q.By, q.ByEmail, subject, body)
 }
@@ -394,14 +693,13 @@ func (a *App) mailRequestSettled(q SpendRequest) {
 // returns the number waiting for their answer, for the Requests badge.
 func (a *App) requestAttention(u AdminUser) (items []attentionItem, answer int) {
 	payBack, receipts := 0, []string{}
-	officer := a.isTreasurer(u) || isPresident(u)
 	for _, q := range a.store.SpendRequests() {
 		switch {
 		case a.wantsAnswer(q, u):
 			answer++
 		case q.Status == reqApproved && q.Kind == reqReport && q.PaidBack == nil && a.isTreasurer(u):
 			payBack++
-		case q.Status == reqApproved && q.Kind == reqPurchase && q.Bought == "" && ownRequest(q, u) && !officer:
+		case q.Status == reqApproved && q.Kind == reqPurchase && q.Bought == "" && ownRequest(q, u):
 			receipts = append(receipts, q.What)
 		}
 	}
@@ -413,14 +711,14 @@ func (a *App) requestAttention(u AdminUser) (items []attentionItem, answer int) 
 	}
 	if payBack > 0 {
 		items = append(items, attentionItem{
-			Text: fmt.Sprintf("%d approved expense %s to pay back.", payBack, plural(payBack, "report", "reports")),
-			Href: requestsPath + "#done", Link: "See which",
+			Text: fmt.Sprintf("%d approved %s to reimburse.", payBack, plural(payBack, "request", "requests")),
+			Href: requestsPath + "#pay", Link: "See which",
 		})
 	}
 	if len(receipts) > 0 {
 		items = append(items, attentionItem{
 			Text: "Add the receipt for " + andList(receipts) + ".",
-			Href: requestsPath + "#done", Link: "Add it",
+			Href: requestsPath + "#mine", Link: "Add it",
 		})
 	}
 	return items, answer

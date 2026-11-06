@@ -36,7 +36,7 @@ func adminLevels(t *testing.T, a *App) (web, board, pres *http.Cookie) {
 // is checked against main.go: a new admin route has to be placed here.
 var websiteAdminRoutes = map[string]bool{
 	"GET /admin": true, "GET /admin/guide": true, "POST /admin/intro": true, "GET /admin/stats": true,
-	"GET /admin/admins": true, "POST /admin/admins/password": true, "POST /admin/admins/{id}/president": true, // checked inside: canNamePresident
+	"GET /admin/admins": true, "POST /admin/admins/password": true, "POST /admin/admins/paypal": true, "POST /admin/admins/{id}/president": true, // checked inside: canNamePresident
 	"GET /admin/backup":  true, // checked inside: president
 	"GET /admin/members": true, "GET /admin/members/{id}": true,
 	"GET /admin/email": true, "GET /admin/email/status": true, "POST /admin/email/test": true, "POST /admin/email/preview": true,

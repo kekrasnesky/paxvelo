@@ -33,6 +33,7 @@ type adminView struct {
 	Guide                             *guideView     // the How the site works page
 	Stats                             *statsView     // the Stats page
 	Money                             *moneyView     // the Treasurer tab (treasureradmin.go)
+	Answer                            *answerView    // a spending request answered from the email (requestanswer.go)
 	CSS                               template.CSS
 	PhotoJS                           template.JS // photos.js: photos shrink before they upload
 	Year                              int
@@ -332,6 +333,7 @@ var flashText = map[string]string{
 	"request-bought":       "Saved. The line on Expenses is updated.",
 	"president":            "Saved. The president is marked below, and is the one admin who can remove admins, delete members and remove automated emails.",
 	"password-set":         "Your password is set. Next time, log in with your email and this password.",
+	"paypal-saved":         "Saved.",
 	"password-changed":     "Password changed. Any other devices you were logged in on are logged out.",
 	"series-deleted":       "Weekly ride removed. Dates that already had a leader stay on the calendar.",
 	"leader":               "Saved.",
@@ -362,6 +364,8 @@ var errorText = map[string]string{
 	"money-fee":         "Type the fee like 3.49 and 0.49.",
 	"request-not-yours": "That isn’t waiting for you.",
 	"request-reason":    "Say why it’s rejected.",
+	"paypal-email":      "Type the whole PayPal email, like name@example.com.",
+	"request-limit":     "Type the amount, like 50.",
 	"bad-years":         "Type the years paid as four-digit years, like 2024, 2025.",
 	"bad-date":          "That join date isn’t a date.",
 	"file":              "Choose a CSV file to import.",

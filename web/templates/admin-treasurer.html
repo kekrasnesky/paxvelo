@@ -132,6 +132,10 @@ document.querySelectorAll('.money-form select[name=category]').forEach(function(
 <div class="money-top">
   <h1>Budget</h1>
   {{template "money-year" .}}
+  <form class="req-limit no-print" id="limit" method="post" action="/admin/treasurer/budget/one-ok">
+    <label class="inline-label" title="Spending requests up to this amount, within what’s left of their category’s budget, need only the treasurer’s OK. Blank: the treasurer and the president always both approve.">Treasurer alone approves up to <span class="money-in"><span aria-hidden="true">$</span><input name="limit" inputmode="decimal" value="{{if $m.OneLimit}}{{moneyInput $m.OneLimit}}{{end}}" autocomplete="off" placeholder="—" aria-label="Amount"></span></label>
+    <button class="ghost mini">{{icon "save"}}Save</button>
+  </form>
 </div>
 <form method="post" action="/admin/treasurer/budget?year={{$m.Year}}" class="budget-form" id="budget-form">
   <div class="table-wrap"><table class="budget-table">
@@ -227,39 +231,170 @@ document.querySelectorAll('.money-form select[name=category]').forEach(function(
 {{define "money-requests"}}{{template "head" .}}{{$q := .Money.Requests}}{{$f := $q.Form}}
 <div class="money-top"><h1>Requests</h1></div>
 {{if $q.NoTreasurer}}<p class="flash warn">No admin holds the Treasurer role. <a href="/admin/board">Website → Board</a></p>{{end}}
-{{if $q.NoPresident}}<p class="flash warn">No admin is marked president. <a href="/admin/admins">Admins</a></p>{{end}}
+{{if and $q.NoPresident $q.Board}}<p class="flash warn">No admin is marked president. <a href="/admin/admins">Admins</a></p>{{end}}
 {{with $q.Withdrawn}}<form class="flash warn undo-flash" method="post" action="/admin/treasurer/requests/{{.}}/restore">Withdrawn. <button class="link">{{icon "undo"}}Undo</button></form>{{end}}
-<details class="money-add no-print" id="add" open{{if $.Error}} data-keep{{end}}><summary class="btn">{{icon "plus"}}New request</summary>
-<form class="card money-form req-form" method="post" action="/admin/treasurer/requests" enctype="multipart/form-data">
-  <h2>New request</h2>
-  <div class="kind-pick" role="radiogroup" aria-label="Kind">
-    <label title="You paid; the club pays you back"><input type="radio" name="kind" value="report"{{if ne $f.Kind "purchase"}} checked{{end}}><span>Expense report</span></label>
-    <label title="Ask before buying"><input type="radio" name="kind" value="purchase"{{if eq $f.Kind "purchase"}} checked{{end}}><span>Purchase request</span></label>
+
+{{with $q.Answer}}<h2 class="section req-first">Waiting for you</h2>
+{{range .}}{{template "req-card" .}}{{end}}{{end}}
+
+{{with $q.PayBack}}<h2 class="section" id="pay">To reimburse</h2>
+<ul class="card pay-list">{{range .}}<li id="p{{.ID}}">
+  <div class="pay-who"><span>Pay <strong>{{.First}}</strong> {{money .Cents}}{{with .PayTo}} <span class="pay-how">— {{.}}</span>{{end}}</span>
+    <span class="muted small">{{.What}} · {{.DateLabel}}</span></div>
+  {{if .Receipt}}{{template "money-receipt" .SpendRequest}}{{end}}
+  <form method="post" action="/admin/treasurer/requests/{{.ID}}/paid"><input type="hidden" name="paid" value="1"><button class="ghost mini" title="The money’s sent">{{icon "check"}}Paid</button></form>
+</li>{{end}}</ul>{{end}}
+
+{{with $q.Mine}}<h2 class="section" id="mine">My requests</h2>
+{{range .}}<article class="card my-req{{if eq .Status "rejected"}} is-no{{end}}" id="r{{.ID}}">
+  <div class="req-head">
+    <div class="req-what"><h3>{{.What}}</h3>
+      <p class="muted small">{{.KindLabel}} · {{.DateLabel}}{{with .EventLabel}} · {{.}}{{end}}</p></div>
+    <p class="money-big">{{money .Amount}}</p>
   </div>
-  <div class="money-fields">
-    <label>Date <input type="date" name="date" value="{{$f.Date}}" required></label>
-    <label>Amount <span class="money-in"><span aria-hidden="true">$</span><input name="amount" inputmode="decimal" placeholder="0.00" value="{{if $f.Cents}}{{moneyInput $f.Cents}}{{end}}" required autocomplete="off"></span></label>
-    <label>Category <select name="category" required>
-      <option value=""{{if not $f.Category}} selected{{end}} disabled>Pick one</option>
-      {{range $q.Cats}}<option{{if eq . $f.Category}} selected{{end}}>{{.}}</option>{{end}}
-    </select></label>
-    <label class="money-what">What for <input name="what" value="{{$f.What}}" maxlength="100" required></label>
-    <label class="money-what">Notes <textarea name="note" rows="2" maxlength="1000">{{$f.Note}}</textarea></label>
-    <label class="money-file"><span data-report="Receipt" data-purchase="Quote">{{if eq $f.Kind "purchase"}}Quote{{else}}Receipt{{end}}</span> <input type="file" name="receipt" accept="image/*,.pdf,application/pdf"></label>
-    <button class="money-go">{{icon "send"}}Send</button>
+  <ol class="track" aria-label="Progress">{{range .Track}}<li class="{{.State}}"><span>{{.Label}}</span>{{with .When}}<small>{{.}}</small>{{end}}</li>{{end}}</ol>
+  {{with .Rejection}}<p class="req-why"><strong>{{.By}}:</strong> {{.Reason}}</p>{{end}}
+  {{if and .PayTo (eq .Status "approved") (not .PaidBack)}}<p class="muted small">{{.PayTo}}</p>{{end}}
+  {{if or .Receipt .Withdraw .AddBought}}<div class="req-foot">
+    {{if .Receipt}}{{template "money-receipt" .SpendRequest}}{{end}}
+    <div class="req-acts">
+      {{if .Withdraw}}<form method="post" action="/admin/treasurer/requests/{{.ID}}/withdraw"><button class="link danger">{{icon "trash"}}Withdraw</button></form>{{end}}
+      {{if .AddBought}}{{template "req-bought" .}}{{end}}
+    </div>
+  </div>{{end}}
+</article>{{end}}{{end}}
+
+<details class="money-add req-add no-print" id="add"{{if or (not $q.Answer) $.Error $q.Dup}} open{{end}}><summary class="btn">{{icon "plus"}}New request</summary>
+<form class="card money-form req-form" method="post" action="/admin/treasurer/requests" enctype="multipart/form-data"{{if $q.Board}} data-guess="/admin/treasurer/requests/guess"{{end}}>
+  <div class="kind-pick req-kind" role="radiogroup" aria-label="What kind">
+    <label><input type="radio" name="kind" value="report"{{if ne $f.Kind "purchase"}} checked{{end}}><span>I already bought it</span></label>
+    <label><input type="radio" name="kind" value="purchase"{{if eq $f.Kind "purchase"}} checked{{end}}><span>I want to buy something</span></label>
   </div>
+  <div class="snap">
+    <p class="snap-head" data-report="Receipt" data-purchase="Quote or photo (optional)">{{if eq $f.Kind "purchase"}}Quote or photo (optional){{else}}Receipt{{end}}</p>
+    <div class="snap-pick"{{if $q.Kept}} hidden{{end}}>
+      <label class="snap-btn" data-cam>{{icon "camera"}}<span>Take a photo</span><input type="file" name="receipt" accept="image/*" capture="environment"></label>
+      <label class="snap-btn">{{icon "upload"}}<span>Upload a photo or PDF</span><input type="file" name="receipt" accept="image/*,application/pdf,.pdf"></label>
+    </div>
+    <div class="snap-got"{{if not $q.Kept}} hidden{{end}}>
+      <img alt="Receipt" hidden><span class="snap-name">{{icon "receipt"}}<span>{{$f.ReceiptName}}</span></span>
+      <button type="button" class="link danger snap-x">{{icon "x"}}Remove</button>
+    </div>
+    <input type="hidden" name="kept" value="{{$q.Kept}}">
+  </div>
+  <label class="req-amount">Amount <span class="money-in"><span aria-hidden="true">$</span><input name="amount" inputmode="decimal" placeholder="0.00" value="{{if $f.Cents}}{{moneyInput $f.Cents}}{{end}}" required autocomplete="off"></span></label>
+  {{if $q.Board}}<p class="req-hint{{if $q.Over}} over{{end}}" aria-live="polite">{{$q.Hint}}</p>{{end}}
+  <label>What for <input name="what" value="{{$f.What}}" maxlength="100" required placeholder="Pizza for the kickoff ride"></label>
+  {{with $q.Events}}<label>Ride or event <select name="event"><option value="">None</option>{{range .}}<option value="{{.Key}}"{{if eq .Key $f.EventKey}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>{{end}}
+  <details class="req-date"><summary>{{icon "calendar"}}<span data-today="{{$f.Date}}">{{$f.DateLabel}}</span></summary>
+    <label>Date <input type="date" name="date" value="{{$f.Date}}" required></label></details>
+  {{with $q.PayPal}}<p class="req-paypal muted small" data-only="report"{{if eq $f.Kind "purchase"}} hidden{{end}}>Reimbursed by PayPal to {{.}} <a class="link" href="/admin/admins#paypal">{{icon "pencil"}}Change</a></p>{{end}}
+  {{with $q.Dup}}<p class="flash warn req-dup">{{.}} <button class="ghost mini" name="dup_ok" value="1">{{icon "send"}}Send anyway</button></p>{{end}}
+  <button class="money-go">{{icon "send"}}Send</button>
 </form></details>
 
-<h2 class="section">Waiting</h2>
-{{range $q.Waiting}}<article class="card req{{if .Decide}} mine{{end}}" id="r{{.ID}}">
+{{with $q.Waiting}}<h2 class="section">Waiting</h2>
+{{range .}}{{template "req-card" .}}{{end}}{{end}}
+
+{{with $q.Done}}<h2 class="section" id="done">Done</h2>
+<div class="table-wrap"><table class="cards req-done">
+  <thead><tr><th>Date</th><th>From</th><th>What for</th><th class="right">Amount</th><th>Answer</th><th><span class="sr">Actions</span></th></tr></thead>
+  <tbody>{{range .}}<tr id="{{if .Shown}}d{{else}}r{{end}}{{.ID}}">
+    <td data-label="Date" class="nowrap">{{.DateLabel}}</td>
+    <td data-label="From">{{.By}}</td>
+    <td data-label="What for">{{.What}} <span class="muted small">· {{.KindLabel}}{{with .EventLabel}} · {{.}}{{end}}</span>{{with .Rejection}}<br><span class="small">{{.By}}: {{.Reason}}</span>{{end}}</td>
+    <td data-label="Amount" class="right nowrap money-amt">{{money .Amount}}</td>
+    <td data-label="Answer">{{if eq .Status "approved"}}<span class="tag tag-ok">Approved</span>{{if .PaidBack}} <span class="tag">Reimbursed {{.PaidBackLabel}}</span>{{end}}{{if .Bought}} <span class="tag">Bought {{mdy .Bought}}</span>{{end}}{{else if eq .Status "rejected"}}<span class="tag tag-no">Rejected</span>{{else}}<span class="tag">Withdrawn</span>{{end}}</td>
+    <td class="right cell-act"><div class="acts">
+      {{if .Receipt}}{{template "money-receipt" .SpendRequest}}{{end}}
+      {{if .Entry}}<a class="link" href="/admin/treasurer/entries/{{.Entry}}">Expense</a>{{end}}
+      {{if and .PayBack .PaidBack}}<form method="post" action="/admin/treasurer/requests/{{.ID}}/paid"><button class="link">{{icon "undo"}}Not reimbursed</button></form>{{end}}
+      {{if .AddBought}}{{template "req-bought" .}}{{end}}
+    </div></td>
+  </tr>{{end}}</tbody>
+</table></div>{{end}}
+
+<div class="cam card" hidden role="dialog" aria-label="Take a photo">
+  <video autoplay playsinline muted></video>
+  <p class="cam-err flash err" hidden>No camera found.</p>
+  <div class="cam-acts"><button type="button" class="cam-snap">{{icon "camera"}}Snap</button><button type="button" class="ghost cam-x">Cancel</button></div>
+</div>
+<script>
+// Take a photo: phones open their camera from the file box (capture). A
+// computer's file box would only pick a file, so there it opens the webcam
+// here, and the snapped photo goes into the same box.
+(function(){
+  if(matchMedia('(pointer:coarse)').matches||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return;
+  var cam=document.querySelector('.cam'),video=cam.querySelector('video'),err=cam.querySelector('.cam-err'),stream,inp;
+  function stop(){if(stream)stream.getTracks().forEach(function(t){t.stop()});stream=null;video.srcObject=null;cam.hidden=true}
+  document.addEventListener('click',function(e){
+    var label=e.target.closest('.snap-btn[data-cam]');if(!label)return;
+    e.preventDefault();inp=label.querySelector('input');
+    var snap=cam.querySelector('.cam-snap');label.closest('.snap-pick').after(cam);cam.hidden=false;err.hidden=true;video.hidden=false;snap.hidden=false;snap.disabled=true;
+    navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1920}},audio:false}).then(function(s){
+      stream=s;video.srcObject=s;snap.disabled=false;snap.focus();
+    }).catch(function(){video.hidden=true;snap.hidden=true;err.hidden=false});
+  });
+  cam.querySelector('.cam-x').addEventListener('click',stop);
+  cam.querySelector('.cam-snap').addEventListener('click',function(){
+    if(!video.videoWidth)return;
+    var c=document.createElement('canvas');c.width=video.videoWidth;c.height=video.videoHeight;c.getContext('2d').drawImage(video,0,0);
+    c.toBlob(function(b){
+      var dt=new DataTransfer();dt.items.add(new File([b],'receipt-'+Date.now()+'.jpg',{type:'image/jpeg'}));
+      inp.files=dt.files;stop();inp.dispatchEvent(new Event('change',{bubbles:true}));
+      var l=inp.closest('label');if(!inp.closest('.req-form')&&l)l.querySelector('span').textContent='Photo taken';
+    },'image/jpeg',0.86);
+  });
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!cam.hidden)stop()});
+})();
+// Reject and Add receipt open with their first box ready to type in.
+document.querySelectorAll('.req-reject,.req-bought').forEach(function(d){d.addEventListener('toggle',function(){if(d.open){var i=d.querySelector('input:not([type=hidden]),textarea');if(i)i.focus()}})});
+(function(){
+  var f=document.querySelector('.req-form');if(!f)return;
+  var head=f.querySelector('.snap-head'),pick=f.querySelector('.snap-pick'),got=f.querySelector('.snap-got'),img=got.querySelector('img'),
+      name=got.querySelector('.snap-name'),files=[].slice.call(f.querySelectorAll('input[name=receipt]')),kept=f.querySelector('[name=kept]'),url;
+  function kind(){var k=f.querySelector('[name=kind]:checked').value;head.textContent=head.dataset[k];
+    f.querySelectorAll('[data-only]').forEach(function(el){el.hidden=el.dataset.only!==k})}
+  f.addEventListener('change',function(e){if(e.target.name==='kind')kind()});
+  // A receipt picked either way shows as a thumbnail (or the PDF's name), with Remove.
+  files.forEach(function(inp){inp.addEventListener('change',function(){
+    var file=inp.files&&inp.files[0];if(!file)return;
+    files.forEach(function(o){if(o!==inp)o.value=''});kept.value='';
+    if(url)URL.revokeObjectURL(url);url='';
+    if(/^image\//.test(file.type)){url=URL.createObjectURL(file);img.src=url;img.hidden=false;name.hidden=true}
+    else{img.hidden=true;name.hidden=false;name.lastChild.textContent=file.name}
+    pick.hidden=true;got.hidden=false})});
+  got.querySelector('.snap-x').addEventListener('click',function(){files.forEach(function(o){o.value=''});kept.value='';
+    if(url)URL.revokeObjectURL(url);url='';img.hidden=true;got.hidden=true;pick.hidden=false});
+  // The date reads "Today" until it's changed.
+  var date=f.querySelector('[name=date]'),dl=f.querySelector('.req-date summary span');
+  date.addEventListener('change',function(){var d=new Date(date.value+'T12:00');
+    dl.textContent=date.value===dl.dataset.today?'Today':isNaN(d)?date.value:d.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})});
+  if(date.value===dl.dataset.today)dl.textContent='Today';
+  // The board sees the category it'll go under and what's left of its budget.
+  var hint=f.querySelector('.req-hint'),t;if(!hint||!f.dataset.guess)return;
+  function guess(){var what=f.what.value.trim();if(!what){hint.textContent='';return}
+    fetch(f.dataset.guess+'?'+new URLSearchParams({what:what,amount:f.amount.value,date:date.value}),{headers:{Accept:'application/json'}})
+      .then(function(r){return r.ok?r.json():null}).then(function(j){if(!j)return;hint.textContent=j.hint;hint.classList.toggle('over',!!j.over)}).catch(function(){})}
+  ['what','amount','date'].forEach(function(n){f[n].addEventListener('input',function(){clearTimeout(t);t=setTimeout(guess,350)})});
+})();
+</script>
+{{template "foot" .}}{{end}}
+
+{{define "req-card"}}{{/* a waiting request (requestRow) */}}<article class="card req{{if .Decide}} mine{{end}}" id="r{{.ID}}">
   <div class="req-head">
     <div class="req-what">
       <span class="tag">{{.KindLabel}}</span>
       <h3>{{.What}}</h3>
-      <p class="muted small">{{.By}} · {{.DateLabel}} · {{.Category}}</p>
+      <p class="muted small">{{.By}} · {{.DateLabel}}{{with .EventLabel}} · {{.}}{{end}}{{if not .SetCat}} · {{.Category}}{{end}}</p>
     </div>
     <p class="money-big">{{money .Cents}}</p>
   </div>
+  {{if .SetCat}}<form class="req-cat" method="post" action="/admin/treasurer/requests/{{.ID}}/category">
+    <select name="category" aria-label="Category" onchange="this.form.submit()">{{$c := .Category}}{{range .Cats}}<option{{if eq . $c}} selected{{end}}>{{.}}</option>{{end}}</select>
+    <noscript><button class="ghost mini">Save</button></noscript>
+  </form>{{end}}
+  {{with .Hint}}<p class="req-hint{{if $.Over}} over{{end}}">{{.}}</p>{{end}}
   {{with .Note}}<p class="req-note">{{.}}</p>{{end}}
   <div class="req-foot">
     {{if .Receipt}}{{template "money-receipt" .SpendRequest}}{{end}}
@@ -272,41 +407,47 @@ document.querySelectorAll('.money-form select[name=category]').forEach(function(
       {{if .Withdraw}}<form method="post" action="/admin/treasurer/requests/{{.ID}}/withdraw"><button class="link danger">{{icon "trash"}}Withdraw</button></form>{{end}}
     </div>
   </div>
-</article>
-{{else}}<p class="muted">Nothing waiting.</p>
-{{end}}
+</article>{{end}}
 
-{{with $q.Done}}<h2 class="section" id="done">Done</h2>
-<div class="table-wrap"><table class="cards req-done">
-  <thead><tr><th>Date</th><th>From</th><th>What for</th><th class="right">Amount</th><th>Answer</th><th><span class="sr">Actions</span></th></tr></thead>
-  <tbody>{{range .}}<tr id="r{{.ID}}">
-    <td data-label="Date" class="nowrap">{{.DateLabel}}</td>
-    <td data-label="From">{{.By}}</td>
-    <td data-label="What for">{{.What}} <span class="muted small">· {{.KindLabel}}</span>{{with .Rejection}}<br><span class="small">{{.By}}: {{.Reason}}</span>{{end}}</td>
-    <td data-label="Amount" class="right nowrap money-amt">{{money .Amount}}</td>
-    <td data-label="Answer">{{if eq .Status "approved"}}<span class="tag tag-ok">Approved</span>{{if .PaidBack}} <span class="tag">Paid back {{.PaidBackLabel}}</span>{{end}}{{if .Bought}} <span class="tag">Bought {{mdy .Bought}}</span>{{end}}{{else if eq .Status "rejected"}}<span class="tag tag-no">Rejected</span>{{else}}<span class="tag">Withdrawn</span>{{end}}</td>
-    <td class="right cell-act"><div class="acts">
-      {{if .Receipt}}{{template "money-receipt" .SpendRequest}}{{end}}
-      {{if .Entry}}<a class="link" href="/admin/treasurer/entries/{{.Entry}}">Expense</a>{{end}}
-      {{if .PayBack}}<form method="post" action="/admin/treasurer/requests/{{.ID}}/paid">{{if .PaidBack}}<button class="link">{{icon "undo"}}Not paid back</button>{{else}}<input type="hidden" name="paid" value="1"><button class="ghost mini">{{icon "check"}}Paid back</button>{{end}}</form>{{end}}
-      {{if .AddBought}}<details class="req-bought"><summary class="btn {{if .Bought}}link{{else}}ghost mini{{end}}">{{icon "receipt"}}{{if .Bought}}Change receipt{{else}}Add receipt{{end}}</summary>
-        <form method="post" action="/admin/treasurer/requests/{{.ID}}/bought" enctype="multipart/form-data" class="card">
-          <label>Date <input type="date" name="date" value="{{or .Bought .Date}}" required></label>
-          <label>Amount <span class="money-in"><span aria-hidden="true">$</span><input name="amount" inputmode="decimal" value="{{moneyInput .Amount}}" required autocomplete="off"></span></label>
-          <label>Receipt <input type="file" name="receipt" accept="image/*,.pdf,application/pdf"></label>
-          <button>{{icon "save"}}Save</button>
-        </form>
-      </details>{{end}}
-    </div></td>
-  </tr>{{end}}</tbody>
-</table></div>{{end}}
-<script>
-// The add form is open on computers; on phones it opens from its button.
-document.querySelectorAll('details.money-add:not([data-keep])').forEach(function(d){if(matchMedia('(max-width:700px)').matches)d.open=false});
-// Reject and Add receipt open with their first box ready to type in.
-document.querySelectorAll('.req-reject,.req-bought').forEach(function(d){d.addEventListener('toggle',function(){if(d.open){var i=d.querySelector('input');if(i)i.focus()}})});
-// A purchase request has a quote, not a receipt.
-(function(){var f=document.querySelector('.req-form');if(!f)return;var l=f.querySelector('[data-report]');
-  f.addEventListener('change',function(e){if(e.target.name==='kind')l.textContent=l.dataset[e.target.value]})})();
-</script>
+{{define "req-bought"}}{{/* an approved purchase's receipt and final amount (requestRow) */}}<details class="req-bought"{{if not .Bought}} data-snap{{end}}><summary class="btn {{if .Bought}}link{{else}}ghost mini{{end}}">{{icon "receipt"}}{{if .Bought}}Change receipt{{else}}Add receipt{{end}}</summary>
+  <form method="post" action="/admin/treasurer/requests/{{.ID}}/bought" enctype="multipart/form-data" class="card">
+    <div class="snap-pick">
+      <label class="snap-btn" data-cam>{{icon "camera"}}<span>Take a photo</span><input type="file" name="receipt" accept="image/*" capture="environment"></label>
+      <label class="snap-btn">{{icon "upload"}}<span>Upload a photo or PDF</span><input type="file" name="receipt" accept="image/*,application/pdf,.pdf"></label>
+    </div>
+    <label>Amount <span class="money-in"><span aria-hidden="true">$</span><input name="amount" inputmode="decimal" value="{{moneyInput .Amount}}" required autocomplete="off"></span></label>
+    <label>Date <input type="date" name="date" value="{{or .Bought .Date}}" required></label>
+    <button>{{icon "save"}}Save</button>
+  </form>
+</details>{{end}}
+
+{{define "req-answer"}}{{template "head" .}}{{$v := .Answer}}
+<div class="card login req-answer">
+{{if eq $v.State "expired"}}
+  <h1>This link has expired</h1>
+  <a class="btn" href="/admin/treasurer/requests">{{icon "login"}}Open Requests</a>
+{{else}}{{with $v.Q}}
+  <span class="tag">{{.KindLabel}}</span>
+  <h1>{{.What}}</h1>
+  <p class="money-big">{{money .Amount}}</p>
+  <p class="muted">{{.By}} · {{.DateLabel}}{{with .EventLabel}} · {{.}}{{end}}<br>{{.Category}}</p>
+  {{with $v.Hint}}<p class="req-hint{{if $v.Over}} over{{end}}">{{.}}</p>{{end}}
+  {{with .Note}}<p class="req-note">{{.}}</p>{{end}}
+  {{if and .Receipt $v.Token}}<a class="answer-receipt" href="/request-answer/{{$v.Token}}/receipt" target="_blank" rel="noopener">{{if .ReceiptPDF}}{{icon "receipt"}}{{or .ReceiptName "Receipt (PDF)"}}{{else}}<img src="/request-answer/{{$v.Token}}/receipt" alt="Receipt">{{end}}</a>{{end}}
+{{end}}
+{{if eq $v.State "ask"}}
+  {{with $v.Problem}}<p class="flash err">{{.}}</p>{{end}}
+  <div class="answer-acts">
+    <form method="post"><input type="hidden" name="answer" value="approve"><button>{{icon "check"}}Approve</button></form>
+    <details class="req-reject"{{if $v.Reject}} open{{end}}><summary class="btn ghost danger">{{icon "x"}}Reject</summary>
+      <form method="post"><input type="hidden" name="answer" value="reject">
+        <label>Why <textarea name="reason" rows="3" required maxlength="300"{{if $v.Reject}} autofocus{{end}}></textarea></label>
+        <button class="ghost danger">{{icon "x"}}Reject</button></form>
+    </details>
+  </div>
+{{else}}
+  <p class="flash{{if eq $v.State "answered"}} warn{{end}}">{{$v.Result}}</p>
+  <a class="link" href="/admin/treasurer/requests#r{{$v.Q.ID}}">Open on the site</a>
+{{end}}{{end}}
+</div>
 {{template "foot" .}}{{end}}

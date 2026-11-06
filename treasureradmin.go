@@ -53,6 +53,8 @@ type moneyView struct {
 	FeeCat string
 	// Requests: expense reports and purchase requests (requestsadmin.go).
 	Requests *requestsView
+	// Budget: the most the treasurer's OK alone approves (requests.go).
+	OneLimit int64
 }
 
 // duesView is the membership income worked out from Members.
@@ -480,7 +482,7 @@ func (a *App) budgetPage(w http.ResponseWriter, r *http.Request) {
 	bv.Income, it = rows("income", income)
 	bv.Expense, et = rows("expense", expense)
 	bv.IncomeTotal, bv.ExpenseTotal = money(it), money(et)
-	m := &moneyView{Year: year, Years: a.moneyYears(year), Budget: bv, CanRemove: a.canRemoveMoney(r)}
+	m := &moneyView{Year: year, Years: a.moneyYears(year), Budget: bv, CanRemove: a.canRemoveMoney(r), OneLimit: a.store.OneLimit()}
 	v := adminView{Title: "Budget", Tab: "budget", Money: m}
 	v.Flash, v.Error = flashFrom(r)
 	if kept := r.URL.Query().Get("kept"); kept != "" {

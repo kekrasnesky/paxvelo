@@ -423,7 +423,7 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
   <tbody>
   {{range .Admins}}<tr>
     <td data-label="Name">{{.Name}}{{if .President}} <span class="tag tag-pres">President</span>{{end}}{{with index $.AdminRoles .ID}} <a class="tag" href="/admin/board" title="Website → Board">{{.}}</a>{{else}}{{if not .President}} <span class="tag" title="Rides, ride emails, photos, minutes, own expenses">Website admin</span>{{end}}{{end}}{{if eq .ID $.Account.ID}} <span class="tag">You</span>{{end}}</td>
-    <td class="email" data-label="Email"><a href="mailto:{{.Email}}">{{.Email}}</a></td>
+    <td class="email" data-label="Email"><a href="mailto:{{.Email}}">{{.Email}}</a>{{with .PayPal}}<br><span class="muted small">PayPal {{.}}</span>{{end}}</td>
     <td data-label="Status">{{if .HasPassword}}<span class="paid">Active</span>{{else}}Invited, no password yet{{end}}</td>
     <td data-label="Last login">{{with .LastLogin}}<span class="nowrap">{{date .}}</span><br><span class="muted small">{{clock .}}</span>{{else}}<span class="muted">Never</span>{{end}}</td>
     <td data-label="Added"><span class="nowrap">{{date .Added}}</span>{{with .AddedBy}}<br><span class="muted small">by {{.}}</span>{{end}}</td>
@@ -443,6 +443,11 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
     <label>Name <input name="name" required maxlength="60" autocomplete="off"></label>
     <label>Email <input type="email" name="email" required maxlength="254" autocomplete="off"></label>
     <button>{{icon "plus"}}Add and email them</button>
+  </form>{{end}}
+  {{if .Account.ID}}<form class="card" id="paypal" method="post" action="/admin/admins/paypal">
+    <h2>PayPal for reimbursements</h2>
+    <label>PayPal email <input type="email" name="paypal" value="{{.Account.PayPal}}" placeholder="{{.Account.Email}}" maxlength="254" autocomplete="email"></label>
+    <button>{{icon "save"}}Save</button>
   </form>{{end}}
   {{if .Account.ID}}<form class="card" method="post" action="/admin/admins/password">
     <h2>Change your password</h2>
@@ -2933,7 +2938,13 @@ document.querySelectorAll('[data-board]').forEach(function(box){
     <li>A “New member” email arrives, then PayPal’s receipt.</li>
     <li>Open the link in the first email and press <b>Mark paid</b>. The first time, that sends their welcome email.</li>
     <li>On January 1 everyone shows as not paid. Filter <a href="/admin/members?dues=unpaid">Not paid</a> and send a reminder with <code>{pay_link}</code>.</li>
-    <li>Board members send expense reports and purchase requests on <a href="/admin/treasurer/requests">Treasurer → Requests</a>. The treasurer and the president are emailed and each press <b>Approve</b> or <b>Reject</b>; once both approve, it’s on Expenses by itself and the sender is emailed. Press <b>Paid back</b> when you’ve paid an expense report.</li></ol></div>
+    <li>Any admin asks for club money on <a href="/admin/treasurer/requests">Treasurer → Requests</a>: <b>I already bought it</b>, or <b>I want to buy something</b>. Press <b>Take a photo</b> to snap the receipt with the phone’s camera (on a computer, the webcam), or upload a photo or PDF; then type the amount and what it was for, and pick the ride or event if there was one.</li>
+    <li>Nobody picks a category: the site guesses one from the words (pizza goes under Food &amp; Drink) and from where the treasurer filed similar requests before. The treasurer can change it on the request before approving. Board members see what’s left of that category’s budget as they type; going over only warns.</li>
+    <li>The treasurer and the president get an email with the receipt and <b>Approve</b> and <b>Reject</b> buttons. The buttons open a page with the request and one button to press; nothing is decided by opening the email or the link, so email scanners can’t approve anything. The links work for 7 days and only once.</li>
+    <li>Small amounts need only the treasurer’s OK: up to the <b>Treasurer alone approves up to</b> amount at the top of <a href="/admin/treasurer/budget">Budget</a> ($50 to start; blank means always two), as long as it fits in what’s left of the category’s budget. When the treasurer sent it, the president’s OK is the one needed. Anything bigger needs both.</li>
+    <li>Once approved it’s on Expenses by itself and the sender is emailed. Senders follow each request on <b>My requests</b>: Sent → Approved → Reimbursed (or Receipt added, for a purchase).</li>
+    <li>Reimbursements are by PayPal only: no PayPal account, no reimbursement. They go to the email the admin logs in with, unless they type a different one under <b>PayPal for reimbursements</b> on <a href="/admin/admins#paypal">Admins</a> (the form’s <b>Change</b> link goes there). The treasurer’s <b>To reimburse</b> list says who to pay, like “Pay Allie $45.00 — PayPal allie@…”. Send it in PayPal and press <b>Paid</b>; no money goes through the website. Pressing <b>Paid</b> emails a reimbursement receipt to PaxVeloClub@gmail.com for the club’s records, and to nobody else.</li>
+    <li>Reminders go by themselves: one to whoever hasn’t answered after 3 days, a Monday list of who still needs reimbursing to the treasurer, and one to anyone whose approved purchase has no receipt after 10 days.</li></ol></div>
   <div class="card"><h3>Admins</h3><ul>
     <li><a href="/admin">Needs attention</a> lists rides waiting for approval, rides this week with no leader, stuck email sends, unpublished newsletter drafts, and new photos members shared.</li>
     <li><a href="/admin/submitted">Photos to review</a> (under Website) is the queue for photos shared without the club PIN. Each person’s photos are one card, all ticked: untick the ones you don’t want and <b>Approve</b> the rest into the album, or <b>Reject</b> them. Every action has an <b>Undo</b>. Photos stay private until approved. Photos posted with the PIN show there too, marked as such.</li>
