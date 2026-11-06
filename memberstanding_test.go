@@ -73,11 +73,11 @@ func TestPresidentMemberTools(t *testing.T) {
 		t.Error("the president gets Delete them")
 	}
 	if page := do(t, h, sam, "GET", "/admin/members", "", nil).Body.String(); strings.Contains(page, "Delete them") {
-		t.Error("other admins don't")
+		t.Error("website admins don’t")
 	}
 	ids := url.Values{"id": {itoa(lou.ID), itoa(kim.ID)}, "return": {"/admin/members?dues=list"}}
 	ct, body := form(ids)
-	if w := do(t, h, sam, "POST", "/admin/members/delete", ct, body); !strings.Contains(w.Header().Get("Location"), "err=president-only") {
+	if w := do(t, h, sam, "POST", "/admin/members/delete", ct, body); !strings.Contains(w.Header().Get("Location"), "err=board-only") {
 		t.Errorf("another admin deleting: %s", w.Header().Get("Location"))
 	}
 	ct, body = form(ids)
@@ -101,11 +101,11 @@ func TestPresidentMemberTools(t *testing.T) {
 		t.Error("the record box should show the years paid")
 	}
 	if body := do(t, h, sam, "GET", page, "", nil).Body.String(); strings.Contains(body, `name="years"`) {
-		t.Error("only the president can change years paid")
+		t.Error("only the board can change years paid")
 	}
 	rec2 := url.Values{"years": {itoa(year-1) + ", " + itoa(year)}, "joined": {itoa(year) + "-03-14"}}
 	ct, body = form(rec2)
-	if w := do(t, h, sam, "POST", page+"/record", ct, body); !strings.Contains(w.Header().Get("Location"), "err=president-only") {
+	if w := do(t, h, sam, "POST", page+"/record", ct, body); !strings.Contains(w.Header().Get("Location"), "err=board-only") {
 		t.Error("another admin can't save the record")
 	}
 	ct, body = form(rec2)

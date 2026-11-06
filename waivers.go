@@ -554,17 +554,17 @@ func (a *App) waiverPage(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	v := adminView{Title: "Waiver: " + signed.RiderName(), Tab: "waivers", Waiver: &signed, WaiverHTML: text, CanManage: a.canManage(r)}
+	v := adminView{Title: "Waiver: " + signed.RiderName(), Tab: "waivers", Waiver: &signed, WaiverHTML: text, CanManage: a.isBoard(r)}
 	v.Flash, v.Error = flashFrom(r)
 	a.renderAdmin(w, r, http.StatusOK, "waiver", v)
 }
 
 // deleteWaiver removes a junk signing, like a prank on the join form. Signed
-// waivers are otherwise kept for good, so only the president can.
+// waivers are otherwise kept for good, so only the board can.
 func (a *App) deleteWaiver(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.Atoi(r.PathValue("id"))
-	if !a.canManage(r) {
-		back(w, r, fmt.Sprintf("/admin/waivers/%d?err=president-only", id))
+	if !a.isBoard(r) {
+		back(w, r, fmt.Sprintf("/admin/waivers/%d?err=board-only", id))
 		return
 	}
 	signed, _, ok := a.store.SignedWaiver(id)

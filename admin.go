@@ -26,6 +26,8 @@ const sessionCookie = "pv_admin"
 type adminView struct {
 	Title, Tab, Flash, Error, SiteURL string
 	Me                                string // the logged-in admin's name
+	IsBoard                           bool   // on the board or president (permissions.go)
+	IsPresident                       bool   // the president or the setup password
 	Nav                               adminNav
 	Dashboard                         *dashboardView // Home
 	Guide                             *guideView     // the How the site works page
@@ -218,6 +220,7 @@ func (a *App) auth(h http.HandlerFunc) http.Handler {
 func (a *App) renderAdmin(w http.ResponseWriter, r *http.Request, status int, name string, v adminView) {
 	v.CSS, v.SiteURL, v.PhotoJS = a.site.adminCSS, a.cfg.SiteURL, a.site.photoJS
 	v.Me, _ = a.adminName(r)
+	v.IsBoard, v.IsPresident = a.isBoard(r), a.level(r) == levelPresident
 	v.MovedOn = !a.store.BuiltinRemoved("moved")
 	if v.Tab != "" {
 		items, requests := a.attentionFor(r)
@@ -353,7 +356,7 @@ var errorText = map[string]string{
 	"emergency-phone":   "Enter the emergency contact’s phone number, with its area code.",
 	"president-only":    "Only the president can do that.",
 	"treasurer-only":    "Only the treasurer or the president can remove that.",
-	"board-only":        "The Treasurer tab is for board members (Website → Board).",
+	"board-only":        "Only board members can do that.",
 	"money-gone":        "That was removed.",
 	"money-meeting":     "Pick the meeting date.",
 	"money-fee":         "Type the fee like 3.49 and 0.49.",
@@ -478,7 +481,7 @@ func back(w http.ResponseWriter, r *http.Request, to string) {
 func (a *App) membersPage(w http.ResponseWriter, r *http.Request) {
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
 	dues := r.URL.Query().Get("dues")
-	v := adminView{Title: "Members", Tab: "members", Q: q, Dues: dues, Year: a.cfg.ThisYear(), CanManage: a.canManage(r)}
+	v := adminView{Title: "Members", Tab: "members", Q: q, Dues: dues, Year: a.cfg.ThisYear(), CanManage: a.isBoard(r)}
 	v.Signed = a.store.SignedWaivers(v.Year)
 	v.Flash, v.Error = flashFrom(r)
 	if r.URL.Query().Get("ok") == "orders" {
@@ -574,10 +577,10 @@ func (a *App) addMember(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// deleteMember takes someone off the list for good. Only the president can.
+// deleteMember takes someone off the list for good. Only the board can.
 func (a *App) deleteMember(w http.ResponseWriter, r *http.Request) {
-	if !a.canManage(r) {
-		back(w, r, "/admin/members?err=president-only")
+	if !a.isBoard(r) {
+		back(w, r, "/admin/members?err=board-only")
 		return
 	}
 	id, _ := strconv.Atoi(r.PathValue("id"))
@@ -931,7 +934,11 @@ func (a *App) sendAll(w http.ResponseWriter, r *http.Request) {
 		back(w, r, "/admin/email?err=empty")
 		return
 	}
-	if _, err := a.store.StartCampaignAbout(r.FormValue("topic"), d.Subject, d.Body, r.FormValue("audience"), a.cfg.ThisYear()); err != nil {
+	topic := r.FormValue("topic")
+	if !a.isBoard(r) {
+		topic = "events" // website admins email about rides and events only
+	}
+	if _, err := a.store.StartCampaignAbout(topic, d.Subject, d.Body, r.FormValue("audience"), a.cfg.ThisYear()); err != nil {
 		a.store.SetDraft(d)
 		v := a.emailView(r)
 		v.Draft, v.Error = d, err.Error()

@@ -46,10 +46,7 @@ func isTreasurerRole(role string) bool { return strings.Contains(strings.ToLower
 
 // canSeeMoney reports whether the logged-in admin may open the Treasurer
 // tab: anyone on the Board page, the president, or the setup password.
-func (a *App) canSeeMoney(r *http.Request) bool {
-	u, ok := a.currentAdmin(r)
-	return ok && (u.ID == 0 || u.President || len(a.boardRoles(u)) > 0)
-}
+func (a *App) canSeeMoney(r *http.Request) bool { return a.isBoard(r) }
 
 // canRemoveMoney reports whether the logged-in admin may remove Treasurer
 // lines and saved reports: the treasurer on the Board page, or whoever can

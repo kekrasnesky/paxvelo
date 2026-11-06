@@ -117,14 +117,14 @@ func (s *Store) DeleteMembers(ids []int) (int, error) {
 }
 
 // deleteMembers is "Delete them" on the ticked rows of the member list.
-// Only the president can.
+// Board members and the president can.
 func (a *App) deleteMembers(w http.ResponseWriter, r *http.Request) {
 	q := url.Values{}
 	if ret, err := url.Parse(r.FormValue("return")); err == nil && ret.Path == "/admin/members" {
 		q = ret.Query()
 	}
-	if !a.canManage(r) {
-		q.Set("err", "president-only")
+	if !a.isBoard(r) {
+		q.Set("err", "board-only")
 		back(w, r, "/admin/members?"+q.Encode())
 		return
 	}
@@ -148,8 +148,8 @@ func (a *App) deleteMembers(w http.ResponseWriter, r *http.Request) {
 func (a *App) saveRecord(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.Atoi(r.PathValue("id"))
 	page := "/admin/members/" + strconv.Itoa(id)
-	if !a.canManage(r) {
-		back(w, r, page+"?err=president-only")
+	if !a.isBoard(r) {
+		back(w, r, page+"?err=board-only")
 		return
 	}
 	years, ok := parseYears(r.FormValue("years"), a.cfg.ThisYear())

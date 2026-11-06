@@ -28,7 +28,7 @@ func (a *App) memberPage(w http.ResponseWriter, r *http.Request) {
 		back(w, r, "/admin/members?err=no-member")
 		return
 	}
-	v := adminView{Title: m.Name, Tab: "members", Year: a.cfg.ThisYear(), CanManage: a.canManage(r)}
+	v := adminView{Title: m.Name, Tab: "members", Year: a.cfg.ThisYear(), CanManage: a.isBoard(r)}
 	v.Flash, v.Error = flashFrom(r)
 	v.MemberPage = &memberView{Member: m, Waivers: a.store.WaiversOf(id)}
 	a.renderAdmin(w, r, http.StatusOK, "member", v)

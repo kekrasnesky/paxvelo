@@ -234,13 +234,15 @@ func TestConfirmEmailSwitch(t *testing.T) {
 	}
 }
 
-// Every admin can see, edit and switch automations, but only the president
-// can remove one.
-func TestOnlyPresidentRemovesAutomations(t *testing.T) {
+// Automations are the board's: website admins can't open or change them, a
+// board member can switch and remove one, and so can the president.
+func TestBoardRemovesAutomations(t *testing.T) {
 	a, h, _ := testApp(t)
 	pat, _ := a.store.AddAdmin("Pat", "pat@example.com", "")
 	sam, _ := a.store.AddAdmin("Sam", "sam@example.com", "")
+	bo, _ := a.store.AddAdmin("Bo Board", "bo@example.com", "")
 	a.store.SetPresident(pat.ID)
+	a.store.SetBoard([]BoardMember{{Name: "Bo Board", Role: "Secretary"}})
 	as := func(u AdminUser) *http.Cookie {
 		u, _ = a.store.Admin(u.ID)
 		rec := httptest.NewRecorder()
@@ -251,31 +253,33 @@ func TestOnlyPresidentRemovesAutomations(t *testing.T) {
 	key := strconv.Itoa(au.ID)
 	removeBtn := `/admin/email/auto/` + key + `/remove"`
 
-	page := do(t, h, as(sam), "GET", "/admin/email/auto", "", nil).Body.String()
-	if !strings.Contains(page, "Dues reminder") || !strings.Contains(page, `href="/admin/email/auto"`) {
-		t.Error("every admin should see Automations")
-	}
-	if strings.Contains(page, removeBtn) {
-		t.Error("a non-president shouldn't see Remove")
+	if loc := do(t, h, as(sam), "GET", "/admin/email/auto", "", nil).Header().Get("Location"); loc != "/admin?err=board-only" {
+		t.Errorf("a website admin opening Automations went to %q", loc)
 	}
 	ct, body := form(url.Values{"paused": {"1"}})
 	do(t, h, as(sam), "POST", "/admin/email/auto/"+key+"/pause", ct, body)
-	if au, _ := a.store.Automation(au.ID); !au.Paused {
-		t.Error("any admin should be able to switch an automation off")
+	if au, _ := a.store.Automation(au.ID); au.Paused {
+		t.Error("a website admin switched an automation off")
 	}
-	if loc := do(t, h, as(sam), "POST", "/admin/email/auto/"+key+"/remove", "", nil).Header().Get("Location"); loc != "/admin/email/auto?err=president-only" {
-		t.Errorf("a non-president removing went to %q", loc)
-	}
+	do(t, h, as(sam), "POST", "/admin/email/auto/"+key+"/remove", "", nil)
 	if _, ok := a.store.Automation(au.ID); !ok {
-		t.Fatal("a non-president removed an automation")
+		t.Fatal("a website admin removed an automation")
 	}
 
-	if page := do(t, h, as(pat), "GET", "/admin/email/auto", "", nil).Body.String(); !strings.Contains(page, removeBtn) {
-		t.Error("the president should see Remove")
+	if page := do(t, h, as(bo), "GET", "/admin/email/auto", "", nil).Body.String(); !strings.Contains(page, "Dues reminder") || !strings.Contains(page, removeBtn) {
+		t.Error("a board member should see Automations with Remove")
 	}
-	do(t, h, as(pat), "POST", "/admin/email/auto/"+key+"/remove", "", nil)
+	ct, body = form(url.Values{"paused": {"1"}})
+	do(t, h, as(bo), "POST", "/admin/email/auto/"+key+"/pause", ct, body)
+	if au, _ := a.store.Automation(au.ID); !au.Paused {
+		t.Error("a board member should be able to switch an automation off")
+	}
+	do(t, h, as(bo), "POST", "/admin/email/auto/"+key+"/remove", "", nil)
 	if _, ok := a.store.Automation(au.ID); ok {
-		t.Error("the president should be able to remove an automation")
+		t.Error("a board member should be able to remove an automation")
+	}
+	if w := do(t, h, as(pat), "GET", "/admin/email/auto", "", nil); w.Code != http.StatusOK {
+		t.Errorf("the president opening Automations: %d", w.Code)
 	}
 }
 

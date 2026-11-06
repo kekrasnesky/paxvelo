@@ -64,7 +64,7 @@ func TestAdminAccounts(t *testing.T) {
 		t.Fatalf("set password: %d", w.Code)
 	}
 	pat := w.Result().Cookies()[0]
-	if w := do(t, h, pat, "GET", "/admin/newsletter", "", nil); !strings.Contains(w.Body.String(), "Pat Rider") {
+	if w := do(t, h, pat, "GET", "/admin/calendar", "", nil); !strings.Contains(w.Body.String(), "Pat Rider") {
 		t.Error("Pat isn't logged in after choosing a password")
 	}
 	if w := do(t, h, nil, "GET", "/admin/password?t="+token, "", nil); !strings.Contains(w.Body.String(), "expired or was already used") {

@@ -36,6 +36,24 @@ func (a *App) isTreasurer(u AdminUser) bool {
 	return slices.ContainsFunc(a.boardRoles(u), isTreasurerRole)
 }
 
+// mayOpenReceipt reports whether the logged-in admin may open a receipt
+// file: the board any, a website admin only one on their own request.
+func (a *App) mayOpenReceipt(r *http.Request, name string) bool {
+	if a.isBoard(r) {
+		return true
+	}
+	u, ok := a.currentAdmin(r)
+	if !ok {
+		return false
+	}
+	for _, q := range a.store.SpendRequests() {
+		if q.Receipt == name && ownRequest(q, u) {
+			return true
+		}
+	}
+	return false
+}
+
 // isPresident: the president, or the setup password (as for canManage).
 func isPresident(u AdminUser) bool { return u.President || u.ID == 0 }
 
@@ -80,7 +98,11 @@ func (a *App) renderRequests(w http.ResponseWriter, r *http.Request, form SpendR
 		}
 	}
 	rv.Withdrawn, _ = strconv.Atoi(r.URL.Query().Get("withdrawn"))
+	board := a.isBoard(r)
 	for _, q := range a.store.SpendRequests() {
+		if !board && !ownRequest(q, u) {
+			continue // website admins see only their own
+		}
 		row := a.requestRowFor(q, u)
 		if q.Status == reqWaiting {
 			rv.Waiting = append(rv.Waiting, row)
@@ -408,10 +430,13 @@ func (a *App) requestAttention(u AdminUser) (items []attentionItem, answer int) 
 // their spending requests when they're on the board.
 func (a *App) attentionFor(r *http.Request) (items []attentionItem, requests int) {
 	items = a.attention()
-	if u, ok := a.currentAdmin(r); ok && a.canSeeMoney(r) {
+	if u, ok := a.currentAdmin(r); ok {
 		mine, n := a.requestAttention(u)
 		items = append(mine, items...)
 		requests = n
+	}
+	if !a.isBoard(r) {
+		items = slices.DeleteFunc(items, func(it attentionItem) bool { return boardHref(it.Href) })
 	}
 	return items, requests
 }

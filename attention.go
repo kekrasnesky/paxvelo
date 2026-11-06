@@ -61,8 +61,19 @@ const moneyGroup = "Treasurer"
 func adminNavFor(tab string, attention int, board bool, requests int) adminNav {
 	nav := adminNav{Security: navSection{Label: securityGroup.Label, Href: securityGroup.Href}}
 	for _, g := range append(adminGroups, securityGroup) {
-		if g.Label == moneyGroup && !board {
-			continue
+		if !board { // website admins: only the screens they can open
+			var keep []adminSection
+			for _, s := range g.Sections {
+				if !boardTabs[s.Tab] {
+					keep = append(keep, s)
+				}
+			}
+			if len(keep) == 0 {
+				continue
+			}
+			if len(keep) < len(g.Sections) {
+				g.Sections, g.Href = keep, keep[0].Href
+			}
 		}
 		ng := navGroup{Label: g.Label, Href: g.Href}
 		if g.Label == "Home" {

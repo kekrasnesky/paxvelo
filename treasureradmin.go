@@ -83,11 +83,12 @@ type budgetRow struct {
 	Dues                     bool // the dues from Members count in it
 }
 
-// boardOnly is auth for the Treasurer tab: other admins are sent to Home.
+// boardOnly is auth for what only the board and president may open (see
+// permissions.go): website admins are sent to Home.
 func (a *App) boardOnly(h http.HandlerFunc) http.Handler {
 	return a.auth(func(w http.ResponseWriter, r *http.Request) {
-		if !a.canSeeMoney(r) {
-			back(w, r, "/admin?err=board-only")
+		if !a.isBoard(r) {
+			deny(w, r, "/admin", "board-only")
 			return
 		}
 		h(w, r)
@@ -303,7 +304,7 @@ func (a *App) dropReceipt(name string) {
 // receiptFile shows a receipt, to logged-in admins only.
 func (a *App) receiptFile(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
-	if !receiptName.MatchString(name) {
+	if !receiptName.MatchString(name) || !a.mayOpenReceipt(r, name) {
 		http.NotFound(w, r)
 		return
 	}

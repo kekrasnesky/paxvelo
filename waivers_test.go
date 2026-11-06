@@ -302,7 +302,7 @@ func TestDeleteWaiver(t *testing.T) {
 	if body := do(t, h, sam, "GET", page, "", nil).Body.String(); strings.Contains(body, "Delete this waiver") {
 		t.Error("only the president sees Delete")
 	}
-	if w := do(t, h, sam, "POST", page+"/delete", "", nil); !strings.Contains(w.Header().Get("Location"), "err=president-only") {
+	if w := do(t, h, sam, "POST", page+"/delete", "", nil); !strings.Contains(w.Header().Get("Location"), "err=board-only") {
 		t.Errorf("another admin deleting: %s", w.Header().Get("Location"))
 	}
 	if _, _, ok := a.store.SignedWaiver(junk.ID); !ok {

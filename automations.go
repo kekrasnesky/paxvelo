@@ -539,7 +539,7 @@ func (a *App) sentCounts() (map[string]int, map[string]time.Time) {
 }
 
 // autoRows lists the automations; canRemove is whether this admin may
-// remove the ones admins made (only the president).
+// remove the ones admins made (the board).
 func (a *App) autoRows(canRemove bool) (autos, manual []autoRow) {
 	n, last := a.sentCounts()
 	w, c, mv := a.store.Welcome(), a.store.ConfirmText(), a.store.MovedEmail()
@@ -587,13 +587,13 @@ func (a *App) autoPage(w http.ResponseWriter, r *http.Request) {
 	for i := range av.Builtin {
 		av.Builtin[i].Fixed = true
 	}
-	av.Autos, av.Manual = a.autoRows(a.canManage(r))
+	av.Autos, av.Manual = a.autoRows(a.isBoard(r))
 	if k := r.URL.Query().Get("removed"); isBuiltinKey(k) {
 		av.Removed = k
 	} else if id, _ := strconv.Atoi(k); id > 0 {
 		av.Removed = strconv.Itoa(id)
 	}
-	if a.canManage(r) {
+	if a.isBoard(r) {
 		names := map[string]string{"confirm": "Confirm your email", "welcome": "Welcome email", "moved": "Site-move email"}
 		for _, k := range builtinKeys {
 			if a.store.BuiltinRemoved(k) {

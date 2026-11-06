@@ -193,10 +193,18 @@ func (a *App) attentionPage(w http.ResponseWriter, r *http.Request) {
 	u, _ := a.currentAdmin(r)
 	d := dashboardView{
 		Items: a.attentionItems(r), SetupLogin: u.ID == 0, Intro: a.showIntro(r),
-		Members: a.memberSnapshot(), Nudges: a.securityNudges(),
+		Members: a.memberSnapshot(), Nudges: a.nudgesFor(r),
 	}
 	d.Rides, d.Off = a.weekRides()
 	v := adminView{Title: "Home", Tab: "attention", Year: a.cfg.ThisYear(), Dashboard: &d}
 	v.Flash, v.Error = flashFrom(r)
 	a.renderAdmin(w, r, http.StatusOK, "attention", v)
+}
+
+// nudgesFor is the Security list on Home: the board's to deal with.
+func (a *App) nudgesFor(r *http.Request) []attentionItem {
+	if !a.isBoard(r) {
+		return nil
+	}
+	return a.securityNudges()
 }

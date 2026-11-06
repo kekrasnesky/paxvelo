@@ -422,14 +422,14 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
   <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Last login</th><th>Added</th><th><span class="sr">Actions</span></th></tr></thead>
   <tbody>
   {{range .Admins}}<tr>
-    <td data-label="Name">{{.Name}}{{if .President}} <span class="tag tag-pres">President</span>{{end}}{{with index $.AdminRoles .ID}} <a class="tag" href="/admin/board" title="Website → Board">{{.}}</a>{{end}}{{if eq .ID $.Account.ID}} <span class="tag">You</span>{{end}}</td>
+    <td data-label="Name">{{.Name}}{{if .President}} <span class="tag tag-pres">President</span>{{end}}{{with index $.AdminRoles .ID}} <a class="tag" href="/admin/board" title="Website → Board">{{.}}</a>{{else}}{{if not .President}} <span class="tag" title="Rides, ride emails, photos, minutes, own expenses">Website admin</span>{{end}}{{end}}{{if eq .ID $.Account.ID}} <span class="tag">You</span>{{end}}</td>
     <td class="email" data-label="Email"><a href="mailto:{{.Email}}">{{.Email}}</a></td>
     <td data-label="Status">{{if .HasPassword}}<span class="paid">Active</span>{{else}}Invited, no password yet{{end}}</td>
     <td data-label="Last login">{{with .LastLogin}}<span class="nowrap">{{date .}}</span><br><span class="muted small">{{clock .}}</span>{{else}}<span class="muted">Never</span>{{end}}</td>
     <td data-label="Added"><span class="nowrap">{{date .Added}}</span>{{with .AddedBy}}<br><span class="muted small">by {{.}}</span>{{end}}</td>
     <td class="right cell-act"><div class="acts">
-      <form method="post" action="/admin/admins/{{.ID}}/link"><button class="link">{{icon "mail"}}{{if .HasPassword}}Send a reset link{{else}}Send a new link{{end}}</button></form>
-      {{if and $.CanNamePresident (not .President)}}<form method="post" action="/admin/admins/{{.ID}}/president" onsubmit="return confirm('Make {{.Name}} the president? Only the president can remove admins and delete members{{if $.Account.President}}, so you won’t be able to anymore{{end}}.')"><button class="link">Make president</button></form>{{end}}
+      {{if $.CanManage}}<form method="post" action="/admin/admins/{{.ID}}/link"><button class="link">{{icon "mail"}}{{if .HasPassword}}Send a reset link{{else}}Send a new link{{end}}</button></form>{{end}}
+      {{if and $.CanNamePresident (not .President)}}<form method="post" action="/admin/admins/{{.ID}}/president" onsubmit="return confirm('Make {{.Name}} the president? Only the president can change admins and the board{{if $.Account.President}}, so you won’t be able to anymore{{end}}.')"><button class="link">Make president</button></form>{{end}}
       {{if and $.CanManage (ne .ID $.Account.ID)}}<form method="post" action="/admin/admins/{{.ID}}/remove" onsubmit="return confirm('Remove {{.Name}} as an admin? They won’t be able to log in.')"><button class="link danger">{{icon "trash"}}Remove</button></form>{{end}}
     </div></td>
   </tr>
@@ -438,12 +438,12 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
   </tbody>
 </table></div>
 <div class="grid2">
-  <form class="card" method="post" action="/admin/admins">
+  {{if .CanManage}}<form class="card" method="post" action="/admin/admins">
     <h2>Add an admin</h2>
     <label>Name <input name="name" required maxlength="60" autocomplete="off"></label>
     <label>Email <input type="email" name="email" required maxlength="254" autocomplete="off"></label>
     <button>{{icon "plus"}}Add and email them</button>
-  </form>
+  </form>{{end}}
   {{if .Account.ID}}<form class="card" method="post" action="/admin/admins/password">
     <h2>Change your password</h2>
     <input type="email" name="email" value="{{.Account.Email}}" autocomplete="username" hidden>
@@ -592,7 +592,7 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
     <button class="ghost">{{icon "search"}}Search</button>
     {{if .Q}}<a href="/admin/members{{with .Dues}}?dues={{.}}{{end}}">Clear</a>{{end}}
   </form>
-  <a class="btn ghost" href="/admin/members.csv">Export CSV</a>
+  {{if .IsBoard}}<a class="btn ghost" href="/admin/members.csv">Export CSV</a>{{end}}
 </div>
 <nav class="filter" aria-label="Filter by membership">
   <a href="/admin/members?dues=paid{{with .Q}}&q={{.}}{{end}}"{{if eq .Dues "paid"}} aria-current="page"{{end}} title="Dues paid and not expired">Current members ({{.Paid}})</a>
@@ -600,29 +600,29 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
   <a href="/admin/members?dues=list{{with .Q}}&q={{.}}{{end}}"{{if eq .Dues "list"}} aria-current="page"{{end}} title="Never paid dues: newsletter sign-ups and old Squarespace contacts">Email list only ({{.List}})</a>
   <a href="/admin/members{{with .Q}}?q={{.}}{{end}}"{{if eq .Dues ""}} aria-current="page"{{end}}>Everyone ({{.Total}})</a>
 </nav>
-<form id="bulk" class="bulk-bar" method="post" action="/admin/members/paid" hidden>
+{{if .IsBoard}}<form id="bulk" class="bulk-bar" method="post" action="/admin/members/paid" hidden>
   <input type="hidden" name="return" value="/admin/members?q={{.Q}}&dues={{.Dues}}">
   <span class="bulk-n"></span>
   <button class="mini">{{icon "check"}}Mark them paid</button>
   {{if .MovedOn}}<button class="mini ghost" formaction="/admin/members/moved" data-confirm-moved title="For members who paid on the old site: marks them paid and sends the site-move email instead of the welcome">{{icon "send"}}Mark paid &amp; send site-move email</button>{{end}}
   {{if .CanManage}}<button class="mini ghost danger" formaction="/admin/members/delete" data-confirm-delete>{{icon "trash"}}Delete them</button>{{end}}
   <button type="button" class="link small bulk-clear">Clear</button>
-</form>
+</form>{{end}}
 <div class="table-wrap"><table class="tight cards members">
-  <thead><tr><th class="pick-col"><input type="checkbox" class="pick-all" aria-label="Tick everyone shown"></th><th><button type="button" class="sort" data-sort="name">Name</button></th><th>Email</th><th>Phone</th><th><button type="button" class="sort" data-sort="plan">Plan</button></th><th>Riding</th><th><button type="button" class="sort" data-sort="paid">Dues</button></th><th><button type="button" class="sort" data-sort="waiver">{{.Year}} waiver</button></th><th><button type="button" class="sort" data-sort="joined">Joined</button></th></tr></thead>
+  <thead><tr>{{if .IsBoard}}<th class="pick-col"><input type="checkbox" class="pick-all" aria-label="Tick everyone shown"></th>{{end}}<th><button type="button" class="sort" data-sort="name">Name</button></th><th>Email</th><th>Phone</th><th><button type="button" class="sort" data-sort="plan">Plan</button></th><th>Riding</th><th><button type="button" class="sort" data-sort="paid">Dues</button></th><th><button type="button" class="sort" data-sort="waiver">{{.Year}} waiver</button></th><th><button type="button" class="sort" data-sort="joined">Joined</button></th></tr></thead>
   <tbody>
   {{range .Members}}{{$paid := .Paid}}<tr id="m{{.ID}}" data-name="{{.Name}}" data-plan="{{.Plan}}" data-paid="{{if $paid}}1{{else}}0{{end}}" data-waiver="{{if index $.Signed .ID}}1{{else}}0{{end}}" data-joined="{{.Joined.Format "2006-01-02T15:04:05"}}" data-find="{{.Name}} {{.Email}} {{.Phone}}"{{if not .Active}} class="off"{{end}}>
-    <td class="pick-col" data-label="Tick"><input type="checkbox" name="id" value="{{.ID}}" form="bulk" aria-label="Tick {{.Name}}"></td>
+    {{if $.IsBoard}}<td class="pick-col" data-label="Tick"><input type="checkbox" name="id" value="{{.ID}}" form="bulk" aria-label="Tick {{.Name}}"></td>{{end}}
     <td data-label="Name"><a class="member-link" href="/admin/members/{{.ID}}">{{.Name}}</a>{{with .Household}}<br><span class="muted small">With {{range $i, $h := .}}{{if $i}}, {{end}}{{$h.Name}}{{end}}</span>{{end}}</td>
     <td class="email" data-label="Email"><a href="mailto:{{.Email}}">{{.Email}}</a>{{if not .Active}} <span class="tag">Unsubscribed</span>{{end}}{{if .Unconfirmed}} <span class="tag" title="Club emails reach them once they press the link we emailed">Email not confirmed</span>{{end}}{{if .RenewalWaiting}} <span class="tag" title="They filled in the join form again. Their waiver and details count once they press the link we emailed">Renewal not confirmed</span>{{end}}</td>
     <td class="nowrap" data-label="Phone">{{with .Phone}}<a href="tel:{{.}}">{{.}}</a>{{else}}<span class="muted">—</span>{{end}}</td>
     <td data-label="Plan">{{.PlanName}}</td>
     <td data-label="Riding">{{with .LevelName}}{{.}}{{else}}<span class="muted">—</span>{{end}}{{with .RideNames}}<br><span class="muted small">{{.}}</span>{{end}}</td>
-    <td class="nowrap" data-label="Dues"><form method="post" action="/admin/members/{{.ID}}/paid" class="inline paid-form">
+    <td class="nowrap" data-label="Dues">{{if not $.IsBoard}}{{if $paid}}<span class="paid">Paid</span>{{with .DuesExpire}}{{if not .IsZero}}<span class="muted small welcome-note">Until {{date .}}</span>{{end}}{{end}}{{else}}<span class="muted">Not paid</span>{{end}}{{else}}<form method="post" action="/admin/members/{{.ID}}/paid" class="inline paid-form">
       <input type="hidden" name="return" value="/admin/members?q={{$.Q}}&dues={{$.Dues}}">
       {{if $paid}}<span class="paid">Paid</span> <input type="hidden" name="paid" value="0"><button class="link small">{{icon "undo"}}Undo</button>{{with .DuesExpire}}{{if not .IsZero}}<span class="muted small welcome-note">Until {{date .}}</span>{{end}}{{end}}{{if .MovedSent}}<span class="muted small welcome-note">Site-move email sent</span>{{end}}
       {{else}}<input type="hidden" name="paid" value="1"><button class="mini ghost">{{icon "check"}}Mark paid</button>{{with .LastPaid}}<span class="muted small welcome-note">Last paid {{.}}</span>{{end}}{{if .WelcomePending}}<span class="muted small welcome-note">{{if .Unconfirmed}}Their welcome email goes once they confirm their email{{else}}Sends their welcome email{{end}}</span>{{end}}{{end}}
-    </form></td>
+    </form>{{end}}</td>
     <td class="nowrap" data-label="{{$.Year}} waiver">{{if index $.Signed .ID}}<span class="paid">Signed</span>{{else}}<span class="muted">Not signed</span>{{end}}</td>
     <td class="nowrap" data-label="Joined">{{date .Joined}}</td>
   </tr>
@@ -631,7 +631,7 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
   <tr class="no-match" hidden><td colspan="9" class="empty">Nobody matches that.</td></tr>
   </tbody>
 </table></div>
-<div class="grid2">
+{{if .IsBoard}}<div class="grid2">
   <form class="card" id="add" method="post" action="/admin/members">
     <h2>Add a member</h2>
     <label>Full name <input name="name" required maxlength="100"></label>
@@ -655,7 +655,7 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
     </label>
     <button>{{icon "upload"}}Import</button>
   </form>
-</div>
+</div>{{end}}
 <script>
 (function(){
 var table=document.querySelector('table.members'),body=table.tBodies[0],none=body.querySelector('.no-match');
@@ -674,8 +674,9 @@ table.querySelectorAll('button.sort').forEach(function(b){b.addEventListener('cl
 // Ticking members shows a bar to mark them all paid at once.
 var bulk=document.getElementById('bulk'),all=table.querySelector('.pick-all');
 function picks(){return [].slice.call(body.querySelectorAll('input[name=id]')).filter(function(c){return !c.closest('tr').hidden})}
-function count(){var n=picks().filter(function(c){return c.checked}).length;bulk.hidden=!n;bulk.querySelector('.bulk-n').textContent=n+(n===1?' member ticked':' members ticked');
+function count(){if(!bulk)return;var n=picks().filter(function(c){return c.checked}).length;bulk.hidden=!n;bulk.querySelector('.bulk-n').textContent=n+(n===1?' member ticked':' members ticked');
   all.checked=n>0&&n===picks().length}
+if(!bulk)return; // website admins only look members up
 body.addEventListener('change',function(e){if(e.target.name==='id')count()});
 all.addEventListener('change',function(){picks().forEach(function(c){c.checked=all.checked});count()});
 bulk.querySelector('.bulk-clear').addEventListener('click',function(){picks().forEach(function(c){c.checked=false});count()});
@@ -709,7 +710,16 @@ body.addEventListener('submit',function(e){var f=e.target;if(!f.classList.contai
   <p class="muted">{{.PlanName}} plan · joined {{date .Joined}}{{if not .Active}} <span class="tag">Unsubscribed</span>{{end}}{{if .Unconfirmed}} <span class="tag" title="Club emails reach them once they press the link we emailed">Email not confirmed</span>{{end}}{{if .RenewalWaiting}} <span class="tag" title="They filled in the join form again. Their waiver and details count once they press the link we emailed">Renewal not confirmed</span>{{end}}{{if .NoNewsletter}} <span class="tag">Newsletter off</span>{{end}}{{if .NoEvents}} <span class="tag">Event emails off</span>{{end}}</p>
 </div>
 <div class="grid2 member-page">
-  <form class="card" method="post" action="/admin/members/{{.ID}}">
+  {{if not $.IsBoard}}<div class="card">
+    <h2>Details</h2>
+    <dl class="facts">
+      <dt>Email</dt><dd><a href="mailto:{{.Email}}">{{.Email}}</a></dd>
+      <dt>Phone</dt><dd>{{with .Phone}}<a href="tel:{{.}}">{{.}}</a>{{else}}<span class="muted">—</span>{{end}}</dd>
+      <dt>Emergency contact</dt><dd>{{with .EmergencyName}}{{.}}{{else}}<span class="muted">—</span>{{end}}{{with .EmergencyPhone}} · <a href="tel:{{.}}">{{.}}</a>{{end}}</dd>
+      <dt>Riding</dt><dd>{{with .LevelName}}{{.}}{{else}}<span class="muted">Not given</span>{{end}}</dd>
+      <dt>Dues</dt><dd>{{if $paid}}<span class="paid">Paid</span>{{with .DuesExpire}}{{if not .IsZero}} through {{date .}}{{end}}{{end}}{{else}}<span class="muted">Not paid</span>{{end}}</dd>
+    </dl>
+  {{else}}<form class="card" method="post" action="/admin/members/{{.ID}}">
     <h2>Details</h2>
     <label>Full name <input name="name" required maxlength="100" value="{{.Name}}"></label>
     <label>Email <input type="email" name="email" required maxlength="254" value="{{.Email}}"></label>
@@ -745,8 +755,9 @@ body.addEventListener('submit',function(e){var f=e.target;if(!f.classList.contai
       <button class="mini ghost">{{icon "save"}}Save record</button>
     </form>
     {{else}}<p class="small">Years paid: {{range $i, $y := .PaidYears}}{{if $i}}, {{end}}{{$y}}{{else}}<span class="muted">none yet</span>{{end}}</p>{{end}}
+    {{end}}
     <h2 class="member-h">Waivers</h2>
-    {{if .Waivers}}<ul class="member-list">{{range .Waivers}}<li><a href="/admin/waivers/{{.ID}}">{{.Year}}</a> · {{if .Minor}}for {{.Rider}}, age {{.RiderAge}}{{else if .Household}}{{.Rider}}, on this family plan{{else}}their own{{end}} <span class="muted small">signed {{date .Signed}}</span></li>{{end}}</ul>
+    {{if .Waivers}}<ul class="member-list">{{range .Waivers}}<li>{{if $.IsBoard}}<a href="/admin/waivers/{{.ID}}">{{.Year}}</a>{{else}}{{.Year}}{{end}} · {{if .Minor}}for {{.Rider}}, age {{.RiderAge}}{{else if .Household}}{{.Rider}}, on this family plan{{else}}their own{{end}} <span class="muted small">signed {{date .Signed}}</span></li>{{end}}</ul>
     {{else}}<p class="muted small">No waivers signed yet.</p>{{end}}
     {{with .Household}}<h2 class="member-h">Adults on this family plan</h2>
     <ul class="member-list">{{range .}}<li>{{.Name}} · <a href="mailto:{{.Email}}">{{.Email}}</a>{{if not .LinkSent}} <span class="muted small">(waiver link not sent yet)</span>{{end}}</li>{{end}}</ul>{{end}}
@@ -886,7 +897,7 @@ body.addEventListener('submit',function(e){var f=e.target;if(!f.classList.contai
   </div>
   <div class="send-row mail-actions">
     <label class="inline-label">About
-      <select name="topic" class="email-topic"><option value="">Club news and notices</option><option value="events">Rides and events</option></select>
+      <select name="topic" class="email-topic">{{if .IsBoard}}<option value="">Club news and notices</option>{{end}}<option value="events">Rides and events</option></select>
     </label>
     <label class="inline-label">Send to
       <select name="audience">{{range .Audiences}}<option value="{{.Value}}" data-all="{{.Label}}" data-events="{{.Events}}">{{.Label}}</option>{{end}}</select>
@@ -930,7 +941,7 @@ body.addEventListener('submit',function(e){var f=e.target;if(!f.classList.contai
   {{end}}
   </tbody>
 </table></div>
-{{if gt (len .Campaigns) 5}}<p class="show-more"><button type="button" class="link" onclick="document.querySelectorAll('tr.sent-more').forEach(function(r){r.hidden=false});this.parentNode.remove()">Show all {{len .Campaigns}}</button> · <a href="/admin/email/log">Every email in the sent log</a></p>{{end}}
+{{if gt (len .Campaigns) 5}}<p class="show-more"><button type="button" class="link" onclick="document.querySelectorAll('tr.sent-more').forEach(function(r){r.hidden=false});this.parentNode.remove()">Show all {{len .Campaigns}}</button>{{if .IsBoard}} · <a href="/admin/email/log">Every email in the sent log</a>{{end}}</p>{{end}}
 {{template "mail-tools" .}}
 {{if .Sending}}<script>
 (function poll(){setTimeout(function(){fetch('/admin/email/status').then(function(r){return r.json()}).then(function(list){var busy=false;list.forEach(function(c){var tr=document.querySelector('tr[data-id="'+c.id+'"]');if(!tr)return;tr.querySelector('.prog').textContent=c.progress;tr.querySelector('.st').textContent=c.status+(c.error?' – '+c.error:'');if(c.status==='Sending')busy=true;else tr.querySelector('.act').textContent=''});if(busy)poll()}).catch(poll)},3000)})();
@@ -2589,7 +2600,7 @@ try{if(localStorage.getItem('pagePreview')==='0')showPreview(false)}catch(e){}
       </div>
     </div>
   </section>{{end}}
-  <div class="save-bar"><button>{{icon "save"}}Save</button></div>
+  {{if .IsPresident}}<div class="save-bar"><button>{{icon "save"}}Save</button></div>{{end}}
 </form>
 <datalist id="board-roles"><option value="President"><option value="Vice President"><option value="Treasurer"><option value="Secretary"><option value="Member at Large"></datalist>
 <script>
@@ -2930,7 +2941,7 @@ document.querySelectorAll('[data-board]').forEach(function(box){
     <li><a href="/admin/security">Security</a> (the gear in the corner): admins and passwords, the club PIN, every other way into the site, and the full backup.</li>
     <li><a href="/admin/email">Email</a>: club emails, and the welcome email with its four riding-advice boxes.</li>
     <li>Newsletter, Rides, Pages, Home photos, Board, Instagram and Minutes go live as soon as you save.</li>
-    <li>Only the president can remove admins, delete members or download a full backup.</li></ul></div>
+    <li>Three kinds of admin. <b>Website admins</b> run the calendar and rides, email members about rides and events, review photos and keep the gallery, read minutes, look members up and send their own spending requests. <b>Board members</b> (anyone on Website → Board) can do everything else too. Only the <b>president</b> changes who has which powers: the Board page, adding and removing admins, and the full backup.</li></ul></div>
   <div class="card"><h3>What runs by itself</h3><ul>
     <li>Strava club events import every hour. Instagram posts refresh every 3 hours.</li>
     <li>Email sends carry on in the background and pick up after a restart.</li>

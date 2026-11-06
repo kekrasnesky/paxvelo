@@ -40,7 +40,7 @@ func TestSpendRequests(t *testing.T) {
 	karl, _ := a.store.AddAdmin("Karl", "karl@example.com", "")
 	gabe, _ := a.store.AddAdmin("Gabriel Murray", "gabe@example.com", "")
 	allie, _ := a.store.AddAdmin("Allie Kampmeyer", "allie@example.com", "")
-	ola, _ := a.store.AddAdmin("Ola", "ola@example.com", "")
+
 	a.store.SetPresident(karl.ID)
 	a.store.SetBoard([]BoardMember{{Name: "Karl", Role: "President"}, {Name: "Gabe", Role: "Treasurer"}, {Name: "Allie Kampmeyer", Role: "Vice President"}})
 	a.store.mu.Lock()
@@ -62,11 +62,6 @@ func TestSpendRequests(t *testing.T) {
 		return do(t, h, as(u), "POST", path, ct, body).Header().Get("Location")
 	}
 
-	// Someone not on the board can't send one.
-	send(ola, map[string]string{"kind": "report", "date": "2026-11-01", "amount": "10", "category": "Bank Fees", "what": "x"}, "", nil)
-	if len(a.store.SpendRequests()) != 0 {
-		t.Fatal("an admin who isn't on the board shouldn't be able to send a request")
-	}
 	// A missing "what for" comes back with the form filled in.
 	if w := send(allie, map[string]string{"kind": "report", "date": "2026-11-01", "amount": "45", "category": "Club Rides & Parties:Food & Drink"}, "", nil); w.Code != 200 || !strings.Contains(w.Body.String(), "Say what it’s for.") || !strings.Contains(w.Body.String(), `value="45.00"`) {
 		t.Fatalf("missing what: %d", w.Code)

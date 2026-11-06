@@ -1157,3 +1157,8 @@ a.tag:hover{border-color:var(--ink);color:var(--ink)}
   .member-pick .crown{display:inline-block}
   .member-pick .crown-txt{display:none}
 }
+
+/* Read-only member details (website admins look members up). */
+dl.facts{display:grid;grid-template-columns:max-content 1fr;gap:.4rem 1rem;margin:0}
+dl.facts dt{color:var(--muted);font-size:.9em}
+dl.facts dd{margin:0;overflow-wrap:anywhere}

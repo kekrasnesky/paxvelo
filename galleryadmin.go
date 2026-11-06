@@ -375,6 +375,10 @@ func (a *App) albumAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	case "newsletter":
+		if !a.isBoard(r) {
+			deny(w, r, here, "board-only")
+			return
+		}
 		a.galleryToNewsletter(w, r, id, ids)
 		return
 	case "credit":
