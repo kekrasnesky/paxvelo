@@ -234,7 +234,9 @@ document.querySelectorAll('.money-form select[name=category]').forEach(function(
 {{if and $q.NoPresident $q.Board}}<p class="flash warn">No admin is marked president. <a href="/admin/admins">Admins</a></p>{{end}}
 {{with $q.Withdrawn}}<form class="flash warn undo-flash" method="post" action="/admin/treasurer/requests/{{.}}/restore">Withdrawn. <button class="link">{{icon "undo"}}Undo</button></form>{{end}}
 
-{{with $q.Answer}}<h2 class="section req-first">Waiting for you</h2>
+<div class="req-cols">
+<div class="req-lists">
+{{with $q.Answer}}<h2 class="section">Waiting for you</h2>
 {{range .}}{{template "req-card" .}}{{end}}{{end}}
 
 {{with $q.PayBack}}<h2 class="section" id="pay">To reimburse</h2>
@@ -264,6 +266,11 @@ document.querySelectorAll('.money-form select[name=category]').forEach(function(
   </div>{{end}}
 </article>{{end}}{{end}}
 
+{{with $q.Waiting}}<h2 class="section">Waiting</h2>
+{{range .}}{{template "req-card" .}}{{end}}{{end}}
+
+{{if not (or $q.Answer $q.PayBack $q.Mine $q.Waiting)}}<p class="muted req-none">No requests yet.</p>{{end}}
+</div>
 <details class="money-add req-add no-print" id="add"{{if or (not $q.Answer) $.Error $q.Dup}} open{{end}}><summary class="btn">{{icon "plus"}}New request</summary>
 <form class="card money-form req-form" method="post" action="/admin/treasurer/requests" enctype="multipart/form-data"{{if $q.Board}} data-guess="/admin/treasurer/requests/guess"{{end}}>
   <div class="kind-pick req-kind" role="radiogroup" aria-label="What kind">
@@ -292,9 +299,7 @@ document.querySelectorAll('.money-form select[name=category]').forEach(function(
   {{with $q.Dup}}<p class="flash warn req-dup">{{.}} <button class="ghost mini" name="dup_ok" value="1">{{icon "send"}}Send anyway</button></p>{{end}}
   <button class="money-go">{{icon "send"}}Send</button>
 </form></details>
-
-{{with $q.Waiting}}<h2 class="section">Waiting</h2>
-{{range .}}{{template "req-card" .}}{{end}}{{end}}
+</div>
 
 {{with $q.Done}}<h2 class="section" id="done">Done</h2>
 <div class="table-wrap"><table class="cards req-done">

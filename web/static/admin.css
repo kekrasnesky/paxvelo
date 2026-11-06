@@ -5,6 +5,7 @@
    focus ring on buttons, boxes, cards and tables. */
 :root{--ink:#2d2d2d;--paper:#f5f2ec;--red:#9a2b29;--red-dark:#7e211f;--line:#e4dcd3;--edge:#c4b9ae;--muted:#6f6863;--ok:#2f7a3b;--warn:#b7791f;--radius:6px;--radius-lg:10px;--ring:0 0 0 3px rgba(154,43,41,.3);--lift:0 1px 2px rgba(45,45,45,.08),0 1px 3px rgba(45,45,45,.04);--font:Poppins,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
 *,*::before,*::after{box-sizing:border-box}
+html{scrollbar-gutter:stable} /* pages that scroll and pages that don't keep the same margins */
 [hidden]{display:none!important} /* hidden means hidden, whatever else styles the element */
 body{margin:0;background:var(--paper);color:var(--ink);font:300 15px/1.6 var(--font);-webkit-font-smoothing:antialiased}
 a{color:inherit;text-underline-offset:3px}
@@ -24,6 +25,9 @@ h2.section{margin:2.75rem 0 .9rem}
 .sub a{flex:none;padding:.35rem .8rem;border-radius:2rem;color:var(--ink);font-size:.9rem;text-decoration:none;white-space:nowrap}
 .sub a:hover{background:#f3eee8}
 .sub a[aria-current]{background:var(--ink);color:var(--paper)}
+/* On a computer the bar and the section tabs line up with the page below
+   (.wrap: 1240px wide, 1.25rem inside). */
+@media (min-width:1101px){.bar,.sub{padding-left:max(1.25rem,calc((100% - 1240px)/2 + 1.25rem));padding-right:max(1.25rem,calc((100% - 1240px)/2 + 1.25rem))}}
 @media (max-width:1100px){.bar{gap:1.25rem;padding:.85rem 1rem}.bar nav{gap:1rem}.sub{padding:.55rem 1rem}}
 @media (max-width:1200px){.bar .me,.corner span{display:none}.corner .ic{margin:0;width:1.25em;height:1.25em}}
 @media (max-width:700px){
@@ -582,7 +586,7 @@ button:has(>.ic),.btn:has(>.ic){display:inline-flex;align-items:center;justify-c
 .search button{flex:none}
 
 /* Needs attention */
-.todo{display:grid;gap:.6rem;max-width:46rem;margin:1.2rem 0 0;padding:0;list-style:none}
+.todo{display:grid;gap:.6rem;margin:1.2rem 0 0;padding:0;list-style:none}
 .todo li{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.85rem 1rem;border:1px solid var(--line);border-left:3px solid var(--red);background:#fff}
 .todo .btn{flex:none}
 .all-clear{display:flex;align-items:center;gap:.5rem;margin:1.2rem 0 0;font-weight:500}
@@ -594,7 +598,7 @@ button:has(>.ic),.btn:has(>.ic){display:inline-flex;align-items:center;justify-c
 .setup-warn p{margin:0;max-width:60ch}.setup-warn .btn{flex:none}
 .dash-title{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.8rem 1.5rem}
 .quick{display:flex;flex-wrap:wrap;gap:.5rem}.quick .btn{padding:.55rem .85rem}
-.intro{max-width:46rem;margin:1.5rem 0 0;border-left:3px solid var(--ink)}
+.intro{margin:1.5rem 0 0;border-left:3px solid var(--ink)}
 .intro p{margin:0}.intro-acts{display:flex;flex-wrap:wrap;gap:.6rem}.intro-acts form{margin:0}
 .todo.nudge li{border-left-color:#b7791f}
 .dash{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,22rem),1fr));gap:1rem;margin:2rem 0 0}
@@ -1018,7 +1022,7 @@ body.resizing iframe{pointer-events:none}
   .budget-table tr.sec{display:flex;justify-content:space-between;align-items:center;background:#faf8f5;border-bottom:1px solid var(--line)}
   .budget-table tr.sec>*{display:block;width:auto!important;padding:.7rem .6rem .5rem;border:0}
 }
-.report{max-width:56rem;margin-top:.5rem}
+.report{margin-top:.5rem}
 .report-title{font-size:1.15rem}
 .report-sub{margin:.15rem 0 0;font-weight:500}
 .report-table{font-variant-numeric:tabular-nums}
@@ -1141,8 +1145,15 @@ a.tag:hover{border-color:var(--ink);color:var(--ink)}
 /* Requests: the phone-first form (receipt first, two ways in), the
    sender's tracker, the treasurer's pay-back list and the email's answer page. */
 .req-add:not([open])>summary.btn{display:inline-flex}
-/* One column on a computer too: cards, the form and the lists line up. */
-.req-add,.my-req,.req,.pay-list{max-width:46rem}
+/* On a computer: the form on the left, the lists on the right, together
+   as wide as every other page; on a phone, the lists first, then the form. */
+@media (min-width:1000px){
+  .req-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:1.5rem;align-items:start}
+  .req-cols>.req-add{order:-1;position:sticky;top:1rem}
+  .req-lists>h2.section:first-child{margin-top:0}
+}
+.req-cols{margin-top:1.5rem}
+.req-none{margin:0}
 .req-form{gap:1rem}
 .req-kind{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
 .req-kind span{justify-content:center;height:100%;padding:.7rem .8rem;border-radius:var(--radius);text-align:center;line-height:1.3}
@@ -1170,7 +1181,6 @@ a.tag:hover{border-color:var(--ink);color:var(--ink)}
 .req-date[open]>summary{display:none}
 .req-dup{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem;margin:0}
 .req-form .money-go{justify-self:stretch;display:inline-flex;justify-content:center;padding:.9rem}
-h2.section.req-first{margin-top:1.5rem}
 .req-cat select{width:auto;max-width:100%;padding:.4rem .6rem;font-size:.85rem}
 .pay-list{gap:0;margin:0 0 1rem;padding:.4rem 1.2rem;list-style:none}
 .pay-list li{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem 1rem;padding:.8rem 0;border-bottom:1px solid var(--line)}
