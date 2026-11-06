@@ -49,3 +49,12 @@ func icon(name string) (template.HTML, error) {
 	}
 	return template.HTML(`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">` + p + `</svg>`), nil
 }
+
+// crown is the {{crown}} template function: the small gold crown that marks
+// an admin, in the logo's yellow-to-orange.
+func crown() template.HTML {
+	return template.HTML(`<svg class="crown" viewBox="0 0 24 24" aria-hidden="true">` +
+		`<defs><linearGradient id="pv-gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe45c"/><stop offset="1" stop-color="#ff9500"/></linearGradient></defs>` +
+		`<path d="M3.5 7.5 8 11l4-6.5 4 6.5 4.5-3.5L19 18H5z" fill="url(#pv-gold)" stroke="#c46a00" stroke-width="1.3" stroke-linejoin="round"/>` +
+		`<path d="M5 20.5h14" stroke="#c46a00" stroke-width="1.6" stroke-linecap="round"/></svg>`)
+}

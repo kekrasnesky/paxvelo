@@ -2576,7 +2576,7 @@ try{if(localStorage.getItem('pagePreview')==='0')showPreview(false)}catch(e){}
   <input type="hidden" name="count" value="{{len .Board}}">
   {{range $i, $m := .Board}}<section class="card">
     <h2>{{if $m.Name}}{{$m.Name}}{{else}}Add a board member{{end}}</h2>
-    <div class="trio board-who"><label>Member <select name="member{{$i}}" data-name="name{{$i}}"><option value="">—</option>{{range $.BoardPick}}<option value="{{.ID}}"{{if eq .ID $m.Member}} selected{{end}}>{{.Name}}{{if .Admin}} · admin login{{end}}</option>{{end}}</select></label><label>Name on the page <input name="name{{$i}}" value="{{$m.Name}}" maxlength="60"></label><label>Role <input name="role{{$i}}" value="{{$m.Role}}" maxlength="60" list="board-roles"></label></div>
+    <div class="trio board-who"><label>Member <select name="member{{$i}}" data-name="name{{$i}}" class="member-pick"><button type="button"><selectedcontent></selectedcontent></button><option value="">—</option>{{range $.BoardPick}}<option value="{{.ID}}" data-n="{{.Name}}"{{if eq .ID $m.Member}} selected{{end}}{{if .Admin}} title="Admin"{{end}}><span>{{.Name}}</span>{{if .Admin}}<span class="crown-txt"> ♛</span>{{crown}}{{end}}</option>{{end}}</select></label><label>Name on the page <input name="name{{$i}}" value="{{$m.Name}}" maxlength="60"></label><label>Role <input name="role{{$i}}" value="{{$m.Role}}" maxlength="60" list="board-roles"></label></div>
     <div class="photo-field" data-board="{{$i}}">
       {{if $m.Photo}}{{template "framer" (framer $m.Photo $m.Focus (printf "focus%d" $i) "board")}}{{else}}<span></span>{{end}}
       <input type="hidden" name="photo_current{{$i}}" value="{{$m.Photo}}">
@@ -2595,7 +2595,7 @@ try{if(localStorage.getItem('pagePreview')==='0')showPreview(false)}catch(e){}
 <script>
 // Picking a member fills in the name shown on the page, when it's empty.
 document.querySelectorAll('select[data-name]').forEach(function(s){s.addEventListener('change',function(){
-  var n=s.form.elements[s.dataset.name];if(n&&!n.value.trim()&&s.value)n.value=s.options[s.selectedIndex].text.replace(/ · admin login$/,'')})});
+  var n=s.form.elements[s.dataset.name];if(n&&!n.value.trim()&&s.value)n.value=s.options[s.selectedIndex].dataset.n})});
 // Choose from the gallery: the picked photo shows right away, ready to
 // frame, and is kept when Save is pressed.
 document.querySelectorAll('[data-board]').forEach(function(box){

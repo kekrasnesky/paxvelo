@@ -1138,3 +1138,22 @@ a.tag:hover{border-color:var(--ink);color:var(--ink)}
   .req-done td.right,.req-done td.right::before{text-align:left}
   .req-bought form{margin-left:0}
 }
+/* Board page: the member picker marks admins with a gold crown. Browsers
+   that can draw pictures in a dropdown get the crown; others show ♛. */
+.crown{width:1.05em;height:1.05em;flex:none;vertical-align:-.15em}
+.member-pick .crown{display:none}
+@supports (appearance:base-select){
+  .member-pick,.member-pick::picker(select){appearance:base-select}
+  .member-pick{display:flex;align-items:center;padding:.6rem .75rem;cursor:pointer}
+  .member-pick>button{all:unset;display:flex;flex:1;align-items:center;min-width:0}
+  .member-pick selectedcontent{display:flex;align-items:center;gap:.4rem;min-width:0;overflow:hidden;white-space:nowrap}
+  .member-pick::picker-icon{color:var(--muted);transition:transform .15s}
+  .member-pick:open::picker-icon{transform:rotate(180deg)}
+  .member-pick::picker(select){max-height:min(24rem,60vh);margin-top:.25rem;padding:.3rem;border:1px solid var(--edge);border-radius:var(--radius);background:#fff;box-shadow:0 10px 28px rgba(45,45,45,.16)}
+  .member-pick option{display:flex;align-items:center;gap:.4rem;padding:.42rem .6rem;border-radius:4px;font:300 15px/1.4 var(--font)}
+  .member-pick option::checkmark{display:none}
+  .member-pick option:hover,.member-pick option:focus-visible{background:#f7f3ee;outline:none}
+  .member-pick option:checked{background:#fbe9e8;font-weight:500}
+  .member-pick .crown{display:inline-block}
+  .member-pick .crown-txt{display:none}
+}

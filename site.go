@@ -200,6 +200,7 @@ func newSite(cfg Config) (*Site, error) {
 		"lines":        func(l []string) string { return strings.Join(l, "\n") },
 		"external":     func(u string) bool { return strings.HasPrefix(u, "http://") || strings.HasPrefix(u, "https://") },
 		"icon":         icon,
+		"crown":        crown,
 		"money":        money,
 		"moneyInput":   moneyInput,
 		"mdy":          mdy,

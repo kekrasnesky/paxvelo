@@ -292,7 +292,7 @@ func TestExpensesAndReceipts(t *testing.T) {
 	if admins := do(t, h, as(pat), "GET", "/admin/admins", "", nil).Body.String(); !strings.Contains(admins, `title="Website → Board">Treasurer</a>`) || !strings.Contains(admins, ">Secretary</a>") {
 		t.Error("the Admins page should show each admin's Board role")
 	}
-	if page := do(t, h, as(pat), "GET", "/admin/board", "", nil).Body.String(); !strings.Contains(page, `<option value="501" selected>Barry Murphy · admin login</option>`) || !strings.Contains(page, `<option value="502">Ola Nordmann · admin login</option>`) {
+	if page := do(t, h, as(pat), "GET", "/admin/board", "", nil).Body.String(); !strings.Contains(page, `<option value="501" data-n="Barry Murphy" selected title="Admin"><span>Barry Murphy</span><span class="crown-txt"> ♛</span><svg class="crown"`) || !strings.Contains(page, `<option value="502" data-n="Ola Nordmann" title="Admin"><span>Ola Nordmann</span>`) {
 		t.Error("the Board page should offer members, marking who has an admin login")
 	}
 
