@@ -25,7 +25,7 @@ var adminGroups = []adminGroup{
 	{"Rides", "/admin/calendar", []adminSection{{"calendar", "Calendar", "/admin/calendar"}, {"rides", "Weekly rides", "/admin/rides"}, {"history", "History", "/admin/history"}}},
 	{"Website", "/admin/pages", []adminSection{{"pages", "Pages", "/admin/pages"}, {"home-photos", "Home photos", "/admin/home-photos"}, {"gallery", "Gallery", "/admin/gallery"}, {"submitted", "Photos to review", "/admin/submitted"},
 		{"board", "Board", "/admin/board"}, {"instagram", "Instagram", "/admin/instagram"}, {"minutes", "Minutes", "/admin/minutes"}}},
-	{"Treasurer", "/admin/treasurer", []adminSection{{"expenses", "Expenses", "/admin/treasurer"}, {"income", "Income", "/admin/treasurer/income"},
+	{"Treasurer", "/admin/treasurer", []adminSection{{"expenses", "Expenses", "/admin/treasurer"}, {"requests", "Requests", "/admin/treasurer/requests"}, {"income", "Income", "/admin/treasurer/income"},
 		{"budget", "Budget", "/admin/treasurer/budget"}, {"reports", "Reports", "/admin/treasurer/reports"}}},
 	{"Stats", "/admin/stats", []adminSection{{"stats", "Stats", "/admin/stats"}}},
 }
@@ -50,12 +50,15 @@ type navGroup struct {
 type navSection struct {
 	Label, Href string
 	Current     bool
+	Badge       int
 }
 
 // moneyGroup is the Treasurer group, shown only to board members.
 const moneyGroup = "Treasurer"
 
-func adminNavFor(tab string, attention int, board bool) adminNav {
+// requests is the number of spending requests waiting for this admin's
+// answer, shown on Requests.
+func adminNavFor(tab string, attention int, board bool, requests int) adminNav {
 	nav := adminNav{Security: navSection{Label: securityGroup.Label, Href: securityGroup.Href}}
 	for _, g := range append(adminGroups, securityGroup) {
 		if g.Label == moneyGroup && !board {
@@ -72,7 +75,11 @@ func adminNavFor(tab string, attention int, board bool) adminNav {
 		}
 		if ng.Current && len(g.Sections) > 1 {
 			for _, s := range g.Sections {
-				nav.Sections = append(nav.Sections, navSection{s.Label, s.Href, s.Tab == tab})
+				ns := navSection{Label: s.Label, Href: s.Href, Current: s.Tab == tab}
+				if s.Tab == "requests" {
+					ns.Badge = requests
+				}
+				nav.Sections = append(nav.Sections, ns)
 			}
 		}
 		if g.Label == securityGroup.Label {

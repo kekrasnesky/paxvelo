@@ -62,7 +62,7 @@
   {{range $m.Entries}}<tr id="e{{.ID}}">
     <td class="c-date nowrap">{{.DateLabel}}</td>
     <td class="c-cat">{{.Category}}</td>
-    <td class="c-what">{{.What}}</td>
+    <td class="c-what">{{.What}}{{with .Request}} <a class="tag" href="/admin/treasurer/requests#r{{.}}" title="Approved request">Request</a>{{end}}</td>
     {{if not $in}}<td class="c-who">{{.Who}}</td>{{end}}
     <td class="c-amt right nowrap money-amt">{{money .Cents}}</td>
     <td class="c-rcpt">{{template "money-receipt" .}}</td>
@@ -220,4 +220,93 @@ document.querySelectorAll('.money-form select[name=category]').forEach(function(
     </div></td>
   </tr>{{end}}</tbody>
 </table></div>{{end}}
+{{template "foot" .}}{{end}}
+
+{{define "req-step"}}{{/* one answer (reqStep) */}}<li class="step {{with .D}}{{if .OK}}yes{{else}}no{{end}}{{else}}wait{{end}}"><span class="step-role">{{.Role}}</span> {{with .D}}<span title="{{date .At}}">{{.By}}</span>{{else}}<span class="muted">Waiting</span>{{end}}</li>{{end}}
+
+{{define "money-requests"}}{{template "head" .}}{{$q := .Money.Requests}}{{$f := $q.Form}}
+<div class="money-top"><h1>Requests</h1></div>
+{{if $q.NoTreasurer}}<p class="flash warn">No admin holds the Treasurer role. <a href="/admin/board">Website → Board</a></p>{{end}}
+{{if $q.NoPresident}}<p class="flash warn">No admin is marked president. <a href="/admin/admins">Admins</a></p>{{end}}
+{{with $q.Withdrawn}}<form class="flash warn undo-flash" method="post" action="/admin/treasurer/requests/{{.}}/restore">Withdrawn. <button class="link">{{icon "undo"}}Undo</button></form>{{end}}
+<details class="money-add no-print" id="add" open{{if $.Error}} data-keep{{end}}><summary class="btn">{{icon "plus"}}New request</summary>
+<form class="card money-form req-form" method="post" action="/admin/treasurer/requests" enctype="multipart/form-data">
+  <h2>New request</h2>
+  <div class="kind-pick" role="radiogroup" aria-label="Kind">
+    <label title="You paid; the club pays you back"><input type="radio" name="kind" value="report"{{if ne $f.Kind "purchase"}} checked{{end}}><span>Expense report</span></label>
+    <label title="Ask before buying"><input type="radio" name="kind" value="purchase"{{if eq $f.Kind "purchase"}} checked{{end}}><span>Purchase request</span></label>
+  </div>
+  <div class="money-fields">
+    <label>Date <input type="date" name="date" value="{{$f.Date}}" required></label>
+    <label>Amount <span class="money-in"><span aria-hidden="true">$</span><input name="amount" inputmode="decimal" placeholder="0.00" value="{{if $f.Cents}}{{moneyInput $f.Cents}}{{end}}" required autocomplete="off"></span></label>
+    <label>Category <select name="category" required>
+      <option value=""{{if not $f.Category}} selected{{end}} disabled>Pick one</option>
+      {{range $q.Cats}}<option{{if eq . $f.Category}} selected{{end}}>{{.}}</option>{{end}}
+    </select></label>
+    <label class="money-what">What for <input name="what" value="{{$f.What}}" maxlength="100" required></label>
+    <label class="money-what">Notes <textarea name="note" rows="2" maxlength="1000">{{$f.Note}}</textarea></label>
+    <label class="money-file"><span data-report="Receipt" data-purchase="Quote">{{if eq $f.Kind "purchase"}}Quote{{else}}Receipt{{end}}</span> <input type="file" name="receipt" accept="image/*,.pdf,application/pdf"></label>
+    <button class="money-go">{{icon "send"}}Send</button>
+  </div>
+</form></details>
+
+<h2 class="section">Waiting</h2>
+{{range $q.Waiting}}<article class="card req{{if .Decide}} mine{{end}}" id="r{{.ID}}">
+  <div class="req-head">
+    <div class="req-what">
+      <span class="tag">{{.KindLabel}}</span>
+      <h3>{{.What}}</h3>
+      <p class="muted small">{{.By}} · {{.DateLabel}} · {{.Category}}</p>
+    </div>
+    <p class="money-big">{{money .Cents}}</p>
+  </div>
+  {{with .Note}}<p class="req-note">{{.}}</p>{{end}}
+  <div class="req-foot">
+    {{if .Receipt}}{{template "money-receipt" .SpendRequest}}{{end}}
+    <ul class="req-steps">{{range .Steps}}{{template "req-step" .}}{{end}}</ul>
+    <div class="req-acts">
+      {{if .Decide}}<form method="post" action="/admin/treasurer/requests/{{.ID}}/approve"><button>{{icon "check"}}Approve</button></form>
+      <details class="req-reject"><summary class="btn ghost danger">{{icon "x"}}Reject</summary>
+        <form method="post" action="/admin/treasurer/requests/{{.ID}}/reject"><input name="reason" required placeholder="Why" aria-label="Why" maxlength="300"><button class="ghost danger">Reject</button></form>
+      </details>{{end}}
+      {{if .Withdraw}}<form method="post" action="/admin/treasurer/requests/{{.ID}}/withdraw"><button class="link danger">{{icon "trash"}}Withdraw</button></form>{{end}}
+    </div>
+  </div>
+</article>
+{{else}}<p class="muted">Nothing waiting.</p>
+{{end}}
+
+{{with $q.Done}}<h2 class="section" id="done">Done</h2>
+<div class="table-wrap"><table class="cards req-done">
+  <thead><tr><th>Date</th><th>From</th><th>What for</th><th class="right">Amount</th><th>Answer</th><th><span class="sr">Actions</span></th></tr></thead>
+  <tbody>{{range .}}<tr id="r{{.ID}}">
+    <td data-label="Date" class="nowrap">{{.DateLabel}}</td>
+    <td data-label="From">{{.By}}</td>
+    <td data-label="What for">{{.What}} <span class="muted small">· {{.KindLabel}}</span>{{with .Rejection}}<br><span class="small">{{.By}}: {{.Reason}}</span>{{end}}</td>
+    <td data-label="Amount" class="right nowrap money-amt">{{money .Amount}}</td>
+    <td data-label="Answer">{{if eq .Status "approved"}}<span class="tag tag-ok">Approved</span>{{if .PaidBack}} <span class="tag">Paid back {{.PaidBackLabel}}</span>{{end}}{{if .Bought}} <span class="tag">Bought {{mdy .Bought}}</span>{{end}}{{else if eq .Status "rejected"}}<span class="tag tag-no">Rejected</span>{{else}}<span class="tag">Withdrawn</span>{{end}}</td>
+    <td class="right cell-act"><div class="acts">
+      {{if .Receipt}}{{template "money-receipt" .SpendRequest}}{{end}}
+      {{if .Entry}}<a class="link" href="/admin/treasurer/entries/{{.Entry}}">Expense</a>{{end}}
+      {{if .PayBack}}<form method="post" action="/admin/treasurer/requests/{{.ID}}/paid">{{if .PaidBack}}<button class="link">{{icon "undo"}}Not paid back</button>{{else}}<input type="hidden" name="paid" value="1"><button class="ghost mini">{{icon "check"}}Paid back</button>{{end}}</form>{{end}}
+      {{if .AddBought}}<details class="req-bought"><summary class="btn {{if .Bought}}link{{else}}ghost mini{{end}}">{{icon "receipt"}}{{if .Bought}}Change receipt{{else}}Add receipt{{end}}</summary>
+        <form method="post" action="/admin/treasurer/requests/{{.ID}}/bought" enctype="multipart/form-data" class="card">
+          <label>Date <input type="date" name="date" value="{{or .Bought .Date}}" required></label>
+          <label>Amount <span class="money-in"><span aria-hidden="true">$</span><input name="amount" inputmode="decimal" value="{{moneyInput .Amount}}" required autocomplete="off"></span></label>
+          <label>Receipt <input type="file" name="receipt" accept="image/*,.pdf,application/pdf"></label>
+          <button>{{icon "save"}}Save</button>
+        </form>
+      </details>{{end}}
+    </div></td>
+  </tr>{{end}}</tbody>
+</table></div>{{end}}
+<script>
+// The add form is open on computers; on phones it opens from its button.
+document.querySelectorAll('details.money-add:not([data-keep])').forEach(function(d){if(matchMedia('(max-width:700px)').matches)d.open=false});
+// Reject and Add receipt open with their first box ready to type in.
+document.querySelectorAll('.req-reject,.req-bought').forEach(function(d){d.addEventListener('toggle',function(){if(d.open){var i=d.querySelector('input');if(i)i.focus()}})});
+// A purchase request has a quote, not a receipt.
+(function(){var f=document.querySelector('.req-form');if(!f)return;var l=f.querySelector('[data-report]');
+  f.addEventListener('change',function(e){if(e.target.name==='kind')l.textContent=l.dataset[e.target.value]})})();
+</script>
 {{template "foot" .}}{{end}}

@@ -15,7 +15,7 @@
   <div class="bar-end">{{with .Nav.Security}}<a class="corner" href="{{.Href}}"{{if .Current}} aria-current="page"{{end}} aria-label="{{.Label}}">{{icon "settings"}}<span>{{.Label}}</span></a>{{end}}<a href="/" target="_blank" rel="noopener">View site</a>
   <form method="post" action="/admin/logout">{{with .Me}}<span class="me">{{.}} · </span>{{end}}<button class="link light">{{icon "logout"}}Log out</button></form></div>
 </header>
-{{with .Nav.Sections}}<nav class="sub" aria-label="Section">{{range .}}<a href="{{.Href}}"{{if .Current}} aria-current="page"{{end}}>{{.Label}}</a>{{end}}</nav>{{end}}{{end}}
+{{with .Nav.Sections}}<nav class="sub" aria-label="Section">{{range .}}<a href="{{.Href}}"{{if .Current}} aria-current="page"{{end}}>{{.Label}}{{with .Badge}} <span class="badge">{{.}}<span class="sr"> waiting</span></span>{{end}}</a>{{end}}</nav>{{end}}{{end}}
 <main class="wrap">
 {{with .Flash}}<p class="flash">{{.}}</p>{{end}}
 {{with .Error}}<p class="flash err">{{.}}</p>{{end}}
@@ -2921,7 +2921,8 @@ document.querySelectorAll('[data-board]').forEach(function(box){
   <div class="card"><h3>Treasurer</h3><ol>
     <li>A “New member” email arrives, then PayPal’s receipt.</li>
     <li>Open the link in the first email and press <b>Mark paid</b>. The first time, that sends their welcome email.</li>
-    <li>On January 1 everyone shows as not paid. Filter <a href="/admin/members?dues=unpaid">Not paid</a> and send a reminder with <code>{pay_link}</code>.</li></ol></div>
+    <li>On January 1 everyone shows as not paid. Filter <a href="/admin/members?dues=unpaid">Not paid</a> and send a reminder with <code>{pay_link}</code>.</li>
+    <li>Board members send expense reports and purchase requests on <a href="/admin/treasurer/requests">Treasurer → Requests</a>. The treasurer and the president are emailed and each press <b>Approve</b> or <b>Reject</b>; once both approve, it’s on Expenses by itself and the sender is emailed. Press <b>Paid back</b> when you’ve paid an expense report.</li></ol></div>
   <div class="card"><h3>Admins</h3><ul>
     <li><a href="/admin">Needs attention</a> lists rides waiting for approval, rides this week with no leader, stuck email sends, unpublished newsletter drafts, and new photos members shared.</li>
     <li><a href="/admin/submitted">Photos to review</a> (under Website) is the queue for photos shared without the club PIN. Each person’s photos are one card, all ticked: untick the ones you don’t want and <b>Approve</b> the rest into the album, or <b>Reject</b> them. Every action has an <b>Undo</b>. Photos stay private until approved. Photos posted with the PIN show there too, marked as such.</li>

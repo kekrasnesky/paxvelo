@@ -36,6 +36,7 @@ const (
 	mailConfirm    = "Email check"
 	mailMoved      = "Site-move email"
 	mailAuto       = "Automated email"
+	mailRequest    = "Spending request"
 )
 
 type sentEmail struct {
@@ -174,7 +175,7 @@ const sentLogPage = 300
 func (a *App) sentLogPage(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	v := &sentLogView{Kind: q.Get("kind"), Result: q.Get("result"), Q: strings.TrimSpace(q.Get("q")), Live: a.mailer.live(),
-		Kinds: []string{mailCampaign, mailAuto, mailWelcome, mailMoved, mailClub, mailSignup, mailConfirm, mailWaiverLink, mailMyLink, mailPassword, mailTest}}
+		Kinds: []string{mailCampaign, mailAuto, mailWelcome, mailMoved, mailClub, mailSignup, mailConfirm, mailWaiverLink, mailMyLink, mailPassword, mailRequest, mailTest}}
 	now := time.Now()
 	day := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, a.cfg.Location)
 	lq := strings.ToLower(v.Q)

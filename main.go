@@ -228,6 +228,16 @@ func (a *App) routes() http.Handler {
 	mux.Handle("POST /admin/treasurer/entries/{id}/remove", a.treasurerOnly("/admin/treasurer", a.removeLedger))
 	mux.Handle("POST /admin/treasurer/entries/{id}/restore", a.treasurerOnly("/admin/treasurer", a.restoreLedger))
 	mux.Handle("GET /admin/treasurer/receipts/{name}", a.boardOnly(a.receiptFile))
+	// Expense reports and purchase requests (requestsadmin.go): any board
+	// member sends one; the treasurer and the president answer.
+	mux.Handle("GET /admin/treasurer/requests", a.boardOnly(a.requestsPage))
+	mux.Handle("POST /admin/treasurer/requests", a.boardOnly(a.sendRequest))
+	mux.Handle("POST /admin/treasurer/requests/{id}/approve", a.boardOnly(a.decideRequest(true)))
+	mux.Handle("POST /admin/treasurer/requests/{id}/reject", a.boardOnly(a.decideRequest(false)))
+	mux.Handle("POST /admin/treasurer/requests/{id}/withdraw", a.boardOnly(a.withdrawRequest))
+	mux.Handle("POST /admin/treasurer/requests/{id}/restore", a.boardOnly(a.restoreRequest))
+	mux.Handle("POST /admin/treasurer/requests/{id}/bought", a.boardOnly(a.boughtRequest))
+	mux.Handle("POST /admin/treasurer/requests/{id}/paid", a.boardOnly(a.paidBackRequest))
 	mux.Handle("GET /admin/treasurer/budget", a.boardOnly(a.budgetPage))
 	mux.Handle("POST /admin/treasurer/budget", a.boardOnly(a.saveBudget))
 	mux.Handle("GET /admin/treasurer/reports", a.boardOnly(a.reportsPage))

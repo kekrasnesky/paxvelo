@@ -37,6 +37,10 @@ type Treasury struct {
 	NextReport int                 `json:"next_report_id,omitempty"`
 	Reports    []*SavedReport      `json:"reports,omitempty"`
 	RemovedRep *SavedReport        `json:"removed_report,omitempty"`
+	// Requests are board members' expense reports and purchase requests
+	// (requests.go).
+	NextRequest int             `json:"next_request_id,omitempty"`
+	Requests    []*SpendRequest `json:"requests,omitempty"`
 }
 
 // LedgerEntry is one expense or income line.
@@ -52,6 +56,7 @@ type LedgerEntry struct {
 	ReceiptName string    `json:"receipt_name,omitempty"` // the name it was uploaded with
 	AddedBy     string    `json:"added_by,omitempty"`
 	Added       time.Time `json:"added"`
+	Request     int       `json:"request,omitempty"` // added when this request was approved
 }
 
 // ReceiptPDF reports whether the receipt is a PDF rather than a photo.
@@ -323,6 +328,12 @@ func (t *Treasury) addCategory(kind, name string) {
 func (s *Store) AddLedgerEntry(e LedgerEntry) (LedgerEntry, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	c := s.addLedger(e)
+	return *c, s.save()
+}
+
+// addLedger adds a line; the caller holds the lock and saves.
+func (s *Store) addLedger(e LedgerEntry) *LedgerEntry {
 	t := &s.d.Treasury
 	t.NextEntry = max(t.NextEntry, 1)
 	e.ID, e.Added = t.NextEntry, time.Now().UTC()
@@ -330,7 +341,7 @@ func (s *Store) AddLedgerEntry(e LedgerEntry) (LedgerEntry, error) {
 	t.addCategory(e.Kind, e.Category)
 	c := e
 	t.Entries = append(t.Entries, &c)
-	return e, s.save()
+	return &c
 }
 
 // UpdateLedgerEntry saves changes to a line, keeping who added it and when.
@@ -341,7 +352,7 @@ func (s *Store) UpdateLedgerEntry(e LedgerEntry) error {
 	if old == nil {
 		return errors.New("that line was removed")
 	}
-	e.Kind, e.AddedBy, e.Added = old.Kind, old.AddedBy, old.Added
+	e.Kind, e.AddedBy, e.Added, e.Request = old.Kind, old.AddedBy, old.Added, old.Request
 	s.d.Treasury.addCategory(e.Kind, e.Category)
 	*old = e
 	return s.save()

@@ -51,6 +51,8 @@ type moneyView struct {
 	// Expenses: PayPal's fees on the year's dues so far, and their category.
 	Fees   int64
 	FeeCat string
+	// Requests: expense reports and purchase requests (requestsadmin.go).
+	Requests *requestsView
 }
 
 // duesView is the membership income worked out from Members.
@@ -290,8 +292,10 @@ func (a *App) saveReceipt(hdr *multipart.FileHeader) (string, error) {
 
 var receiptName = regexp.MustCompile(`^[0-9a-f]{16}\.(jpg|png|webp|gif|pdf)$`)
 
+// dropReceipt deletes a receipt file, unless a request still shows it (an
+// approved one shares its receipt with its line on Expenses).
 func (a *App) dropReceipt(name string) {
-	if receiptName.MatchString(name) {
+	if receiptName.MatchString(name) && !a.store.RequestReceipt(name) {
 		os.Remove(filepath.Join(a.receiptsDir(), name))
 	}
 }
