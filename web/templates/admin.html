@@ -2535,12 +2535,12 @@ function settingsCard(){var d=el('details',{'class':'ed-card ed-settings',open:s
   d.appendChild(el('div',{'class':'ed-fields'},[el('label',{'class':'check'},[inMenu,' Show this page in the Info menu']),menuRows,
     field('Name in the browser tab',inp(getS('title'),function(v){setS('title',v)},{placeholder:titleText()}),'Leave it empty to use the page title.'),
     field('Summary for Google and link previews',grow(inp(getS('description'),function(v){setS('description',v)},{rows:2})),'A sentence or two about the page.'),
-    check('wide','Wider layout'),check('people','People cards'),
+    check('wide','Wider layout'),check('people','People cards'),check('fold','Sections open with a tap on phones'),
     others()]));
   return d}
 function isYes(v){return /^(yes|true|y|on)$/i.test(v)}
 function titleText(){var b=doc.blocks.filter(function(b){return b.type==='title'})[0];return b?b.text.replace(/[*\[\]]|\(.*?\)/g,'').trim():''}
-function others(){var o=doc.fm.lines.filter(function(l){return l.key&&!/^(menu|order|title|description|wide|people)$/.test(l.key)});
+function others(){var o=doc.fm.lines.filter(function(l){return l.key&&!/^(menu|order|title|description|wide|people|fold)$/.test(l.key)});
   return o.length?el('p',{'class':'muted small',text:'Also kept as they are: '+o.map(function(l){return l.key+': '+l.value}).join(', ')}):null}
 
 // ---- Cards or text ----

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"html/template"
 	"io/fs"
+	"log"
 	"mime"
 	"net/http"
 	"strconv"
@@ -205,6 +206,8 @@ func newSite(cfg Config) (*Site, error) {
 		"moneyInput":   moneyInput,
 		"mdy":          mdy,
 		"blankRow":     func() budgetRow { return budgetRow{} },
+		"blankKitItem": func() KitItem { return KitItem{} },
+		"nextKitName":  func() string { return strconv.Itoa(time.Now().In(clubTZ).Year()+1) + " club kit order" },
 		"sentBatch":    func(b submittedBatch, albums []Album) sentBatchView { return sentBatchView{Batch: b, Albums: albums} },
 		"riderLevels":  func() []choice { return riderLevels },
 		"mailPieces":   func(kind string) []autoPiece { return mailPieces[kind] },
@@ -268,7 +271,7 @@ func newSite(cfg Config) (*Site, error) {
 	if err := s.renderContent(contentData{}); err != nil {
 		return nil, err
 	}
-	for _, name := range []string{"join", "unsubscribe", "membership", "notfound", "newsletter", "calendar", "ride", "ride-new", "routes", "share-photos", "gallery", "album", "photo", "minutes"} {
+	for _, name := range []string{"join", "unsubscribe", "membership", "notfound", "newsletter", "calendar", "ride", "ride-new", "routes", "share-photos", "gallery", "album", "photo", "minutes", "kit"} {
 		if s.dynamic[name], err = parse(name + ".html"); err != nil {
 			return nil, err
 		}
@@ -283,7 +286,7 @@ func newSite(cfg Config) (*Site, error) {
 	if s.email, err = template.New("").ParseFS(webFS, "web/templates/email.html"); err != nil {
 		return nil, err
 	}
-	if s.admin, err = template.New("").Funcs(funcs).ParseFS(webFS, "web/templates/admin.html", "web/templates/admin-email.html", "web/templates/admin-treasurer.html"); err != nil {
+	if s.admin, err = template.New("").Funcs(funcs).ParseFS(webFS, "web/templates/admin.html", "web/templates/admin-email.html", "web/templates/admin-treasurer.html", "web/templates/admin-kit.html"); err != nil {
 		return nil, err
 	}
 	return s, nil
@@ -441,6 +444,7 @@ func (s *Site) servePage(p *Page) http.Handler {
 func (s *Site) render(w http.ResponseWriter, status int, name, path, title string, data any) {
 	var buf bytes.Buffer
 	if err := s.dynamic[name].ExecuteTemplate(&buf, "layout", s.view(path, title, data)); err != nil {
+		log.Printf("page %s: %v", name, err)
 		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return
 	}

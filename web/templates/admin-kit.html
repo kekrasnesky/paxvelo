@@ -1,0 +1,109 @@
+{{/* Website → Club kit: the store's items, the yearly order and its orders (kitadmin.go). */}}
+
+{{define "kit"}}{{template "head" .}}{{$k := .Kit}}{{$s := $k.Shop}}
+<div class="title-row">
+  <h1>Club kit</h1>
+  <p>{{if $k.Open}}<span class="tag tag-ok">Taking orders{{with $s.ClosesLabel}} until {{.}}{{end}}</span>{{else}}<span class="tag">Closed</span>{{end}}</p>
+  <a class="btn ghost mini" href="/kit" target="_blank" rel="noopener">{{icon "eye"}}See the page</a>
+</div>
+
+<form class="card kit-shop" method="post" action="/admin/kit/shop">
+  <h2>{{or $s.Name "This year’s order"}}</h2>
+  <div class="pair">
+    <label>Name <input name="name" maxlength="80" value="{{$s.Name}}" placeholder="2027 club kit order"></label>
+    <label>Last day to order <input type="date" name="closes" value="{{$s.Closes}}"></label>
+  </div>
+  <label title="Members’ totals are added to a PayPal.me link, so PayPal fills in the amount">PayPal link for payments <input type="url" name="pay_url" value="{{$s.PayURL}}" placeholder="https://paypal.me/paxvelo"></label>
+  <label class="check"><input type="checkbox" name="open" value="1"{{if $s.Open}} checked{{end}}> Taking orders</label>
+  <div class="row-acts">
+    <button>{{icon "save"}}Save</button>
+  </div>
+</form>
+
+<div class="card">
+  <div class="title-row"><h2>Email members</h2></div>
+  <form method="post" action="/admin/kit/email" class="inline"><button class="ghost" title="Writes the email on Email → Send an email, with each member’s own order link"{{if not $k.Open}} disabled{{end}}>{{icon "mail"}}Write the kit email</button></form>
+</div>
+
+<section class="card" id="items">
+  <h2>Items</h2>
+  {{with $k.Removed}}<form class="flash warn undo-flash" method="post" action="/admin/kit/items/restore">Removed {{.Name}}. <button class="link">{{icon "undo"}}Undo</button></form>{{end}}
+  <ul class="kit-admin-items">
+  {{range $i, $it := $s.Items}}<li id="item-{{.ID}}">
+    <details{{if eq $k.Edit .ID}} open{{end}}>
+      <summary class="kit-row">
+        {{if .Photo}}<img src="{{.Photo}}" alt="" width="56" height="56">{{else}}<span class="kit-nophoto">{{icon "camera"}}</span>{{end}}
+        <span class="kit-row-name"><strong>{{.Name}}</strong>
+          <span class="muted small">{{if .MemberPrice}}{{money .MemberPrice}} members{{if .Price}} · {{money .Price}} regular{{end}}{{else}}<span class="tag tag-warn">No price</span>{{end}}{{if .Hidden}} <span class="tag">Hidden</span>{{end}}</span>
+          <span class="muted small">{{.SizeList}}</span></span>
+        <span class="row-acts">
+          <button class="link" form="up-{{.ID}}" title="Move up"{{if eq $i 0}} disabled{{end}}>{{icon "up"}}<span class="sr">Move up</span></button>
+          <button class="link" form="down-{{.ID}}" title="Move down"{{if eq (inc $i) (len $s.Items)}} disabled{{end}}>{{icon "down"}}<span class="sr">Move down</span></button>
+          <span class="link">{{icon "pencil"}}Edit</span>
+        </span>
+      </summary>
+      {{template "kit-item-form" .}}
+    </details>
+    <form id="up-{{.ID}}" method="post" action="/admin/kit/items/{{.ID}}/move" hidden><input type="hidden" name="dir" value="up"></form>
+    <form id="down-{{.ID}}" method="post" action="/admin/kit/items/{{.ID}}/move" hidden><input type="hidden" name="dir" value="down"></form>
+  </li>{{else}}<li class="empty">No items yet.</li>{{end}}
+  </ul>
+  <details class="kit-add"{{if eq $k.Edit -1}} open{{end}}><summary class="btn ghost">{{icon "plus"}}Add an item</summary>
+    {{template "kit-item-form" blankKitItem}}
+  </details>
+</section>
+
+<section class="card" id="orders">
+  <div class="title-row">
+    <h2>Orders</h2>
+    {{if gt (len $s.Rounds) 1}}<form method="get" class="inline"><select name="round" aria-label="Which order" onchange="this.form.submit()">{{range $s.Rounds}}<option value="{{.}}"{{if eq . $k.Round}} selected{{end}}>{{if eq . $s.Round}}{{or $s.Name "This year"}}{{else}}Order {{.}}{{end}}</option>{{end}}</select><noscript><button class="ghost mini">Show</button></noscript></form>{{end}}
+    {{if $k.Orders}}<a class="btn ghost mini" href="/admin/kit/orders.csv?round={{$k.Round}}">{{icon "download"}}Spreadsheet</a>{{end}}
+  </div>
+  {{if $k.Orders}}
+  <p class="kit-sums"><span><strong>{{len $k.Orders}}</strong> <span class="muted">{{if eq (len $k.Orders) 1}}order{{else}}orders{{end}}</span></span> <span><strong>{{$k.Paid}}</strong> <span class="muted">paid</span></span> <span><strong>{{money $k.PaidTotal}}</strong> <span class="muted">of {{money $k.Total}} in</span></span></p>
+  <div class="kit-tally">{{range $k.Tally}}<div><h3>{{.Item}} <span class="muted small">{{.Total}}</span></h3>
+    <table class="tight"><thead><tr>{{range .Sizes}}<th>{{.Size}}</th>{{end}}</tr></thead>
+    <tbody><tr>{{range .Sizes}}<td title="{{.Paid}} paid">{{.Qty}}{{if lt .Paid .Qty}} <span class="muted small">({{.Paid}})</span>{{end}}</td>{{end}}</tr></tbody></table></div>{{end}}</div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Member</th><th>Order</th><th class="right">Total</th><th>Paid</th></tr></thead>
+    <tbody>{{range $k.Orders}}<tr id="o{{.ID}}">
+      <td><strong>{{.Name}}</strong><br><span class="muted small">{{.Email}}</span></td>
+      <td>{{.Summary}}{{with .Note}}<br><span class="muted small">“{{.}}”</span>{{end}}</td>
+      <td class="right nowrap">{{money .Total}}</td>
+      <td class="nowrap"><form method="post" action="/admin/kit/orders/{{.ID}}/paid" class="inline">
+        {{if .Paid}}<span class="tag tag-ok">{{mdy .PaidOn}}</span> <input type="hidden" name="paid" value="0"><button class="link" title="Mark as not paid">{{icon "undo"}}<span class="sr">Undo</span></button>
+        {{else}}<input type="hidden" name="paid" value="1"><button class="mini">{{icon "check"}}Mark paid</button>{{end}}
+      </form></td>
+    </tr>{{end}}</tbody>
+  </table></div>
+  {{else}}<p class="empty">No orders yet.</p>{{end}}
+  {{if $k.Current}}<details class="kit-next"><summary class="link">{{icon "calendar"}}Start next year’s order</summary>
+    <form method="post" action="/admin/kit/round" class="inline-form" onsubmit="return confirm('Start a new order? This one closes, and its orders move under Orders.')">
+      <label>Name <input name="name" maxlength="80" placeholder="{{nextKitName}}"></label>
+      <button class="ghost">Start</button>
+    </form>
+  </details>{{end}}
+</section>
+{{template "foot" .}}{{end}}
+
+{{define "kit-item-form"}}<form class="kit-item-form" method="post" action="/admin/kit/items" enctype="multipart/form-data">
+  <input type="hidden" name="id" value="{{.ID}}">
+  <div class="pair">
+    <label>Name <input name="name" maxlength="80" required value="{{.Name}}" placeholder="Club jersey"></label>
+    <label>Sizes <input name="sizes" value="{{if .Sizes}}{{.SizeList}}{{else}}XS, S, M, L, XL, 2XL, 3XL{{end}}" title="Separated by commas"></label>
+  </div>
+  <label>Description <input name="desc" maxlength="300" value="{{.Desc}}"></label>
+  <div class="pair kit-prices">
+    <label>Member price <span class="money-in"><span aria-hidden="true">$</span><input name="member_price" inputmode="decimal" autocomplete="off" value="{{if .MemberPrice}}{{moneyInput .MemberPrice}}{{end}}"></span></label>
+    <label>Regular price <span class="money-in"><span aria-hidden="true">$</span><input name="price" inputmode="decimal" autocomplete="off" value="{{if .Price}}{{moneyInput .Price}}{{end}}"></span></label>
+  </div>
+  <div class="kit-photo-row">
+    {{with .Photo}}<img src="{{.}}" alt="" width="80" height="80"><label class="check"><input type="checkbox" name="photo_remove" value="1"> Remove photo</label>{{end}}
+    <label>{{if .Photo}}New photo{{else}}Photo{{end}} <input type="file" name="photo" accept="image/*"></label>
+  </div>
+  <label class="check"><input type="checkbox" name="hidden" value="1"{{if .Hidden}} checked{{end}}> Hidden</label>
+  <div class="row-acts">
+    <button>{{icon "save"}}Save</button>
+    {{if .ID}}<button class="link danger" formaction="/admin/kit/items/{{.ID}}/remove" formnovalidate>{{icon "trash"}}Remove</button>{{end}}
+  </div>
+</form>{{end}}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/base64"
 	"regexp"
@@ -30,7 +31,10 @@ var inlineScriptRE = regexp.MustCompile(`(?s)<script(?: type="speculationrules")
 func scriptHashes(page []byte) []string {
 	var out []string
 	for _, m := range inlineScriptRE.FindAllSubmatch(page, -1) {
-		sum := sha256.Sum256(m[1])
+		// Browsers turn every line break into a plain \n before hashing, so
+		// a checkout with Windows line breaks hashes the same as Linux.
+		js := bytes.ReplaceAll(m[1], []byte("\r\n"), []byte("\n"))
+		sum := sha256.Sum256(bytes.ReplaceAll(js, []byte("\r"), []byte("\n")))
 		out = append(out, "'sha256-"+base64.StdEncoding.EncodeToString(sum[:])+"'")
 	}
 	return out

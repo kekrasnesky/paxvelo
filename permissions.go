@@ -68,14 +68,14 @@ var boardTabs = map[string]bool{
 	"waivers": true, "auto": true, "newsletter": true, "sent-log": true,
 	"pages": true, "home-photos": true, "board": true, "instagram": true,
 	"expenses": true, "income": true, "budget": true, "reports": true,
-	"security": true,
+	"security": true, "kit": true,
 }
 
 // boardHref reports whether an admin link leads to a board-only screen, so
 // Home can leave it out for website admins.
 func boardHref(href string) bool {
 	for _, p := range []string{"/admin/waivers", "/admin/email/auto", "/admin/email/log", "/admin/newsletter",
-		"/admin/pages", "/admin/home-photos", "/admin/board", "/admin/instagram", "/admin/security", "/admin/backup"} {
+		"/admin/pages", "/admin/home-photos", "/admin/board", "/admin/instagram", "/admin/security", "/admin/backup", "/admin/kit"} {
 		if href == p || strings.HasPrefix(href, p+"/") || strings.HasPrefix(href, p+"?") || strings.HasPrefix(href, p+"#") {
 			return true
 		}

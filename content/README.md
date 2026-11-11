@@ -144,6 +144,7 @@ The lines between the `---` marks are the page's settings, and all of them are o
 | `description` | The summary search engines and link previews show. |
 | `wide` | `wide: yes` gives the page a wider layout, like the board page. |
 | `people` | `people: yes` shows lists that start with a bold name as people cards, like the board page. |
+| `fold` | `fold: yes` shows each `##` section as just its heading on phones; a tap opens it. Our Rides uses it. |
 
 To remove a page, open its file, click the **⋯** menu, and choose **Delete file**. If other pages link to it, update those links too.
 

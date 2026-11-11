@@ -34,6 +34,43 @@
     if(root.classList.contains('menu-open')){setMenu(false);if(burger)burger.focus()}
     setDD(false);
   });
+  // A page set to fold (fold: yes, like Our Rides): on a phone each ## section
+  // shows only its heading and its level tags, and a tap opens the rest. A
+  // link to a section (#tuesday-night-ride) opens it.
+  var fold=d.querySelector('.page-fold');
+  if(fold&&window.matchMedia&&matchMedia('(max-width:767px)').matches){
+    fold.classList.add('folds');
+    var folds=[];
+    fold.querySelectorAll('section.section').forEach(function(s){
+      var h=s.querySelector('h2');if(!h||!s.id)return;
+      var body=d.createElement('div'),btn=d.createElement('button'),keep=h.nextElementSibling;
+      if(!(keep&&keep.tagName==='P'&&keep.querySelector('.lvl')))keep=null;
+      body.className='fold-body';body.id=s.id+'-more';body.hidden=true;
+      for(var n=(keep||h).nextSibling;n;){var next=n.nextSibling;body.appendChild(n);n=next}
+      s.appendChild(body);
+      btn.type='button';btn.className='fold-btn';btn.setAttribute('aria-expanded','false');btn.setAttribute('aria-controls',body.id);
+      while(h.firstChild)btn.appendChild(h.firstChild);
+      btn.insertAdjacentHTML('beforeend','<svg viewBox="0 0 12 7" aria-hidden="true"><path d="M1 1l5 5 5-5"/></svg>');
+      h.appendChild(btn);
+      function set(open){body.hidden=!open;btn.setAttribute('aria-expanded',open)}
+      btn.addEventListener('click',function(){set(body.hidden)});
+      folds.push({s:s,set:set});
+    });
+    function openHash(){
+      var id=decodeURIComponent(location.hash.slice(1)),t=id&&d.getElementById(id);if(!t)return;
+      folds.forEach(function(f){if(f.s.contains(t)){f.set(true);t.scrollIntoView()}});
+    }
+    openHash();addEventListener('hashchange',openHash);
+  }
+
+  // The kit order form adds up the total as sizes are filled in.
+  var kitForm=d.querySelector('.kit-form'),kitLive=kitForm&&kitForm.querySelector('.kit-live');
+  if(kitLive){
+    var kitSum=function(){var c=0,n=0;kitForm.querySelectorAll('input[data-each]').forEach(function(i){var q=Math.max(0,Math.min(5,parseInt(i.value,10)||0));n+=q;c+=q*(+i.dataset.each)});
+      kitLive.textContent=n?n+(n>1?' pieces':' piece')+' · $'+(c/100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','):''};
+    kitForm.addEventListener('input',kitSum);kitSum();
+  }
+
   // The header slides away while you scroll down the page and comes back as
   // soon as you scroll up, so phones get the whole screen for reading. It
   // stays while a menu is open or something in it has focus.

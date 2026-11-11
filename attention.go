@@ -24,7 +24,7 @@ var adminGroups = []adminGroup{
 	{"Email", "/admin/email", []adminSection{{"email", "Send an email", "/admin/email"}, {"auto", "Automations", "/admin/email/auto"}, {"newsletter", "Newsletter", "/admin/newsletter"}, {"sent-log", "Sent log", "/admin/email/log"}}},
 	{"Rides", "/admin/calendar", []adminSection{{"calendar", "Calendar", "/admin/calendar"}, {"rides", "Weekly rides", "/admin/rides"}, {"history", "History", "/admin/history"}}},
 	{"Website", "/admin/pages", []adminSection{{"pages", "Pages", "/admin/pages"}, {"home-photos", "Home photos", "/admin/home-photos"}, {"gallery", "Gallery", "/admin/gallery"}, {"submitted", "Photos to review", "/admin/submitted"},
-		{"board", "Board", "/admin/board"}, {"instagram", "Instagram", "/admin/instagram"}, {"minutes", "Minutes", "/admin/minutes"}}},
+		{"board", "Board", "/admin/board"}, {"instagram", "Instagram", "/admin/instagram"}, {"minutes", "Minutes", "/admin/minutes"}, {"kit", "Club kit", "/admin/kit"}}},
 	{"Treasurer", "/admin/treasurer", []adminSection{{"expenses", "Expenses", "/admin/treasurer"}, {"requests", "Requests", "/admin/treasurer/requests"}, {"income", "Income", "/admin/treasurer/income"},
 		{"budget", "Budget", "/admin/treasurer/budget"}, {"reports", "Reports", "/admin/treasurer/reports"}}},
 	{"Stats", "/admin/stats", []adminSection{{"stats", "Stats", "/admin/stats"}}},

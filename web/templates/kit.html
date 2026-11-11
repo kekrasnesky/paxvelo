@@ -1,0 +1,54 @@
+{{define "content"}}{{with .Data}}{{$v := .}}
+<article class="page page-wide kit">
+  {{with .Page}}{{.Intro}}{{else}}<h1>Club Kit</h1>{{end}}
+
+  <section class="section kit-shop" id="order">
+    <h2>{{or .Shop.Name "The yearly bulk order"}}</h2>
+    {{if .Open}}<p class="kit-status open"><strong>Open now</strong>{{with .Shop.ClosesLabel}}, until {{.}}{{end}}. Members pay the club price.</p>
+    {{else}}<p class="kit-status">Closed right now. When the next one opens, members get an email with their own link to order.</p>{{end}}
+
+    {{if .Test}}<p class="kit-note">That was a test email, so this link isn’t anyone’s. In the real email, each member’s link opens their own order.</p>
+    {{else if .Invalid}}<p class="kit-note">That link doesn’t work any more. Open the newest kit email, or get your link from <a href="/membership">My Membership</a>.</p>
+    {{else if .Member}}
+      {{if .Lapsed}}<p class="kit-note">Hi {{.Member.FirstName}}! Your membership has run out, so the club price isn’t open to you right now. <a href="{{.MyLink}}">Renew on your membership page</a>, then come back here.</p>
+      {{else if .Open}}<p class="kit-hi">Hi {{.Member.FirstName}}! Pick your pieces and sizes, then save. {{if not .Order}}You can change it until the order closes.{{end}}</p>{{end}}
+    {{else if .Open}}<p class="kit-note">Members: open the link in the kit email we sent you, or find it on <a href="/membership">My Membership</a>. Not a member yet? <a href="/join">Join</a> to get the club price.</p>{{end}}
+
+    {{with .Message}}<p class="kit-msg err" role="alert">{{.}}</p>{{end}}
+
+    {{with .Order}}<div class="kit-order{{if $v.Saved}} just-saved{{end}}" tabindex="-1">
+      <p class="kit-order-head">{{if $v.Saved}}Saved! {{end}}Your order{{if .Paid}} · <span class="kit-paid">Paid</span>{{end}}</p>
+      <ul class="kit-lines">{{range .Lines}}<li><span>{{.Name}} · {{.Size}}{{if gt .Qty 1}} ×{{.Qty}}{{end}}</span> <span>{{money .LineTotal}}</span></li>{{end}}</ul>
+      <p class="kit-total"><span>Total</span> <strong>{{money .Total}}</strong></p>
+      {{if .Paid}}<p class="kit-small">Thanks! We’ll let you know when the kit arrives.</p>
+      {{else}}{{with $v.PayLink}}<p><a class="btn" href="{{.}}" target="_blank" rel="noopener">Pay {{money $v.Order.Total}} with PayPal</a></p>
+        <p class="kit-small">Your order goes in once it’s paid. We’ll mark it paid here when it comes through.</p>
+      {{else}}<p class="kit-small">We’ll email you how to pay.</p>{{end}}{{end}}
+    </div>{{end}}
+
+    {{if .Items}}
+    {{if .CanOrder}}<form method="post" action="/kit/order" class="kit-form"><input type="hidden" name="t" value="{{.Token}}">{{end}}
+    <ul class="kit-items">
+      {{range .Items}}{{$it := .}}<li class="kit-item">
+        {{with .Photo}}<img src="{{.}}" alt="{{$it.Name}}" loading="lazy" decoding="async">{{end}}
+        <div class="kit-item-text">
+          <h3>{{.Name}}</h3>
+          {{with .Desc}}<p>{{.}}</p>{{end}}
+          <p class="kit-price"><strong>{{money .MemberPrice}}</strong> <span class="muted">members</span>{{if .Saving}} <s title="Regular price">{{money .Price}}</s> <span class="kit-save">Save {{money .Saving}}</span>{{end}}</p>
+          {{if $v.CanOrder}}<fieldset class="kit-sizes"><legend>How many, by size</legend>
+            {{range $i, $s := .Sizes}}<label><span>{{$s}}</span><input name="q-{{$it.ID}}-{{$i}}" type="number" inputmode="numeric" min="0" max="5" value="{{with $v.Order}}{{with .Qty $it.ID $s}}{{.}}{{end}}{{end}}" placeholder="0" aria-label="{{$it.Name}}, size {{$s}}" data-each="{{$it.MemberPrice}}"></label>{{end}}
+          </fieldset>{{end}}
+        </div>
+      </li>{{end}}
+    </ul>
+    {{if .CanOrder}}<label class="kit-note-box">Anything we should know? (optional) <textarea name="note" rows="2" maxlength="300">{{with .Order}}{{.Note}}{{end}}</textarea></label>
+      <p class="kit-live" aria-live="polite"></p>
+      <button class="btn" type="submit">{{if .Order}}Save changes{{else}}Reserve my kit{{end}}</button>
+    </form>{{end}}
+    {{else}}<p class="muted">This year’s pieces and prices are on their way.</p>{{end}}
+  </section>
+
+  {{with .Page}}{{.Body}}{{end}}
+  {{with .StoreURL}}<p class="kit-store">Need something between bulk orders? <a href="{{.}}" target="_blank" rel="noopener">Order any time from the team store</a> at the regular price.</p>{{end}}
+</article>
+{{end}}{{end}}

@@ -30,6 +30,7 @@ type contentPage struct {
 	Menu       string // label in the Info menu; empty means not in the menu
 	Order      int
 	Wide       bool
+	Fold       bool          // on phones each ## section shows its heading only, tap to open
 	People     bool          // bullet lists starting with a bold name show as people cards
 	Intro      template.HTML // the # heading and everything before the first ##
 	Body       template.HTML // the ## sections
@@ -140,8 +141,10 @@ func parsePage(file, src string, r *mdRenderer) (*contentPage, error) {
 			p.Wide = isYes(s.value)
 		case "people":
 			p.People = isYes(s.value)
+		case "fold":
+			p.Fold = isYes(s.value)
 		default:
-			return nil, fmt.Errorf("line %d: unknown setting %q (use title, description, menu, order, wide, or people)", s.line, s.key)
+			return nil, fmt.Errorf("line %d: unknown setting %q (use title, description, menu, order, wide, people, or fold)", s.line, s.key)
 		}
 	}
 	heading, intro, rest, err := r.render(body, bodyLine, pageStyle{Home: p.Path == "/", People: p.People})

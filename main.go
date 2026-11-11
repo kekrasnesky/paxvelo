@@ -138,13 +138,9 @@ func (a *App) routes() http.Handler {
 	// Short, memorable links for emails and flyers: paxvelo.club/kit and /strava.
 	// /kit is the kit page (content/kit.md), or straight to the team store if
 	// that page is ever removed, so the links already out there keep working.
-	mux.HandleFunc("GET /kit", func(w http.ResponseWriter, r *http.Request) {
-		if (*a.site.pages.Load())["/kit"] != nil {
-			a.site.serveContent("/kit").ServeHTTP(w, r)
-			return
-		}
-		http.Redirect(w, r, a.cfg.KitURL, http.StatusFound)
-	})
+	// It's also the club kit store (kitpage.go).
+	mux.HandleFunc("GET /kit", a.kitPage)
+	mux.HandleFunc("POST /kit/order", a.kitOrder)
 	mux.Handle("GET /strava", http.RedirectHandler(a.cfg.StravaURL, http.StatusFound))
 
 	// The newsletter, and photos uploaded for it in the admin.
@@ -360,6 +356,16 @@ func (a *App) routes() http.Handler {
 	mux.Handle("POST /admin/instagram/connect", a.boardOnly(a.instagramConnect))
 	mux.Handle("POST /admin/instagram/disconnect", a.boardOnly(a.instagramDisconnect))
 	mux.Handle("POST /admin/instagram/sync", a.boardOnly(a.instagramSyncNow))
+	mux.Handle("GET /admin/kit", a.boardOnly(a.kitAdmin))
+	mux.Handle("GET /admin/kit/orders.csv", a.boardOnly(a.kitCSV))
+	mux.Handle("POST /admin/kit/shop", a.boardOnly(a.saveKitShop))
+	mux.Handle("POST /admin/kit/round", a.boardOnly(a.newKitRound))
+	mux.Handle("POST /admin/kit/email", a.boardOnly(a.kitEmail))
+	mux.Handle("POST /admin/kit/items", a.boardOnly(a.saveKitItem))
+	mux.Handle("POST /admin/kit/items/restore", a.boardOnly(a.restoreKitItem))
+	mux.Handle("POST /admin/kit/items/{id}/move", a.boardOnly(a.moveKitItem))
+	mux.Handle("POST /admin/kit/items/{id}/remove", a.boardOnly(a.removeKitItem))
+	mux.Handle("POST /admin/kit/orders/{id}/paid", a.boardOnly(a.kitPaid))
 	mux.Handle("GET /admin/minutes", a.auth(a.minutesAdmin))
 	mux.Handle("POST /admin/minutes", a.boardOnly(a.addMinutes))
 	mux.Handle("POST /admin/minutes/{id}/delete", a.boardOnly(a.deleteMinutes))

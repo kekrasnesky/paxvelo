@@ -73,6 +73,8 @@ adult on their Family plan. */}}
       <a class="btn {{if .DetailsDone}}btn-quiet {{end}}status-act" href="#details">{{if .DetailsDone}}Update{{else}}Add{{end}}</a>
     </li>
   </ul>
+  {{if .KitOpen}}<p class="kit-note kit-mine"><span><strong>{{.KitName}}.</strong> {{with .KitOrder}}Your order: {{.Summary}} ({{money .Total}}{{if .Paid}}, paid{{end}}).{{else}}Members get the club price.{{end}}</span>
+    <a class="btn{{if .KitOrder}} btn-quiet{{end}}" href="/kit?t={{.Token}}">{{if .KitOrder}}See my order{{else}}Reserve my kit{{end}}</a></p>{{end}}
 
   {{template "my-waiver" .}}
 

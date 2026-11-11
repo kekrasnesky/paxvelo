@@ -1,30 +1,19 @@
 ---
 title: Club Kit
-description: PaxVelo club kit, custom-made by Jakroo. Order any time from the team store, or join the club's yearly bulk order to save.
+description: PaxVelo club kit, custom-made by Jakroo. Members order together once a year at the club price, and the team store is open all year.
 ---
 
 # Club Kit
 
-Ride in club colors. Our kit is custom-made by Jakroo, and you order it from the PaxVelo team store on their website.
+Ride in club colors. Our kit is custom-made by Jakroo. Once a year we put in one bulk order together, and the club pays part of the cost for members.
 
-![The blue PaxVelo club jersey](photos/kit-jersey.webp) ![Black PaxVelo bib shorts](photos/kit-bibs.webp)
+## How the Yearly Order Works
 
-## Two Ways to Order
-
-### Any Time
-
-The team store is always open. Order whenever you like, at the team price. Each piece is made to order, so it takes about three weeks to reach you.
-
-### The Yearly Bulk Order
-
-Once a year, the club puts in one big order together, which brings the price down. Watch the newsletter and Discord for when it opens.
-
-<!-- When this year's bulk order is set, add the dates above, like: This year's order is open March 1–21. -->
+1. **The order opens.** Members get an email with their own link to order. No account or password needed.
+2. **Pick your pieces and sizes.** You can change your order until it closes.
+3. **Pay with PayPal.** Your order goes in once it's paid.
+4. **We order from Jakroo.** Each piece is made to order, so kit arrives a few weeks after the order closes. We'll email you when it's here.
 
 ## Finding Your Size
 
-The team store has a free size recommendation: answer a few questions and it suggests a size for each piece. Still not sure? Ask on [Discord](https://discord.gg/8TtR4pu4C2). Plenty of members have been through it.
-
-[Open the team store]({kit})
-
-The store is on Jakroo's website and opens in a new tab.
+Jakroo's team store has a free size recommendation: answer a few questions and it suggests a size for each piece. Still not sure? Ask on [Discord](https://discord.gg/8TtR4pu4C2). Plenty of members have been through it.

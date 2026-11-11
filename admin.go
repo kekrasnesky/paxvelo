@@ -34,6 +34,7 @@ type adminView struct {
 	Stats                             *statsView     // the Stats page
 	Money                             *moneyView     // the Treasurer tab (treasureradmin.go)
 	Answer                            *answerView    // a spending request answered from the email (requestanswer.go)
+	Kit                               *kitAdminView  // Website → Club kit (kitadmin.go)
 	CSS                               template.CSS
 	PhotoJS                           template.JS // photos.js: photos shrink before they upload
 	Year                              int
@@ -273,6 +274,13 @@ var flashText = map[string]string{
 	"loggedin":             "",
 	"discarded":            "Draft discarded.",
 	"drafted":              "An email about the newsletter is ready below. Check it, send yourself a test, then send it.",
+	"kit-drafted":          "The kit email is ready below, with each member’s own order link as a button. Pick who gets it, send yourself a test, then send it.",
+	"kit-saved":            "Saved.",
+	"kit-item":             "Saved.",
+	"kit-restored":         "Put back.",
+	"kit-round":            "Next year’s order is ready. Last year’s orders are under Orders.",
+	"kit-paid":             "Marked as paid.",
+	"kit-unpaid":           "Marked as not paid.",
 	"copied":               "This is a new draft copied from the other one. Edit away: the original is unchanged.",
 	"instagram":            "Saved. The home page shows these posts now.",
 	"page-saved":           "Saved. The page is updated on the website.",
@@ -375,6 +383,11 @@ var errorText = map[string]string{
 	"empty":             "Add a subject and a message first.",
 	"welcome":           "The welcome email needs a subject and a message.",
 	"save":              "Couldn’t save. Check the server log.",
+	"kit-date":          "Enter the last day as a date.",
+	"kit-pay":           "The pay link should start with https://, like https://paypal.me/paxvelo.",
+	"kit-amount":        "Enter prices in dollars, like 70 or 69.50.",
+	"kit-photo":         "That photo couldn’t be used. Try a JPG or PNG.",
+	"kit-draft":         "There’s already an unsent email here, so the kit email didn’t replace it. Send it, or press Discard draft, then try again.",
 	"test-to":           "Type the email address to send the test to.",
 	"test-failed":       "The test didn’t send. Email → Sent log says why.",
 	"not-published":     "Publish the issue first: the email links to it on the website.",

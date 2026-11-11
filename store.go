@@ -238,6 +238,8 @@ type storeData struct {
 
 	// The treasurer's books: expenses, income, budgets and saved reports (treasurer.go).
 	Treasury Treasury `json:"treasury"`
+	// The club kit store and its yearly bulk orders (kit.go).
+	Kit KitShop `json:"kit"`
 	// BoardLinked: the Board page's people were tied to member records with
 	// the same name once, when that link was added (boardroles.go).
 	BoardLinked bool `json:"board_linked,omitempty"`
@@ -341,6 +343,7 @@ func openStore(dir string) (*Store, error) {
 	s.relinkWaivers()
 	s.seedTreasury()
 	s.seedFee()
+	s.seedKit()
 	s.linkBoard()
 	return s, s.save()
 }

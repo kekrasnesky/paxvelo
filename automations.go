@@ -465,6 +465,7 @@ var (
 		{"dues", "Dues amount", "Like $35"},
 		{"dues_expire", "Dues run out", "The day their dues run out"},
 		{"my_link", "My membership link", "Their own membership page"},
+		{"kit_link", "Kit order link", "Their own link to reserve club kit"},
 		{"year", "Year", "This year"},
 		{"site", "Website address", ""},
 		{"strava", "Club on Strava", ""},

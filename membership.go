@@ -23,6 +23,10 @@ type membershipData struct {
 	// What's on file, in part: club emails carry this page's link and get
 	// forwarded, so it never shows a whole phone number or emergency contact.
 	PhoneOnFile, EmergencyOnFile string
+	// The club kit order, while it's open (kit.go): their order, if any.
+	KitOpen  bool
+	KitName  string
+	KitOrder *KitOrder
 	Year                         int
 	Paid                         bool
 	PaidOn                       time.Time // when the club marked this year paid; zero if not known
@@ -83,6 +87,17 @@ func (a *App) membershipView(m Member, token string) membershipData {
 		}
 	}
 	d.LevelName = m.LevelName()
+	if shop := a.store.Kit(); shop.IsOpen(time.Now()) && d.Paid {
+		d.KitOpen, d.KitName = true, or(shop.Name, "The club kit order")
+		if shop.ClosesLabel() != "" {
+			d.KitName += " is open until " + shop.ClosesLabel()
+		} else {
+			d.KitName += " is open"
+		}
+		if o, ok := a.store.KitOrderFor(m.ID); ok {
+			d.KitOrder = &o
+		}
+	}
 	d.DetailsDone = m.Phone != "" && m.EmergencyName != "" && m.EmergencyPhone != "" && d.LevelName != ""
 	if !d.Paid {
 		if link := a.cfg.PayLink(m.Plan); link != "" {

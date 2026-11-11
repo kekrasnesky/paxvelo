@@ -90,7 +90,7 @@ func TestPagesAndBoardAdmin(t *testing.T) {
 }
 
 // paxvelo.club/kit, on flyers and in the welcome email, shows the kit page,
-// whose button goes on to the team store. The Info menu's Club Kit link goes there too.
+// whose link goes on to the team store. The Info menu's Club Kit link goes there too.
 func TestKitPage(t *testing.T) {
 	_, h, _ := testApp(t)
 	w := do(t, h, nil, "GET", "/kit", "", nil)
@@ -98,7 +98,7 @@ func TestKitPage(t *testing.T) {
 		t.Fatalf("/kit: %d", w.Code)
 	}
 	got := w.Body.String()
-	for _, want := range []string{"<h1>Club Kit</h1>", `href="https://example.com/kit"`, "Open the team store", `<a href="/kit" aria-current="page">Club Kit</a>`} {
+	for _, want := range []string{"<h1>Club Kit</h1>", `href="https://example.com/kit"`, "Order any time from the team store", `<a href="/kit" aria-current="page">Club Kit</a>`} {
 		if !strings.Contains(got, want) {
 			t.Errorf("the kit page is missing %q", want)
 		}
