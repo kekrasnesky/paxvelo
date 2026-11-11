@@ -47,6 +47,10 @@ strong{font-weight:500}
    down and comes back when you scroll up (site.js) ---------- */
 .hdr{position:sticky;top:0;z-index:20;transition:transform .3s ease;display:flex;align-items:center;justify-content:space-between;gap:1.5rem;min-height:60px;padding:0 var(--side);background:var(--ink);color:var(--paper)}
 .hdr.hdr-hidden{transform:translateY(-100%)}
+/* Tarmac on the header and footer: real asphalt (img/tarmac.jpg, mirrored
+   both ways so it repeats without a seam) under a charcoal layer, so only a
+   faint grain shows. Raise .68 toward .8 for less, lower it for more. */
+.hdr,.ftr{background:linear-gradient(rgba(45,45,45,.68),rgba(45,45,45,.68)),var(--ink) url(/static/img/tarmac.jpg?v=__V__) center top/1360px 320px repeat}
 .logo{display:flex;align-items:center;gap:12px;padding:6px 0;color:var(--paper);text-decoration:none}
 .logo img{width:84px;height:auto;transition:filter .25s}
 /* The PV mark lights up a little on hover */
@@ -78,7 +82,7 @@ strong{font-weight:500}
 .burger{display:none}
 
 /* ---------- Footer ---------- */
-.ftr{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:1rem;padding:18px var(--side);background:var(--ink);color:var(--paper)}
+.ftr{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:1rem;padding:18px var(--side);color:var(--paper)}
 .ftr-copy{display:flex;align-items:center;gap:.7rem;margin:0;font-size:.8rem}
 .ftr-copy img{display:block;width:44px;height:auto}
 .sponsors{grid-column:1/-1}

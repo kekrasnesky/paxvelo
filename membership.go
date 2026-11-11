@@ -24,28 +24,28 @@ type membershipData struct {
 	// forwarded, so it never shows a whole phone number or emergency contact.
 	PhoneOnFile, EmergencyOnFile string
 	// The club kit order, while it's open (kit.go): their order, if any.
-	KitOpen  bool
-	KitName  string
-	KitOrder *KitOrder
-	Year                         int
-	Paid                         bool
-	PaidOn                       time.Time // when the club marked this year paid; zero if not known
-	DuesExpire                   time.Time // when their dues run out (moved.go)
-	LevelName                    string    // their riding answer, briefly
-	DetailsDone                  bool      // phone, emergency contact and riding answer all on file
-	PlanName                     string    // "individual" or "family", for "your 2026 family dues"
-	PayURL                       string
-	PayLabel                     string
-	Saved                        bool
-	Message                      string // a problem with what was typed
-	EmailsBack                   bool   // club emails were just turned back on
-	TopicsSaved                  bool   // they just changed which kinds of club email they get
-	Confirmed                    bool   // they just confirmed their email
-	Renewed                      bool   // they just confirmed the renewal they filled in on the join form
-	AutoConfirm                  bool   // opened from the button in the confirm email: the page confirms itself
-	RenewalDoes                  string // what confirming that renewal does, for the Confirm box
-	Email                        string // typed into "send me my link"
-	SignedOut                    bool   // they just signed out of this device
+	KitOpen     bool
+	KitName     string
+	KitOrder    *KitOrder
+	Year        int
+	Paid        bool
+	PaidOn      time.Time // when the club marked this year paid; zero if not known
+	DuesExpire  time.Time // when their dues run out (moved.go)
+	LevelName   string    // their riding answer, briefly
+	DetailsDone bool      // phone, emergency contact and riding answer all on file
+	PlanName    string    // "individual" or "family", for "your 2026 family dues"
+	PayURL      string
+	PayLabel    string
+	Saved       bool
+	Message     string // a problem with what was typed
+	EmailsBack  bool   // club emails were just turned back on
+	TopicsSaved bool   // they just changed which kinds of club email they get
+	Confirmed   bool   // they just confirmed their email
+	Renewed     bool   // they just confirmed the renewal they filled in on the join form
+	AutoConfirm bool   // opened from the button in the confirm email: the page confirms itself
+	RenewalDoes string // what confirming that renewal does, for the Confirm box
+	Email       string // typed into "send me my link"
+	SignedOut   bool   // they just signed out of this device
 	// This year's insurance waiver (waivers.go): the signed one, or the form
 	// to sign it.
 	Waiver        *Waiver

@@ -146,4 +146,3 @@ func TestKitPayLink(t *testing.T) {
 		}
 	}
 }
-
