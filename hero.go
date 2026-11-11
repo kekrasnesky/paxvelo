@@ -59,7 +59,7 @@ func heroPhoneCrop(b []byte, focus string) []byte {
 	sq := image.NewRGBA(image.Rect(0, 0, side, side))
 	draw.Draw(sq, sq.Bounds(), src, image.Pt(x0, y0), draw.Src)
 	var out bytes.Buffer
-	if jpeg.Encode(&out, downscale(sq, heroPhoneSide), &jpeg.Options{Quality: 78}) != nil {
+	if jpeg.Encode(&out, downscale(sq, heroPhoneSide), &jpeg.Options{Quality: copyQuality}) != nil {
 		return nil
 	}
 	return out.Bytes()

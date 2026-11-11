@@ -20,7 +20,7 @@ import (
 // them on the Share your photos page and an admin approves them into an
 // album on Website → Photos to review, or an admin uploads straight into an
 // album on Website → Gallery (galleryadmin.go). Each photo is kept at its full size
-// (at most 1600 pixels, see shrinkPhoto) and narrower copies beside it
+// (at most 2000 pixels, see shrinkPhoto) and narrower copies beside it
 // (galleryWidths), so the grid loads small files and the viewer a big one.
 // None of them keep where the photo was taken.
 
@@ -35,7 +35,7 @@ const (
 )
 
 // galleryWidths are the narrower copies made of each gallery photo.
-var galleryWidths = []int{480, 960}
+var galleryWidths = []int{480, 960, 1440}
 
 // galleryRide is a club ride photos used to be sorted by, before albums.
 // Old photos' albums are named after them (albumize).
@@ -347,8 +347,14 @@ func (a *App) makeCopies(src string) (w, h int, sized bool) {
 }
 
 // sizeOldPhotos makes the narrower copies for photos added before there were
-// any, in the background at startup.
+// any, in the background at startup, and the copies at a width added since
+// (like 1440) for photos that have the others.
 func (a *App) sizeOldPhotos() {
+	for _, p := range a.store.AllGalleryPhotos() {
+		if p.Sized && slices.ContainsFunc(galleryWidths, func(w int) bool { return w < p.W && !a.mediaExists(copySrc(p.Src, w)) }) {
+			a.makeCopies(p.Src)
+		}
+	}
 	for _, p := range a.store.UnsizedPhotos() {
 		w, h, sized := a.makeCopies(p.Src)
 		if w == 0 {
@@ -359,6 +365,12 @@ func (a *App) sizeOldPhotos() {
 			return
 		}
 	}
+}
+
+// mediaExists says whether a /media/ file is on disk.
+func (a *App) mediaExists(src string) bool {
+	_, err := os.Stat(filepath.Join(a.mediaDir(), strings.TrimPrefix(src, "/media/")))
+	return err == nil
 }
 
 // ---- Store ----
@@ -634,6 +646,17 @@ func (s *Store) GalleryPhotos() []GalleryPhoto {
 				out = append(out, *p)
 			}
 		}
+	}
+	return out
+}
+
+// AllGalleryPhotos lists every photo in the gallery.
+func (s *Store) AllGalleryPhotos() []GalleryPhoto {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := make([]GalleryPhoto, 0, len(s.d.Gallery))
+	for _, p := range s.d.Gallery {
+		out = append(out, *p)
 	}
 	return out
 }

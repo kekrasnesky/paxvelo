@@ -21,7 +21,7 @@ PAYPAL_INDIVIDUAL_URL=
 PAYPAL_FAMILY_URL=
 
 # ---- Links ----
-# Shown as "Shop Kit" in the menu; paxvelo.club/kit also goes here.
+# The Club Kit page's team store button (Info menu → Club Kit); paxvelo.club/kit also goes here.
 KIT_URL=https://jakroo.com/store-front?storeId=rJgx0naZoge&titleProp=paxvelo&bannerProp=https://jakroo.storage.googleapis.com/team_stores_banner/ryYi5fMige-8e8f3f54b2b9f-blob
 STRAVA_URL=https://www.strava.com/clubs/10197
 # Optional: a separate PayPal donation link. Adds "Support the club" to the homepage.

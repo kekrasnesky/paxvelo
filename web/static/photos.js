@@ -30,7 +30,7 @@ window.shrinkPhoto = function (file, side) {
     return new Promise(function (ok) {
       c.toBlob(function (b) {
         ok(b && (heic || b.size < file.size) ? new File([b], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg', lastModified: file.lastModified }) : file);
-      }, 'image/jpeg', 0.86);
+      }, 'image/jpeg', 0.9);
     });
   }).catch(function () { return file });
 };

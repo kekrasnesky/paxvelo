@@ -11,23 +11,25 @@ import (
 
 // Photos straight from a phone are often 3–6 MB, which makes a newsletter
 // slow to load on a phone signal. Uploaded JPG and PNG photos are shrunk to
-// at most 1600 pixels on their long side and saved as JPG (a PNG with
+// at most 2000 pixels on their long side and saved as JPG (a PNG with
 // see-through parts stays a PNG). A busy photo (grass, gravel, crowds) can
-// still be large at that size, so it steps down to 1400, then 1200 pixels,
-// until it's within photoBudget. That's sharp across a laptop screen. Re-saving also drops the camera's hidden details,
+// still be large at that size, so it steps down to 1800, then 1600 pixels,
+// until it's within photoBudget. That stays sharp across a high-resolution
+// laptop screen. Re-saving also drops the camera's hidden details,
 // like where the photo was taken. WebP and GIF photos keep their size: Go
 // can't write WebP, and a GIF may be animated. A WebP still loses its hidden
 // details; a GIF has none worth worrying about.
 const (
-	photoMaxSide   = 1600
-	photoBudget    = 350 << 10  // a photo over this steps down to a smaller size
-	photoKeepBytes = 250 << 10  // a photo this small that fits is kept as is
+	photoMaxSide   = 2000
+	photoBudget    = 800 << 10  // a photo over this steps down to a smaller size
+	photoKeepBytes = 400 << 10  // a photo this small that fits is kept as is
 	photoMaxPixels = 60_000_000 // larger than any camera photo; kept as is
-	photoQuality   = 80
+	photoQuality   = 86
+	copyQuality    = 84 // the gallery's smaller copies and the phone hero
 )
 
 // photoSides are the sizes a photo tries, largest first, to fit photoBudget.
-var photoSides = []int{photoMaxSide, 1400, 1200}
+var photoSides = []int{photoMaxSide, 1800, 1600}
 
 // shrinkPhoto returns a smaller copy of the photo b and its file extension,
 // or b and ext unchanged when it's already small or can't be shrunk.
@@ -284,7 +286,7 @@ func smallerCopies(b []byte) (copies map[int][]byte, w, h int) {
 			continue
 		}
 		var out bytes.Buffer
-		if jpeg.Encode(&out, downscale(full, side*max(w, h)/w), &jpeg.Options{Quality: 78}) == nil {
+		if jpeg.Encode(&out, downscale(full, side*max(w, h)/w), &jpeg.Options{Quality: copyQuality}) == nil {
 			copies[side] = out.Bytes()
 		}
 	}

@@ -101,6 +101,9 @@ func (s *Site) ridesLD(rides []RideOcc) template.JS {
 				"address": ld{"@type": "PostalAddress", "streetAddress": place, "addressRegion": "MD", "addressCountry": "US"}},
 			"organizer": s.clubOrg(), "url": s.cfg.SiteURL + "/calendar", "isAccessibleForFree": true,
 		}
+		if o.Time != "" {
+			e["endDate"] = start.Add(o.Length()).Format(time.RFC3339)
+		}
 		if o.Details != "" {
 			e["description"] = o.Details
 		}

@@ -261,7 +261,8 @@ func (a *App) ridePage(w http.ResponseWriter, r *http.Request) {
 
 // rideICS is one ride as a calendar file, for "Add to my calendar": phones
 // open it straight into their calendar app. A ride without a start time is
-// an all-day event; one with a time is down for two hours.
+// an all-day event; one with a time lasts as long as its distance needs
+// (RideOcc.Length).
 func (a *App) rideICS(w http.ResponseWriter, r *http.Request) {
 	o, ok := a.store.Ride(r.PathValue("key"))
 	if !ok || (o.Held && !a.loggedIn(r)) {
@@ -278,7 +279,7 @@ func (a *App) rideICS(w http.ResponseWriter, r *http.Request) {
 	lines := []string{"BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//PaxVelo//Ride calendar//EN", "METHOD:PUBLISH", "BEGIN:VEVENT",
 		"UID:" + o.Key + "@" + host, "DTSTAMP:" + time.Now().UTC().Format("20060102T150405Z")}
 	if t, err := time.ParseInLocation("2006-01-02 15:04", o.Date+" "+o.Time, a.cfg.Location); err == nil {
-		lines = append(lines, "DTSTART:"+t.UTC().Format("20060102T150405Z"), "DTEND:"+t.Add(2*time.Hour).UTC().Format("20060102T150405Z"))
+		lines = append(lines, "DTSTART:"+t.UTC().Format("20060102T150405Z"), "DTEND:"+t.Add(o.Length()).UTC().Format("20060102T150405Z"))
 	} else {
 		lines = append(lines, "DTSTART;VALUE=DATE:"+day.Format("20060102"), "DTEND;VALUE=DATE:"+day.AddDate(0, 0, 1).Format("20060102"))
 	}

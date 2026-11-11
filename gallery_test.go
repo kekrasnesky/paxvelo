@@ -99,6 +99,9 @@ func TestGallery(t *testing.T) {
 		t.Fatalf("gallery %+v", gal)
 	}
 	for _, f := range gal[0].files() {
+		if f == copySrc(gal[0].Src, 1440) { // wider than the photo: no copy
+			continue
+		}
 		if !mediaFile(a, f) {
 			t.Errorf("%s should be saved", f)
 		}
@@ -424,7 +427,7 @@ func bulkForm(fields url.Values, photo []byte, n int) (string, *bytes.Buffer) {
 func TestGalleryBulkUpload(t *testing.T) {
 	a, h, admin := testApp(t)
 	al, _ := a.store.AddAlbum("Leonardtown Crit", "2014-06-07")
-	photo := encodeJPEG(t, halves(1800, 1200, 255)) // bigger than the site keeps
+	photo := encodeJPEG(t, halves(2200, 1100, 255)) // bigger than the site keeps
 	upload := func(c *http.Cookie, album int, fields url.Values, n int, asJSON bool) *httptest.ResponseRecorder {
 		ct, body := bulkForm(fields, photo, n)
 		r := httptest.NewRequest("POST", "/admin/gallery/upload?album="+strconv.Itoa(album), body)
@@ -468,6 +471,13 @@ func TestGalleryBulkUpload(t *testing.T) {
 	saved, err := os.ReadFile(filepath.Join(a.mediaDir(), strings.TrimPrefix(gal[0].Src, "/media/")))
 	if err != nil || len(saved) >= len(photo) {
 		t.Errorf("the photo should be saved smaller: %d bytes from %d (%v)", len(saved), len(photo), err)
+	}
+	// A photo from before the 1440 copies gets one at startup.
+	wide := copySrc(gal[0].Src, 1440)
+	os.Remove(filepath.Join(a.mediaDir(), strings.TrimPrefix(wide, "/media/")))
+	a.sizeOldPhotos()
+	if !mediaFile(a, wide) {
+		t.Errorf("%s should be made at startup", wide)
 	}
 
 	// Without JavaScript the form posts and comes back with a message.
