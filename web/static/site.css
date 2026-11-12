@@ -201,7 +201,7 @@ strong{font-weight:500}
 /* ---------- The Newsletter ----------
    Laid out like a printed club newsletter: a page with a nameplate between
    rules, serif type, and columns divided by hairlines. */
-.nl-preview{margin:0;padding:.7rem var(--pad);background:#c98a1b;color:#fff;font-weight:500;text-align:center}
+.nl-preview{margin:0;padding:.7rem var(--pad);background:#8a5a00;color:#fff;font-weight:500;text-align:center}
 .nl{--serif:Charter,"Bitstream Charter","Iowan Old Style","Palatino Linotype",Georgia,"Times New Roman",serif;--np:clamp(20px,4vw,56px);
   max-width:1100px;margin:clamp(20px,4vw,56px) auto;padding:clamp(20px,3vw,40px) var(--np) clamp(28px,4vw,48px);
   background:#fffdf8;border:1px solid #e3d9cc;box-shadow:0 2px 24px rgba(45,45,45,.07);color:#2c2624}
@@ -293,7 +293,7 @@ strong{font-weight:500}
 .nl-event-about{margin:.6rem 0 0;white-space:pre-line}
 .nl-event-act{display:flex;flex-wrap:wrap;gap:.6rem;margin:.9rem 0 0}
 .nl-event.off .nl-h{text-decoration:line-through}
-.nl-event.off .nl-date{color:#999}
+.nl-event.off .nl-date{color:#767676}
 @media (max-width:600px){.nl-event{grid-template-columns:2.8rem minmax(0,1fr);gap:.8rem}.nl-event .nl-date{font-size:1.6rem}}
 
 /* A banner: a boxed notice, like an ad in a printed newsletter */
@@ -373,7 +373,7 @@ strong{font-weight:500}
 .zwift-pick{margin-left:1.6rem}
 .zwift-pick .zwift-text{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
 form:not(:has(input[name=virtual]:checked)) .zwift-pick{display:none!important}
-.cal-kind{display:inline-block;padding:0 .35rem;border-radius:3px;background:#5b7f95;color:#fff;font-size:.68rem;font-weight:500;letter-spacing:.03em;vertical-align:.1em}
+.cal-kind{display:inline-block;padding:0 .35rem;border-radius:3px;background:#4f7186;color:#fff;font-size:.68rem;font-weight:500;letter-spacing:.03em;vertical-align:.1em}
 .cal-ride.cancelled .cal-kind{background:#999}
 .kind-icon{display:inline-block;width:1.1em;height:1.1em;margin-right:.3em;vertical-align:-.15em}
 /* Add to the calendar: a ride's pace groups and wording only for a ride. */
@@ -402,7 +402,7 @@ form:has(.kind-pick input:checked:not([value=""])) .event-word{display:inline}
 /* Rides that need a leader get a dashed yellow badge, a different shape from
    the filled pace pills, so the two never read as one color code */
 .cal-ride.open,.cal-ride.partial{--c:#d9a400}
-.cal-ride.event{--c:#5b7f95} /* a clinic, meeting or social, not a ride */
+.cal-ride.event{--c:#4f7186} /* a clinic, meeting or social, not a ride */
 .cal-grid{width:100%;border-collapse:collapse;table-layout:fixed;background:#fff;box-shadow:0 1px 3px rgba(45,45,45,.08)}
 .cal-grid th{padding:.45rem;border:1px solid var(--ink);background:var(--ink);color:var(--paper);font:500 .85rem/1 var(--font);letter-spacing:.06em;text-transform:uppercase}
 .cal-grid td{height:6.6rem;padding:.3rem;border:1px solid var(--line);vertical-align:top}
@@ -786,7 +786,7 @@ html:has(.gal-view[open]){overflow:hidden} /* the page behind stays put */
   .js .nav>a,.js .dd-btn{padding:.2rem .8rem}
   .js .nav .nav-join{margin:.4rem 0 0;padding:.5rem 1.6rem}
   .js .nav .nav-admin{display:none}
-  .ftr-admin{display:inline-block;padding:.6rem 1rem;font-size:.85rem;opacity:.7;text-decoration:none}
+  .ftr-admin{display:inline-block;padding:.6rem 1rem;font-size:.85rem;opacity:.85;text-decoration:none}
   .ftr-mail{display:inline-block;padding:.6rem 0}
   .ftr .social a{width:44px;height:44px}
   .join .btn,.lead-form .btn,.ride-manage-acts .btn{justify-self:stretch;width:100%}
