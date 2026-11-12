@@ -352,6 +352,8 @@ strong{font-weight:500}
 .insta .instagram-media{min-width:0!important;width:100%!important;max-width:none!important;margin:0!important}
 .insta blockquote.instagram-media{padding:2.5rem 1.5rem;border:1px solid var(--rule);background:#fff;text-align:center}
 .ig{display:flex;flex-direction:column;align-self:stretch;margin:0;border:1px solid var(--line);border-radius:var(--radius);background:var(--card);overflow:hidden}
+/* Phones show just the newest post */
+@media (max-width:767px){.insta>:nth-child(n+2){display:none}}
 .ig-media{position:relative;aspect-ratio:3/4;background:#1f1a18}
 .ig-media video,.ig-media img{display:block;width:100%;height:100%;object-fit:cover}
 .ig-media a{display:block;height:100%}
