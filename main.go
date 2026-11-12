@@ -77,6 +77,7 @@ func main() {
 	go app.automationLoop(ctx)
 	go app.sizeOldPhotos()
 	go app.convertOldMinutes() // Word minutes from before LibreOffice was installed
+	app.cleanVideoFiles()      // files a restart cut off halfway
 	app.kickVideo()            // clips waiting from before a restart
 
 	srv := &http.Server{

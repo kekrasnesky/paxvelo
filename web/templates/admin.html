@@ -2032,7 +2032,11 @@ document.querySelectorAll('.copy-link').forEach(function(b){b.addEventListener('
   </div>
   {{if not .FFmpeg}}<p class="flash warn">ffmpeg isn’t installed on the server.</p>{{end}}
   {{with .Error}}<p class="flash err">{{.}}</p>{{end}}
-  {{if .Busy}}<p class="video-busy" role="status" data-poll="/admin/home-video/status"><span class="video-spin" aria-hidden="true"></span>Making the video…</p>{{end}}
+  {{if .Busy}}<div class="video-busy" role="status" data-poll="/admin/home-video/status">
+    <p><span class="video-spin" aria-hidden="true"></span><span class="video-step">{{with .Status}}{{if .Step}}Step {{.N}} of {{.Of}}: {{.Step}}{{else}}Making the video…{{end}}{{end}}</span></p>
+    <div class="meter video-meter"><span style="width:{{.Status.Pct}}%"></span></div>
+    <p class="muted small"><span class="video-pct">{{if .Status.Step}}{{.Status.Pct}}%{{end}}</span><span class="video-time">{{with .Status.Elapsed}} · {{.}}{{end}}</span></p>
+  </div>{{end}}
   {{if .Off}}<p class="muted">Off</p>{{else}}{{with .Now}}<video class="video-preview" src="{{.Video}}"{{with .Poster}} poster="{{.}}"{{end}} autoplay muted loop playsinline controls></video>{{else}}<p class="muted">No video.</p>{{end}}{{end}}
   <ol class="clip-list">
     {{range $i, $c := .Clips}}<li class="clip{{if .Failed}} failed{{end}}">
@@ -2066,7 +2070,10 @@ if(f&&window.FormData&&window.XMLHttpRequest)f.addEventListener('submit',functio
   x.open('POST',f.action);x.setRequestHeader('Accept','application/json');x.send(new FormData(f));
 });
 var poll=document.querySelector('[data-poll]');
-if(poll)setInterval(function(){fetch(poll.dataset.poll,{headers:{Accept:'application/json'}}).then(function(r){return r.json()}).then(function(j){if(!j.busy)location.reload()}).catch(function(){})},4000);
+if(poll)setInterval(function(){fetch(poll.dataset.poll,{headers:{Accept:'application/json'}}).then(function(r){return r.json()}).then(function(j){
+  if(!j.busy){location.reload();return}
+  if(j.step){poll.querySelector('.video-step').textContent='Step '+j.n+' of '+j.of+': '+j.step;poll.querySelector('.video-pct').textContent=j.pct+'%';poll.querySelector('.video-meter span').style.width=j.pct+'%'}
+  var t=poll.querySelector('.video-time');t.textContent=j.elapsed?(' · '+j.elapsed):''}).catch(function(){})},3000);
 })();
 </script>{{end}}
 <form class="issue" id="home-photos" method="post" action="/admin/home-photos" enctype="multipart/form-data">

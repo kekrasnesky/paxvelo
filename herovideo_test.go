@@ -216,8 +216,14 @@ func TestHeroVideoMade(t *testing.T) {
 			t.Errorf("%s: %+v %v", url, info, err)
 		}
 	}
-	if hasEncoder(ffmpeg, "libsvtav1") && (v.VideoAV1 == "" || v.PhoneAV1 == "") {
+	if useAV1(ffmpeg) && (v.VideoAV1 == "" || v.PhoneAV1 == "") {
 		t.Errorf("AV1 copies: %+v", v)
+	}
+	if a.vid.n != a.vid.steps || a.vid.steps == 0 {
+		t.Errorf("every step counted: %d of %d", a.vid.n, a.vid.steps)
+	}
+	if st := a.VideoStatus(); st.Busy {
+		t.Errorf("done: %+v", st)
 	}
 	if v.Poster == "" || v.PhonePoster == "" {
 		t.Errorf("a still for each: %+v", v)
@@ -248,5 +254,69 @@ func TestHeroVideoMade(t *testing.T) {
 	}
 	if _, err := os.Stat(file); !os.IsNotExist(err) {
 		t.Error("the old video is deleted")
+	}
+}
+
+// ffmpeg reports how far it has got, for the admin page's progress bar.
+func TestRunToolProgress(t *testing.T) {
+	ffmpeg, _ := videoTools()
+	if ffmpeg == "" {
+		t.Skip("ffmpeg isn't installed")
+	}
+	var last float64
+	calls := 0
+	err := runToolProgress(ffmpeg, 3, func(p float64) { last = p; calls++ }, "-hide_banner", "-loglevel", "error", "-y",
+		"-f", "lavfi", "-i", "testsrc2=size=320x240:rate=30", "-t", "3", "-c:v", "libx264", "-preset", "ultrafast", filepath.Join(t.TempDir(), "p.mp4"))
+	if err != nil || calls == 0 || last < 0.9 || last > 1 {
+		t.Errorf("progress: %v calls, last %.2f, %v", calls, last, err)
+	}
+	if err := runToolProgress(ffmpeg, 1, nil, "-hide_banner", "-loglevel", "error", "-i", "nothing-here.mp4", "-f", "null", "-"); err == nil {
+		t.Error("a failed run is an error")
+	}
+}
+
+// AV1 only on a server with room for it, unless told.
+func TestUseAV1(t *testing.T) {
+	ffmpeg, _ := videoTools()
+	t.Setenv("PAXVELO_AV1", "off")
+	if useAV1(ffmpeg) {
+		t.Error("off means off")
+	}
+	t.Setenv("PAXVELO_AV1", "")
+	if memoryGB() <= 0 {
+		t.Error("memory")
+	}
+}
+
+// At startup, files a restart cut off halfway, and uploads whose clip is gone,
+// are deleted; everything in use stays.
+func TestCleanVideoFiles(t *testing.T) {
+	a, _, _ := testApp(t)
+	for _, d := range []string{a.videoDir(), a.videoUploadDir()} {
+		os.MkdirAll(d, 0o755)
+	}
+	for _, n := range []string{"clip-1-aa.mp4", "clip-1-aa.jpg", "clip-1-old.mp4", "home-1.mp4", "home-1-phone.jpg", "home-2-master.mp4", "other.txt"} {
+		os.WriteFile(filepath.Join(a.videoDir(), n), []byte("x"), 0o644)
+	}
+	for _, n := range []string{"raw-keep.mp4", "raw-gone.mp4"} {
+		os.WriteFile(filepath.Join(a.videoUploadDir(), n), []byte("x"), 0o600)
+	}
+	a.store.updateHeroVideo(func(v *HeroVideo) error {
+		v.Clips = []*HeroClip{{ID: 1, File: "clip-1-aa.mp4", Thumb: "/media/video/clip-1-aa.jpg"}, {ID: 2, Raw: "raw-keep.mp4"}}
+		v.Video, v.PhonePoster = "/media/video/home-1.mp4", "/media/video/home-1-phone.jpg"
+		return nil
+	})
+	a.cleanVideoFiles()
+	for n, want := range map[string]bool{"clip-1-aa.mp4": true, "clip-1-aa.jpg": true, "home-1.mp4": true, "home-1-phone.jpg": true, "other.txt": true,
+		"clip-1-old.mp4": false, "home-2-master.mp4": false} {
+		if _, err := os.Stat(filepath.Join(a.videoDir(), n)); (err == nil) != want {
+			t.Errorf("%s kept %v, want %v", n, err == nil, want)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(a.videoUploadDir(), "raw-keep.mp4")); err != nil {
+		t.Error("an upload waiting to be prepared stays")
+	}
+	if _, err := os.Stat(filepath.Join(a.videoUploadDir(), "raw-gone.mp4")); err == nil {
+		t.Error("an upload with no clip goes")
 	}
 }
