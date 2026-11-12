@@ -333,7 +333,7 @@
     function fail(text){msg.textContent=text;msg.classList.add('err');btn.disabled=busy=false;bar.hidden=true}
     function counted(){
       var n=chosen.length;list.hidden=!n;
-      count.textContent=n?n+(n===1?' photo':' photos')+' ready. Add more, or share them.'+(n>MAX?' That’s more than '+MAX+': take some out and share them next.':''):hint;
+      count.textContent=n?n+(n===1?' photo':' photos')+(n>MAX?' (up to '+MAX+')':''):hint;
     }
     function add(files){
       [].forEach.call(files,function(f){

@@ -1,32 +1,28 @@
 {{define "content"}}{{with .Data}}
 <article class="page">
   <h1>Share Your Photos</h1>
-  <p class="lead">Got a great shot from a club ride? Share it here. Your photos go in the club’s <a href="/gallery">photo gallery</a>, and we pick favorites from the gallery for the newsletter and social media.</p>
   <form class="join share" method="post" action="/share-photos" enctype="multipart/form-data"{{if .Done}} hidden{{end}}>
     <input type="hidden" name="ft" value="{{.Token}}">
     <div class="hp" aria-hidden="true"><label>Leave this empty <input name="website" tabindex="-1" autocomplete="off"></label></div>
     <label class="share-drop">
       <input type="file" name="photos" accept="image/*" multiple required data-max="{{.Max}}">
       <span class="share-drop-big">Add photos</span>
-      <span class="hint share-count" aria-live="polite">Pick them from your phone, or drag them here. Up to {{.Max}} at a time; we’ll make them smaller for you.</span>
+      <span class="hint share-count" aria-live="polite">Up to {{.Max}} at a time</span>
     </label>
     <ul class="share-previews" hidden></ul>
     <div class="pair">
-      <label>Your name <input name="name" required maxlength="100" autocomplete="name" value="{{.Name}}">
-        <span class="hint">Shown with your photos, like “Photo by Pat Rider”.</span></label>
-      <label>Email (optional) <input type="email" name="email" maxlength="254" autocomplete="email" value="{{.Email}}">
-        <span class="hint">Only if we have a question. Never shown.</span></label>
+      <label>Your name <input name="name" required maxlength="100" autocomplete="name" value="{{.Name}}"></label>
+      <label>Email (optional) <input type="email" name="email" maxlength="254" autocomplete="email" value="{{.Email}}"></label>
     </div>
-    {{$album := .Album}}<label>Which ride or event? (optional) <select name="album" class="share-album">
+    {{$album := .Album}}<label>Ride or event (optional) <select name="album" class="share-album">
       <option value="">Not sure</option>
       {{range .Albums}}<option value="{{.ID}}"{{if eq (print .ID) $album}} selected{{end}}>{{.Title}}{{with .DateLabel}} ({{.}}){{end}}</option>{{end}}
       <option value="new"{{if eq $album "new"}} selected{{end}}>Something else…</option>
     </select></label>
     <label class="share-new">Name it <input name="album_name" maxlength="80" placeholder="Saturday ride to Point Lookout, Oct 25" value="{{.AlbumName}}"></label>
-    {{if .PINOn}}<label>Club PIN (members) <input name="pin" maxlength="40" autocomplete="off" autocapitalize="off" spellcheck="false">
-      <span class="hint">With the PIN, your photos go up right away. Without it, an admin looks first.</span></label>
-    {{end}}<label>Anything else we should know? (optional) <textarea name="note" rows="2" maxlength="500" placeholder="Who’s in them, or anything else">{{.Note}}</textarea></label>
-    <label class="check-row share-agree"><input type="checkbox" name="agree" value="yes" required{{if .Agree}} checked{{end}}> I took these photos or have permission to share them, and PaxVelo can use them in the newsletter, on its website, and on social media.</label>
+    {{if .PINOn}}<label>Club PIN (optional) <input name="pin" maxlength="40" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+    {{end}}<label>Note (optional) <textarea name="note" rows="2" maxlength="500">{{.Note}}</textarea></label>
+    <label class="check-row share-agree"><input type="checkbox" name="agree" value="yes" required{{if .Agree}} checked{{end}}> I took these or have permission to share them, and PaxVelo can use them online and in the newsletter.</label>
     <button class="btn" type="submit">Share photos</button>
     <div class="share-progress" hidden><span></span></div>
     <p class="msg{{if .Failed}} err{{end}}" role="status" aria-live="polite">{{if .Failed}}{{.Message}}{{end}}</p>
