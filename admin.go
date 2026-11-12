@@ -114,6 +114,7 @@ type adminView struct {
 	HomePhotos    []HomePhoto
 	MaxHomePhotos int
 	Hero          HeroPhoto
+	Video         *heroVideoAdmin // Home photos → Top video (herovideo.go)
 	// Rides tab
 	Series      []RideSeries
 	Upcoming    []RideOcc
@@ -297,6 +298,8 @@ var flashText = map[string]string{
 	"board":                "Saved. The board page is updated.",
 	"home-photos":          "Saved. The home page is updated.",
 	"hero":                 "Saved. The top photo on the home page is updated.",
+	"video-added":          "Uploaded. The new video goes live once it’s made.",
+	"video-changed":        "Saved. The new video goes live once it’s made.",
 	"submitted-rejected":   "Rejected. They’re deleted in 30 days; until then they’re under Already reviewed, where you can put them back.",
 	"submitted-restored":   "Put back, ready to review.",
 	"submitted-unapproved": "Taken back out of the gallery, ready to review again.",
@@ -432,6 +435,10 @@ var errorText = map[string]string{
 	"nofile":            "Choose the minutes file to upload.",
 	"bigfile":           "That file is too big. Minutes can be up to 20 MB.",
 	"bigphotos":         "Those photos are too big together. Add a few at a time.",
+	"video-upload":      "The upload didn’t go through. Try again.",
+	"video-type":        "That isn’t a video file.",
+	"video-many":        "The video can have up to 8 clips. Remove one first.",
+	"video-none":        "Pick a video to upload.",
 	"gone":              "That issue was deleted.",
 	"gallery-date":      "That date isn’t right. Fix it or clear it, then try again.",
 	"album-title":       "Give the album a name.",

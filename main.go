@@ -34,6 +34,7 @@ type App struct {
 	mailer *Mailer
 	limit  *Limiter
 	stats  *Stats
+	vid    videoJobs // the home page video's ffmpeg jobs (herovideo.go)
 }
 
 func main() {
@@ -76,6 +77,7 @@ func main() {
 	go app.automationLoop(ctx)
 	go app.sizeOldPhotos()
 	go app.convertOldMinutes() // Word minutes from before LibreOffice was installed
+	app.kickVideo()            // clips waiting from before a restart
 
 	srv := &http.Server{
 		Addr:              cfg.Listen,
@@ -366,6 +368,11 @@ func (a *App) routes() http.Handler {
 	mux.Handle("GET /admin/home-photos", a.boardOnly(a.homePhotosAdmin))
 	mux.Handle("POST /admin/home-hero", a.boardOnly(a.saveHero))
 	mux.Handle("POST /admin/home-photos", a.boardOnly(a.saveHomePhotos))
+	mux.Handle("POST /admin/home-video/clips", a.boardOnly(a.addHeroClips))
+	mux.Handle("POST /admin/home-video/clips/{id}/move", a.boardOnly(a.moveHeroClip))
+	mux.Handle("POST /admin/home-video/clips/{id}/remove", a.boardOnly(a.removeHeroClip))
+	mux.Handle("POST /admin/home-video/switch", a.boardOnly(a.switchHeroVideo))
+	mux.Handle("GET /admin/home-video/status", a.boardOnly(a.heroVideoStatus))
 	mux.Handle("GET /admin/instagram", a.boardOnly(a.instagramAdmin))
 	mux.Handle("POST /admin/instagram", a.boardOnly(a.saveInstagram))
 	mux.Handle("POST /admin/instagram/connect", a.boardOnly(a.instagramConnect))

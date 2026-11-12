@@ -164,6 +164,7 @@ func (a *App) saveHero(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) heroError(w http.ResponseWriter, r *http.Request, msg string) {
-	v := adminView{Title: "Home photos", Tab: "home-photos", HomePhotos: a.store.HomePhotos(), MaxHomePhotos: maxHomePhotos, Hero: a.store.Hero(), Error: msg}
+	hv := a.heroVideoAdmin()
+	v := adminView{Title: "Home photos", Tab: "home-photos", HomePhotos: a.store.HomePhotos(), MaxHomePhotos: maxHomePhotos, Hero: a.store.Hero(), Video: &hv, Error: msg}
 	a.renderAdmin(w, r, http.StatusOK, "home-photos", v)
 }

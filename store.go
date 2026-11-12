@@ -209,6 +209,8 @@ type storeData struct {
 	// Ride waivers from first-time riders (ridewaivers.go).
 	NextRideWaiver int           `json:"next_ride_waiver_id,omitempty"`
 	RideWaivers    []*RideWaiver `json:"ride_waivers,omitempty"`
+	// The home page video's clips (herovideo.go).
+	HeroVideo HeroVideo `json:"hero_video,omitzero"`
 	// Loaner bikes and the requests for them (loaners.go).
 	Loaners LoanerFleet `json:"loaners,omitzero"`
 	// Photos members sent in for the newsletter (sharephotos.go).

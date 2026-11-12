@@ -66,7 +66,8 @@ func (s *Store) SetHomePhotos(p []HomePhoto) error {
 // ---- Admin: Home photos ----
 
 func (a *App) homePhotosAdmin(w http.ResponseWriter, r *http.Request) {
-	v := adminView{Title: "Home photos", Tab: "home-photos", HomePhotos: a.store.HomePhotos(), MaxHomePhotos: maxHomePhotos, Hero: a.store.Hero()}
+	hv := a.heroVideoAdmin()
+	v := adminView{Title: "Home photos", Tab: "home-photos", HomePhotos: a.store.HomePhotos(), MaxHomePhotos: maxHomePhotos, Hero: a.store.Hero(), Video: &hv}
 	v.Flash, v.Error = flashFrom(r)
 	a.renderAdmin(w, r, http.StatusOK, "home-photos", v)
 }

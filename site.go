@@ -78,8 +78,8 @@ type view struct {
 	LD                            template.JS // structured data for search engines (seo.go)
 	Club                          clubInfo
 	Data                          any
-	Hero                          HeroPhoto // the home page's top photo (hero.go)
-	HeroVideo                     bool      // content/photos/hero.mp4 plays over it
+	Hero                          HeroPhoto      // the home page's top photo (hero.go)
+	HeroVideo                     *heroVideoView // the video that plays over it (herovideo.go)
 }
 
 // clubInfo holds the settings pages show: dues and outside links.
@@ -371,8 +371,7 @@ func (s *Site) pageHTML(p *contentPage, d contentData) ([]byte, error) {
 	}
 	if p.Path == "/" {
 		v.Hero = d.Hero
-		_, err := fs.Stat(s.photos, "hero.mp4")
-		v.HeroVideo = err == nil
+		v.HeroVideo = d.HeroVideo.view(s.hasBuiltinVideo(), s.version)
 	}
 	var buf bytes.Buffer
 	if err := t.ExecuteTemplate(&buf, "layout", v); err != nil {

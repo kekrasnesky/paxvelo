@@ -2025,6 +2025,50 @@ document.querySelectorAll('.copy-link').forEach(function(b){b.addEventListener('
     <div class="save-bar"><button>{{icon "save"}}Save top photo</button></div>
   </section>
 </form>
+{{with .Video}}<section class="card issue video-card" id="video">
+  <div class="video-head">
+    <h2>Top video</h2>
+    <form method="post" action="/admin/home-video/switch"><input type="hidden" name="on" value="{{if .Off}}1{{end}}"><button class="switch" role="switch" aria-checked="{{if .Off}}false{{else}}true{{end}}" aria-label="Video on the home page" title="{{if .Off}}Off: press to turn on{{else}}On: press to turn off{{end}}"><span></span></button></form>
+  </div>
+  {{if not .FFmpeg}}<p class="flash warn">ffmpeg isn’t installed on the server.</p>{{end}}
+  {{with .Error}}<p class="flash err">{{.}}</p>{{end}}
+  {{if .Busy}}<p class="video-busy" role="status" data-poll="/admin/home-video/status"><span class="video-spin" aria-hidden="true"></span>Making the video…</p>{{end}}
+  {{if .Off}}<p class="muted">Off</p>{{else}}{{with .Now}}<video class="video-preview" src="{{.Video}}"{{with .Poster}} poster="{{.}}"{{end}} autoplay muted loop playsinline controls></video>{{else}}<p class="muted">No video.</p>{{end}}{{end}}
+  <ol class="clip-list">
+    {{range $i, $c := .Clips}}<li class="clip{{if .Failed}} failed{{end}}">
+      {{if .Thumb}}<img src="{{.Thumb}}" alt="" width="96" height="54" loading="lazy">{{else}}<span class="clip-thumb" aria-hidden="true"></span>{{end}}
+      <span class="clip-name"><strong>{{.Name}}</strong><span class="small{{if .Failed}} err-text{{else}} muted{{end}}">{{if .Failed}}{{.Failed}}{{else if .Ready}}{{.SecsLabel}}{{else}}Preparing…{{end}}</span></span>
+      <span class="row-acts">
+        <form method="post" action="/admin/home-video/clips/{{.ID}}/move"><input type="hidden" name="dir" value="up"><button class="mini ghost" aria-label="Move {{.Name}} earlier" title="Earlier"{{if eq $i 0}} disabled{{end}}>↑</button></form>
+        <form method="post" action="/admin/home-video/clips/{{.ID}}/move"><input type="hidden" name="dir" value="down"><button class="mini ghost" aria-label="Move {{.Name}} later" title="Later"{{if eq (inc $i) (len $.Video.Clips)}} disabled{{end}}>↓</button></form>
+        <form method="post" action="/admin/home-video/clips/{{.ID}}/remove" onsubmit="return confirm('Remove {{.Name}} from the video?')"><button class="link danger">{{icon "trash"}}Remove</button></form>
+      </span>
+    </li>{{else}}<li class="muted">No clips.</li>{{end}}
+  </ol>
+  {{if lt (len .Clips) .Max}}<form class="add-clips" id="add-clips" method="post" action="/admin/home-video/clips" enctype="multipart/form-data">
+    <label>Add clips <input type="file" name="clips" accept="video/*" multiple required></label>
+    <button>{{icon "upload"}}Upload</button>
+    <div class="meter upload-meter" hidden><span></span></div>
+    <span class="muted small clip-status" role="status"></span>
+  </form>{{end}}
+</section>
+<script>
+// Clips go up with a progress bar (phone videos are big), and while the
+// video is being made the page checks in and reloads once it's live.
+(function(){
+var f=document.getElementById('add-clips');
+if(f&&window.FormData&&window.XMLHttpRequest)f.addEventListener('submit',function(e){
+  e.preventDefault();var x=new XMLHttpRequest(),btn=f.querySelector('button'),meter=f.querySelector('.meter'),bar=meter.firstElementChild,st=f.querySelector('.clip-status');
+  btn.disabled=true;meter.hidden=false;bar.style.width='0%';st.textContent='0%';
+  x.upload.onprogress=function(ev){if(!ev.lengthComputable)return;var pc=Math.round(ev.loaded*100/ev.total);bar.style.width=pc+'%';st.textContent=pc+'%'};
+  x.onload=function(){var go='/admin/home-photos#video';try{go=JSON.parse(x.responseText).go||go}catch(err){}location.href=go;if(go.indexOf('#')>0)location.reload()};
+  x.onerror=function(){btn.disabled=false;meter.hidden=true;st.textContent='The upload didn’t go through.'};
+  x.open('POST',f.action);x.setRequestHeader('Accept','application/json');x.send(new FormData(f));
+});
+var poll=document.querySelector('[data-poll]');
+if(poll)setInterval(function(){fetch(poll.dataset.poll,{headers:{Accept:'application/json'}}).then(function(r){return r.json()}).then(function(j){if(!j.busy)location.reload()}).catch(function(){})},4000);
+})();
+</script>{{end}}
 <form class="issue" id="home-photos" method="post" action="/admin/home-photos" enctype="multipart/form-data">
   <h2>Photo row</h2>
   <input type="hidden" name="count" value="{{len .HomePhotos}}">
@@ -3069,6 +3113,7 @@ document.querySelectorAll('[data-board]').forEach(function(box){
     <li><a href="/admin/security">Security</a> (the gear in the corner): admins and passwords, the club PIN, every other way into the site, and the full backup.</li>
     <li><a href="/admin/email">Email</a>: club emails, and the welcome email with its four riding-advice boxes.</li>
     <li>Newsletter, Rides, Pages, Home photos, Board, Instagram and Minutes go live as soon as you save.</li>
+    <li>The video at the top of the home page is made from the clips on Home photos → Top video. Upload clips straight from a phone or GoPro (the first 30 seconds of each are used, without sound or the camera’s location), put them in order and remove them; the site joins them into one loop that fades from clip to clip, which takes a few minutes, and the page reloads when it’s live. The switch turns the video off, and the top photo shows instead. People who turn motion off on their phone always see the photo.</li>
     <li>Three kinds of admin. <b>Website admins</b> run the calendar and rides, email members about rides and events, review photos and keep the gallery, read minutes, look members up and send their own spending requests. <b>Board members</b> (anyone on Website → Board) can do everything else too. Only the <b>president</b> changes who has which powers: the Board page, adding and removing admins, and the full backup.</li></ul></div>
   <div class="card"><h3>What runs by itself</h3><ul>
     <li>Strava club events import every hour. Instagram posts refresh every 3 hours.</li>
