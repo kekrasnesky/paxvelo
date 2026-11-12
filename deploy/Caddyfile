@@ -2,8 +2,6 @@
 #
 # The site lives at www.paxvelo.club. The old paxvelo.cc addresses (used
 # before the move from Squarespace, and in emails sent then) redirect to it.
-# During the move itself, deploy/Caddyfile.during-move serves both names
-# without redirecting until paxvelo.club's certificate is in place.
 #
 # Cloudflare: the site can sit behind Cloudflare's CDN (DNS record "Proxied").
 # Visitors then reach the server through Cloudflare, so Caddy takes each
