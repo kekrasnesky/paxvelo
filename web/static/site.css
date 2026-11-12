@@ -837,6 +837,7 @@ html:has(.gal-view[open]){overflow:hidden} /* the page behind stays put */
   .ftr-end{justify-self:center;justify-content:center}
   .ftr-member{display:inline-block;padding:.6rem 0}
   .ftr-copy{flex-direction:column;gap:.4rem}
+  .ftr-copy picture{display:none}
 }
 /* Narrow tablets don't have room for the club name beside the menu; the logo stays. */
 @media (min-width:768px) and (max-width:1000px){.wordmark{display:none}.nav{font-size:14px}.nav>a,.dd-btn{padding:.4rem .5rem}}
