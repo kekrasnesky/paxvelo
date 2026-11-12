@@ -115,8 +115,10 @@ strong{font-weight:500}
    plays over the photo; the
    photo shows instead for anyone who turns motion off (and site.js drops the
    clip for data saver). */
-.hero-video{object-position:35% 50%}
+.hero .hero-video{object-position:35% 50%}
 @media (prefers-reduced-motion:reduce){.hero-video{display:none}}
+/* Before it plays, the picture under it is its first frame: framed the same */
+@media (prefers-reduced-motion:no-preference){.has-video img.hero-bg{object-position:35% 50%!important;transform:none!important;scale:none!important;translate:none!important;clip-path:none!important}}
 .hero::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(20,20,20,.72),rgba(20,20,20,.12) 65%)}
 .hero-in{position:relative;z-index:1;display:flex;flex-wrap:wrap;align-items:center;gap:14px 18px;width:100%;padding:56px var(--side) 24px}
 .hero h1{flex:0 0 100%;font-size:clamp(2rem,4.6vw,3.8rem);color:#fff}

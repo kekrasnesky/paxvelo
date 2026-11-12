@@ -3,7 +3,14 @@
 #   scp -r deploy root@SERVER:/root/ && ssh root@SERVER 'cd deploy && sh setup.sh'
 set -eu
 apt-get update
-apt-get install -y caddy curl unattended-upgrades rclone   # security updates install themselves
+apt-get install -y curl unattended-upgrades rclone   # security updates install themselves
+# Caddy from its own package source: Ubuntu's is too old for the Cloudflare
+# settings in the Caddyfile (https://caddyserver.com/docs/install#debian-ubuntu-raspbian).
+apt-get install -y debian-keyring debian-archive-keyring apt-transport-https gnupg
+curl -1sLf https://dl.cloudsmith.io/public/caddy/stable/gpg.key | gpg --batch --yes --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+curl -1sLf https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt > /etc/apt/sources.list.d/caddy-stable.list
+apt-get update
+apt-get install -y caddy
 # LibreOffice without a screen, for turning Word minutes into PDFs (docpdf.go),
 # and fonts that match Word's (Calibri, Cambria, Arial, Times New Roman).
 apt-get install -y --no-install-recommends libreoffice-writer-nogui fonts-crosextra-carlito fonts-crosextra-caladea fonts-liberation

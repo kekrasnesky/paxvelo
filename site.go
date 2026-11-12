@@ -485,7 +485,9 @@ func (s *Site) staticFiles(prefix string, dir fs.FS) http.Handler {
 			s.notFound(w, r)
 			return
 		}
-		if r.URL.Query().Has("v") {
+		// Versioned addresses, and the home video's files (a new name for
+		// every video made), never change.
+		if r.URL.Query().Has("v") || strings.HasPrefix(r.URL.Path, "/media/video/") {
 			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 		} else {
 			w.Header().Set("Cache-Control", "public, max-age=86400")

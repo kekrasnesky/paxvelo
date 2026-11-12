@@ -1,15 +1,16 @@
 {{define "content"}}
-<div class="hero">
-  {{if .Hero.Phone}}<style>@media (max-width:767px){.hero .hero-bg{object-position:50% 50%}}{{with .Hero.Focus}}@media (min-width:768px){.hero .hero-bg{ {{focusStyle .}} }}{{end}}</style>
+<div class="hero{{if .HeroVideo}} has-video{{end}}">
+  {{if .Hero.Phone}}<style>@media (max-width:767px){.hero .hero-bg{object-position:50% 50%}}{{with .Hero.Focus}}@media (min-width:768px){.hero .hero-bg{ {{focusStyle .}} }}{{end}}</style>{{end}}
+  {{/* Where the video will play, the picture is the video's first frame
+  (its poster, the same file), so it shows straight away and turns into the
+  video without a jump. Anyone with motion off gets the top photo. */}}
   <picture>
-    <source media="(max-width: 767px)" srcset="{{.Hero.Phone}}" width="800" height="800">
-    <img class="hero-bg" src="{{.Hero.Photo}}" alt="{{or .Hero.Alt "A PaxVelo club ride"}}" fetchpriority="high" decoding="async">
+    {{with .HeroVideo}}{{with .Poster}}<source media="(prefers-reduced-motion: no-preference)" srcset="{{.}}">{{end}}{{end}}
+    {{if .Hero.Phone}}<source media="(max-width: 767px)" srcset="{{.Hero.Phone}}" width="800" height="800">
+    {{else if not .Hero.Photo}}<source media="(max-width: 767px)" srcset="/photos/hero-phone.webp?v={{.V}}" width="800" height="800">{{end}}
+    {{if .Hero.Photo}}<img class="hero-bg" src="{{.Hero.Photo}}" alt="{{or .Hero.Alt "A PaxVelo club ride"}}" fetchpriority="high" decoding="async"{{if not .Hero.Phone}}{{with .Hero.Focus}} style="{{focusStyle .}}"{{end}}{{end}}>
+    {{else}}<img class="hero-bg" src="/photos/hero.webp?v={{.V}}" alt="{{or .Hero.Alt "PaxVelo riders on a group ride along a country road"}}" width="1800" height="818" fetchpriority="high" decoding="async"{{with .Hero.Focus}} style="{{focusStyle .}}"{{end}}>{{end}}
   </picture>
-  {{else if .Hero.Photo}}<img class="hero-bg" src="{{.Hero.Photo}}" alt="{{or .Hero.Alt "A PaxVelo club ride"}}" fetchpriority="high" decoding="async"{{with .Hero.Focus}} style="{{focusStyle .}}"{{end}}>
-  {{else}}<picture>
-    <source media="(max-width: 767px)" srcset="/photos/hero-phone.webp?v={{.V}}" width="800" height="800">
-    <img class="hero-bg" src="/photos/hero.webp?v={{.V}}" alt="{{or .Hero.Alt "PaxVelo riders on a group ride along a country road"}}" width="1800" height="818" fetchpriority="high" decoding="async"{{with .Hero.Focus}} style="{{focusStyle .}}"{{end}}>
-  </picture>{{end}}
   {{with .HeroVideo}}<video class="hero-bg hero-video"{{with .Poster}} poster="{{.}}"{{end}} autoplay muted loop playsinline preload="auto" disablepictureinpicture aria-hidden="true">
     <source src="{{.Phone}}" type="video/mp4" media="(max-width: 767px)">
     <source src="{{.Video}}" type="video/mp4">
