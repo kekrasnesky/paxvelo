@@ -12,6 +12,7 @@
   {{else}}<form class="join ride-waiver{{if .Ride}} loaner-form{{end}}" method="post" action="{{.Action}}">
     <input type="hidden" name="ft" value="{{.Token}}">
     <div class="hp" aria-hidden="true"><label>Leave this empty <input name="website" tabindex="-1" autocomplete="off"></label></div>
+    {{with .Message}}<p class="cal-msg cal-err" role="alert">{{.}}</p>{{end}}
     {{if .Ride}}{{$picked := .BikeID}}<fieldset class="pick loaner-pick">
       <legend>Bike</legend>
       {{range .Bikes}}<label{{if .Taken}} class="taken"{{end}}><input type="radio" name="bike_id" value="{{.ID}}" required{{if .Taken}} disabled{{else if eq (print .ID) $picked}} checked{{end}}><span><strong>{{.Size}}</strong>{{with .Fits}} · rider {{.}}{{end}}{{with .Bike}}<br><span class="loaner-bike">{{.}}</span>{{end}}{{if .Taken}} <span class="tag">Reserved</span>{{end}}</span></label>
@@ -51,8 +52,7 @@
       {{template "signature-pad" "ride"}}
       <p class="hint">Date signed: {{.Today}}.</p>
     </fieldset>
-    <button class="btn" type="submit">{{if .Ride}}Request the bike{{else}}Sign{{end}}</button>
-    <p class="msg{{if .Message}} err{{end}}" role="status" aria-live="polite">{{.Message}}</p>
+    <button class="btn" type="submit" data-busy="{{if .Ride}}Sending…{{else}}Signing…{{end}}">{{if .Ride}}Request the bike{{else}}Sign{{end}}</button>
   </form>{{end}}
 </article>
 {{end}}{{end}}

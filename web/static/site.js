@@ -255,6 +255,18 @@
     size();
   });
 
+  // The ride waiver and loaner forms: the button says it's working once the
+  // form really goes (the signature box can stop it first), and a second
+  // press does nothing. Coming back with the Back button resets it.
+  d.querySelectorAll('form.ride-waiver').forEach(function(f){
+    var b=f.querySelector('button[data-busy]');if(!b)return;var label=b.textContent;
+    f.addEventListener('submit',function(e){
+      if(b.disabled){e.preventDefault();return}
+      setTimeout(function(){if(!e.defaultPrevented){b.disabled=true;b.textContent=b.dataset.busy}});
+    });
+    addEventListener('pageshow',function(){b.disabled=false;b.textContent=label});
+  });
+
   // Switches that save as soon as they're changed (club emails on the
   // membership page); without scripts, a Save button shows instead.
   d.querySelectorAll('form[data-autosave]').forEach(function(f){f.addEventListener('change',function(){f.submit()})});

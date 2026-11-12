@@ -133,7 +133,7 @@ func TestRideWaiverRefused(t *testing.T) {
 	} {
 		ct, b := form(rideWaiverForm(a, v))
 		w := do(t, h, nil, "POST", "/ride-waiver", ct, b)
-		if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), `class="msg err"`) {
+		if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), `class="cal-msg cal-err" role="alert"`) {
 			t.Errorf("%s: should be refused: %d", name, w.Code)
 		}
 	}

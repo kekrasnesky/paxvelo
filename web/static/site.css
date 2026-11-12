@@ -882,6 +882,24 @@ button:has(>.ic),.btn:has(>.ic){display:inline-flex;align-items:center;justify-c
 .kit-order:focus{outline:none}
 .kit-order-head{margin:0 0 .5rem;font-weight:500}
 .kit-paid{color:#2f7d4f}
+
+/* Success messages on every public form (signed, joined, shared, saved…):
+   green, with a check that pops in as the message slides into place. Errors
+   (.cal-err, .msg.err) stay red. */
+:root{--ok:#2e6b34;--ok-ink:#1d4521;--ok-bg:#e8f3e8}
+.cal-msg:not(.cal-err),.joined-title,.kit-order.just-saved .kit-order-head{display:flex;align-items:flex-start;gap:.6rem;border-left:4px solid var(--ok);border-radius:0 8px 8px 0;background:var(--ok-bg);color:var(--ok-ink)}
+.joined-title{margin:0 0 .8rem!important;padding:.7rem 1rem}
+.kit-order.just-saved{border-color:var(--ok)}
+.kit-order.just-saved .kit-order-head{margin:-.4rem -.5rem .7rem;padding:.5rem .7rem}
+.cal-msg:not(.cal-err)::before,.joined-title::before,.kit-order.just-saved .kit-order-head::before{content:"";flex:none;width:1.25em;height:1.25em;margin-top:.1em;border-radius:50%;
+  background:var(--ok) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.6 8.4l2.9 2.9 5.9-6.6' fill='none' stroke='%23fff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/70% no-repeat}
+.joined-title::before{width:1.1em;height:1.1em;margin-top:.12em}
+@keyframes pv-ok-in{from{opacity:0;transform:translateY(-10px)}}
+@keyframes pv-ok-check{0%{transform:scale(0)}60%{transform:scale(1.25)}100%{transform:scale(1)}}
+@media (prefers-reduced-motion:no-preference){
+  .cal-msg:not(.cal-err),.joined-title,.kit-order.just-saved .kit-order-head{animation:pv-ok-in .45s cubic-bezier(.2,.8,.3,1) .1s backwards}
+  .cal-msg:not(.cal-err)::before,.joined-title::before,.kit-order.just-saved .kit-order-head::before{animation:pv-ok-check .5s cubic-bezier(.3,1.4,.5,1) .35s backwards}
+}
 .kit-lines{margin:0;padding:0;list-style:none}
 .kit-order li,.kit-total{display:flex;justify-content:space-between;gap:1rem;padding:.3rem 0;border-bottom:1px solid var(--line)}
 .kit-total{margin:0 0 .8rem;border:0}
