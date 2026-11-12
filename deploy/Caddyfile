@@ -1,9 +1,9 @@
 # Caddy serves the site over HTTPS and renews the certificate automatically.
 #
-# For now the site runs at paxvelo.cc, while the Squarespace site keeps
-# paxvelo.club. To move it to paxvelo.club, see CLAUDE.md ("Deploy"): change
-# paxvelo.cc to paxvelo.club in the two blocks below,
-# and remove the # in front of the last block so old .cc links keep working.
+# The site lives at www.paxvelo.club. The old paxvelo.cc addresses (used
+# before the move from Squarespace, and in emails sent then) redirect to it.
+# During the move itself, deploy/Caddyfile.during-move serves both names
+# without redirecting until paxvelo.club's certificate is in place.
 #
 # Cloudflare: the site can sit behind Cloudflare's CDN (DNS record "Proxied").
 # Visitors then reach the server through Cloudflare, so Caddy takes each
@@ -19,7 +19,7 @@
 	}
 }
 
-www.paxvelo.cc {
+www.paxvelo.club {
 	encode zstd gzip
 	reverse_proxy 127.0.0.1:8080 {
 		# One address, the visitor's: the site reads the last one it's given.
@@ -29,12 +29,13 @@ www.paxvelo.cc {
 }
 
 # Send the bare domain to www.
-paxvelo.cc {
+paxvelo.club {
 	header Strict-Transport-Security "max-age=31536000"
-	redir https://www.paxvelo.cc{uri} permanent
+	redir https://www.paxvelo.club{uri} permanent
 }
 
-# After the move: send the old paxvelo.cc addresses to paxvelo.club.
-# paxvelo.cc, www.paxvelo.cc {
-# 	redir https://www.paxvelo.club{uri} permanent
-# }
+# The old addresses from before the move.
+paxvelo.cc, www.paxvelo.cc {
+	header Strict-Transport-Security "max-age=31536000"
+	redir https://www.paxvelo.club{uri} permanent
+}

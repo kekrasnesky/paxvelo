@@ -29,7 +29,7 @@ caddy validate --config ./Caddyfile --adapter caddyfile
 cp ./Caddyfile /etc/caddy/Caddyfile
 systemctl reload caddy
 sleep 2
-if curl -fsS -o /dev/null https://www.paxvelo.cc/; then
+if curl -fsS -o /dev/null https://www.paxvelo.club/; then
 	echo "Done: Caddy $(caddy version | cut -d' ' -f1) is serving the site with the Cloudflare settings."
 else
 	echo "The site didn't answer: putting the old Caddyfile back."
