@@ -771,17 +771,13 @@ html:has(.gal-view[open]){overflow:hidden} /* the page behind stays put */
   .menu-open .burger span:first-child{transform:translateY(4px) rotate(45deg)}
   .menu-open .burger span:last-child{transform:translateY(-4px) rotate(-45deg)}
   /* The menu is a road paving down from the header: tarmac (like the header)
-     revealed top to bottom, with edge lines and a dashed centre line that run
-     as it opens; then the links settle in one by one. Closing rolls it up. */
+     revealed top to bottom, then the links settle in one by one. Closing
+     rolls it up. */
   .js .nav{position:fixed;inset:0;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.7rem;padding:5rem 2rem 2rem;overflow-y:auto;
     background:linear-gradient(rgba(45,45,45,.68),rgba(45,45,45,.68)),var(--ink) url(/static/img/tarmac.jpg?v=__V__) center top/1360px 320px repeat;font-size:1.6rem;line-height:1.3;
     visibility:hidden;clip-path:inset(0 0 100% 0);transition:clip-path .35s cubic-bezier(.6,0,.4,1),visibility 0s linear .35s}
-  .js .nav::before,.js .nav::after{content:"";position:absolute;top:0;bottom:0;pointer-events:none}
-  .js .nav::before{left:50%;width:4px;margin-left:-2px;background:repeating-linear-gradient(to bottom,#e3c04b 0 30px,transparent 30px 56px);opacity:.28}
-  .js .nav::after{left:14px;right:14px;border-left:2px solid rgba(245,242,236,.22);border-right:2px solid rgba(245,242,236,.22)}
   .js .nav>*{position:relative;opacity:0;transform:translateY(14px);transition:opacity .15s ease,transform .15s ease}
   .menu-open .nav{visibility:visible;clip-path:inset(0);transition:clip-path .55s cubic-bezier(.5,0,.15,1),visibility 0s}
-  .menu-open .nav::before{animation:pv-road .7s cubic-bezier(.2,.7,.3,1)}
   .menu-open .nav>*{opacity:1;transform:none;transition:opacity .3s ease,transform .35s cubic-bezier(.2,.8,.3,1)}
   .menu-open .nav>:nth-child(1){transition-delay:.22s}
   .menu-open .nav>:nth-child(2){transition-delay:.27s}
@@ -873,9 +869,7 @@ html:has(.gal-view[open]){overflow:hidden} /* the page behind stays put */
 button:has(>.ic),.btn:has(>.ic){display:inline-flex;align-items:center;justify-content:center}
 
 /* No sliding or fading for people who turn motion off on their device */
-@media (prefers-reduced-motion:reduce){.hdr,.dd-menu,.js .nav,.js .nav>*,.dd-btn svg{transition:none!important}.menu-open .nav::before{animation:none!important}}
-/* The centre line rushes past as the menu road opens */
-@keyframes pv-road{from{background-position:0 -280px}to{background-position:0 0}}
+@media (prefers-reduced-motion:reduce){.hdr,.dd-menu,.js .nav,.js .nav>*,.dd-btn svg{transition:none!important}}
 .club-terms ul{margin:0 0 .7rem;padding-left:1.2rem}.club-terms li{margin:0 0 .25rem}.club-terms p{margin:0 0 .3rem}
 .club-terms ul,.club-terms li{font-size:inherit;line-height:1.5}
 

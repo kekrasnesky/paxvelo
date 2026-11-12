@@ -8,7 +8,7 @@
   var behind=[d.querySelector('.skip'),d.querySelector('.hdr .logo'),d.getElementById('main'),d.querySelector('.ftr')];
   function setMenu(open){
     root.classList.toggle('menu-open',open);
-    if(open)setDD(true); // the phone menu shows the Info pages straight away
+    setDD(open); // the phone menu shows the Info pages straight away, and closing it closes them (an open Info keeps the header from sliding away)
     behind.forEach(function(el){if(el)el.inert=open});
     if(burger){burger.setAttribute('aria-expanded',open);burger.setAttribute('aria-label',open?'Close menu':'Open menu')}
   }
