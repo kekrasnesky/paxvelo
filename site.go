@@ -79,6 +79,7 @@ type view struct {
 	Club                          clubInfo
 	Data                          any
 	Hero                          HeroPhoto // the home page's top photo (hero.go)
+	HeroVideo                     bool      // content/photos/hero.mp4 plays over it
 }
 
 // clubInfo holds the settings pages show: dues and outside links.
@@ -90,6 +91,7 @@ type clubInfo struct {
 func init() {
 	mime.AddExtensionType(".woff2", "font/woff2")
 	mime.AddExtensionType(".webp", "image/webp")
+	mime.AddExtensionType(".mp4", "video/mp4")
 }
 
 func newSite(cfg Config) (*Site, error) {
@@ -369,6 +371,8 @@ func (s *Site) pageHTML(p *contentPage, d contentData) ([]byte, error) {
 	}
 	if p.Path == "/" {
 		v.Hero = d.Hero
+		_, err := fs.Stat(s.photos, "hero.mp4")
+		v.HeroVideo = err == nil
 	}
 	var buf bytes.Buffer
 	if err := t.ExecuteTemplate(&buf, "layout", v); err != nil {

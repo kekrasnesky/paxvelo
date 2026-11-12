@@ -267,6 +267,11 @@
     addEventListener('pageshow',function(){b.disabled=false;b.textContent=label});
   });
 
+  // The home page's clip: not for phones saving data or people who turn
+  // motion off (CSS hides it too), so it doesn't download for them.
+  var heroVid=d.querySelector('.hero-video');
+  if(heroVid&&((navigator.connection&&navigator.connection.saveData)||(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)))heroVid.remove();
+
   // Switches that save as soon as they're changed (club emails on the
   // membership page); without scripts, a Save button shows instead.
   d.querySelectorAll('form[data-autosave]').forEach(function(f){f.addEventListener('change',function(){f.submit()})});
