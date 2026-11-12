@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/fs"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"os/exec"
@@ -24,13 +25,19 @@ import (
 // The video at the top of the home page, made from clips admins add on
 // Website → Home photos → Top video. They upload clips straight from a phone
 // or a GoPro, put them in order and remove them; the site does the rest in
-// the background with ffmpeg (deploy/setup.sh installs it): each upload is
-// shrunk to a 1280×720, 30 fps copy without sound or the camera's GPS track
-// (prepareClip), then all the clips are joined into one loop (buildVideo),
-// each fading into the next over a second and the last fading back into the
-// first, starting just after that fade so the browser's loop has no cut.
-// A lighter 960×540 copy goes to phones, and a still of the first frame shows
-// while it loads.
+// the background with ffmpeg (deploy/setup.sh installs it). Each upload keeps
+// its shape, vertical or wide: it's shrunk to at most 1080 across its short
+// side, 30 fps, without sound or the camera's GPS track, and an iPhone's HDR
+// is turned into ordinary colors (prepareClip). Then the clips are joined into
+// one loop for each kind of screen (buildVideo): a wide 1280×720 one for
+// computers and a tall 720×1280 one for phones. Each clip fills the frame:
+// a vertical clip on a computer is cut to a band a little above its middle,
+// so heads stay in, and a wide clip on a phone to its middle. Each clip fades
+// into the next over a second and the last back into the first, starting just
+// after that fade so the browser's loop has no cut. Both come in AV1, which
+// looks as good in about 40% less data (Chrome, Firefox, Android, the newest
+// iPhones), and H.264 for every other browser, which picks the first it can
+// play; a still of each one's first frame shows while it loads.
 //
 // The video built into the site (content/photos/hero.mp4) becomes the first
 // clip the first time, so the home page looks the same until someone changes
@@ -49,11 +56,13 @@ const (
 // HeroClip is one clip in the home page video.
 type HeroClip struct {
 	ID     int     `json:"id"`
-	Name   string  `json:"name"`             // the file name it was uploaded with
-	Raw    string  `json:"raw,omitempty"`    // the upload, in the private uploads folder, until it's prepared
-	File   string  `json:"file,omitempty"`   // the prepared copy, in the video folder
-	Thumb  string  `json:"thumb,omitempty"`  // a still, under /media/
-	Secs   float64 `json:"secs,omitempty"`   // how long the prepared copy runs
+	Name   string  `json:"name"`            // the file name it was uploaded with
+	Raw    string  `json:"raw,omitempty"`   // the upload, in the private uploads folder, until it's prepared
+	File   string  `json:"file,omitempty"`  // the prepared copy, in the video folder
+	Thumb  string  `json:"thumb,omitempty"` // a still, under /media/
+	Secs   float64 `json:"secs,omitempty"`  // how long the prepared copy runs
+	W      int     `json:"w,omitempty"`     // the prepared copy's size: taller than wide is a vertical clip
+	H      int     `json:"h,omitempty"`
 	Failed string  `json:"failed,omitempty"` // why it couldn't be prepared
 }
 
@@ -63,6 +72,9 @@ func (c HeroClip) Ready() bool { return c.File != "" && c.Failed == "" }
 // SecsLabel is its length, like "9 s".
 func (c HeroClip) SecsLabel() string { return fmt.Sprintf("%.0f s", c.Secs) }
 
+// Vertical says whether it was filmed upright, taller than wide.
+func (c HeroClip) Vertical() bool { return c.H > c.W }
+
 // HeroVideo is the home page video: its clips, and the files made from them.
 type HeroVideo struct {
 	Clips    []*HeroClip `json:"clips,omitempty"`
@@ -71,15 +83,22 @@ type HeroVideo struct {
 	Off      bool        `json:"off,omitempty"`    // show the top photo instead
 	// The video made from the clips, under /media/; empty until it's made
 	// (the built-in one shows meanwhile).
-	Video  string `json:"video,omitempty"`
-	Phone  string `json:"phone,omitempty"`
-	Poster string `json:"poster,omitempty"`
-	Dirty  bool   `json:"dirty,omitempty"` // the clips changed since it was made
-	Error  string `json:"error,omitempty"` // why the last try to make it failed
+	Video       string `json:"video,omitempty"`        // computers, H.264
+	Phone       string `json:"phone,omitempty"`        // phones, H.264
+	VideoAV1    string `json:"video_av1,omitempty"`    // the same in AV1, when the server can make it
+	PhoneAV1    string `json:"phone_av1,omitempty"`    //
+	Poster      string `json:"poster,omitempty"`       // each one's first frame
+	PhonePoster string `json:"phone_poster,omitempty"` //
+	Dirty       bool   `json:"dirty,omitempty"`        // the clips changed since it was made
+	Error       string `json:"error,omitempty"`        // why the last try to make it failed
 }
 
-// heroVideoView is what the home page plays.
-type heroVideoView struct{ Video, Phone, Poster string }
+// heroVideoView is what the home page plays. Made says it's made from the
+// clips, already cut to each screen's shape (the built-in one is wide only).
+type heroVideoView struct {
+	Video, Phone, VideoAV1, PhoneAV1, Poster, PhonePoster string
+	Made                                                  bool
+}
 
 // ---- Store ----
 
@@ -167,10 +186,11 @@ func (v HeroVideo) view(builtin bool, version string) *heroVideoView {
 	case v.Off:
 		return nil
 	case v.Video != "":
-		return &heroVideoView{Video: v.Video, Phone: or(v.Phone, v.Video), Poster: v.Poster}
+		return &heroVideoView{Video: v.Video, Phone: or(v.Phone, v.Video), VideoAV1: v.VideoAV1, PhoneAV1: v.PhoneAV1,
+			Poster: v.Poster, PhonePoster: or(v.PhonePoster, v.Poster), Made: true}
 	case (!v.Seeded || len(v.Clips) > 0) && builtin:
 		q := "?v=" + version
-		return &heroVideoView{Video: "/photos/hero.mp4" + q, Phone: "/photos/hero-phone.mp4" + q, Poster: "/photos/hero-video.webp" + q}
+		return &heroVideoView{Video: "/photos/hero.mp4" + q, Phone: "/photos/hero-phone.mp4" + q, Poster: "/photos/hero-video.webp" + q, PhonePoster: "/photos/hero-video.webp" + q}
 	}
 	return nil
 }
@@ -213,36 +233,121 @@ func runTool(prog string, args ...string) ([]byte, error) {
 	return out, nil
 }
 
-// clipLength is how long a video file runs, in seconds.
-func clipLength(ffprobe, file string) (float64, error) {
-	out, err := runTool(ffprobe, "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", file)
-	if err != nil {
-		return 0, err
-	}
-	return strconv.ParseFloat(strings.TrimSpace(string(out)), 64)
+// clipInfo is how long a video file runs, in seconds, and its size as it
+// plays (turned the right way up), and how its colors are coded.
+type clipInfo struct {
+	Secs     float64
+	W, H     int
+	Transfer string // arib-std-b67 (HLG) or smpte2084 (PQ) is HDR
 }
 
-// clipFilter shapes every clip the same: 30 fps, 1280×720 filling the frame.
-const clipFilter = "fps=30,scale=1280:720:force_original_aspect_ratio=increase:flags=lanczos,crop=1280:720,setsar=1,format=yuv420p"
+func probeClip(ffprobe, file string) (clipInfo, error) {
+	out, err := runTool(ffprobe, "-v", "error", "-select_streams", "v:0", "-show_entries",
+		"stream=width,height,color_transfer:stream_side_data=rotation:format=duration", "-of", "json", file)
+	if err != nil {
+		return clipInfo{}, err
+	}
+	var p struct {
+		Streams []struct {
+			Width, Height int
+			Transfer      string `json:"color_transfer"`
+			SideData      []struct {
+				Rotation float64 `json:"rotation"`
+			} `json:"side_data_list"`
+		}
+		Format struct {
+			Duration string
+		}
+	}
+	if err := json.Unmarshal(out, &p); err != nil || len(p.Streams) == 0 {
+		return clipInfo{}, fmt.Errorf("no video in it")
+	}
+	st := p.Streams[0]
+	info := clipInfo{W: st.Width, H: st.Height, Transfer: st.Transfer}
+	for _, sd := range st.SideData {
+		if r := int(math.Abs(sd.Rotation)) % 180; r == 90 { // filmed sideways: plays turned
+			info.W, info.H = info.H, info.W
+		}
+	}
+	info.Secs, err = strconv.ParseFloat(p.Format.Duration, 64)
+	return info, err
+}
+
+// clipLength is how long a video file runs, in seconds.
+func clipLength(ffprobe, file string) (float64, error) {
+	info, err := probeClip(ffprobe, file)
+	return info.Secs, err
+}
+
+// hdrToSDR turns HDR video (an iPhone films in it) into ordinary colors, so it
+// isn't washed out or dull in a browser.
+const hdrToSDR = "zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv,"
+
+// prepareFilter keeps a clip's shape: at most 1080 across its short side
+// (never enlarged), 30 fps.
+func prepareFilter(hdr bool) string {
+	f := ""
+	if hdr {
+		f = hdrToSDR
+	}
+	return f + "fps=30,scale='if(gt(iw,ih),-2,min(1080,iw))':'if(gt(iw,ih),min(1080,ih),-2)':flags=lanczos,setsar=1,format=yuv420p"
+}
 
 // prepareArgs shrinks an upload to the copy the video is made from: no
 // sound, subtitles, data tracks (a GoPro's GPS) or metadata, at most
-// clipSeconds long. ffmpeg turns clips filmed upside down the right way up.
-func prepareArgs(in, out string) []string {
+// clipSeconds long. ffmpeg turns clips filmed upside down or sideways the
+// right way up.
+func prepareArgs(in, out string, hdr bool) []string {
 	return []string{"-hide_banner", "-loglevel", "error", "-y", "-i", in, "-t", strconv.Itoa(clipSeconds),
 		"-map", "0:v:0", "-an", "-sn", "-dn", "-map_metadata", "-1", "-map_chapters", "-1",
-		"-vf", clipFilter, "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-movflags", "+faststart", out}
+		"-vf", prepareFilter(hdr), "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-movflags", "+faststart", out}
+}
+
+// videoShape is one kind of screen the loop is made for.
+type videoShape struct {
+	Name string // in the file names
+	W, H int
+	// Data rates, each a little under what made it look close to the original
+	// on a vertical iPhone clip: AV1 needs about 40% less for the same look.
+	H264, AV1 int // kbit/s
+}
+
+var (
+	computerShape = videoShape{Name: "", W: 1280, H: 720, H264: 2500, AV1: 2000}
+	phoneShape    = videoShape{Name: "-phone", W: 720, H: 1280, H264: 2000, AV1: 1600}
+)
+
+// fitFilter makes one clip fill a shape: shrunk or enlarged to cover it, then
+// cut to it. A vertical clip in a wide frame keeps the band 40% of the way
+// down, where heads and bikes usually are; anything else keeps the middle.
+// Clips from before shapes were kept count as 1280×720.
+func fitFilter(c HeroClip, sh videoShape) string {
+	w, h := c.W, c.H
+	if w == 0 || h == 0 {
+		w, h = 1280, 720
+	}
+	y := "0.5"
+	if h > w && sh.W > sh.H {
+		y = "0.4"
+	}
+	return fmt.Sprintf("scale=%d:%d:force_original_aspect_ratio=increase:flags=lanczos,crop=%d:%d:(iw-ow)/2:(ih-oh)*%s,setsar=1,fps=30,format=yuv420p",
+		sh.W, sh.H, sh.W, sh.H, y)
 }
 
 // loopFilter joins clips of these lengths into one loop: each fades into the
 // next over heroFade, the last fades into the start of the first, and the
 // result starts heroFade in, just after that, so the end runs straight into
-// the start. Input i is clip i; the output is [v].
-func loopFilter(secs []float64) string {
+// the start. Input i is clip i, shaped by fit[i] first (if given); the
+// output is [v].
+func loopFilter(secs []float64, fit []string) string {
 	var b strings.Builder
 	n := len(secs)
 	for i := range secs {
-		fmt.Fprintf(&b, "[%d:v]settb=AVTB,setpts=PTS-STARTPTS", i)
+		fmt.Fprintf(&b, "[%d:v]", i)
+		if i < len(fit) && fit[i] != "" {
+			b.WriteString(fit[i] + ",")
+		}
+		b.WriteString("settb=AVTB,setpts=PTS-STARTPTS")
 		if i == 0 {
 			b.WriteString(",split[c0][head];[head]trim=0:" + ffNum(heroFade) + ",setpts=PTS-STARTPTS[h];")
 		} else {
@@ -414,11 +519,25 @@ func (a *App) prepareClip(ffmpeg, ffprobe string, c HeroClip) {
 			return nil
 		})
 	}
-	if _, err := runTool(ffmpeg, prepareArgs(in, filepath.Join(dir, file))...); err != nil {
+	src, err := probeClip(ffprobe, in)
+	if err != nil {
 		fail("That file isn’t a video ffmpeg can read.")
 		return
 	}
-	secs, err := clipLength(ffprobe, filepath.Join(dir, file))
+	hdr := src.Transfer == "arib-std-b67" || src.Transfer == "smpte2084"
+	if _, err := runTool(ffmpeg, prepareArgs(in, filepath.Join(dir, file), hdr)...); err != nil && hdr {
+		// Some ffmpeg builds can't do the HDR step: go without it.
+		_, err = runTool(ffmpeg, prepareArgs(in, filepath.Join(dir, file), false)...)
+		if err != nil {
+			fail("That file isn’t a video ffmpeg can read.")
+			return
+		}
+	} else if err != nil {
+		fail("That file isn’t a video ffmpeg can read.")
+		return
+	}
+	info, err := probeClip(ffprobe, filepath.Join(dir, file))
+	secs := info.Secs
 	if err != nil {
 		fail("That file isn’t a video ffmpeg can read.")
 		return
@@ -436,7 +555,7 @@ func (a *App) prepareClip(ffmpeg, ffprobe string, c HeroClip) {
 			return nil
 		}
 		x := v.Clips[i]
-		x.Raw, x.File, x.Secs = "", file, secs
+		x.Raw, x.File, x.Secs, x.W, x.H = "", file, secs, info.W, info.H
 		if _, err := os.Stat(filepath.Join(dir, thumb)); err == nil {
 			x.Thumb = "/media/video/" + thumb
 		}
@@ -449,48 +568,86 @@ func (a *App) prepareClip(ffmpeg, ffprobe string, c HeroClip) {
 	}
 }
 
-// buildVideo joins the prepared clips into the loop, for computers and
-// phones, with a still for while it loads, and swaps them in.
+// buildVideo joins the prepared clips into the loop for each kind of screen,
+// in H.264 and (when the server's ffmpeg has it) AV1, with a still of each,
+// and swaps them in.
 func (a *App) buildVideo(ffmpeg string, v HeroVideo) error {
 	dir := a.videoDir()
 	if len(v.Clips) == 0 {
 		old := v
 		a.store.updateHeroVideo(func(hv *HeroVideo) error {
-			hv.Video, hv.Phone, hv.Poster, hv.Dirty, hv.Error = "", "", "", false, ""
+			hv.Video, hv.Phone, hv.VideoAV1, hv.PhoneAV1, hv.Poster, hv.PhonePoster, hv.Dirty, hv.Error = "", "", "", "", "", "", false, ""
 			return nil
 		})
 		a.dropVideoFiles(old)
 		return nil
 	}
 	base := "home-" + time.Now().UTC().Format("20060102-150405") + "-" + randHex(3)
-	video, phone, poster := base+".mp4", base+"-phone.mp4", base+".jpg"
-	args := []string{"-hide_banner", "-loglevel", "error", "-y"}
-	var secs []float64
-	for _, c := range v.Clips {
-		args = append(args, "-i", filepath.Join(dir, c.File))
-		secs = append(secs, c.Secs)
-	}
-	args = append(args, "-filter_complex", loopFilter(secs), "-map", "[v]", "-an", "-map_metadata", "-1",
-		"-c:v", "libx264", "-preset", "medium", "-crf", "28", "-maxrate", "2000k", "-bufsize", "4000k",
-		"-profile:v", "high", "-level", "4.0", "-movflags", "+faststart", filepath.Join(dir, video))
+	av1 := hasEncoder(ffmpeg, "libsvtav1")
+	var made []string
 	cleanup := func() {
-		for _, f := range []string{video, phone, poster} {
+		for _, f := range made {
 			os.Remove(filepath.Join(dir, f))
 		}
 	}
-	if _, err := runTool(ffmpeg, args...); err != nil {
-		cleanup()
-		return err
+	files := map[string]string{} // what each is called: "video", "video-av1", "poster", and "phone…"
+	for _, sh := range []videoShape{computerShape, phoneShape} {
+		key := "video"
+		if sh == phoneShape {
+			key = "phone"
+		}
+		// One very good copy of the loop for this shape, encoded from
+		// twice; deleted at the end.
+		master := base + sh.Name + "-master.mp4"
+		made = append(made, master)
+		args := []string{"-hide_banner", "-loglevel", "error", "-y"}
+		var secs []float64
+		var fit []string
+		for _, c := range v.Clips {
+			args = append(args, "-i", filepath.Join(dir, c.File))
+			secs = append(secs, c.Secs)
+			fit = append(fit, fitFilter(*c, sh))
+		}
+		args = append(args, "-filter_complex", loopFilter(secs, fit), "-map", "[v]", "-an", "-map_metadata", "-1",
+			"-c:v", "libx264", "-preset", "veryfast", "-crf", "14", filepath.Join(dir, master))
+		if _, err := runTool(ffmpeg, args...); err != nil {
+			cleanup()
+			return err
+		}
+		h264 := base + sh.Name + ".mp4"
+		made = append(made, h264)
+		kb := strconv.Itoa(sh.H264)
+		if _, err := runTool(ffmpeg, "-hide_banner", "-loglevel", "error", "-y", "-i", filepath.Join(dir, master), "-an",
+			"-c:v", "libx264", "-preset", "slow", "-crf", "23", "-maxrate", kb+"k", "-bufsize", strconv.Itoa(2*sh.H264)+"k",
+			"-profile:v", "high", "-level", "4.0", "-pix_fmt", "yuv420p", "-movflags", "+faststart", filepath.Join(dir, h264)); err != nil {
+			cleanup()
+			return err
+		}
+		files[key] = h264
+		if av1 {
+			f := base + sh.Name + "-av1.mp4"
+			made = append(made, f)
+			if _, err := runTool(ffmpeg, "-hide_banner", "-loglevel", "error", "-y", "-i", filepath.Join(dir, master), "-an",
+				"-c:v", "libsvtav1", "-preset", "7", "-b:v", strconv.Itoa(sh.AV1)+"k", "-svtav1-params", "tune=0",
+				"-pix_fmt", "yuv420p", "-movflags", "+faststart", filepath.Join(dir, f)); err != nil {
+				log.Printf("home video: AV1 %s: %v", key, err) // H.264 alone still plays everywhere
+			} else {
+				files[key+"-av1"] = f
+			}
+		}
+		poster := base + sh.Name + ".jpg"
+		made = append(made, poster)
+		runTool(ffmpeg, "-hide_banner", "-loglevel", "error", "-y", "-i", filepath.Join(dir, h264), "-frames:v", "1", "-q:v", "3", filepath.Join(dir, poster))
+		if _, err := os.Stat(filepath.Join(dir, poster)); err == nil {
+			files[key+"-poster"] = poster
+		}
+		os.Remove(filepath.Join(dir, master))
 	}
-	if _, err := runTool(ffmpeg, "-hide_banner", "-loglevel", "error", "-y", "-i", filepath.Join(dir, video),
-		"-vf", "scale=960:540:flags=lanczos,format=yuv420p", "-c:v", "libx264", "-preset", "medium", "-crf", "30",
-		"-maxrate", "1100k", "-bufsize", "2200k", "-profile:v", "high", "-level", "4.0", "-movflags", "+faststart", filepath.Join(dir, phone)); err != nil {
-		cleanup()
-		return err
-	}
-	runTool(ffmpeg, "-hide_banner", "-loglevel", "error", "-y", "-i", filepath.Join(dir, video), "-frames:v", "1", "-q:v", "4", filepath.Join(dir, poster))
-	if _, err := os.Stat(filepath.Join(dir, poster)); err != nil {
-		poster = ""
+	url := func(key string) string {
+		if f := files[key]; f != "" {
+			return "/media/video/" + f
+		}
+		return ""
 	}
 	// Made from the clips as they were: if the list changed meanwhile, it
 	// stays dirty and the next round makes it again.
@@ -501,11 +658,8 @@ func (a *App) buildVideo(ffmpeg string, v HeroVideo) error {
 		for i := range hv.Clips {
 			same = same && i < len(v.Clips) && hv.Clips[i].ID == v.Clips[i].ID
 		}
-		hv.Video, hv.Phone, hv.Error = "/media/video/"+video, "/media/video/"+phone, ""
-		hv.Poster = ""
-		if poster != "" {
-			hv.Poster = "/media/video/" + poster
-		}
+		hv.Video, hv.Phone, hv.VideoAV1, hv.PhoneAV1 = url("video"), url("phone"), url("video-av1"), url("phone-av1")
+		hv.Poster, hv.PhonePoster, hv.Error = url("video-poster"), url("phone-poster"), ""
 		hv.Dirty = !same
 		return nil
 	})
@@ -516,9 +670,23 @@ func (a *App) buildVideo(ffmpeg string, v HeroVideo) error {
 	return nil
 }
 
+// hasEncoder says whether ffmpeg can encode with this encoder (asked once).
+func hasEncoder(ffmpeg, name string) bool {
+	encodersOnce.Do(func() {
+		out, _ := runTool(ffmpeg, "-hide_banner", "-encoders")
+		encodersList = string(out)
+	})
+	return strings.Contains(encodersList, " "+name+" ")
+}
+
+var (
+	encodersOnce sync.Once
+	encodersList string
+)
+
 // dropVideoFiles deletes a made video's files once another replaces it.
 func (a *App) dropVideoFiles(v HeroVideo) {
-	for _, u := range []string{v.Video, v.Phone, v.Poster} {
+	for _, u := range []string{v.Video, v.Phone, v.VideoAV1, v.PhoneAV1, v.Poster, v.PhonePoster} {
 		if name, ok := strings.CutPrefix(u, "/media/video/"); ok && name != "" && !strings.ContainsAny(name, `/\`) {
 			os.Remove(filepath.Join(a.videoDir(), name))
 		}

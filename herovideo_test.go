@@ -15,7 +15,7 @@ import (
 // The loop: each clip fades into the next a second before it ends, the last
 // fades into the first second of the first, and the result starts after it.
 func TestLoopFilter(t *testing.T) {
-	f := loopFilter([]float64{9, 7, 12})
+	f := loopFilter([]float64{9, 7, 12}, nil)
 	for _, want := range []string{
 		"[0:v]settb=AVTB,setpts=PTS-STARTPTS,split[c0][head];[head]trim=0:1.000",
 		"[c0][c1]xfade=transition=fade:duration=1.000:offset=8.000[x1]",
@@ -27,7 +27,10 @@ func TestLoopFilter(t *testing.T) {
 			t.Errorf("filter should have %q:\n%s", want, f)
 		}
 	}
-	if one := loopFilter([]float64{5}); !strings.Contains(one, "[c0][h]xfade=transition=fade:duration=1.000:offset=4.000[x1]") {
+	if fit := loopFilter([]float64{5, 5}, []string{"crop=10:10", ""}); !strings.Contains(fit, "[0:v]crop=10:10,settb=AVTB") || !strings.Contains(fit, "[1:v]settb=AVTB") {
+		t.Errorf("each clip is shaped first:\n%s", fit)
+	}
+	if one := loopFilter([]float64{5}, nil); !strings.Contains(one, "[c0][h]xfade=transition=fade:duration=1.000:offset=4.000[x1]") {
 		t.Errorf("one clip loops into itself:\n%s", one)
 	}
 }
@@ -138,8 +141,35 @@ func TestHeroClipsAdmin(t *testing.T) {
 	}
 }
 
+// Each clip fills each screen: cut to the middle, except a vertical clip on a
+// computer, cut a little above its middle so heads stay in.
+func TestFitFilter(t *testing.T) {
+	vertical, wide := HeroClip{W: 1080, H: 1920}, HeroClip{W: 1920, H: 1080}
+	for name, c := range map[string]struct {
+		clip  HeroClip
+		shape videoShape
+		want  string
+	}{
+		"vertical on a computer": {vertical, computerShape, "scale=1280:720:force_original_aspect_ratio=increase:flags=lanczos,crop=1280:720:(iw-ow)/2:(ih-oh)*0.4"},
+		"vertical on a phone":    {vertical, phoneShape, "scale=720:1280:force_original_aspect_ratio=increase:flags=lanczos,crop=720:1280:(iw-ow)/2:(ih-oh)*0.5"},
+		"wide on a phone":        {wide, phoneShape, "crop=720:1280:(iw-ow)/2:(ih-oh)*0.5"},
+		"from before shapes":     {HeroClip{}, computerShape, "crop=1280:720:(iw-ow)/2:(ih-oh)*0.5"},
+	} {
+		if f := fitFilter(c.clip, c.shape); !strings.Contains(f, c.want) {
+			t.Errorf("%s: %s", name, f)
+		}
+	}
+	if !vertical.Vertical() || wide.Vertical() {
+		t.Error("Vertical")
+	}
+	if !strings.Contains(prepareFilter(true), "tonemap") || strings.Contains(prepareFilter(false), "tonemap") {
+		t.Error("only HDR clips are tone mapped")
+	}
+}
+
 // With ffmpeg there, uploads are prepared and joined into the loop, and the
-// home page plays it.
+// home page plays it: wide for computers, tall for phones, a vertical clip
+// keeping its shape.
 func TestHeroVideoMade(t *testing.T) {
 	ffmpeg, ffprobe := videoTools()
 	if ffmpeg == "" {
@@ -151,7 +181,7 @@ func TestHeroVideoMade(t *testing.T) {
 	if err := os.MkdirAll(a.videoUploadDir(), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	for i, src := range []string{"testsrc2=size=640x480:rate=25", "mandelbrot=size=640x360:rate=60"} {
+	for i, src := range []string{"testsrc2=size=640x480:rate=25", "mandelbrot=size=640x360:rate=60", "testsrc2=size=1080x1920:rate=30"} {
 		raw := "test" + strconv.Itoa(i) + ".mp4"
 		if _, err := runTool(ffmpeg, "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i", src, "-t", "4",
 			"-pix_fmt", "yuv420p", filepath.Join(a.videoUploadDir(), raw)); err != nil {
@@ -171,16 +201,38 @@ func TestHeroVideoMade(t *testing.T) {
 			t.Errorf("clip %+v", c)
 		}
 	}
+	if c := v.Clips[2]; !c.Vertical() || c.W != 1080 || c.H != 1920 {
+		t.Errorf("a vertical clip keeps its shape and size: %dx%d", c.W, c.H)
+	}
+	if c := v.Clips[1]; c.W != 640 || c.H != 360 {
+		t.Errorf("a small clip isn't enlarged: %dx%d", c.W, c.H)
+	}
+	for url, want := range map[string][2]int{v.Video: {1280, 720}, v.Phone: {720, 1280}, v.VideoAV1: {1280, 720}, v.PhoneAV1: {720, 1280}} {
+		if url == "" {
+			continue // AV1, where this ffmpeg can't make it
+		}
+		info, err := probeClip(ffprobe, filepath.Join(a.videoDir(), strings.TrimPrefix(url, "/media/video/")))
+		if err != nil || info.W != want[0] || info.H != want[1] || math.Abs(info.Secs-9) > 0.25 { // 4+4+4, less three fades
+			t.Errorf("%s: %+v %v", url, info, err)
+		}
+	}
+	if hasEncoder(ffmpeg, "libsvtav1") && (v.VideoAV1 == "" || v.PhoneAV1 == "") {
+		t.Errorf("AV1 copies: %+v", v)
+	}
+	if v.Poster == "" || v.PhonePoster == "" {
+		t.Errorf("a still for each: %+v", v)
+	}
 	if entries, _ := os.ReadDir(a.videoUploadDir()); len(entries) != 0 {
 		t.Errorf("uploads are deleted once prepared: %d left", len(entries))
 	}
 	file := filepath.Join(a.videoDir(), strings.TrimPrefix(v.Video, "/media/video/"))
-	secs, err := clipLength(ffprobe, file)
-	if err != nil || math.Abs(secs-6) > 0.25 { // 4 + 4, less a fade between and one back to the start
-		t.Errorf("length %.2f, %v", secs, err)
+	page := do(t, h, nil, "GET", "/", "", nil).Body.String()
+	if !strings.Contains(page, `src="`+v.Video+`"`) || !strings.Contains(page, `src="`+v.Phone+`"`) || !strings.Contains(page, "video-fitted") ||
+		!strings.Contains(page, `srcset="`+v.PhonePoster+`"`) {
+		t.Error("the home page plays the made video, with each still")
 	}
-	if page := do(t, h, nil, "GET", "/", "", nil).Body.String(); !strings.Contains(page, `src="`+v.Video+`"`) || !strings.Contains(page, `src="`+v.Phone+`"`) {
-		t.Error("the home page plays the made video")
+	if v.PhoneAV1 != "" && strings.Index(page, v.PhoneAV1) > strings.Index(page, `src="`+v.Phone+`"`) {
+		t.Error("AV1 comes first, so browsers that can play it pick it")
 	}
 	if w := do(t, h, nil, "GET", v.Video, "", nil); w.Code != http.StatusOK || w.Header().Get("Content-Type") != "video/mp4" {
 		t.Errorf("served: %d %s", w.Code, w.Header().Get("Content-Type"))

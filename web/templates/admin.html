@@ -2037,7 +2037,7 @@ document.querySelectorAll('.copy-link').forEach(function(b){b.addEventListener('
   <ol class="clip-list">
     {{range $i, $c := .Clips}}<li class="clip{{if .Failed}} failed{{end}}">
       {{if .Thumb}}<img src="{{.Thumb}}" alt="" width="96" height="54" loading="lazy">{{else}}<span class="clip-thumb" aria-hidden="true"></span>{{end}}
-      <span class="clip-name"><strong>{{.Name}}</strong><span class="small{{if .Failed}} err-text{{else}} muted{{end}}">{{if .Failed}}{{.Failed}}{{else if .Ready}}{{.SecsLabel}}{{else}}Preparing…{{end}}</span></span>
+      <span class="clip-name"><strong>{{.Name}}</strong><span class="small{{if .Failed}} err-text{{else}} muted{{end}}">{{if .Failed}}{{.Failed}}{{else if .Ready}}{{.SecsLabel}}{{if .Vertical}} · vertical{{end}}{{else}}Preparing…{{end}}</span></span>
       <span class="row-acts">
         <form method="post" action="/admin/home-video/clips/{{.ID}}/move"><input type="hidden" name="dir" value="up"><button class="mini ghost" aria-label="Move {{.Name}} earlier" title="Earlier"{{if eq $i 0}} disabled{{end}}>↑</button></form>
         <form method="post" action="/admin/home-video/clips/{{.ID}}/move"><input type="hidden" name="dir" value="down"><button class="mini ghost" aria-label="Move {{.Name}} later" title="Later"{{if eq (inc $i) (len $.Video.Clips)}} disabled{{end}}>↓</button></form>
