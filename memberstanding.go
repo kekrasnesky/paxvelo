@@ -113,6 +113,7 @@ func (s *Store) DeleteMembers(ids []int) (int, error) {
 	if n == 0 {
 		return 0, nil
 	}
+	s.linkRideWaivers()
 	return n, s.save()
 }
 

@@ -764,6 +764,8 @@ body.addEventListener('submit',function(e){var f=e.target;if(!f.classList.contai
     <h2 class="member-h">Waivers</h2>
     {{if .Waivers}}<ul class="member-list">{{range .Waivers}}<li>{{if $.IsBoard}}<a href="/admin/waivers/{{.ID}}">{{.Year}}</a>{{else}}{{.Year}}{{end}} · {{if .Minor}}for {{.Rider}}, age {{.RiderAge}}{{else if .Household}}{{.Rider}}, on this family plan{{else}}their own{{end}} <span class="muted small">signed {{date .Signed}}</span></li>{{end}}</ul>
     {{else}}<p class="muted small">No waivers signed yet.</p>{{end}}
+    {{with .RideWaivers}}<h2 class="member-h">Ride waivers</h2>
+    <ul class="member-list">{{range .}}<li>{{if $.IsBoard}}<a href="/admin/ride-waivers/{{.ID}}">{{date .Signed}}</a>{{else}}{{date .Signed}}{{end}} · {{.BikeLabel}}{{if .Minor}} · for {{.Rider}}, age {{.RiderAge}}{{end}}</li>{{end}}</ul>{{end}}
     {{with .Household}}<h2 class="member-h">Adults on this family plan</h2>
     <ul class="member-list">{{range .}}<li>{{.Name}} · <a href="mailto:{{.Email}}">{{.Email}}</a>{{if not .LinkSent}} <span class="muted small">(waiver link not sent yet)</span>{{end}}</li>{{end}}</ul>{{end}}
     <h2 class="member-h">Contact</h2>
@@ -814,13 +816,30 @@ body.addEventListener('submit',function(e){var f=e.target;if(!f.classList.contai
 </div>
 <div class="tools">
   <nav class="filter year-pick" aria-label="Year">{{range .WaiverYears}}<a href="/admin/waivers?year={{.}}{{with $.Show}}&show={{.}}{{end}}"{{if eq . $.Year}} aria-current="page"{{end}}>{{.}}</a>{{end}}</nav>
-  <a class="btn ghost" href="/admin/waivers.csv?year={{.Year}}">Export CSV</a>
+  <a class="btn ghost" href="/admin/{{if eq .Show "rides"}}ride-{{end}}waivers.csv?year={{.Year}}">Export CSV</a>
 </div>
 <nav class="filter" aria-label="Show">
-  <a href="/admin/waivers?year={{.Year}}"{{if ne .Show "unsigned"}} aria-current="page"{{end}}>Signed ({{len .Waivers}})</a>
+  <a href="/admin/waivers?year={{.Year}}"{{if and (ne .Show "unsigned") (ne .Show "rides")}} aria-current="page"{{end}}>Signed ({{len .Waivers}})</a>
   <a href="/admin/waivers?year={{.Year}}&show=unsigned"{{if eq .Show "unsigned"}} aria-current="page"{{end}}>Not signed ({{len .Unsigned}})</a>
+  <a href="/admin/waivers?year={{.Year}}&show=rides"{{if eq .Show "rides"}} aria-current="page"{{end}}>First rides ({{len .RideWaivers}})</a>
 </nav>
-{{if eq .Show "unsigned"}}<div class="table-wrap"><table class="tight cards">
+{{if eq .Show "rides"}}<div class="table-wrap"><table class="tight cards">
+  <thead><tr><th>Rider</th><th>Email</th><th>Bike</th><th>Signed as</th><th>Signed</th><th>Member</th><th><span class="sr">Signed copy</span></th></tr></thead>
+  <tbody>
+  {{range .RideWaivers}}<tr>
+    <td data-label="Rider">{{.RiderName}}{{if .Minor}} <span class="tag">Under 18, age {{.RiderAge}}</span><br><span class="muted small">Signed by {{.Name}}, parent or guardian</span>{{end}}</td>
+    <td class="email" data-label="Email"><a href="mailto:{{.Email}}">{{.Email}}</a></td>
+    <td data-label="Bike">{{if .Loaner}}<span class="tag">Loaner</span>{{else}}Own{{end}}</td>
+    <td data-label="Signed as">{{if .Drawing}}<img class="sig-thumb" src="/admin/ride-waivers/{{.ID}}/signature.png" alt="Signature drawn by {{.Signature}}" loading="lazy"><br>{{end}}{{.Signature}}{{if not .Drawing}} <span class="muted small">(typed)</span>{{end}}</td>
+    <td class="nowrap" data-label="Signed">{{datetime .Signed}}</td>
+    <td data-label="Member">{{if .MemberID}}<a href="/admin/members/{{.MemberID}}">Member</a>{{else}}<span class="muted">—</span>{{end}}</td>
+    <td class="right cell-act"><a href="/admin/ride-waivers/{{.ID}}">View signed copy</a></td>
+  </tr>
+  {{else}}<tr><td colspan="7" class="empty">No ride waivers in {{.Year}}.</td></tr>
+  {{end}}
+  </tbody>
+</table></div>
+{{else if eq .Show "unsigned"}}<div class="table-wrap"><table class="tight cards">
   <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Dues</th><th>Joined</th></tr></thead>
   <tbody>
   {{range .Unsigned}}<tr>
@@ -876,6 +895,32 @@ body.addEventListener('submit',function(e){var f=e.target;if(!f.classList.contai
   <div><span class="sig-line">{{date .Signed}}</span><span class="muted small">Date</span></div>
 </div>
 {{if $.CanManage}}<form class="footnote no-print" method="post" action="/admin/waivers/{{.ID}}/delete" onsubmit="return confirm('Delete this waiver? Only do this for a fake or junk signing: real waivers are the club’s insurance record. This can’t be undone.')"><button class="link danger">{{icon "trash"}}Delete this waiver</button></form>{{end}}
+{{end}}{{template "foot" .}}{{end}}
+
+{{define "ride-waiver"}}{{template "head" .}}{{with .RideWaiver}}
+<p class="no-print"><a href="/admin/waivers?year={{.Year}}&show=rides">← All first-ride waivers</a></p>
+<h1>Ride waiver{{if .Loaner}}, club loaner bike{{end}}</h1>
+<dl class="waiver-meta">
+  {{if .Minor}}<dt>Rider</dt><dd>{{.Rider}}, age {{.RiderAge}} (under 18)</dd>
+  <dt>Parent or guardian</dt><dd>{{.Name}}, {{.Email}}</dd>
+  {{else}}<dt>Rider</dt><dd>{{.Name}}, {{.Email}}</dd>{{end}}
+  <dt>Bike</dt><dd>{{.BikeLabel}}</dd>
+  <dt>Member</dt><dd>{{with $.RideMember}}<a href="/admin/members/{{.ID}}">{{.Name}}</a>{{else}}<span class="muted">Not on the list</span>{{end}}</dd>
+  <dt>Printed name</dt><dd>{{.Signature}}</dd>
+  <dt>Signature</dt><dd>{{if .Drawing}}Drawn with a finger, stylus or mouse (below){{else}}Typed name only{{end}}</dd>
+  <dt>Signed</dt><dd>{{datetime .Signed}}</dd>
+  <dt>Where</dt><dd>{{$.SiteURL}}/ride-waiver{{with .IP}}, from IP address {{.}}{{end}}</dd>
+  <dt>Waiver version</dt><dd>{{.Version}}</dd>
+</dl>
+{{if .Minor}}<p>As the rider’s parent or legal guardian, they ticked “I have read and agree to the waiver” and “I’m this rider’s parent or legal guardian. I have read and agree to the waiver and to the release for parents and guardians, for them.” and {{if .Drawing}}signed{{else}}typed their name to sign{{end}} this text:</p>
+{{else}}<p>They ticked “I have read and agree to the waiver” and {{if .Drawing}}signed{{else}}typed their name to sign{{end}} this text:</p>{{end}}
+<div class="waiver-copy">{{$.WaiverHTML}}</div>
+<div class="sig-block">
+  <div><span class="sig-line">{{if .Drawing}}<img src="/admin/ride-waivers/{{.ID}}/signature.png" alt="Signature drawn by {{.Signature}}">{{else}}<span class="sig-typed-name">{{.Signature}}</span>{{end}}</span><span class="muted small">{{if .Minor}}Parent or guardian’s signature{{else}}Participant’s signature{{end}}</span></div>
+  <div><span class="sig-line">{{.Signature}}</span><span class="muted small">Printed name</span></div>
+  <div><span class="sig-line">{{date .Signed}}</span><span class="muted small">Date</span></div>
+</div>
+{{if $.CanManage}}<form class="footnote no-print" method="post" action="/admin/ride-waivers/{{.ID}}/delete" onsubmit="return confirm('Delete this waiver? Only do this for a fake or junk signing: real waivers are the club’s insurance record. This can’t be undone.')"><button class="link danger">{{icon "trash"}}Delete this waiver</button></form>{{end}}
 {{end}}{{template "foot" .}}{{end}}
 
 {{define "email"}}{{template "head" .}}
@@ -2928,6 +2973,7 @@ document.querySelectorAll('[data-board]').forEach(function(box){
   <div class="card"><h3>Members</h3><ul>
     <li>Every club email has their private membership link: dues status, a PayPal button, this year’s waiver to sign, their details, and emails on or off.</li>
     <li>The insurance waiver is signed once a year, and parents or guardians sign for each rider under 18 there too. Other adults on a Family membership each get an emailed link to sign their own, once the dues are marked paid. The <a href="/admin/waivers">Waivers</a> tab keeps every signed copy and shows who hasn’t signed.</li>
+    <li>First-time riders sign at <a href="/ride-waiver" target="_blank" rel="noopener">/ride-waiver</a> (or <a href="/loaner" target="_blank" rel="noopener">/loaner</a>, with the club bike already picked): name, email, loaner or own bike, and a signature. A loaner bike adds the club’s loaner agreement to the League waiver. They’re under Waivers → First rides, and on the member’s page once someone with that email joins.</li>
     <li>Every member email has an unsubscribe link.</li>
     <li>With the club PIN, their photos and the rides they add go up right away.</li></ul></div>
   <div class="card"><h3>Riders and ride leaders</h3><ul>

@@ -16,7 +16,8 @@ import (
 // memberView is the member page.
 type memberView struct {
 	Member
-	Waivers []Waiver // every waiver they signed, for themselves or others, newest first
+	Waivers     []Waiver     // every waiver they signed, for themselves or others, newest first
+	RideWaivers []RideWaiver // ride waivers signed with their email
 }
 
 var errEmailTaken = errors.New("another member has that email")
@@ -30,7 +31,7 @@ func (a *App) memberPage(w http.ResponseWriter, r *http.Request) {
 	}
 	v := adminView{Title: m.Name, Tab: "members", Year: a.cfg.ThisYear(), CanManage: a.isBoard(r)}
 	v.Flash, v.Error = flashFrom(r)
-	v.MemberPage = &memberView{Member: m, Waivers: a.store.WaiversOf(id)}
+	v.MemberPage = &memberView{Member: m, Waivers: a.store.WaiversOf(id), RideWaivers: a.store.RideWaiversOf(id)}
 	a.renderAdmin(w, r, http.StatusOK, "member", v)
 }
 

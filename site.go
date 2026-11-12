@@ -213,6 +213,7 @@ func newSite(cfg Config) (*Site, error) {
 		"mailPieces":   func(kind string) []autoPiece { return mailPieces[kind] },
 		"waiverText":   func() template.HTML { return s.waiver.HTML },
 		"guardianText": func() template.HTML { return s.waiver.Guardian },
+		"loanerText":   func() template.HTML { return s.waiver.Loaner },
 	}
 	base, err := template.New("").Funcs(funcs).ParseFS(webFS, "web/templates/layout.html", "web/templates/signature.html")
 	if err != nil {
@@ -271,7 +272,7 @@ func newSite(cfg Config) (*Site, error) {
 	if err := s.renderContent(contentData{}); err != nil {
 		return nil, err
 	}
-	for _, name := range []string{"join", "unsubscribe", "membership", "notfound", "newsletter", "calendar", "ride", "ride-new", "routes", "share-photos", "gallery", "album", "photo", "minutes", "kit"} {
+	for _, name := range []string{"join", "unsubscribe", "membership", "notfound", "newsletter", "calendar", "ride", "ride-new", "routes", "share-photos", "gallery", "album", "photo", "minutes", "kit", "ride-waiver"} {
 		if s.dynamic[name], err = parse(name + ".html"); err != nil {
 			return nil, err
 		}

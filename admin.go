@@ -55,6 +55,9 @@ type adminView struct {
 	Show        string // "", "signed", "unsigned"
 	Waiver      *Waiver
 	WaiverHTML  template.HTML // the text that Waiver's member signed
+	RideWaivers []RideWaiver  // Waivers tab, First rides: Year's ride waivers
+	RideWaiver  *RideWaiver   // one signed ride waiver
+	RideMember  *Member       // the member it's tied to
 	// Photos to review and Gallery tabs
 	Batches   []submittedBatch // with photos waiting for review
 	Reviewed  []submittedBatch

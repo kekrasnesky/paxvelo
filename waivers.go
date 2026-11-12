@@ -33,6 +33,7 @@ type waiverText struct {
 	HTML     template.HTML
 	Version  string // a hash of the text, so each signed copy can show what was signed
 	Guardian template.HTML
+	Loaner   template.HTML // the loaner bike agreement, from web/waiver-loaner.html (ridewaivers.go)
 }
 
 func loadWaiver() (waiverText, error) {
@@ -54,7 +55,11 @@ func loadWaiver() (waiverText, error) {
 	if err != nil {
 		return waiverText{}, err
 	}
-	return waiverText{HTML: template.HTML(main), Version: textVersion(main), Guardian: template.HTML(guardian)}, nil
+	loaner, err := read("web/waiver-loaner.html")
+	if err != nil {
+		return waiverText{}, err
+	}
+	return waiverText{HTML: template.HTML(main), Version: textVersion(main), Guardian: template.HTML(guardian), Loaner: template.HTML(loaner)}, nil
 }
 
 func textVersion(s string) string {
@@ -220,6 +225,7 @@ func (s *Store) SignWaiver(w Waiver, text waiverText) (Waiver, bool, error) {
 // gets them back. Member numbers are never reused, so a waiver can't land on
 // someone else. Callers hold s.mu.
 func (s *Store) relinkWaivers() (n int) {
+	s.linkRideWaivers()
 	var ids map[int]bool
 	for _, w := range s.d.Waivers {
 		if ids == nil {
@@ -505,7 +511,15 @@ func (a *App) waiversPage(w http.ResponseWriter, r *http.Request) {
 		year = thisYear
 	}
 	v := adminView{Title: "Waivers", Tab: "waivers", Year: year, Show: r.URL.Query().Get("show"), Waivers: a.store.Waivers(year)}
+	v.RideWaivers = a.store.RideWaivers(year, a.cfg.Location)
 	v.WaiverYears = a.store.WaiverYears()
+	for _, y := range a.store.RideWaiverYears(a.cfg.Location) {
+		if !slices.Contains(v.WaiverYears, y) {
+			v.WaiverYears = append(v.WaiverYears, y)
+		}
+	}
+	slices.Sort(v.WaiverYears)
+	slices.Reverse(v.WaiverYears)
 	if !slices.Contains(v.WaiverYears, thisYear) {
 		v.WaiverYears = append([]int{thisYear}, v.WaiverYears...)
 	}

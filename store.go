@@ -206,6 +206,9 @@ type storeData struct {
 	NextWaiver  int               `json:"next_waiver_id,omitempty"`
 	Waivers     []*Waiver         `json:"waivers,omitempty"`
 	WaiverTexts map[string]string `json:"waiver_texts,omitempty"`
+	// Ride waivers from first-time riders (ridewaivers.go).
+	NextRideWaiver int           `json:"next_ride_waiver_id,omitempty"`
+	RideWaivers    []*RideWaiver `json:"ride_waivers,omitempty"`
 	// Photos members sent in for the newsletter (sharephotos.go).
 	NextSubmitted   int               `json:"next_submitted_id,omitempty"`
 	SubmittedPhotos []*SubmittedPhoto `json:"submitted_photos,omitempty"`
@@ -597,6 +600,7 @@ func (s *Store) DeleteMember(id int) error {
 	for i, m := range s.d.Members {
 		if m.ID == id {
 			s.d.Members = append(s.d.Members[:i], s.d.Members[i+1:]...)
+			s.linkRideWaivers()
 			return s.save()
 		}
 	}

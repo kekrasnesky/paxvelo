@@ -1,0 +1,47 @@
+{{define "content"}}{{with .Data}}
+<article class="page">
+  <h1>Ride Waiver</h1>
+  {{if .Done}}<div class="joined" tabindex="-1">
+    <p class="joined-title">Signed. Enjoy the ride!</p>
+  </div>
+  {{else}}<form class="join ride-waiver" method="post" action="/ride-waiver">
+    <input type="hidden" name="ft" value="{{.Token}}">
+    <div class="hp" aria-hidden="true"><label>Leave this empty <input name="website" tabindex="-1" autocomplete="off"></label></div>
+    <div class="pair">
+      <label>Your name <input name="name" required maxlength="100" autocomplete="name" placeholder="First and last name" value="{{.Name}}"></label>
+      <label>Email <input type="email" name="email" required maxlength="254" autocomplete="email" value="{{.Email}}"></label>
+    </div>
+    <fieldset class="pick">
+      <legend>Bike</legend>
+      <label><input type="radio" name="bike" value="loaner" required{{if eq .Bike "loaner"}} checked{{end}}><span><strong>Club loaner bike</strong></span></label>
+      <label><input type="radio" name="bike" value="own"{{if eq .Bike "own"}} checked{{end}}><span><strong>My own bike</strong></span></label>
+    </fieldset>
+    <fieldset class="terms waiver">
+      <legend>Waiver</legend>
+      <div class="waiver-text" tabindex="0" role="region" aria-label="Waiver">
+        <div class="loaner-only">{{loanerText}}</div>
+        {{waiverText}}
+      </div>
+      <label class="check-row"><input type="checkbox" name="waiver" value="yes" required{{if .Agree}} checked{{end}}> I have read and agree to the waiver.</label>
+      <details class="minor-sign join-minors"{{if .SignMinor}} open{{end}}>
+        <summary class="btn btn-quiet">Signing for a rider under 18?</summary>
+        <div class="join-minors-body">
+          <div class="rider-row">
+            <label>Rider’s first and last name <input name="rider" maxlength="100" autocomplete="off" value="{{.Rider}}"></label>
+            <label class="age">Age <input type="number" name="rider_age" min="1" max="17" inputmode="numeric" value="{{.RiderAge}}"></label>
+          </div>
+          <div class="waiver-text" tabindex="0" role="region" aria-label="Release for parents and guardians">
+            {{guardianText}}
+          </div>
+          <label class="check-row"><input type="checkbox" name="guardian" value="yes"{{if .Guardian}} checked{{end}}> I’m this rider’s parent or legal guardian. I have read and agree to the waiver and to the release for parents and guardians, for them.</label>
+        </div>
+      </details>
+      <label>Print your full name <input name="signature" required maxlength="100" autocomplete="off" placeholder="Type your first and last name" value="{{.Signature}}"></label>
+      {{template "signature-pad" "ride"}}
+      <p class="hint">Date signed: {{.Today}}.</p>
+    </fieldset>
+    <button class="btn" type="submit">Sign</button>
+    <p class="msg{{if .Message}} err{{end}}" role="status" aria-live="polite">{{.Message}}</p>
+  </form>{{end}}
+</article>
+{{end}}{{end}}
