@@ -212,3 +212,26 @@ func TestBrokenAdminEditDoesNotStopTheSite(t *testing.T) {
 		t.Errorf("a broken page added in the admin should be left out: %d", w.Code)
 	}
 }
+
+// A ^^ line over a heading is its small label, inside the section; one that
+// isn't over a heading stays where it is.
+func TestRenderLabels(t *testing.T) {
+	src := "# Hi\n\n^^ Join us\n## Become a Member\n\nText.\n\n^^ Two\n### Column\n\nMore.\n\n^^ Loose\n\nLast."
+	_, _, body, err := testRenderer().render(src, 1, pageStyle{Home: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := string(body)
+	for _, want := range []string{
+		`<section class="band" id="become-a-member">` + "\n" + `<p class="label">Join us</p>` + "\n<h2>Become a Member</h2>",
+		`<p class="label">Two</p>` + "\n<h3>Column</h3>",
+		`<p class="label">Loose</p>`,
+	} {
+		if !strings.Contains(b, want) {
+			t.Errorf("body should have %q:\n%s", want, b)
+		}
+	}
+	if strings.Contains(b, "^^") {
+		t.Errorf("the marks don't show:\n%s", b)
+	}
+}

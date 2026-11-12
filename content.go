@@ -225,7 +225,7 @@ type mdRenderer struct {
 }
 
 type mdBlock struct {
-	kind  string // h1, h2, h3, p, ul, ol
+	kind  string // h1, h2, h3, p, ul, ol, label
 	text  string
 	items []string
 	line  int
@@ -253,6 +253,10 @@ func (r *mdRenderer) render(src string, firstLine int, style pageStyle) (string,
 		line := strings.TrimSpace(raw)
 		switch {
 		case line == "":
+			flush()
+		case strings.HasPrefix(line, "^^ "):
+			// A small label over the next heading, like "^^ Join us".
+			blocks = append(blocks, &mdBlock{kind: "label", text: strings.TrimSpace(line[3:]), line: n})
 			flush()
 		case headingRE.MatchString(line):
 			m := headingRE.FindStringSubmatch(line)
@@ -303,11 +307,23 @@ func (r *mdRenderer) render(src string, firstLine int, style pageStyle) (string,
 		sectionClass = "band"
 	}
 	prev := ""
+	label := "" // a ^^ label waiting for its heading
 	for _, b := range blocks {
 		fail := func(format string, a ...any) error {
 			return fmt.Errorf("line %d: %s", b.line, fmt.Sprintf(format, a...))
 		}
+		if label != "" && b.kind != "h2" && b.kind != "h3" {
+			out.WriteString(label) // not over a heading: it stays where it is
+			label = ""
+		}
 		switch b.kind {
+		case "label":
+			h, err := r.inline(b.text)
+			if err != nil {
+				return "", "", "", fail("%v", err)
+			}
+			label = "<p class=\"label\">" + h + "</p>\n"
+			continue
 		case "h1":
 			if heading != "" {
 				return "", "", "", fail("a page can only have one title line starting with a single #. Use ## for section headings")
@@ -332,7 +348,8 @@ func (r *mdRenderer) render(src string, firstLine int, style pageStyle) (string,
 			if err != nil {
 				return "", "", "", fail("%v", err)
 			}
-			fmt.Fprintf(out, "<section class=\"%s\" id=\"%s\">\n<h2>%s</h2>\n", sectionClass, uniqueID(ids, b.text), h)
+			fmt.Fprintf(out, "<section class=\"%s\" id=\"%s\">\n%s<h2>%s</h2>\n", sectionClass, uniqueID(ids, b.text), label, h)
+			label = ""
 		case "h3":
 			closeArticle()
 			if !inCols {
@@ -343,7 +360,8 @@ func (r *mdRenderer) render(src string, firstLine int, style pageStyle) (string,
 			if err != nil {
 				return "", "", "", fail("%v", err)
 			}
-			fmt.Fprintf(out, "<article id=\"%s\">\n<h3>%s</h3>\n", uniqueID(ids, b.text), h)
+			fmt.Fprintf(out, "<article id=\"%s\">\n%s<h3>%s</h3>\n", uniqueID(ids, b.text), label, h)
+			label = ""
 			inArticle = true
 		case "p":
 			class := ""
@@ -367,6 +385,7 @@ func (r *mdRenderer) render(src string, firstLine int, style pageStyle) (string,
 		}
 		prev = b.kind
 	}
+	out.WriteString(label)
 	closeCols()
 	if inSection {
 		out.WriteString("</section>\n")

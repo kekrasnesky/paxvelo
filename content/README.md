@@ -56,6 +56,7 @@ The first paragraph after the title is shown a little larger.
 - Each page has exactly one `#` title line, at the top.
 - `##` starts a new section. On the home page, each section is a full-width band with its own background.
 - `###` makes columns. Several `###` headings in a row sit side by side (stacked on phones). On the home page, that's how "Ride With Us" and "Giving Back" work.
+- A line starting with `^^ ` right above a `##` or `###` heading puts a small uppercase label over it, like `^^ Join us` above `## Become a Member`.
 
 ## Lists
 

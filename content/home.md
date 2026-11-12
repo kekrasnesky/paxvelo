@@ -11,10 +11,12 @@ Southern Maryland’s Premier Cycling Club
 
 {social-links}
 
+^^ On the calendar
 ## Next Rides
 
 {upcoming-rides}
 
+^^ About the club
 ## All Riders Welcome
 
 PaxVelo is a 501(c)(3) nonprofit cycling club. We’re here for great roads, good company, and the community we ride through.
@@ -38,10 +40,12 @@ As a nonprofit, PaxVelo exists to enrich the community we ride in. Each year we 
 <!-- This link only appears once DONATE_URL is set in the server settings. -->
 [Support the club]({donate}) 
 
+^^ Follow along
 ## On Instagram
 
 {instagram}
 
+^^ Join us
 ## Become a Member
 
 Membership runs January through December and supports club rides, events, and our work in the community.

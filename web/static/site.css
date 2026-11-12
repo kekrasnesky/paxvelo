@@ -1,5 +1,8 @@
 @font-face{font-family:Poppins;font-style:normal;font-weight:300;font-display:swap;src:url(/static/fonts/poppins-300.woff2?v=__V__) format("woff2")}
 @font-face{font-family:Poppins;font-style:normal;font-weight:500;font-display:swap;src:url(/static/fonts/poppins-500.woff2?v=__V__) format("woff2")}
+/* Headings: Barlow Semi Condensed, tall and narrow (latin only) */
+@font-face{font-family:"Barlow Semi Condensed";font-style:normal;font-weight:600;font-display:swap;src:url(/static/fonts/barlow-semi-condensed-600.woff2?v=__V__) format("woff2")}
+@font-face{font-family:"Barlow Semi Condensed";font-style:normal;font-weight:700;font-display:swap;src:url(/static/fonts/barlow-semi-condensed-700.woff2?v=__V__) format("woff2")}
 
 /* Colors and spacing: the club's red, charcoal, and cream */
 :root{
@@ -15,6 +18,10 @@
   --pad:clamp(16px,3.2vw,40px);  /* page side margin */
   --side:max(var(--pad),calc((100% - var(--max))/2));
   --font:Poppins,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  --display:"Barlow Semi Condensed","Arial Narrow",var(--font);  /* headings */
+  --label:#6b625c;    /* the small uppercase labels over headings */
+  /* Spacing steps: use these rather than one-off sizes */
+  --space-xs:.5rem;--space-sm:1rem;--space-md:1.5rem;--space-lg:2.5rem;--space-xl:4rem;--space-2xl:6rem;--space-3xl:8rem;
 }
 *,*::before,*::after{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -930,3 +937,45 @@ button:has(>.ic),.btn:has(>.ic){display:inline-flex;align-items:center;justify-c
 .kit .muted{color:#6b625c}
 .kit-small{margin:0;font-size:.88rem;color:#5d5550}
 .kit-mine{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.8rem;margin-top:1.2rem}
+
+/* ---------- The roomier look: condensed headings, a full-screen top video,
+   more space between home sections, labels over headings, flat photos ---------- */
+h1,h2{font-family:var(--display);font-weight:700;letter-spacing:-.01em;line-height:1.05}
+.label{margin:0 0 .7rem!important;font:600 .78rem/1 var(--display);letter-spacing:.16em;text-transform:uppercase;color:var(--label)}
+
+/* The top of the home page fills the screen: all of it on phones (under the
+   header), most of it on computers. The words sit at the bottom. */
+.hero{min-height:clamp(520px,85vh,900px);min-height:clamp(520px,85svh,900px)}
+.hero-in{gap:16px 18px;padding:96px var(--side) clamp(28px,5vw,64px)}
+.hero h1{font-size:clamp(2.8rem,7vw,6rem);line-height:.95;letter-spacing:-.02em;text-transform:uppercase}
+.hero .hero-est{flex:0 0 100%;margin:0 0 -6px!important;color:rgba(255,255,255,.85);font-size:clamp(.8rem,1.2vw,.95rem);letter-spacing:.22em}
+.hero .lead{font-size:clamp(1.05rem,1.7vw,1.35rem)}
+@media (max-width:767px){
+  .hero{min-height:calc(100vh - 60px);min-height:calc(100svh - 60px)}
+  .hero-in{padding:72px var(--pad) 28px}
+  .hero h1{font-size:clamp(2.6rem,13vw,3.6rem)}
+  .hero-in>p:has(>.btn){flex:1 1 100%}
+  .hero .btn{display:block;width:100%;max-width:20rem;text-align:center;padding:.9rem 1.3rem}
+}
+
+/* Home sections: room to breathe, about 72px apart on phones and 128px on computers */
+.band{padding:clamp(4.5rem,9vw,8rem) var(--side)}
+.band h2{font-size:clamp(2rem,4vw,3.25rem)}
+.band>p{max-width:36rem}
+.band>.intro{max-width:36rem;margin-top:.8rem;font-size:1.06rem;line-height:1.7}
+.band>.next-rides,.band>.cols,.band>.photo-strip,.band>.photos,.band>.plans{margin-top:var(--space-lg)}
+
+/* Photos with their words, flat: no white cards, shadows or rounded corners */
+.band .cols{gap:var(--space-lg) clamp(24px,4vw,56px)}
+.band .cols article{padding:0;background:none;box-shadow:none;border-radius:0}
+.band .cols img{--r:0;border-radius:0;aspect-ratio:3/2}
+.band .cols h3{margin:0 0 .9rem;font:700 1.6rem/1.1 var(--display)}
+.band .cols img+p{margin-top:1rem}
+@media (min-width:900px){
+  .band .cols article:has(>img){display:block}
+  .band .cols article>img{height:auto;min-height:0;aspect-ratio:3/2}
+  .band .cols article>h3{margin-bottom:.9rem}
+}
+.band .photos{gap:6px}
+.band .photos img,.band .photos .framed{--r:0;border-radius:0}
+@media (min-width:700px){.band .photo-strip.many .photos{grid-auto-columns:calc((100% - 12px) / 3)}}

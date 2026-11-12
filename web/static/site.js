@@ -270,7 +270,12 @@
   // The home page's clip: not for phones saving data or people who turn
   // motion off (CSS hides it too), so it doesn't download for them.
   var heroVid=d.querySelector('.hero-video');
-  if(heroVid&&((navigator.connection&&navigator.connection.saveData)||(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)))heroVid.remove();
+  if(heroVid&&((navigator.connection&&navigator.connection.saveData)||(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches))){heroVid.remove();heroVid=null}
+  // It plays only while it's on screen: scrolled past, it pauses, which saves
+  // phones' battery and data.
+  if(heroVid&&'IntersectionObserver' in window)new IntersectionObserver(function(es){
+    es.forEach(function(e){if(e.intersectionRatio>=.15){var p=heroVid.play();if(p&&p.catch)p.catch(function(){})}else heroVid.pause()});
+  },{threshold:[0,.15]}).observe(heroVid);
 
   // Switches that save as soon as they're changed (club emails on the
   // membership page); without scripts, a Save button shows instead.
