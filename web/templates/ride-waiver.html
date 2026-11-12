@@ -1,21 +1,32 @@
 {{define "content"}}{{with .Data}}
 <article class="page">
-  <h1>Ride Waiver</h1>
+  {{with .Ride}}<p class="cal-back"><a href="/calendar/ride/{{.Key}}">← {{.Name}}</a></p>
+  <h1>Borrow a Club Bike</h1>
+  <p class="lead">{{.Name}} · {{.DateLabel}}{{with .Time}} · {{timeLabel .}}{{end}}</p>
+  {{else}}<h1>Ride Waiver</h1>{{end}}
   {{if .Done}}<div class="joined" tabindex="-1">
-    <p class="joined-title">Signed. Enjoy the ride!</p>
+    <p class="joined-title">{{if .Ride}}Requested. We’ll email you once it’s confirmed.{{else}}Signed. Enjoy the ride!{{end}}</p>
   </div>
-  {{else}}<form class="join ride-waiver" method="post" action="/ride-waiver">
+  {{else if and .Ride (not .LoanerOpen)}}<p class="cal-note">Requests for this ride are closed.</p>
+  {{else if and .Ride (not .Bikes)}}<p class="cal-note">No club bikes are ready yet.</p>
+  {{else}}<form class="join ride-waiver{{if .Ride}} loaner-form{{end}}" method="post" action="{{.Action}}">
     <input type="hidden" name="ft" value="{{.Token}}">
     <div class="hp" aria-hidden="true"><label>Leave this empty <input name="website" tabindex="-1" autocomplete="off"></label></div>
+    {{if .Ride}}{{$picked := .BikeID}}<fieldset class="pick loaner-pick">
+      <legend>Bike</legend>
+      {{range .Bikes}}<label{{if .Taken}} class="taken"{{end}}><input type="radio" name="bike_id" value="{{.ID}}" required{{if .Taken}} disabled{{else if eq (print .ID) $picked}} checked{{end}}><span><strong>{{.Size}}</strong>{{with .Fits}} · rider {{.}}{{end}}{{with .Bike}}<br><span class="loaner-bike">{{.}}</span>{{end}}{{if .Taken}} <span class="tag">Reserved</span>{{end}}</span></label>
+      {{end}}
+    </fieldset>
+    <input type="hidden" name="bike" value="loaner">{{end}}
     <div class="pair">
       <label>Your name <input name="name" required maxlength="100" autocomplete="name" placeholder="First and last name" value="{{.Name}}"></label>
       <label>Email <input type="email" name="email" required maxlength="254" autocomplete="email" value="{{.Email}}"></label>
     </div>
-    <fieldset class="pick">
+    {{if not .Ride}}<fieldset class="pick">
       <legend>Bike</legend>
       <label><input type="radio" name="bike" value="loaner" required{{if eq .Bike "loaner"}} checked{{end}}><span><strong>Club loaner bike</strong></span></label>
       <label><input type="radio" name="bike" value="own"{{if eq .Bike "own"}} checked{{end}}><span><strong>My own bike</strong></span></label>
-    </fieldset>
+    </fieldset>{{end}}
     <fieldset class="terms waiver">
       <legend>Waiver</legend>
       <div class="waiver-text" tabindex="0" role="region" aria-label="Waiver">
@@ -40,7 +51,7 @@
       {{template "signature-pad" "ride"}}
       <p class="hint">Date signed: {{.Today}}.</p>
     </fieldset>
-    <button class="btn" type="submit">Sign</button>
+    <button class="btn" type="submit">{{if .Ride}}Request the bike{{else}}Sign{{end}}</button>
     <p class="msg{{if .Message}} err{{end}}" role="status" aria-live="polite">{{.Message}}</p>
   </form>{{end}}
 </article>

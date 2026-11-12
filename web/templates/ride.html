@@ -25,6 +25,14 @@
   {{if not .Past}}<p class="ride-tools"><a class="btn btn-quiet" href="/calendar/ride/{{$r.Key}}/calendar.ics" rel="nofollow">{{icon "calendar"}}Add to calendar</a><button class="btn btn-quiet ride-share" type="button" hidden>{{icon "share"}}Share</button></p>{{end}}
   {{with $r.Route}}{{if and .Shown .Map}}<a class="ride-map" href="{{.URL}}" target="_blank" rel="noopener"><img src="{{.Map}}" alt="Map of the {{.Name}} route" loading="lazy"><span>Route on Strava</span></a>{{end}}{{end}}
 
+  {{with .Loaners}}<section class="cal-act loaner-act" id="loaner">
+    <h2>Borrow a club bike</h2>
+    <ul class="loaner-list">{{range .}}<li class="loaner-item{{if .Taken}} taken{{end}}">
+      <div><strong>{{.Size}}</strong>{{with .Fits}} · rider {{.}}{{end}}{{with .Bike}}<br><span class="loaner-bike">{{.}}</span>{{end}}</div>
+      {{if .Taken}}<span class="tag">Reserved</span>{{else}}<a class="btn btn-quiet" href="/calendar/ride/{{$r.Key}}/loaner?bike={{.ID}}">Request</a>{{end}}
+    </li>{{end}}</ul>
+  </section>{{end}}
+
   {{if $r.IsRide}}<section class="cal-act">
     <h2>{{if gt (len .Spots) 1}}Ride leaders{{else}}Ride leader{{end}}</h2>
     {{if and (not .Past) (not $r.Cancelled)}}<p>Want to lead{{if gt (len .Spots) 1}} a group{{end}}? Type your name and press the button.</p>{{end}}

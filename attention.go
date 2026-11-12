@@ -22,7 +22,7 @@ var adminGroups = []adminGroup{
 	{"Home", "/admin", []adminSection{{"attention", "Overview", "/admin"}, {"guide", "How the site works", "/admin/guide"}}},
 	{"Members", "/admin/members", []adminSection{{"members", "Members", "/admin/members"}, {"waivers", "Waivers", "/admin/waivers"}}},
 	{"Email", "/admin/email", []adminSection{{"email", "Send an email", "/admin/email"}, {"auto", "Automations", "/admin/email/auto"}, {"newsletter", "Newsletter", "/admin/newsletter"}, {"sent-log", "Sent log", "/admin/email/log"}}},
-	{"Rides", "/admin/calendar", []adminSection{{"calendar", "Calendar", "/admin/calendar"}, {"rides", "Weekly rides", "/admin/rides"}, {"history", "History", "/admin/history"}}},
+	{"Rides", "/admin/calendar", []adminSection{{"calendar", "Calendar", "/admin/calendar"}, {"rides", "Weekly rides", "/admin/rides"}, {"history", "History", "/admin/history"}, {"loaners", "Loaner bikes", "/admin/loaners"}}},
 	{"Website", "/admin/pages", []adminSection{{"pages", "Pages", "/admin/pages"}, {"home-photos", "Home photos", "/admin/home-photos"}, {"gallery", "Gallery", "/admin/gallery"}, {"submitted", "Photos to review", "/admin/submitted"},
 		{"board", "Board", "/admin/board"}, {"instagram", "Instagram", "/admin/instagram"}, {"minutes", "Minutes", "/admin/minutes"}, {"kit", "Club kit", "/admin/kit"}}},
 	{"Treasurer", "/admin/treasurer", []adminSection{{"expenses", "Expenses", "/admin/treasurer"}, {"requests", "Requests", "/admin/treasurer/requests"}, {"income", "Income", "/admin/treasurer/income"},
@@ -136,6 +136,13 @@ func (a *App) attention() []attentionItem {
 		out = append(out, attentionItem{
 			Text: fmt.Sprintf("%d %s added on the website %s waiting for approval.", len(held), plural(len(held), "ride", "rides"), plural(len(held), "is", "are")),
 			Href: "/admin/calendar", Link: "Review",
+		})
+	}
+
+	if n := a.store.WaitingLoaners(a.today().Format(time.DateOnly)); n > 0 {
+		out = append(out, attentionItem{
+			Text: fmt.Sprintf("%d loaner bike %s waiting for an answer.", n, plural(n, "request is", "requests are")),
+			Href: "/admin/loaners", Link: "Answer",
 		})
 	}
 

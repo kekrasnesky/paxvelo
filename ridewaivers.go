@@ -203,10 +203,18 @@ type rideWaiverData struct {
 	Agree, Guardian, SignMinor bool
 	Message                    string
 	Done                       bool
+
+	// Asking for a loaner bike on a ride (loaners.go): the ride, its bikes,
+	// the one picked, and where the form goes.
+	Ride       *RideOcc
+	Bikes      []bikeChoice
+	BikeID     string
+	LoanerOpen bool
+	Action     string
 }
 
 func (a *App) renderRideWaiver(w http.ResponseWriter, status int, d rideWaiverData) {
-	d.Token, d.Today = a.formToken(), a.signedDate()
+	d.Token, d.Today, d.Action = a.formToken(), a.signedDate(), rideWaiverPath
 	w.Header().Set("X-Robots-Tag", "noindex")
 	a.site.render(w, status, "ride-waiver", rideWaiverPath, "Ride Waiver — "+siteName, d)
 }
@@ -219,21 +227,21 @@ func (a *App) rideWaiverPage(w http.ResponseWriter, r *http.Request) {
 	a.renderRideWaiver(w, http.StatusOK, d)
 }
 
-// signRideWaiver records a ride waiver from the public page.
-func (a *App) signRideWaiver(w http.ResponseWriter, r *http.Request) {
-	r.Body = http.MaxBytesReader(w, r.Body, maxSignatureForm)
+// rideWaiverForm reads and checks the waiver part of a form: who signs, which
+// bike, a rider under 18, the box and the signature. d keeps what was typed
+// and the first problem, in d.Message. bot says the box only bots fill in
+// was filled. The caller checks the rest and the hourly limit.
+func (a *App) rideWaiverForm(r *http.Request) (d rideWaiverData, signed RideWaiver, minor, bot bool) {
 	r.ParseForm()
 	f := r.PostForm
-	d := rideWaiverData{Name: f.Get("name"), Email: f.Get("email"), Bike: f.Get("bike"), Rider: f.Get("rider"), RiderAge: f.Get("rider_age"),
+	d = rideWaiverData{Name: f.Get("name"), Email: f.Get("email"), Bike: f.Get("bike"), Rider: f.Get("rider"), RiderAge: f.Get("rider_age"),
 		Signature: f.Get("signature"), Agree: f.Get("waiver") != "", Guardian: f.Get("guardian") != ""}
-	if f.Get("website") != "" { // the box only bots fill in
-		d.Done = true
-		a.renderRideWaiver(w, http.StatusOK, d)
-		return
+	if f.Get("website") != "" {
+		return d, signed, false, true
 	}
 	name, rider := cleanName(d.Name), cleanName(d.Rider)
 	email, emailOK := cleanEmail(d.Email)
-	minor := rider != "" || strings.TrimSpace(d.RiderAge) != "" || d.Guardian
+	minor = rider != "" || strings.TrimSpace(d.RiderAge) != "" || d.Guardian
 	d.SignMinor = minor
 	age, ageErr := strconv.Atoi(strings.TrimSpace(d.RiderAge))
 	drawing, drawn := drawnSignature(r)
@@ -258,19 +266,32 @@ func (a *App) signRideWaiver(w http.ResponseWriter, r *http.Request) {
 		d.Message = "To sign, type your first and last name as you entered them above."
 	case !drawn:
 		d.Message = joinProblems["drawing"]
-	case !a.limit.Allow("ride-waiver:"+clientIP(r), maxRideWaivers, time.Hour): // counted once the form is right
+	}
+	signed = RideWaiver{Name: name, Email: email, Bike: d.Bike, Signature: cleanName(d.Signature), Drawing: drawing, IP: clientIP(r)}
+	if minor {
+		signed.Minor, signed.Rider, signed.RiderAge = true, rider, age
+	}
+	return d, signed, minor, false
+}
+
+// signRideWaiver records a ride waiver from the public page.
+func (a *App) signRideWaiver(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxSignatureForm)
+	d, signed, minor, bot := a.rideWaiverForm(r)
+	if bot {
+		d.Done = true
+		a.renderRideWaiver(w, http.StatusOK, d)
+		return
+	}
+	if d.Message == "" && !a.limit.Allow("ride-waiver:"+clientIP(r), maxRideWaivers, time.Hour) { // counted once the form is right
 		d.Message = "Too many waivers from here this hour. Try again later."
 	}
 	if d.Message != "" {
 		a.renderRideWaiver(w, http.StatusBadRequest, d)
 		return
 	}
-	signed := RideWaiver{Name: name, Email: email, Bike: d.Bike, Signature: cleanName(d.Signature), Drawing: drawing, IP: clientIP(r)}
-	if minor {
-		signed.Minor, signed.Rider, signed.RiderAge = true, rider, age
-	}
 	if _, _, err := a.store.SignRideWaiver(signed, a.site.waiver.forRide(d.Bike == bikeLoaner, minor), a.cfg.Location); err != nil {
-		log.Printf("ride waiver %s: %v", email, err)
+		log.Printf("ride waiver %s: %v", signed.Email, err)
 		d.Message = "Something went wrong on our end. Try again in a minute."
 		a.renderRideWaiver(w, http.StatusInternalServerError, d)
 		return

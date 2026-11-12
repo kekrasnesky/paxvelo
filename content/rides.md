@@ -67,11 +67,11 @@ On the Tuesday A group, quite possibly. Thursday waits for everyone, and the Tue
 
 ### Is my bike good enough?
 
-If it's a road bike that shifts and brakes well, yes. Bring a helmet (required), water, and a spare tube. Lights help on evening rides late in the season.
+If it's a road bike that shifts and brakes well, yes. Bring a helmet (required), water, and a spare tube. Lights help on evening rides late in the season. No road bike? Ask about borrowing a club loaner, and sign the [loaner bike waiver](/loaner) at the ride.
 
 ### Do I have to join first?
 
-Nope. Ride with us a couple of times, then [join](/join) for ${dues-individual} a year.
+Nope. Sign the [ride waiver](/ride-waiver) before your first ride, ride with us a couple of times, then [join](/join) for ${dues-individual} a year.
 
 ## Leading a Ride
 

@@ -155,7 +155,7 @@ strong{font-weight:500}
 }
 
 /* ---------- Home: membership plans ---------- */
-.plans{display:grid;grid-template-columns:repeat(2,minmax(0,16rem));justify-content:center;gap:16px;margin:14px 0 0}
+.plans{display:grid;grid-template-columns:repeat(3,minmax(0,16rem));justify-content:center;gap:16px;margin:14px 0 0}
 .plan{display:grid;justify-items:center;gap:.1rem;padding:1.1rem 1rem 1rem;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--red);text-decoration:none;transition:background .15s,color .15s}
 .plan-name{font-size:1rem;font-weight:500}
 .plan-price{font-size:2.5rem;font-weight:500;line-height:1.1}
@@ -567,7 +567,13 @@ td:hover .cal-add,.cal-add:focus-visible{opacity:1}
 .waiver-text p:last-child{margin:0}
 /* Ride waiver: the loaner agreement shows once "Club loaner bike" is picked */
 .ride-waiver .loaner-only{display:none;margin-bottom:.7rem;padding-bottom:.7rem;border-bottom:1px solid #e4d9d1}
-.ride-waiver:has(input[name=bike][value=loaner]:checked) .loaner-only{display:block}
+.ride-waiver:has(input[name=bike][value=loaner]:checked) .loaner-only,.ride-waiver.loaner-form .loaner-only{display:block}
+/* Loaner bikes on a ride's page and its request form */
+.loaner-list{list-style:none;margin:.6rem 0 0;padding:0;display:grid;gap:.5rem}
+.loaner-item{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.7rem .9rem;border:1px solid var(--line);border-radius:10px;background:var(--card)}
+.loaner-item.taken{opacity:.6}
+.loaner-bike{font-size:.85rem}
+.loaner-pick label.taken{opacity:.55}
 .waiver-text:focus-visible{outline:2px solid var(--red);outline-offset:2px}
 .terms .hint{margin:0!important}
 .sig{display:grid;gap:.35rem;margin-top:.4rem;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none} /* a finger landing near the box draws, not selects text */
@@ -807,6 +813,7 @@ html:has(.gal-view[open]){overflow:hidden} /* the page behind stays put */
   .hero h1{font-size:2.1rem}
   .cols{grid-template-columns:1fr;gap:14px}
   .plans{grid-template-columns:1fr 1fr;gap:12px}
+  .plan-free{grid-column:1/-1}
   .plan-per{font-size:.78rem;text-align:center}
   .facts div{grid-template-columns:1fr;gap:.1rem}
   .ftr{grid-template-columns:1fr;justify-items:center;gap:.8rem;padding:20px var(--pad);text-align:center}

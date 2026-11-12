@@ -109,7 +109,7 @@ These words in curly brackets are filled in automatically from the club's settin
 | `{donate}` | The donation link. If none is set up, links to it are left out. |
 | `{dues-individual}` | The Individual dues amount, like 35 |
 | `{dues-family}` | The Family dues amount, like 45 |
-| `{membership-plans}` | On a line by itself: the two Join boxes with prices |
+| `{membership-plans}` | On a line by itself: the two Join boxes with prices, and a free First Ride box (ride waiver, loaner bikes) |
 | `{social-links}` | On a line by itself: the Discord, Strava, Facebook, and Instagram icons |
 | `{instagram}` | On a line by itself: the Instagram posts picked on the admin's Instagram tab, and a Follow button |
 | `{upcoming-rides}` | On a line by itself: the next few rides from the calendar, with where they start and a link to the calendar |

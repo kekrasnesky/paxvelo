@@ -1273,3 +1273,12 @@ dl.facts dd{margin:0;overflow-wrap:anywhere}
 .kit-next summary::-webkit-details-marker{display:none}
 .kit-next form{display:flex;flex-wrap:wrap;align-items:end;gap:.6rem;margin-top:.6rem}
 @media (max-width:600px){.kit-prices{grid-template-columns:1fr}}
+
+/* Rides → Loaner bikes */
+.loaner-bikes{display:grid;gap:.7rem}
+.loaner-bike-row{display:flex;flex-wrap:wrap;align-items:flex-end;gap:.6rem 1rem;margin:0}
+.loaner-bike-row label{margin:0}
+.loaner-bike-row label:not(.grow):not(.check) input{width:8rem}
+.loaner-bike-row .grow{flex:1 1 16rem}
+.loaner-decline input{width:9rem;padding:.3rem .5rem;font-size:.85rem}
+.loaner-past{margin-top:1rem}

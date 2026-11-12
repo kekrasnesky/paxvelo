@@ -58,6 +58,10 @@ type adminView struct {
 	RideWaivers []RideWaiver  // Waivers tab, First rides: Year's ride waivers
 	RideWaiver  *RideWaiver   // one signed ride waiver
 	RideMember  *Member       // the member it's tied to
+	// Rides → Loaner bikes: the fleet, and requests waiting, confirmed for
+	// rides coming up, and the latest others.
+	LoanerBikes                                []LoanerBike
+	LoanersWaiting, LoanersComing, LoanersPast []LoanerRequest
 	// Photos to review and Gallery tabs
 	Batches   []submittedBatch // with photos waiting for review
 	Reviewed  []submittedBatch
@@ -310,6 +314,10 @@ var flashText = map[string]string{
 	"pin-saved":            "Saved. Members who type this PIN skip the review for photos and rides.",
 	"pin-off":              "The PIN is off. Shared photos and rides added without Strava wait for review.",
 	"waiver-deleted":       "Waiver deleted.",
+	"loaner-confirmed":     "Confirmed. The rider has been emailed.",
+	"loaner-declined":      "Declined. The rider has been emailed.",
+	"loaner-cancelled":     "Cancelled. The rider has been emailed, and the bike is free for that ride.",
+	"bike-removed":         "Bike removed.",
 	"connected":            "Strava is connected, and the club’s events are on the calendar.",
 	"connected-error":      "Strava is connected, but reading the club’s events didn’t work. See the error below.",
 	"disconnected":         "Strava disconnected. Events already imported stay on the calendar.",
@@ -370,6 +378,9 @@ var errorText = map[string]string{
 	"president-only":    "Only the president can do that.",
 	"treasurer-only":    "Only the treasurer or the president can remove that.",
 	"board-only":        "Only board members can do that.",
+	"loaner-answered":   "That request was already answered.",
+	"bike-size":         "Enter the bike’s size.",
+	"bike-booked":       "That bike is held for a ride coming up. Cancel the request first.",
 	"money-gone":        "That was removed.",
 	"money-meeting":     "Pick the meeting date.",
 	"money-fee":         "Type the fee like 3.49 and 0.49.",

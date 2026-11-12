@@ -41,7 +41,8 @@ type calView struct {
 	Spots     []spotView
 	Series    bool
 	Past      bool
-	CanManage bool // open, with a leader, so a leader can step down or cancel with the club PIN
+	CanManage bool         // open, with a leader, so a leader can step down or cancel with the club PIN
+	Loaners   []bikeChoice // ready loaner bikes, while the ride takes requests (loaners.go)
 
 	// Adding a ride
 	Form     CalRide
@@ -324,6 +325,9 @@ func (a *App) rideRights(v *calView, o RideOcc) {
 		v.Spots = append(v.Spots, spotView{Slot: s, CanLead: open && s.Leader == nil && o.IsRide()})
 	}
 	v.CanManage = !v.Past && len(o.Leaders) > 0 && o.IsRide() // an event's host is set on the admin portal
+	if a.loanerOpen(o) {
+		v.Loaners = a.store.LoanerChoices(o.Key)
+	}
 }
 
 // sameLeader reports whether a leader is this person, by name.

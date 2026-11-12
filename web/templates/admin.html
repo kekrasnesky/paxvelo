@@ -1601,6 +1601,76 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   <div class="strip-tools"><button type="button" class="mini ghost" data-act="left" aria-label="Move left">←</button><button type="button" class="mini ghost" data-act="right" aria-label="Move right">→</button><button type="button" class="link danger small" data-act="remove">Remove</button></div>
 </div>{{end}}
 
+{{define "loaner-row"}}<tr id="q{{.ID}}">
+    <td data-label="Ride"><a href="/calendar/ride/{{.RideKey}}" target="_blank" rel="noopener">{{.RideName}}</a><br><span class="muted small">{{.RideLabel}}</span></td>
+    <td data-label="Rider">{{.RiderName}}{{if .Rider}}<br><span class="muted small">Parent or guardian: {{.Name}}</span>{{end}}<br><a class="small" href="mailto:{{.Email}}">{{.Email}}</a></td>
+    <td data-label="Bike">{{.BikeLabel}}</td>
+    <td class="nowrap" data-label="Asked">{{datetime .Asked}}{{with .Waiver}}<br><a class="small" href="/admin/ride-waivers/{{.}}">Waiver</a>{{end}}</td>
+{{end}}
+
+{{define "loaners"}}{{template "head" .}}
+<div class="title-row">
+  <h1>Loaner bikes</h1>
+</div>
+<h2 class="section">Waiting</h2>
+<div class="table-wrap"><table class="tight cards">
+  <thead><tr><th>Ride</th><th>Rider</th><th>Bike</th><th>Asked</th><th><span class="sr">Answer</span></th></tr></thead>
+  <tbody>
+  {{range .LoanersWaiting}}{{template "loaner-row" .}}
+    <td class="right row-acts">
+      <form method="post" action="/admin/loaners/{{.ID}}/confirm" class="inline"><button class="mini">{{icon "check"}}Confirm</button></form>
+      <form method="post" action="/admin/loaners/{{.ID}}/decline" class="inline loaner-decline"><input name="reason" maxlength="300" placeholder="Reason" aria-label="Reason for declining"><button class="link danger">Decline</button></form>
+    </td>
+  </tr>
+  {{else}}<tr><td colspan="6" class="empty">No requests waiting.</td></tr>
+  {{end}}
+  </tbody>
+</table></div>
+<h2 class="section">Confirmed</h2>
+<div class="table-wrap"><table class="tight cards">
+  <thead><tr><th>Ride</th><th>Rider</th><th>Bike</th><th>Asked</th><th><span class="sr">Cancel</span></th></tr></thead>
+  <tbody>
+  {{range .LoanersComing}}{{template "loaner-row" .}}
+    <td class="right row-acts"><form method="post" action="/admin/loaners/{{.ID}}/cancel" class="inline" onsubmit="return confirm('Cancel this bike for {{.RiderName}}? They get an email.')"><button class="link danger">{{icon "ban"}}Cancel</button></form></td>
+  </tr>
+  {{else}}<tr><td colspan="6" class="empty">No bikes confirmed for rides coming up.</td></tr>
+  {{end}}
+  </tbody>
+</table></div>
+{{with .LoanersPast}}<details class="loaner-past">
+  <summary>Earlier</summary>
+  <div class="table-wrap"><table class="tight cards">
+    <thead><tr><th>Ride</th><th>Rider</th><th>Bike</th><th>Asked</th><th>Answer</th></tr></thead>
+    <tbody>
+    {{range .}}{{template "loaner-row" .}}
+      <td data-label="Answer"><span class="tag">{{if eq .Status "confirmed"}}Confirmed{{else if eq .Status "declined"}}Declined{{else if eq .Status "cancelled"}}Cancelled{{else}}Not answered{{end}}</span>{{with .By}}<br><span class="muted small">{{.}}</span>{{end}}{{with .Reason}}<br><span class="muted small">{{.}}</span>{{end}}</td>
+    </tr>{{end}}
+    </tbody>
+  </table></div>
+</details>{{end}}
+
+<h2 class="section" id="bikes">Bikes</h2>
+<div class="loaner-bikes">
+  {{range .LoanerBikes}}<form class="card loaner-bike-row" method="post" action="/admin/loaners/bikes">
+    <input type="hidden" name="id" value="{{.ID}}">
+    <label>Size <input name="size" required maxlength="20" value="{{.Size}}"></label>
+    <label>Rider height <input name="fits" maxlength="40" value="{{.Fits}}"></label>
+    <label class="grow">Bike <input name="bike" maxlength="120" value="{{.Bike}}"></label>
+    <label class="check"><input type="checkbox" name="ready" value="yes"{{if .Ready}} checked{{end}}> Ready</label>
+    <button class="mini ghost">{{icon "save"}}Save</button>
+    <button class="link danger" formaction="/admin/loaners/bikes/{{.ID}}/remove" onclick="return confirm('Remove the {{.Size}} bike?')">{{icon "trash"}}Remove</button>
+  </form>
+  {{end}}
+  <form class="card loaner-bike-row" method="post" action="/admin/loaners/bikes">
+    <label>Size <input name="size" required maxlength="20" placeholder="M"></label>
+    <label>Rider height <input name="fits" maxlength="40" placeholder="5'4&quot;–5'8&quot;"></label>
+    <label class="grow">Bike <input name="bike" maxlength="120" placeholder="Year, make, model, frame size, brakes"></label>
+    <label class="check"><input type="checkbox" name="ready" value="yes"> Ready</label>
+    <button class="mini">{{icon "plus"}}Add bike</button>
+  </form>
+</div>
+{{template "foot" .}}{{end}}
+
 {{define "minutes"}}{{template "head" .}}
 <div class="title-row">
   <h1>Meeting minutes</h1>
@@ -2974,6 +3044,7 @@ document.querySelectorAll('[data-board]').forEach(function(box){
     <li>Every club email has their private membership link: dues status, a PayPal button, this year’s waiver to sign, their details, and emails on or off.</li>
     <li>The insurance waiver is signed once a year, and parents or guardians sign for each rider under 18 there too. Other adults on a Family membership each get an emailed link to sign their own, once the dues are marked paid. The <a href="/admin/waivers">Waivers</a> tab keeps every signed copy and shows who hasn’t signed.</li>
     <li>First-time riders sign at <a href="/ride-waiver" target="_blank" rel="noopener">/ride-waiver</a> (or <a href="/loaner" target="_blank" rel="noopener">/loaner</a>, with the club bike already picked): name, email, loaner or own bike, and a signature. A loaner bike adds the club’s loaner agreement to the League waiver. They’re under Waivers → First rides, and on the member’s page once someone with that email joins.</li>
+    <li>Every group ride’s page lists the loaner bikes marked Ready on <a href="/admin/loaners">Rides → Loaner bikes</a>. A rider picks one and signs the loaner waiver, until 8 pm the day before. The bike is held for that ride, {{.Guide.RidesEmail}} gets an email and Home shows it; Confirm or Decline it there and the rider is emailed. Cancel frees the bike.</li>
     <li>Every member email has an unsubscribe link.</li>
     <li>With the club PIN, their photos and the rides they add go up right away.</li></ul></div>
   <div class="card"><h3>Riders and ride leaders</h3><ul>

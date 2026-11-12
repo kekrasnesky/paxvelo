@@ -209,6 +209,8 @@ type storeData struct {
 	// Ride waivers from first-time riders (ridewaivers.go).
 	NextRideWaiver int           `json:"next_ride_waiver_id,omitempty"`
 	RideWaivers    []*RideWaiver `json:"ride_waivers,omitempty"`
+	// Loaner bikes and the requests for them (loaners.go).
+	Loaners LoanerFleet `json:"loaners,omitzero"`
 	// Photos members sent in for the newsletter (sharephotos.go).
 	NextSubmitted   int               `json:"next_submitted_id,omitempty"`
 	SubmittedPhotos []*SubmittedPhoto `json:"submitted_photos,omitempty"`
@@ -347,6 +349,7 @@ func openStore(dir string) (*Store, error) {
 	s.seedTreasury()
 	s.seedFee()
 	s.seedKit()
+	s.seedLoaners()
 	s.linkBoard()
 	return s, s.save()
 }
