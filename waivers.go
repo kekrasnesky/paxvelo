@@ -548,7 +548,7 @@ func (a *App) unsignedRiders(year int) []unsignedRider {
 		if st := m.Standing(); st == standList || (st == standUnpaid && !m.WelcomePending) {
 			continue
 		}
-		if _, ok := a.store.WaiverFor(m.ID, year); !ok {
+		if !a.store.HasWaiver(m.ID, year) {
 			out = append(out, unsignedRider{Member: m, Name: m.Name, Email: m.Email})
 		}
 		for _, h := range m.Household {

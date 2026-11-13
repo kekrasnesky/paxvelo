@@ -158,7 +158,7 @@ var ta=form.querySelector('textarea[name=body]'),write=form.querySelector('.mail
 try{if(localStorage.getItem('mail-editor')==='text')mode='text'}catch(e){}
 var PIECES={},BLOCKS={ride_tips:1,confirm_button:1,pay_line:1,rides_for_you:1};
 [].forEach.call((form.querySelector('select.mail-pieces')||{options:[]}).options,function(o){PIECES[o.value]={label:o.textContent,help:o.title}});
-var LINKS=[['{pay_link}','Their pay link'],['{my_link}','Their membership page'],['{kit_link}','Their kit order'],['{strava}','The club on Strava']].filter(function(l){return PIECES[l[0].slice(1,-1)]});
+var LINKS=[['{pay_link}','Their pay link'],['{my_link}','Their membership page'],['{waiver_link}','Their waiver to sign'],['{kit_link}','Their kit order'],['{strava}','The club on Strava']].filter(function(l){return PIECES[l[0].slice(1,-1)]});
 var linkG=/\[([^\]]*)\]\(\s*([^)\s]*)\s*\)/g;
 
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}

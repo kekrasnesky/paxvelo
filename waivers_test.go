@@ -24,7 +24,7 @@ func TestWaiverEachYear(t *testing.T) {
 	m, _, _ := a.store.Join(memberDetails{Name: "Pat Rider", Email: "pat@example.com", Plan: "individual"}, year)
 	a.store.SetPaid(m.ID, year, true)
 
-	if page := do(t, h, nil, "GET", "/membership?t="+m.Token, "", nil).Body.String(); !strings.Contains(page, "Sign the "+strconv.Itoa(year)+" waiver") || !strings.Contains(page, "LEAGUE OF AMERICAN BYCYLISTS") {
+	if page := do(t, h, nil, "GET", "/membership?t="+m.Token, "", nil).Body.String(); !strings.Contains(page, "Sign your "+strconv.Itoa(year)+" member waiver") || !strings.Contains(page, "LEAGUE OF AMERICAN BYCYLISTS") {
 		t.Error("the membership page should offer this year's waiver to sign")
 	}
 	if !needsWaivers(a) {
@@ -117,7 +117,7 @@ func TestMinorWaivers(t *testing.T) {
 	if w.Code != http.StatusSeeOther || !strings.HasSuffix(w.Header().Get("Location"), "&minor=1#minors") {
 		t.Fatalf("signing for a rider should go back to their page: %d", w.Code)
 	}
-	if page := do(t, h, nil, "GET", strings.TrimSuffix(w.Header().Get("Location"), "#minors"), "", nil).Body.String(); !strings.Contains(page, "<strong>Sam Rider</strong>, age 12") || !strings.Contains(page, "Sign the "+strconv.Itoa(year)+" waiver") {
+	if page := do(t, h, nil, "GET", strings.TrimSuffix(w.Header().Get("Location"), "#minors"), "", nil).Body.String(); !strings.Contains(page, "<strong>Sam Rider</strong>, age 12") || !strings.Contains(page, "Sign your "+strconv.Itoa(year)+" member waiver") {
 		t.Error("the page should list the rider, and still ask the member to sign their own")
 	}
 	ct, body = form(good)

@@ -3,14 +3,20 @@
   {{with .Ride}}<p class="cal-back"><a href="/calendar/ride/{{.Key}}">← {{.Name}}</a></p>
   <h1>Borrow a Club Bike</h1>
   <p class="lead">{{.Name}} · {{.DateLabel}}{{with .Time}} · {{timeLabel .}}{{end}}</p>
-  {{else}}<h1>Ride Waiver</h1>{{end}}
+  {{else}}<h1>First Ride Waiver</h1>{{end}}
   {{if .Done}}<div class="joined" tabindex="-1">
     <p class="joined-title">{{if .Ride}}Requested. We’ll email you once it’s confirmed.{{else}}Signed. Enjoy the ride!{{end}}</p>
   </div>
   {{else if and .Ride (not .LoanerOpen)}}<p class="cal-note">Requests for this ride are closed.</p>
   {{else if and .Ride (not .Bikes)}}<p class="cal-note">No club bikes are ready yet.</p>
-  {{else}}<form class="join ride-waiver{{if .Ride}} loaner-form{{end}}" method="post" action="{{.Action}}">
-    <input type="hidden" name="ft" value="{{.Token}}">
+  {{else}}{{if .Member}}<form class="member-nudge" method="post" action="/membership/link" role="alert">
+    <p><strong>You’re a member.</strong> Sign your yearly waiver on your membership page.</p>
+    <input type="hidden" name="email" value="{{.Email}}">
+    <button class="btn" type="submit">{{icon "send"}}Email me my link</button>
+  </form>{{end}}
+  <form class="join ride-waiver{{if .Ride}} loaner-form{{end}}" method="post" action="{{.Action}}">
+    <input type="hidden" name="ft" value="{{.Token}}">{{if or .Member .MemberOK}}
+    <input type="hidden" name="member_ok" value="1">{{end}}
     <div class="hp" aria-hidden="true"><label>Leave this empty <input name="website" tabindex="-1" autocomplete="off"></label></div>
     {{with .Message}}<p class="cal-msg cal-err" role="alert">{{.}}</p>{{end}}
     {{if .Ride}}{{$picked := .BikeID}}<fieldset class="pick loaner-pick">
@@ -52,7 +58,7 @@
       {{template "signature-pad" "ride"}}
       <p class="hint">Date signed: {{.Today}}.</p>
     </fieldset>
-    <button class="btn" type="submit" data-busy="{{if .Ride}}Sending…{{else}}Signing…{{end}}">{{if .Ride}}Request the bike{{else}}Sign{{end}}</button>
+    <button class="btn" type="submit" data-busy="{{if .Ride}}Sending…{{else}}Signing…{{end}}">{{if .Ride}}Request the bike{{else if .Member}}Sign here anyway{{else}}Sign{{end}}</button>
   </form>{{end}}
 </article>
 {{end}}{{end}}

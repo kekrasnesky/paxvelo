@@ -127,6 +127,7 @@ func (m *Mailer) personalize(s string, mem Member) string {
 		"{year}", strconv.Itoa(m.cfg.ThisYear()),
 		"{ride_tips}", tips,
 		"{my_link}", m.cfg.membershipURL(mem.Token),
+		"{waiver_link}", m.cfg.membershipURL(mem.Token)+"#waiver",
 		"{kit_link}", m.cfg.SiteURL+"/kit?t="+url.QueryEscape(mem.Token),
 		"{dues_expire}", duesExpireText(mem),
 	).Replace(s)

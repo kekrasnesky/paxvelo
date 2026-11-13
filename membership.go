@@ -49,6 +49,7 @@ type membershipData struct {
 	// This year's insurance waiver (waivers.go): the signed one, or the form
 	// to sign it.
 	Waiver        *Waiver
+	FirstRide     bool   // Waiver is the first-ride waiver they signed this year (ridewaivers.go)
 	WaiverSigned  bool   // just signed
 	WaiverMessage string // a problem signing it
 	Signature     string // what was typed, to show again after a mistake
@@ -106,6 +107,9 @@ func (a *App) membershipView(m Member, token string) membershipData {
 	}
 	if w, ok := a.store.WaiverFor(m.ID, year); ok {
 		d.Waiver = &w
+	} else if rw, ok := a.store.FirstRideFor(m.ID, year); ok {
+		// Signed at a first ride: the same League waiver, so it counts.
+		d.Waiver, d.FirstRide = &Waiver{MemberID: m.ID, Year: year, Name: rw.Name, Email: rw.Email, Signature: rw.Signature, Signed: rw.Signed}, true
 	}
 	d.Minors = a.store.MinorWaivers(m.ID, year)
 	if m.RenewalWaiting() {

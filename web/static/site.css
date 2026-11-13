@@ -709,9 +709,9 @@ html:has(.gal-view[open]){overflow:hidden} /* the page behind stays put */
 .household-list li{display:flex;flex-wrap:wrap;justify-content:space-between;gap:.3rem 1rem;padding:.6rem .8rem;border:1px solid #e0d6cc;border-radius:8px}
 .household-list .dues-paid{margin:0;font-size:inherit}
 /* "Confirm my email" at the top of a new member's page */
-.confirm-box,#confirm{scroll-margin-top:4.5rem}
-.confirm-box{display:grid;gap:.7rem;justify-items:start;margin:1rem 0 1.4rem;padding:1rem 1.1rem;border:1px solid #e0d6cc;border-left:4px solid var(--red);border-radius:0 8px 8px 0;background:#fff}
-.confirm-box p{margin:0}
+.confirm-box,.member-nudge,#confirm{scroll-margin-top:4.5rem}
+.confirm-box,.member-nudge{display:grid;gap:.7rem;justify-items:start;margin:1rem 0 1.4rem;padding:1rem 1.1rem;border:1px solid #e0d6cc;border-left:4px solid var(--red);border-radius:0 8px 8px 0;background:#fff}
+.confirm-box p,.member-nudge p{margin:0}
 .household-tools{display:flex;flex-wrap:wrap;gap:.2rem 1rem;align-items:center;font-size:.88rem}
 .household-tools form{margin:0}
 .household-tools button{color:var(--red)}

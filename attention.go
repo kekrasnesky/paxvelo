@@ -169,6 +169,21 @@ func (a *App) attention() []attentionItem {
 		})
 	}
 
+	// Covered by a first-ride waiver only (ridewaivers.go): the board may
+	// still want the yearly one on file.
+	firstRide := 0
+	for id := range a.store.FirstRideOnly(year) {
+		if m, ok := a.store.MemberByID(id); ok && m.Paid() {
+			firstRide++
+		}
+	}
+	if firstRide > 0 {
+		out = append(out, attentionItem{
+			Text: fmt.Sprintf("%d paid %s signed only the first-ride waiver for %d, not the yearly one.", firstRide, plural(firstRide, "member", "members"), year),
+			Href: "/admin/members?waiver=firstride", Link: "See who",
+		})
+	}
+
 	today := a.today()
 	for _, o := range a.store.Rides(today, today.AddDate(0, 0, 6)) {
 		if o.Cancelled || !o.IsRide() {

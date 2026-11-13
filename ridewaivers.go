@@ -130,6 +130,50 @@ func (s *Store) linkRideWaivers() {
 	}
 }
 
+// FirstRideFor is the latest ride waiver a member signed for themselves (not
+// for a rider under 18) in a year. It carries the League waiver, the same
+// text as the yearly one, so it counts as their waiver for that year
+// (HasWaiver).
+func (s *Store) FirstRideFor(memberID, year int) (RideWaiver, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if memberID == 0 {
+		return RideWaiver{}, false
+	}
+	for i := len(s.d.RideWaivers) - 1; i >= 0; i-- {
+		if w := s.d.RideWaivers[i]; w.MemberID == memberID && !w.Minor && w.Year() == year {
+			return *w, true
+		}
+	}
+	return RideWaiver{}, false
+}
+
+// HasWaiver says whether a member is covered for a year: the yearly waiver,
+// or a first-ride waiver signed for themselves that year.
+func (s *Store) HasWaiver(memberID, year int) bool {
+	if _, ok := s.WaiverFor(memberID, year); ok {
+		return true
+	}
+	_, ok := s.FirstRideFor(memberID, year)
+	return ok
+}
+
+// FirstRideOnly is which members are covered for a year only by a first-ride
+// waiver they signed for themselves, not the yearly one: the board may still
+// want them to sign it on their membership page.
+func (s *Store) FirstRideOnly(year int) map[int]bool {
+	signed := s.SignedWaivers(year)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := map[int]bool{}
+	for _, w := range s.d.RideWaivers {
+		if w.MemberID != 0 && !w.Minor && w.Year() == year && !signed[w.MemberID] && s.byID(w.MemberID) != nil {
+			out[w.MemberID] = true
+		}
+	}
+	return out
+}
+
 // RideWaivers lists the ride waivers signed in a year, newest first.
 func (s *Store) RideWaivers(year int, loc *time.Location) []RideWaiver {
 	s.mu.Lock()
@@ -203,6 +247,10 @@ type rideWaiverData struct {
 	Agree, Guardian, SignMinor bool
 	Message                    string
 	Done                       bool
+	// Member: the email is a paid-up member's, so they're pointed to the
+	// yearly waiver on their membership page; MemberOK, they chose to sign
+	// here anyway (it counts the same, HasWaiver).
+	Member, MemberOK bool
 
 	// Asking for a loaner bike on a ride (loaners.go): the ride, its bikes,
 	// the one picked, and where the form goes.
@@ -216,7 +264,7 @@ type rideWaiverData struct {
 func (a *App) renderRideWaiver(w http.ResponseWriter, status int, d rideWaiverData) {
 	d.Token, d.Today, d.Action = a.formToken(), a.signedDate(), rideWaiverPath
 	w.Header().Set("X-Robots-Tag", "noindex")
-	a.site.render(w, status, "ride-waiver", rideWaiverPath, "Ride Waiver — "+siteName, d)
+	a.site.render(w, status, "ride-waiver", rideWaiverPath, "First Ride Waiver — "+siteName, d)
 }
 
 func (a *App) rideWaiverPage(w http.ResponseWriter, r *http.Request) {
@@ -235,7 +283,7 @@ func (a *App) rideWaiverForm(r *http.Request) (d rideWaiverData, signed RideWaiv
 	r.ParseForm()
 	f := r.PostForm
 	d = rideWaiverData{Name: f.Get("name"), Email: f.Get("email"), Bike: f.Get("bike"), Rider: f.Get("rider"), RiderAge: f.Get("rider_age"),
-		Signature: f.Get("signature"), Agree: f.Get("waiver") != "", Guardian: f.Get("guardian") != ""}
+		Signature: f.Get("signature"), Agree: f.Get("waiver") != "", Guardian: f.Get("guardian") != "", MemberOK: f.Get("member_ok") != ""}
 	if f.Get("website") != "" {
 		return d, signed, false, true
 	}
@@ -282,6 +330,15 @@ func (a *App) signRideWaiver(w http.ResponseWriter, r *http.Request) {
 		d.Done = true
 		a.renderRideWaiver(w, http.StatusOK, d)
 		return
+	}
+	// A member signing for themselves: their waiver is the yearly one, on
+	// their membership page. They can still sign here (no inbox at the ride).
+	if d.Message == "" && !minor && !d.MemberOK {
+		if m, ok := a.store.MemberByEmail(signed.Email); ok && m.Paid() {
+			d.Member = true
+			a.renderRideWaiver(w, http.StatusOK, d)
+			return
+		}
 	}
 	if d.Message == "" && !a.limit.Allow("ride-waiver:"+clientIP(r), maxRideWaivers, time.Hour) { // counted once the form is right
 		d.Message = "Too many waivers from here this hour. Try again later."

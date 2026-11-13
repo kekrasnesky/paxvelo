@@ -7,16 +7,16 @@ adult on their Family plan. */}}
 {{define "waiver-status"}}<li class="status {{if .Waiver}}done{{else}}todo{{end}}">
     {{template "status-mark" .Waiver}}
     <div class="status-body">
-      <h2>{{.Year}} waiver</h2>
+      <h2>{{.Year}} member waiver</h2>
       {{with .Waiver}}<p class="status-state">Signed</p>
-      <p class="status-meta">As {{.Signature}}, {{date .Signed}}</p>
+      <p class="status-meta">As {{.Signature}}, {{date .Signed}}{{if $.FirstRide}}, at your first ride{{end}}</p>
       {{else}}<p class="status-state">Not signed</p>
       <p class="status-meta">Needed to ride with the club.</p>{{end}}
     </div>
     {{if not .Waiver}}<a class="btn status-act" href="#waiver">Sign</a>{{end}}
   </li>{{end}}
 {{/* The form to sign this year's waiver, while it isn't signed. */}}
-{{define "my-waiver"}}{{if not .Waiver}}<h2 class="my-h" id="waiver">Sign the {{.Year}} waiver</h2>
+{{define "my-waiver"}}{{if not .Waiver}}<h2 class="my-h" id="waiver">Sign your {{.Year}} member waiver</h2>
   <form class="join" method="post" action="/membership/waiver#waiver">
     <input type="hidden" name="t" value="{{.Token}}">
     <fieldset class="terms waiver">

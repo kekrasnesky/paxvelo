@@ -52,7 +52,7 @@ var autoTriggers = []autoTrigger{
 	{"joined", "someone joins on the website", "", false, "Everyone who fills in the join form, paid or not."},
 	{"unpaid", "someone joins on the website", "if they haven’t paid yet", false, "A nudge to pay: it’s skipped once they’re marked paid."},
 	{"paid", "a member is marked paid", "", false, "Each time dues are marked paid, joining or renewing."},
-	{"waiver", "a member is marked paid", "if they haven’t signed this year’s waiver", false, "A reminder to sign: it’s skipped once they have."},
+	{"waiver", "a member is marked paid", "if they haven’t signed this year’s waiver", false, "A reminder to sign: it’s skipped once they have (a first-ride waiver this year counts). Ends with a Sign button unless the words have the waiver link."},
 	{"expiring", "a member’s dues run out", "", true, "A renewal reminder: it’s skipped if they renew first."},
 	{"expired", "a member’s dues ran out", "if they haven’t renewed", false, "For members whose dues lapsed."},
 }
@@ -127,7 +127,7 @@ func (a *App) autoDue(au Automation, m Member) (due time.Time, occ string, ok bo
 	case "paid", "waiver":
 		base = m.lastPaidOn()
 		if au.Trigger == "waiver" && !base.IsZero() {
-			if _, signed := a.store.WaiverFor(m.ID, a.cfg.ThisYear()); signed {
+			if a.store.HasWaiver(m.ID, a.cfg.ThisYear()) {
 				return
 			}
 		}
@@ -184,9 +184,22 @@ func (a *App) runAutomations(now time.Time) {
 			if !a.store.MarkAutoSent(au.ID, m.ID, occ) {
 				continue
 			}
-			a.mailer.sendTo(mailAuto, 0, "", m, au.Subject, au.Body, nil) // a failure is in the sent log
+			a.mailer.sendTo(mailAuto, 0, "", m, au.Subject, autoBody(au), nil) // a failure is in the sent log
 		}
 	}
+}
+
+// waiverButton ends a waiver reminder that has no link to the waiver, so
+// one tap opens the right form (not the first-ride one).
+const waiverButton = "[[Sign my {year} waiver]({waiver_link})]"
+
+// autoBody is what an automation sends: its words, and for a waiver
+// reminder without {waiver_link}, the Sign button at the end.
+func autoBody(au Automation) string {
+	if au.Trigger == "waiver" && !strings.Contains(au.Body, "{waiver_link}") {
+		return strings.TrimRight(au.Body, "\n") + "\n\n" + waiverButton
+	}
+	return au.Body
 }
 
 func (a *App) automationLoop(ctx context.Context) {
@@ -465,6 +478,7 @@ var (
 		{"dues", "Dues amount", "Like $35"},
 		{"dues_expire", "Dues run out", "The day their dues run out"},
 		{"my_link", "My membership link", "Their own membership page"},
+		{"waiver_link", "Waiver link", "Their membership page, opened at the waiver to sign"},
 		{"kit_link", "Kit order link", "Their own link to reserve club kit"},
 		{"year", "Year", "This year"},
 		{"site", "Website address", ""},
@@ -811,11 +825,13 @@ func (a *App) autoPreview(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 256<<10)
 	key := r.PathValue("key")
 	var d EmailDraft
+	var trigger string
 	if r.Method == http.MethodPost {
-		d = draftFrom(r)
+		d, trigger = draftFrom(r), r.FormValue("trigger")
 	} else if f, ok := a.autoFormFor(key); ok {
-		d = EmailDraft{Subject: f.Subject, Body: f.Body}
+		d, trigger = EmailDraft{Subject: f.Subject, Body: f.Body}, f.Trigger
 	}
+	d.Body = autoBody(Automation{Trigger: trigger, Body: d.Body})
 	pat := a.samplePat()
 	if key == "confirm" {
 		pat.PaidYears = nil
@@ -849,6 +865,7 @@ func (a *App) autoTest(w http.ResponseWriter, r *http.Request) {
 	if r.PathValue("key") == "confirm" {
 		d.Body = a.fillConfirm(d.Body, Member{Token: testToken, Plan: "individual", Level: "some"})
 	}
+	d.Body = autoBody(Automation{Trigger: r.FormValue("trigger"), Body: d.Body})
 	if err := a.mailer.SendTest(to, d.Subject, d.Body); err != nil {
 		say(false, "The test didn’t send: "+err.Error())
 		return

@@ -43,6 +43,8 @@ type adminView struct {
 	Members       []Member
 	MemberPage    *memberView  // one member's page
 	Signed        map[int]bool // members who signed their own waiver for Year
+	FirstRide     map[int]bool // members covered for Year only by a first-ride waiver (ridewaivers.go)
+	WaiverFilter  string       // the member list's waiver filter: "firstride", or "" for all
 	Active, Unsub int          // Email tab: on the email list / unsubscribed
 	Paid, Unpaid  int          // members paid for Year / paid before or joined, not paid yet
 	List, Total   int          // Members tab: never paid; everyone on the list
@@ -520,7 +522,10 @@ func (a *App) membersPage(w http.ResponseWriter, r *http.Request) {
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
 	dues := r.URL.Query().Get("dues")
 	v := adminView{Title: "Members", Tab: "members", Q: q, Dues: dues, Year: a.cfg.ThisYear(), CanManage: a.isBoard(r)}
-	v.Signed = a.store.SignedWaivers(v.Year)
+	v.Signed, v.FirstRide = a.store.SignedWaivers(v.Year), a.store.FirstRideOnly(v.Year)
+	if r.URL.Query().Get("waiver") == "firstride" {
+		v.WaiverFilter = "firstride"
+	}
 	v.Flash, v.Error = flashFrom(r)
 	if r.URL.Query().Get("ok") == "orders" {
 		v.Flash = a.ordersFlash(r)
@@ -544,6 +549,9 @@ func (a *App) membersPage(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		if dues != "" && dues != st {
+			continue
+		}
+		if v.WaiverFilter == "firstride" && !v.FirstRide[m.ID] {
 			continue
 		}
 		v.Members = append(v.Members, m)
