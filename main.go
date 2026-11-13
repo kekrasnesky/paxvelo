@@ -463,6 +463,21 @@ func (a *App) routes() http.Handler {
 	return secureHeaders(mux, a.site.csp)
 }
 
+// slowUpload is how long a request that carries files may take.
+const slowUpload = 10 * time.Minute
+
+// allowSlowUpload gives a request that carries files (photos, minutes, a
+// receipt) longer to arrive and be answered. The server otherwise allows 30
+// seconds for a whole request and 60 for its answer, which a dozen photos on
+// a phone signal don't make: the upload was cut off partway. Handlers call
+// it before reading the form; each still caps the size it accepts.
+func allowSlowUpload(w http.ResponseWriter) {
+	rc := http.NewResponseController(w)
+	by := time.Now().Add(slowUpload)
+	rc.SetReadDeadline(by) // not supported by every writer (tests): then nothing changes
+	rc.SetWriteDeadline(by)
+}
+
 // secureHeaders adds the browser security headers. csp is the public pages'
 // Content-Security-Policy (csp.go).
 func secureHeaders(next http.Handler, csp string) http.Handler {

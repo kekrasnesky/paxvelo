@@ -119,6 +119,7 @@ func (a *App) sharePhotos(w http.ResponseWriter, r *http.Request) {
 		d.Failed, d.Message = true, msg
 		reply(status)
 	}
+	allowSlowUpload(w)
 	if err := r.ParseMultipartForm(8 << 20); err != nil {
 		fail(http.StatusRequestEntityTooLarge, "Those photos are too big to share together. Try a few at a time.")
 		return

@@ -792,6 +792,7 @@ func (a *App) uploadNewsPhotos(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(status)
 		json.NewEncoder(w).Encode(v)
 	}
+	allowSlowUpload(w)
 	if err := r.ParseMultipartForm(16 << 20); err != nil {
 		reply(http.StatusBadRequest, map[string]string{"error": "Those photos are too big together. Add a few at a time."})
 		return
@@ -982,6 +983,7 @@ func (a *App) saveIssue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, 80<<20)
+	allowSlowUpload(w)
 	if err := r.ParseMultipartForm(16 << 20); err != nil && !errors.Is(err, http.ErrNotMultipart) {
 		a.renderIssueForm(w, r, old, "The upload was too big. Add a few photos at a time.")
 		return

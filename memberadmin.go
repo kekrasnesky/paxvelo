@@ -208,8 +208,12 @@ func (s *Store) UpdateMember(id int, d memberDetails) error {
 			}
 		}
 	}
+	changed := d.Email != m.Email
 	m.Name, m.Email, m.Plan = d.Name, d.Email, d.Plan
 	m.Phone, m.EmergencyName, m.EmergencyPhone, m.Level = d.Phone, d.EmergencyName, d.EmergencyPhone, d.Level
+	if changed {
+		s.linkRideWaivers() // ride waivers signed with the new address are theirs
+	}
 	return s.save()
 }
 

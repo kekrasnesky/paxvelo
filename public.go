@@ -499,6 +499,15 @@ func cleanName(s string) string {
 	return s
 }
 
+// clip cuts text to at most n characters, never through the middle of one
+// (a byte cut can split an accented letter or an emoji in two).
+func clip(s string, n int) string {
+	if r := []rune(s); len(r) > n {
+		return string(r[:n])
+	}
+	return s
+}
+
 func cleanEmail(s string) (string, bool) {
 	s = strings.ToLower(strings.TrimSpace(s))
 	if s == "" || len(s) > 254 {

@@ -126,6 +126,18 @@ func (m *Member) fill(d memberDetails) {
 	m.agree(d)
 }
 
+// ownPaidOn gives the member a PaidOn map of their own before it's changed.
+// Copies of a member handed out by the store (Members, MemberByToken…) share
+// the old map and read it without the lock, and Go stops the whole program
+// when a map is read while it's written. Callers hold the store's lock.
+func (m *Member) ownPaidOn() {
+	own := make(map[int]time.Time, len(m.PaidOn)+1)
+	for y, t := range m.PaidOn {
+		own[y] = t
+	}
+	m.PaidOn = own
+}
+
 func (m Member) Active() bool { return m.Unsubscribed == nil }
 
 // Emailable reports whether club emails go to them: not unsubscribed, and
@@ -585,11 +597,10 @@ func (s *Store) SetPaid(id, year int, paid bool) error {
 	}
 	switch {
 	case paid && !was:
-		if m.PaidOn == nil {
-			m.PaidOn = map[int]time.Time{}
-		}
+		m.ownPaidOn()
 		m.PaidOn[year] = time.Now().UTC()
-	case !paid:
+	case !paid && len(m.PaidOn) > 0:
+		m.ownPaidOn()
 		delete(m.PaidOn, year)
 	}
 	if paid {

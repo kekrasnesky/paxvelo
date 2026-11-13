@@ -133,7 +133,7 @@ func (a *App) apiPutRide(w http.ResponseWriter, r *http.Request) {
 		apiError(w, http.StatusBadRequest, "send a JSON ride: "+err.Error())
 		return
 	}
-	in.External, in.Name, in.Place, in.Details = "api:"+id, cleanName(in.Name), cleanName(in.Place), cleanName(in.Details)
+	in.External, in.Name, in.Place, in.Details = "api:"+id, cleanName(in.Name), cleanName(in.Place), cleanText(in.Details)
 	in.Groups = parseGroups(strings.Join(in.Groups, ","))
 	_, dateErr := time.Parse("2006-01-02", in.Date)
 	_, timeErr := time.Parse("15:04", in.Time)

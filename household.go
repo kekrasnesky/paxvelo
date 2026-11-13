@@ -360,6 +360,7 @@ func (s *Store) MarkLinksSent(memberID int, emails []string) error {
 	if m == nil {
 		return nil
 	}
+	m.Household = slices.Clone(m.Household) // copies of the member share the old list
 	for i := range m.Household {
 		if slices.Contains(emails, m.Household[i].Email) {
 			m.Household[i].LinkSent = true
@@ -396,7 +397,8 @@ func (s *Store) RemoveHousehold(memberID int, email string) error {
 		return nil
 	}
 	n := len(m.Household)
-	m.Household = slices.DeleteFunc(m.Household, func(h HouseholdAdult) bool { return h.Email == email })
+	// A copy: DeleteFunc shifts the list in place, under copies of the member.
+	m.Household = slices.DeleteFunc(slices.Clone(m.Household), func(h HouseholdAdult) bool { return h.Email == email })
 	if len(m.Household) == n {
 		return nil
 	}

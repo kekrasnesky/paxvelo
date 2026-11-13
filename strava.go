@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -55,5 +56,5 @@ func stravaDo(req *http.Request, out any) error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("strava answered %s", resp.Status)
 	}
-	return json.NewDecoder(resp.Body).Decode(out)
+	return json.NewDecoder(io.LimitReader(resp.Body, 16<<20)).Decode(out)
 }

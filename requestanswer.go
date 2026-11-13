@@ -143,10 +143,7 @@ func (a *App) answerPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	yes := r.FormValue("answer") == "approve"
-	reason := strings.TrimSpace(r.FormValue("reason"))
-	if len(reason) > 300 {
-		reason = reason[:300]
-	}
+	reason := clip(strings.TrimSpace(r.FormValue("reason")), 300)
 	if !yes && reason == "" {
 		av := answerView{Q: q, Token: tok, State: "ask", Reject: true, Problem: "Say why it’s rejected."}
 		av.Hint, av.Over = a.budgetHint(q.Category, q.Cents, q.Date)

@@ -230,7 +230,7 @@ func (m *Mailer) NotifySignup(mem Member) {
 		email += " (not confirmed yet: we emailed them a link, and club emails reach them once they press it)"
 	}
 	subject := "New member: " + mem.Name + " (" + mem.PlanName() + ")"
-	body := "**" + mem.Name + "** just joined on the website.\n\n" +
+	body := "**" + mailLiteral(mem.Name) + "** just joined on the website.\n\n" +
 		"- **Plan:** " + mem.PlanName() + ", $" + strconv.Itoa(m.cfg.Dues(mem.Plan)) + " for " + strconv.Itoa(year) + "\n" +
 		"- **Email:** " + email + "\n" +
 		"- **Phone:** " + phone + "\n" +

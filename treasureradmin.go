@@ -221,6 +221,7 @@ var errNoReceipt = errors.New("no file")
 // chosen, is saved and its file name returned with the line.
 func (a *App) readLedgerForm(w http.ResponseWriter, r *http.Request, e LedgerEntry) (LedgerEntry, string) {
 	r.Body = http.MaxBytesReader(w, r.Body, maxReceipt+(1<<20))
+	allowSlowUpload(w)
 	if err := r.ParseMultipartForm(8 << 20); err != nil && !errors.Is(err, http.ErrNotMultipart) {
 		return e, "That receipt is too big. Receipts can be up to 20 MB."
 	}

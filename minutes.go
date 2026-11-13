@@ -181,6 +181,7 @@ func (a *App) minutesAdmin(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) addMinutes(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, maxMinutesFile+(1<<20))
+	allowSlowUpload(w)
 	if err := r.ParseMultipartForm(8 << 20); err != nil {
 		back(w, r, "/admin/minutes?err=bigfile")
 		return

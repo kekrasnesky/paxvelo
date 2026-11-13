@@ -125,6 +125,7 @@ func (s *Store) SetHero(h HeroPhoto) error {
 // saveHero is the Top photo form on the Home photos tab.
 func (a *App) saveHero(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, maxPhoto+(1<<20))
+	allowSlowUpload(w)
 	if err := r.ParseMultipartForm(16 << 20); err != nil && !errors.Is(err, http.ErrNotMultipart) {
 		back(w, r, "/admin/home-photos?err=bigphotos#hero")
 		return

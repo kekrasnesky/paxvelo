@@ -94,6 +94,7 @@ func (a *App) newKitRound(w http.ResponseWriter, r *http.Request) {
 // saveKitItem adds or changes one item, with its photo.
 func (a *App) saveKitItem(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, maxPhoto+(1<<20))
+	allowSlowUpload(w)
 	if err := r.ParseMultipartForm(4 << 20); err != nil {
 		back(w, r, "/admin/kit?err=save")
 		return

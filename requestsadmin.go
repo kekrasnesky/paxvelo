@@ -229,6 +229,7 @@ func (a *App) renderRequests(w http.ResponseWriter, r *http.Request, in requests
 // was used counts.
 func (a *App) readAmountDate(w http.ResponseWriter, r *http.Request) (date string, cents int64, receipt, receiptName, problem string) {
 	r.Body = http.MaxBytesReader(w, r.Body, maxReceipt+(1<<20))
+	allowSlowUpload(w)
 	if err := r.ParseMultipartForm(8 << 20); err != nil && !errors.Is(err, http.ErrNotMultipart) {
 		return "", 0, "", "", "That receipt is too big. Receipts can be up to 20 MB."
 	}
@@ -325,10 +326,7 @@ func (a *App) sendRequest(w http.ResponseWriter, r *http.Request) {
 	}
 	q.Date, q.Cents, q.Receipt, q.ReceiptName = date, cents, receipt, receiptName
 	q.What = cleanName(r.FormValue("what"))
-	q.Note = strings.TrimSpace(r.FormValue("note"))
-	if len(q.Note) > 1000 {
-		q.Note = q.Note[:1000]
-	}
+	q.Note = clip(strings.TrimSpace(r.FormValue("note")), 1000)
 	if key := r.FormValue("event"); key != "" {
 		for _, e := range a.store.Rides(a.today().AddDate(0, 0, -60), a.today().AddDate(0, 0, 60)) {
 			if e.Key == key {

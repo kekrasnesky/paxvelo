@@ -614,7 +614,7 @@ func (a *App) addRide(w http.ResponseWriter, r *http.Request) {
 		a.alertHeldRide(o, name) // adminpush.go
 		a.clubNotice(fmt.Sprintf("%s waiting for approval: %s on %s", strings.ToUpper(o.Noun()[:1])+o.Noun()[1:], o.Name, shortDate(o.Date)),
 			fmt.Sprintf("%s added %s on %s without the club PIN.%s It isn't on the calendar until an admin approves it: %s/admin/rides/%s\n\nTo delete it instead, open it there.",
-				name, o.Name, rideWhen(o), heldNote(o), a.cfg.SiteURL, o.Key), a.soon(o.Date)) // summary.go
+				mailLiteral(name), mailLiteral(o.Name), mailLiteral(rideWhen(o)), heldNote(o), a.cfg.SiteURL, o.Key), a.soon(o.Date)) // summary.go
 		http.Redirect(w, r, "/calendar?ok=held", http.StatusSeeOther)
 		return
 	}

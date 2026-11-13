@@ -125,6 +125,7 @@ func (s *Store) ApplyOrders(orders []duesOrder) (updated int, added []int, err e
 		}
 		// The payment covers its year and nothing later, so the dues end on
 		// the payment day a year on.
+		m.ownPaidOn()
 		years := m.PaidYears[:0:0]
 		for _, y := range m.PaidYears {
 			if y < year {
@@ -134,9 +135,6 @@ func (s *Store) ApplyOrders(orders []duesOrder) (updated int, added []int, err e
 			}
 		}
 		m.PaidYears = append(years, year)
-		if m.PaidOn == nil {
-			m.PaidOn = map[int]time.Time{}
-		}
 		m.PaidOn[year] = o.Paid
 	}
 	if len(orders) > 0 {

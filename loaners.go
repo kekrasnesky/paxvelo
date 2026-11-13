@@ -417,11 +417,11 @@ func (a *App) rideLink(key string) string { return a.cfg.SiteURL + "/calendar/ri
 // notifyLoaner tells the club a bike was asked for.
 func (a *App) notifyLoaner(q LoanerRequest) {
 	var b strings.Builder
-	fmt.Fprintf(&b, "**%s** asked to borrow a club bike.\n\n", q.RiderName())
+	fmt.Fprintf(&b, "**%s** asked to borrow a club bike.\n\n", mailLiteral(q.RiderName()))
 	b.WriteString("- **Ride:** " + q.RideName + ", " + q.RideLabel() + "\n")
 	b.WriteString("- **Bike:** " + q.BikeLabel + "\n")
 	if q.Rider != "" {
-		b.WriteString("- **Parent or guardian:** " + q.Name + "\n")
+		b.WriteString("- **Parent or guardian:** " + mailLiteral(q.Name) + "\n")
 	}
 	b.WriteString("- **Email:** " + q.Email + "\n")
 	fmt.Fprintf(&b, "\n[Confirm or decline](%s/admin/loaners#q%d)", a.cfg.SiteURL, q.ID)

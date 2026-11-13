@@ -249,6 +249,11 @@ func readBehold(ctx context.Context, feed string) (*beholdFeed, error) {
 	return &f, nil
 }
 
+// instaIDRE is what a post's id may be made of. It comes from the feed and
+// names the post's cover and video files, so nothing that could step out of
+// their folder.
+var instaIDRE = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
+
 var markdownLinkRE = regexp.MustCompile(`\[([^\]]*)\]\([^)\s]*\)`)
 
 // post turns what the feed says about a post into the site's record of it.
@@ -313,7 +318,7 @@ func (a *App) readInstagram(ctx context.Context) (int, error) {
 	var feed []InstaPost
 	for _, m := range page.Posts {
 		p := m.post()
-		if p.Code == "" {
+		if p.Code == "" || !instaIDRE.MatchString(p.ID) { // the id names its files on disk
 			continue
 		}
 		if o, ok := old[p.ID]; ok {

@@ -12,7 +12,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"time"
 )
 
 // Website → Gallery: admins start, rename, reorder (by dragging), feature,
@@ -408,9 +407,7 @@ func (a *App) albumAction(w http.ResponseWriter, r *http.Request) {
 // upload. With JavaScript the page shrinks the photos first and sends them a
 // few at a time, answering in JSON; without, it sends them all at once.
 func (a *App) galleryUpload(w http.ResponseWriter, r *http.Request) {
-	rc := http.NewResponseController(w)
-	rc.SetReadDeadline(time.Now().Add(5 * time.Minute)) // an album can be big without JavaScript
-	rc.SetWriteDeadline(time.Now().Add(5 * time.Minute))
+	allowSlowUpload(w) // an album can be big without JavaScript
 	r.Body = http.MaxBytesReader(w, r.Body, maxBulkForm)
 	asJSON := strings.Contains(r.Header.Get("Accept"), "application/json")
 	album, _ := strconv.Atoi(r.URL.Query().Get("album"))

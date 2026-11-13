@@ -355,6 +355,7 @@ func (a *App) pagePhoto(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(status)
 		json.NewEncoder(w).Encode(m)
 	}
+	allowSlowUpload(w)
 	if err := r.ParseMultipartForm(maxPhoto + (1 << 20)); err != nil {
 		reply(http.StatusBadRequest, map[string]string{"error": "That photo is over 20 MB. Make it smaller at squoosh.app and try again."})
 		return
@@ -380,6 +381,7 @@ func (a *App) boardAdmin(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) saveBoard(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 80<<20)
+	allowSlowUpload(w)
 	if err := r.ParseMultipartForm(16 << 20); err != nil && !errors.Is(err, http.ErrNotMultipart) {
 		back(w, r, "/admin/board?err=bigfile")
 		return

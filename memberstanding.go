@@ -77,9 +77,12 @@ func (s *Store) SetRecord(id int, years []int, joined time.Time, emails bool) er
 	if m == nil {
 		return nil
 	}
-	for y := range m.PaidOn {
-		if !slices.Contains(years, y) {
-			delete(m.PaidOn, y)
+	if len(m.PaidOn) > 0 {
+		m.ownPaidOn()
+		for y := range m.PaidOn {
+			if !slices.Contains(years, y) {
+				delete(m.PaidOn, y)
+			}
 		}
 	}
 	m.PaidYears = years

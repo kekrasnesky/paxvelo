@@ -75,6 +75,7 @@ func (a *App) homePhotosAdmin(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) saveHomePhotos(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, maxHomePhotos*(maxPhoto+(1<<20)))
+	allowSlowUpload(w)
 	if err := r.ParseMultipartForm(16 << 20); err != nil && !errors.Is(err, http.ErrNotMultipart) {
 		back(w, r, "/admin/home-photos?err=bigphotos")
 		return

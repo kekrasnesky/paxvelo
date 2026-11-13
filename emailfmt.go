@@ -177,6 +177,16 @@ func emailAnchor(u, base, style, label, typed string) string {
 	return `<a href="` + html.EscapeString(full) + `" style="` + style + `">` + label + `</a>`
 }
 
+// mailLiteral makes words a visitor typed on a public form (their name, a
+// ride's name) safe inside an email the site writes to admins or the club
+// inbox. They read exactly as typed, but are never turned into a link: an
+// invisible break goes where the link marks would join up. Otherwise a
+// "name" like [Open the Members page](https://elsewhere) would arrive as a
+// working link in the club's own email.
+func mailLiteral(s string) string {
+	return strings.NewReplacer("](", "]\u200b(", "://", ":\u200b//").Replace(s)
+}
+
 // fullURL allows web, email, and on-site addresses, making on-site ones full
 // with base. Anything else (like javascript:) gives "".
 func fullURL(u, base string) string {

@@ -157,10 +157,7 @@ func (a *App) kitOrder(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	note := strings.TrimSpace(r.PostFormValue("note"))
-	if len(note) > 300 {
-		note = note[:300]
-	}
+	note := clip(strings.TrimSpace(r.PostFormValue("note")), 300)
 	_, err := a.store.PlaceKitOrder(*v.Member, want, note, time.Now())
 	switch {
 	case errors.Is(err, errKitClosed):
