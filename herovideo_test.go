@@ -35,28 +35,42 @@ func TestLoopFilter(t *testing.T) {
 	}
 }
 
-// What the home page plays: the made video, the built-in one until there is
-// one, and nothing when it's off or every clip is gone.
+// What the home page plays: the made video, and nothing (the top photo)
+// until it's made or when it's off.
 func TestHeroVideoView(t *testing.T) {
-	made := HeroVideo{Seeded: true, Clips: []*HeroClip{{ID: 1}}, Video: "/media/video/a.mp4", Phone: "/media/video/a-phone.mp4", Poster: "/media/video/a.jpg"}
-	if v := made.view(true, "1"); v == nil || v.Video != "/media/video/a.mp4" || v.Phone != "/media/video/a-phone.mp4" {
+	made := HeroVideo{Clips: []*HeroClip{{ID: 1}}, Video: "/media/video/a.mp4", Phone: "/media/video/a-phone.mp4", Poster: "/media/video/a.jpg"}
+	if v := made.view(); v == nil || v.Video != "/media/video/a.mp4" || v.Phone != "/media/video/a-phone.mp4" {
 		t.Errorf("made: %+v", v)
 	}
-	if v := (HeroVideo{}).view(true, "1"); v == nil || v.Video != "/photos/hero.mp4?v=1" {
-		t.Errorf("before seeding, the built-in video plays: %+v", v)
+	if v := (HeroVideo{}).view(); v != nil {
+		t.Errorf("no clips: %+v", v)
 	}
-	if v := (HeroVideo{Seeded: true, Clips: []*HeroClip{{ID: 1}}}).view(true, "1"); v == nil || !strings.HasPrefix(v.Video, "/photos/") {
-		t.Errorf("until it's made, the built-in one plays: %+v", v)
-	}
-	if v := (HeroVideo{}).view(false, "1"); v != nil {
-		t.Errorf("no built-in video: %+v", v)
-	}
-	if v := (HeroVideo{Seeded: true}).view(true, "1"); v != nil {
-		t.Errorf("every clip removed: %+v", v)
+	if v := (HeroVideo{Clips: []*HeroClip{{ID: 1}}, Dirty: true}).view(); v != nil {
+		t.Errorf("until it's made, nothing plays: %+v", v)
 	}
 	made.Off = true
-	if v := made.view(true, "1"); v != nil {
+	if v := made.view(); v != nil {
 		t.Errorf("off: %+v", v)
+	}
+}
+
+// The "Club rides" clip an older version added is taken out once, and the
+// video is made again from what's left.
+func TestDropBuiltinClip(t *testing.T) {
+	a, _, _ := testApp(t)
+	a.store.updateHeroVideo(func(v *HeroVideo) error {
+		v.Seeded, v.NextClip = true, 2
+		v.Clips = []*HeroClip{{ID: 1, Name: "Club rides", File: "clip-1-aa.mp4"}, {ID: 2, Name: "Mine", File: "clip-2-bb.mp4"}}
+		v.Video = "/media/video/home-x.mp4"
+		return nil
+	})
+	a.cleanVideoFiles()
+	v := a.store.HeroVideo()
+	if v.Seeded || len(v.Clips) != 1 || v.Clips[0].Name != "Mine" || !v.Dirty {
+		t.Fatalf("after: %+v", v)
+	}
+	if _, ok := a.store.dropBuiltinClip(); ok {
+		t.Error("dropped twice")
 	}
 }
 
@@ -177,7 +191,6 @@ func TestHeroVideoMade(t *testing.T) {
 	}
 	a, h, _ := testApp(t)
 	a.vid.started = true
-	a.store.updateHeroVideo(func(v *HeroVideo) error { v.Seeded = true; return nil }) // skip the big built-in clip
 	if err := os.MkdirAll(a.videoUploadDir(), 0o700); err != nil {
 		t.Fatal(err)
 	}

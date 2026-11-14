@@ -372,7 +372,7 @@ func (s *Site) pageHTML(p *contentPage, d contentData) ([]byte, error) {
 	}
 	if p.Path == "/" {
 		v.Hero = d.Hero
-		v.HeroVideo = d.HeroVideo.view(s.hasBuiltinVideo(), s.version)
+		v.HeroVideo = d.HeroVideo.view()
 	}
 	var buf bytes.Buffer
 	if err := t.ExecuteTemplate(&buf, "layout", v); err != nil {

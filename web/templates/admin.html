@@ -2037,7 +2037,7 @@ document.querySelectorAll('.copy-link').forEach(function(b){b.addEventListener('
     <div class="meter video-meter"><span style="width:{{.Status.Pct}}%"></span></div>
     <p class="muted small"><span class="video-pct">{{if .Status.Step}}{{.Status.Pct}}%{{end}}</span><span class="video-time">{{with .Status.Elapsed}} · {{.}}{{end}}</span></p>
   </div>{{end}}
-  {{if .Off}}<p class="muted">Off</p>{{else}}{{with .Now}}<video class="video-preview" src="{{.Video}}"{{with .Poster}} poster="{{.}}"{{end}} autoplay muted loop playsinline controls></video>{{else}}<p class="muted">No video.</p>{{end}}{{end}}
+  {{if .Off}}<p class="muted">Off</p>{{else}}{{with .Now}}<video class="video-preview" src="{{.Video}}"{{with .Poster}} poster="{{.}}"{{end}} autoplay muted loop playsinline controls></video>{{else}}{{if not .Busy}}<p class="muted">No video.</p>{{end}}{{end}}{{end}}
   <ol class="clip-list">
     {{range $i, $c := .Clips}}<li class="clip{{if .Failed}} failed{{end}}">
       {{if .Thumb}}<img src="{{.Thumb}}" alt="" width="96" height="54" loading="lazy">{{else}}<span class="clip-thumb" aria-hidden="true"></span>{{end}}

@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"log"
 	"math"
 	"net/http"
@@ -41,10 +40,8 @@ import (
 // iPhones), and H.264 for every other browser, which picks the first it can
 // play; a still of each one's first frame shows while it loads.
 //
-// The video built into the site (content/photos/hero.mp4) becomes the first
-// clip the first time, so the home page looks the same until someone changes
-// the list. With no clips, or the video switched off, the home page shows
-// the top photo.
+// Until a video is made from the clips, or with the video switched off, the
+// home page shows the top photo.
 
 const (
 	maxHeroClips   = 8
@@ -81,10 +78,10 @@ func (c HeroClip) Vertical() bool { return c.H > c.W }
 type HeroVideo struct {
 	Clips    []*HeroClip `json:"clips,omitempty"`
 	NextClip int         `json:"next_clip,omitempty"`
-	Seeded   bool        `json:"seeded,omitempty"` // the built-in video became the first clip
+	Seeded   bool        `json:"seeded,omitempty"` // an older version added its built-in "Club rides" clip (dropBuiltinClip takes it out)
 	Off      bool        `json:"off,omitempty"`    // show the top photo instead
 	// The video made from the clips, under /media/; empty until it's made
-	// (the built-in one shows meanwhile).
+	// (the top photo shows meanwhile).
 	Video       string `json:"video,omitempty"`        // computers, H.264
 	Phone       string `json:"phone,omitempty"`        // phones, H.264
 	VideoAV1    string `json:"video_av1,omitempty"`    // the same in AV1, when the server can make it
@@ -96,7 +93,7 @@ type HeroVideo struct {
 }
 
 // heroVideoView is what the home page plays. Made says it's made from the
-// clips, already cut to each screen's shape (the built-in one is wide only).
+// clips, already cut to each screen's shape.
 type heroVideoView struct {
 	Video, Phone, VideoAV1, PhoneAV1, Poster, PhonePoster string
 	Made                                                  bool
@@ -181,20 +178,37 @@ func (s *Store) SetHeroVideoOff(off bool) error {
 }
 
 // heroVideoView picks what the home page plays: the video made from the
-// clips, or the built-in one until it's made, or nothing when it's switched
-// off or every clip was removed. builtin says whether the site has one.
-func (v HeroVideo) view(builtin bool, version string) *heroVideoView {
-	switch {
-	case v.Off:
+// clips, or nothing (the top photo) until it's made or when it's switched off.
+func (v HeroVideo) view() *heroVideoView {
+	if v.Off || v.Video == "" {
 		return nil
-	case v.Video != "":
-		return &heroVideoView{Video: v.Video, Phone: or(v.Phone, v.Video), VideoAV1: v.VideoAV1, PhoneAV1: v.PhoneAV1,
-			Poster: v.Poster, PhonePoster: or(v.PhonePoster, v.Poster), Made: true}
-	case (!v.Seeded || len(v.Clips) > 0) && builtin:
-		q := "?v=" + version
-		return &heroVideoView{Video: "/photos/hero.mp4" + q, Phone: "/photos/hero-phone.mp4" + q, Poster: "/photos/hero-video.webp" + q, PhonePoster: "/photos/hero-video.webp" + q}
 	}
-	return nil
+	return &heroVideoView{Video: v.Video, Phone: or(v.Phone, v.Video), VideoAV1: v.VideoAV1, PhoneAV1: v.PhoneAV1,
+		Poster: v.Poster, PhonePoster: or(v.PhonePoster, v.Poster), Made: true}
+}
+
+// dropBuiltinClip takes out the "Club rides" clip an older version put first
+// in the list from the video built into the site, once. If other clips are
+// left the video is made again without it. It returns the clip so its files
+// can go.
+func (s *Store) dropBuiltinClip() (HeroClip, bool) {
+	var out HeroClip
+	var found bool
+	s.updateHeroVideo(func(v *HeroVideo) error {
+		if !v.Seeded {
+			return nil
+		}
+		v.Seeded = false
+		i := slices.IndexFunc(v.Clips, func(c *HeroClip) bool { return c.Name == "Club rides" })
+		if i < 0 {
+			return nil
+		}
+		out, found = *v.Clips[i], true
+		v.Clips = slices.Delete(v.Clips, i, i+1)
+		v.Dirty, v.Error = true, ""
+		return nil
+	})
+	return out, found
 }
 
 // ---- ffmpeg ----
@@ -560,7 +574,6 @@ func (a *App) videoWork() {
 	if ffmpeg == "" {
 		return
 	}
-	a.seedHeroVideo()
 	// Count the steps ahead: each clip to prepare, then each version.
 	v0 := a.store.HeroVideo()
 	steps := 0
@@ -608,35 +621,6 @@ func (a *App) videoWork() {
 	if err := a.rebuildContent(); err != nil {
 		log.Printf("home video: %v", err)
 	}
-}
-
-// seedHeroVideo makes the built-in video the first clip, once.
-func (a *App) seedHeroVideo() {
-	if a.store.HeroVideo().Seeded {
-		return
-	}
-	raw := ""
-	if b, err := fs.ReadFile(a.site.photos, "hero.mp4"); err == nil {
-		if err := os.MkdirAll(a.videoUploadDir(), 0o700); err == nil {
-			raw = "builtin-" + randHex(4) + ".mp4"
-			if os.WriteFile(filepath.Join(a.videoUploadDir(), raw), b, 0o600) != nil {
-				raw = ""
-			}
-		}
-	}
-	a.store.updateHeroVideo(func(v *HeroVideo) error {
-		if v.Seeded {
-			return nil
-		}
-		v.Seeded = true
-		if raw != "" && len(v.Clips) < maxHeroClips {
-			v.NextClip++
-			v.Clips = append([]*HeroClip{{ID: v.NextClip, Name: "Club rides", Raw: raw}}, v.Clips...)
-			// The built-in video already plays, so it doesn't need making again
-			// until the list changes.
-		}
-		return nil
-	})
 }
 
 // prepareClip shrinks one upload and takes a still from it.
@@ -1025,19 +1009,17 @@ type heroVideoAdmin struct {
 func (a *App) heroVideoAdmin() heroVideoAdmin {
 	v := a.store.HeroVideo()
 	ff, _ := videoTools()
-	return heroVideoAdmin{HeroVideo: v, Now: v.view(a.site.hasBuiltinVideo(), a.site.version), Busy: a.VideoBusy() || a.videoWaiting(), Status: a.VideoStatus(), FFmpeg: ff != "", Max: maxHeroClips}
-}
-
-// hasBuiltinVideo says whether the site has content/photos/hero.mp4.
-func (s *Site) hasBuiltinVideo() bool {
-	_, err := fs.Stat(s.photos, "hero.mp4")
-	return err == nil
+	return heroVideoAdmin{HeroVideo: v, Now: v.view(), Busy: a.VideoBusy() || a.videoWaiting(), Status: a.VideoStatus(), FFmpeg: ff != "", Max: maxHeroClips}
 }
 
 // cleanVideoFiles deletes video files nothing uses any more: ones a restart
 // (a deploy) cut off halfway, or uploads whose clip is gone. Run at startup,
 // before the job starts.
 func (a *App) cleanVideoFiles() {
+	if c, ok := a.store.dropBuiltinClip(); ok {
+		a.dropClipFiles(c)
+		log.Printf("home video: removed the built-in Club rides clip")
+	}
 	v := a.store.HeroVideo()
 	keep := map[string]bool{}
 	for _, u := range []string{v.Video, v.Phone, v.VideoAV1, v.PhoneAV1, v.Poster, v.PhonePoster} {

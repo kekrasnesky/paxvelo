@@ -111,9 +111,8 @@ strong{font-weight:500}
 /* ---------- Home: hero, with the words on the photo ---------- */
 .hero{position:relative;display:flex;align-items:flex-end;min-height:320px;overflow:hidden;background:#4a4c50;color:var(--paper)}
 .hero-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 62%}
-/* A short muted loop (content/photos/hero.mp4, hero-phone.mp4 for phones)
-   plays over the photo; the
-   photo shows instead for anyone who turns motion off (and site.js drops the
+/* A short muted loop (made from the clips on Top video) plays over the
+   photo; the photo shows instead for anyone who turns motion off (and site.js drops the
    clip for data saver). */
 .hero .hero-video{object-position:35% 50%}
 @media (prefers-reduced-motion:reduce){.hero-video{display:none}}
