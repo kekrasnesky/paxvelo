@@ -388,14 +388,15 @@ func prepareArgs(in, out string, hdr bool) []string {
 type videoShape struct {
 	Name string // in the file names
 	W, H int
-	// Data rates, each a little under what made it look close to the original
-	// on a vertical iPhone clip: AV1 needs about 40% less for the same look.
+	// Data rates: H264 is the most the H.264 copy may use (it's CRF 23, so a
+	// calm clip uses less); AV1 is the AV1 copy's target, which looks about
+	// the same in less data. Both shapes get the same, set by the board.
 	H264, AV1 int // kbit/s
 }
 
 var (
-	computerShape = videoShape{Name: "", W: 1280, H: 720, H264: 2500, AV1: 2000}
-	phoneShape    = videoShape{Name: "-phone", W: 720, H: 1280, H264: 2000, AV1: 1600}
+	computerShape = videoShape{Name: "", W: 1280, H: 720, H264: 3100, AV1: 2500}
+	phoneShape    = videoShape{Name: "-phone", W: 720, H: 1280, H264: 3100, AV1: 2500}
 )
 
 // fitFilter makes one clip fill a shape: shrunk or enlarged to cover it, then
