@@ -946,6 +946,29 @@ button:has(>.ic),.btn:has(>.ic){display:inline-flex;align-items:center;justify-c
 .kit-small{margin:0;font-size:.88rem;color:#5d5550}
 .kit-mine{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.8rem;margin-top:1.2rem}
 
+/* The RSVP page (rsvp.html): the place and details, then the answer. The
+   guest and bring boxes show once an answer is picked (:has; older browsers
+   show them all the time). */
+.rsvp-when{margin-bottom:1rem}
+.rsvp-info{max-width:36rem;margin:0 0 1.4rem;padding:.9rem 1.1rem;border:1px solid var(--line);border-radius:var(--radius);background:var(--card)}
+.rsvp-info p{margin:0}
+.rsvp-info p+p{margin-top:.5rem}
+.rsvp-place strong{display:block;font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:#6b625c}
+.rsvp-details{white-space:pre-line}
+.rsvp-current{max-width:36rem;margin:0 0 .8rem}
+.rsvp-change{max-width:36rem}
+.rsvp-change summary{list-style:none;cursor:pointer}
+.rsvp-change summary::-webkit-details-marker{display:none}
+.rsvp-change[open] summary{display:none}
+.rsvp-pick{grid-template-columns:repeat(auto-fit,minmax(9rem,1fr))}
+.rsvp-pick legend{grid-column:1/-1}
+.rsvp-by{display:block;font-size:.85rem;font-weight:300;color:#6b625c}
+.rsvp-pick label{align-items:center}
+.rsvp-pick input{margin:0}
+.rsvp-form:not(:has([name=answer]:checked)) .rsvp-more,
+.rsvp-form:has([name=answer]:not([value=yes]):checked) .rsvp-yes,
+.rsvp-form:has([name=answer][value=no]:checked) .rsvp-bring{display:none}
+
 /* ---------- The roomier look: condensed headings, a full-screen top video,
    more space between home sections, labels over headings, flat photos ---------- */
 h1,h2{font-family:var(--display);font-weight:700;letter-spacing:-.01em;line-height:1.05}

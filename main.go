@@ -144,6 +144,9 @@ func (a *App) routes() http.Handler {
 	// It's also the club kit store (kitpage.go).
 	mux.HandleFunc("GET /kit", a.kitPage)
 	mux.HandleFunc("POST /kit/order", a.kitOrder)
+	// RSVPs: each member's own page to answer an invitation (rsvppage.go).
+	mux.HandleFunc("GET /rsvp/{id}", a.rsvpPage)
+	mux.HandleFunc("POST /rsvp/{id}", a.rsvpAnswer)
 	mux.Handle("GET /strava", http.RedirectHandler(a.cfg.StravaURL, http.StatusFound))
 
 	// The newsletter, and photos uploaded for it in the admin.
@@ -379,6 +382,16 @@ func (a *App) routes() http.Handler {
 	mux.Handle("POST /admin/instagram/connect", a.boardOnly(a.instagramConnect))
 	mux.Handle("POST /admin/instagram/disconnect", a.boardOnly(a.instagramDisconnect))
 	mux.Handle("POST /admin/instagram/sync", a.boardOnly(a.instagramSyncNow))
+	mux.Handle("GET /admin/rsvp", a.auth(a.rsvpAdmin))
+	mux.Handle("POST /admin/rsvp", a.auth(a.saveRSVPEvent))
+	mux.Handle("POST /admin/rsvp/restore", a.auth(a.restoreRSVP))
+	mux.Handle("GET /admin/rsvp/{id}", a.auth(a.rsvpAdminEvent))
+	mux.Handle("POST /admin/rsvp/{id}", a.auth(a.saveRSVPEvent))
+	mux.Handle("GET /admin/rsvp/{id}/answers.csv", a.auth(a.rsvpCSV))
+	mux.Handle("POST /admin/rsvp/{id}/close", a.auth(a.closeRSVP))
+	mux.Handle("POST /admin/rsvp/{id}/email", a.auth(a.rsvpEmail))
+	mux.Handle("POST /admin/rsvp/{id}/remove", a.auth(a.removeRSVP))
+	mux.Handle("POST /admin/rsvp/{id}/answers/{member}/remove", a.auth(a.dropRSVPReply))
 	mux.Handle("GET /admin/kit", a.boardOnly(a.kitAdmin))
 	mux.Handle("GET /admin/kit/orders.csv", a.boardOnly(a.kitCSV))
 	mux.Handle("POST /admin/kit/shop", a.boardOnly(a.saveKitShop))

@@ -1,0 +1,94 @@
+{{/* Email → RSVPs: invitations members answer from their own link (rsvpadmin.go). */}}
+
+{{define "rsvps"}}{{template "head" .}}{{$k := .RSVP}}
+<div class="title-row"><h1>RSVPs</h1></div>
+{{with $k.Removed}}<form class="flash warn undo-flash" id="removed" method="post" action="/admin/rsvp/restore">Removed {{.Title}}. <button class="link">{{icon "undo"}}Undo</button></form>{{end}}
+
+<ul class="rsvp-list">
+{{range $k.Events}}{{$c := .Count}}<li class="card rsvp-row{{if .Past $k.Now}} past{{end}}">
+  <a href="/admin/rsvp/{{.ID}}" class="rsvp-row-main">
+    <strong>{{.Title}}</strong>
+    <span class="muted small">{{or .When "No date"}}</span>
+  </a>
+  <span class="rsvp-row-sums">
+    <span title="Coming, with guests"><strong>{{$c.Coming}}</strong> <span class="muted">coming</span></span>
+    {{if $c.Maybe}}<span><strong>{{$c.Maybe}}</strong> <span class="muted">maybe</span></span>{{end}}
+    {{if $c.No}}<span><strong>{{$c.No}}</strong> <span class="muted">can’t</span></span>{{end}}
+    {{if .IsOpen $k.Now}}<span class="tag tag-ok">Open</span>{{else}}<span class="tag">Closed</span>{{end}}
+  </span>
+</li>{{else}}<li class="empty">No invitations yet.</li>{{end}}
+</ul>
+
+<details class="card rsvp-new"{{if not $k.Events}} open{{end}}>
+  <summary class="btn ghost">{{icon "plus"}}New invitation</summary>
+  {{template "rsvp-form" blankRSVP}}
+</details>
+{{template "foot" .}}{{end}}
+
+{{define "rsvp"}}{{template "head" .}}{{$k := .RSVP}}{{$e := $k.Event}}{{$c := $k.Count}}
+<p class="back-link"><a href="/admin/rsvp">← RSVPs</a></p>
+<div class="title-row">
+  <h1>{{$e.Title}}</h1>
+  <p>{{if $k.Open}}<span class="tag tag-ok">Taking RSVPs{{with $e.ClosesLabel}} until {{.}}{{end}}</span>{{else}}<span class="tag">Closed</span>{{end}}</p>
+</div>
+<p class="muted">{{or $e.When "No date"}}{{with $e.Place}} · {{.}}{{end}}</p>
+
+<div class="card rsvp-acts">
+  <form method="post" action="/admin/rsvp/{{$e.ID}}/email" class="inline"><button title="Writes the invitation on Email → Send an email, with each member’s own RSVP link"{{if not $k.Open}} disabled{{end}}>{{icon "mail"}}Write the invitation email</button></form>
+  <form method="post" action="/admin/rsvp/{{$e.ID}}/close" class="inline">{{if $e.Closed}}<input type="hidden" name="closed" value="0"><button class="ghost">{{icon "undo"}}Take RSVPs again</button>{{else}}<input type="hidden" name="closed" value="1"><button class="ghost">{{icon "ban"}}Stop taking RSVPs</button>{{end}}</form>
+  <a class="btn ghost" href="/rsvp/{{$e.ID}}?t=test" target="_blank" rel="noopener" title="The page as members see it (answers aren’t saved)">{{icon "eye"}}See the page</a>
+</div>
+
+<section class="card" id="answers">
+  <div class="title-row">
+    <h2>Answers</h2>
+    {{if $e.Replies}}<a class="btn ghost mini" href="/admin/rsvp/{{$e.ID}}/answers.csv">{{icon "download"}}Spreadsheet</a>{{end}}
+  </div>
+  <p class="kit-sums rsvp-sums">
+    <span><strong>{{$c.Coming}}</strong> <span class="muted">coming{{if $c.Guests}} ({{$c.Yes}} + {{$c.Guests}} guests){{end}}</span></span>
+    <span><strong>{{$c.Maybe}}</strong> <span class="muted">maybe</span></span>
+    <span><strong>{{$c.No}}</strong> <span class="muted">can’t make it</span></span>
+    <span><strong>{{len $k.Waiting}}</strong> <span class="muted">members haven’t answered</span></span>
+  </p>
+  {{if $e.Replies}}<div class="table-wrap"><table class="rsvp-table">
+    <thead><tr><th>Name</th><th>Answer</th><th>Bringing along</th>{{if $e.AskBringing}}<th>Bringing to share</th>{{end}}<th class="nowrap">Answered</th><th></th></tr></thead>
+    <tbody>{{range $e.ByAnswer}}<tr class="rsvp-{{.Answer}}">
+      <td><strong>{{.Name}}</strong><br><span class="muted small">{{.Email}}</span>{{with .Note}}<br><span class="small">“{{.}}”</span>{{end}}</td>
+      <td class="nowrap"><span class="tag{{if eq .Answer "yes"}} tag-ok{{else if eq .Answer "maybe"}} tag-warn{{end}}">{{.AnswerLabel}}</span></td>
+      <td>{{if .Guests}}+{{.Guests}}{{with .Who}} · {{.}}{{end}}{{end}}</td>
+      {{if $e.AskBringing}}<td>{{.Bringing}}</td>{{end}}
+      <td class="nowrap muted small">{{date .Updated}}</td>
+      <td class="right"><form method="post" action="/admin/rsvp/{{$e.ID}}/answers/{{.Member}}/remove" class="inline" onsubmit="return confirm('Take {{.Name}}’s answer off?')"><button class="link danger" title="Take this answer off">{{icon "trash"}}<span class="sr">Remove</span></button></form></td>
+    </tr>{{end}}</tbody>
+  </table></div>
+  {{else}}<p class="empty">No answers yet.</p>{{end}}
+
+  {{if and $e.AskBringing $e.Bringing}}<h3>Who’s bringing what</h3>
+  <ul class="rsvp-bringing">{{range $e.Bringing}}<li><strong>{{.Bringing}}</strong> <span class="muted">· {{.Name}}{{if eq .Answer "maybe"}} (maybe){{end}}</span></li>{{end}}</ul>{{end}}
+
+  {{if $k.Waiting}}<details class="rsvp-waiting"><summary class="link">Current members who haven’t answered ({{len $k.Waiting}})</summary>
+    <p class="small">{{range $i, $m := $k.Waiting}}{{if $i}}, {{end}}<a href="/admin/members/{{$m.ID}}">{{$m.Name}}</a>{{end}}</p>
+  </details>{{end}}
+</section>
+
+<details class="card" id="details">
+  <summary class="btn ghost">{{icon "pencil"}}Edit details</summary>
+  {{template "rsvp-form" $e}}
+  <form method="post" action="/admin/rsvp/{{$e.ID}}/remove" class="inline rsvp-remove" onsubmit="return confirm('Remove {{$e.Title}} and its answers?')"><button class="link danger">{{icon "trash"}}Remove this invitation</button></form>
+</details>
+{{template "foot" .}}{{end}}
+
+{{define "rsvp-form"}}<form class="rsvp-edit" method="post" action="/admin/rsvp{{if .ID}}/{{.ID}}{{end}}">
+  <label>Name <input name="title" maxlength="100" required value="{{.Title}}" placeholder="December Meeting"></label>
+  <div class="pair">
+    <label>Date <input type="date" name="date" value="{{.Date}}"></label>
+    <label>Time <input type="time" name="time" value="{{.Time}}"></label>
+  </div>
+  <label title="Shown only to members, from their own link">Where <input name="place" maxlength="200" value="{{.Place}}" placeholder="Address"></label>
+  <label>Details <textarea name="details" rows="3" maxlength="1000" placeholder="Parking, what to expect">{{.Details}}</textarea></label>
+  <div class="pair">
+    <label>Last day to RSVP <input type="date" name="closes" value="{{.Closes}}"></label>
+    <label class="check"><input type="checkbox" name="ask_bringing" value="1"{{if or .AskBringing (not .ID)}} checked{{end}}> Ask what they’re bringing</label>
+  </div>
+  <div class="row-acts"><button>{{icon "save"}}Save</button></div>
+</form>{{end}}

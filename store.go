@@ -247,6 +247,8 @@ type storeData struct {
 	Treasury Treasury `json:"treasury"`
 	// The club kit store and its yearly bulk orders (kit.go).
 	Kit KitShop `json:"kit"`
+	// Invitations members answer from their own link (rsvp.go).
+	RSVP RSVPBook `json:"rsvp"`
 	// BoardLinked: the Board page's people were tied to member records with
 	// the same name once, when that link was added (boardroles.go).
 	BoardLinked bool `json:"board_linked,omitempty"`

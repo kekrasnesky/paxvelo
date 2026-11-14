@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -35,6 +36,8 @@ type adminView struct {
 	Money                             *moneyView     // the Treasurer tab (treasureradmin.go)
 	Answer                            *answerView    // a spending request answered from the email (requestanswer.go)
 	Kit                               *kitAdminView  // Website → Club kit (kitadmin.go)
+	RSVP                              *rsvpAdminView // Email → RSVPs (rsvpadmin.go)
+	EmailPieces                       []autoPiece    // Send an email: the {pieces} filled in for each member
 	CSS                               template.CSS
 	PhotoJS                           template.JS // photos.js: photos shrink before they upload
 	Year                              int
@@ -284,6 +287,12 @@ var flashText = map[string]string{
 	"drafted":              "An email about the newsletter is ready below. Check it, send yourself a test, then send it.",
 	"kit-drafted":          "The kit email is ready below, with each member’s own order link as a button. Pick who gets it, send yourself a test, then send it.",
 	"kit-saved":            "Saved.",
+	"rsvp-saved":           "Saved.",
+	"rsvp-drafted":         "The invitation is ready below, with each member’s own RSVP link as the button. Pick who gets it, send yourself a test, then send it.",
+	"rsvp-closed":          "No more RSVPs: the page now says they’re closed.",
+	"rsvp-opened":          "Taking RSVPs again.",
+	"rsvp-restored":        "Put back.",
+	"rsvp-dropped":         "Answer taken off.",
 	"kit-item":             "Saved.",
 	"kit-restored":         "Put back.",
 	"kit-round":            "Next year’s order is ready. Last year’s orders are under Orders.",
@@ -401,6 +410,10 @@ var errorText = map[string]string{
 	"welcome":           "The welcome email needs a subject and a message.",
 	"save":              "Couldn’t save. Check the server log.",
 	"kit-date":          "Enter the last day as a date.",
+	"rsvp-title":        "Give the invitation a name.",
+	"rsvp-date":         "Enter the dates as dates.",
+	"rsvp-gone":         "That invitation isn’t here any more.",
+	"rsvp-draft":        "There’s already an unsent email here, so the invitation didn’t replace it. Send it, or press Discard draft, then try again.",
 	"kit-pay":           "The pay link should start with https://, like https://paypal.me/paxvelo.",
 	"kit-amount":        "Enter prices in dollars, like 70 or 69.50.",
 	"kit-photo":         "That photo couldn’t be used. Try a JPG or PNG.",
@@ -878,7 +891,8 @@ func (a *App) emailView(r *http.Request) adminView {
 	v := adminView{
 		Title: "Send an email", Tab: "email", Campaigns: a.store.Campaigns(), Draft: a.store.Draft(),
 		Welcome: a.store.Welcome(), Moved: a.store.MovedEmail(), TestTo: a.cfg.AdminEmail, Live: a.mailer.live(), Year: a.cfg.ThisYear(),
-		Allowance: emailAllowance{Sent: a.store.EmailsToday(), Limit: a.cfg.EmailLimit},
+		Allowance:   emailAllowance{Sent: a.store.EmailsToday(), Limit: a.cfg.EmailLimit},
+		EmailPieces: append(slices.Clone(piecesMember), a.rsvpPieces()...),
 	}
 	for _, m := range a.store.Members() {
 		if !m.Active() {

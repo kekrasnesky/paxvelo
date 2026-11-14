@@ -209,6 +209,7 @@ func newSite(cfg Config) (*Site, error) {
 		"mdy":          mdy,
 		"blankRow":     func() budgetRow { return budgetRow{} },
 		"blankKitItem": func() KitItem { return KitItem{} },
+		"blankRSVP":    func() RSVPEvent { return RSVPEvent{} },
 		"nextKitName":  func() string { return strconv.Itoa(time.Now().In(clubTZ).Year()+1) + " club kit order" },
 		"sentBatch":    func(b submittedBatch, albums []Album) sentBatchView { return sentBatchView{Batch: b, Albums: albums} },
 		"riderLevels":  func() []choice { return riderLevels },
@@ -274,7 +275,7 @@ func newSite(cfg Config) (*Site, error) {
 	if err := s.renderContent(contentData{}); err != nil {
 		return nil, err
 	}
-	for _, name := range []string{"join", "unsubscribe", "membership", "notfound", "newsletter", "calendar", "ride", "ride-new", "routes", "share-photos", "gallery", "album", "photo", "minutes", "kit", "ride-waiver"} {
+	for _, name := range []string{"join", "unsubscribe", "membership", "notfound", "newsletter", "calendar", "ride", "ride-new", "routes", "share-photos", "gallery", "album", "photo", "minutes", "kit", "ride-waiver", "rsvp"} {
 		if s.dynamic[name], err = parse(name + ".html"); err != nil {
 			return nil, err
 		}
@@ -289,7 +290,7 @@ func newSite(cfg Config) (*Site, error) {
 	if s.email, err = template.New("").ParseFS(webFS, "web/templates/email.html"); err != nil {
 		return nil, err
 	}
-	if s.admin, err = template.New("").Funcs(funcs).ParseFS(webFS, "web/templates/admin.html", "web/templates/admin-email.html", "web/templates/admin-treasurer.html", "web/templates/admin-kit.html"); err != nil {
+	if s.admin, err = template.New("").Funcs(funcs).ParseFS(webFS, "web/templates/admin.html", "web/templates/admin-email.html", "web/templates/admin-treasurer.html", "web/templates/admin-kit.html", "web/templates/admin-rsvp.html"); err != nil {
 		return nil, err
 	}
 	return s, nil
