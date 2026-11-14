@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"math"
 	"mime/multipart"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 // The loop: each clip fades into the next a second before it ends, the last
@@ -204,7 +206,7 @@ func TestHeroVideoMade(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	a.videoWork()
+	a.videoWork(context.Background())
 	v := a.store.HeroVideo()
 	if v.Video == "" || v.Phone == "" || v.Dirty || v.Error != "" {
 		t.Fatalf("video not made: %+v", v)
@@ -260,7 +262,7 @@ func TestHeroVideoMade(t *testing.T) {
 	// Removing one remakes it from the other; the old files go.
 	a.store.RemoveHeroClip(v.Clips[0].ID)
 	a.dropClipFiles(*v.Clips[0])
-	a.videoWork()
+	a.videoWork(context.Background())
 	v2 := a.store.HeroVideo()
 	if v2.Video == v.Video || v2.Video == "" {
 		t.Errorf("remade: %+v", v2)
@@ -278,12 +280,12 @@ func TestRunToolProgress(t *testing.T) {
 	}
 	var last float64
 	calls := 0
-	err := runToolProgress(ffmpeg, 3, func(p float64) { last = p; calls++ }, "-hide_banner", "-loglevel", "error", "-y",
+	err := runToolProgress(context.Background(), ffmpeg, 3, func(p float64) { last = p; calls++ }, "-hide_banner", "-loglevel", "error", "-y",
 		"-f", "lavfi", "-i", "testsrc2=size=320x240:rate=30", "-t", "3", "-c:v", "libx264", "-preset", "ultrafast", filepath.Join(t.TempDir(), "p.mp4"))
 	if err != nil || calls == 0 || last < 0.9 || last > 1 {
 		t.Errorf("progress: %v calls, last %.2f, %v", calls, last, err)
 	}
-	if err := runToolProgress(ffmpeg, 1, nil, "-hide_banner", "-loglevel", "error", "-i", "nothing-here.mp4", "-f", "null", "-"); err == nil {
+	if err := runToolProgress(context.Background(), ffmpeg, 1, nil, "-hide_banner", "-loglevel", "error", "-i", "nothing-here.mp4", "-f", "null", "-"); err == nil {
 		t.Error("a failed run is an error")
 	}
 }
@@ -331,5 +333,56 @@ func TestCleanVideoFiles(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(a.videoUploadDir(), "raw-gone.mp4")); err == nil {
 		t.Error("an upload with no clip goes")
+	}
+}
+
+// Removing the clip being prepared stops ffmpeg there and then, instead of
+// finishing it (and making the video) first.
+func TestRemoveStopsVideo(t *testing.T) {
+	ffmpeg, _ := videoTools()
+	if ffmpeg == "" {
+		t.Skip("ffmpeg isn't installed")
+	}
+	a, h, admin := testApp(t)
+	os.MkdirAll(a.videoUploadDir(), 0o700)
+	raw := "long.mp4"
+	if _, err := runTool(ffmpeg, "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "testsrc2=size=1080x1920:rate=30", "-t", "30",
+		"-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", filepath.Join(a.videoUploadDir(), raw)); err != nil {
+		t.Fatal(err)
+	}
+	c, err := a.store.AddHeroClip("Long", raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.kickVideo()
+	idle := func() bool { return !a.VideoBusy() && !a.videoWaiting() }
+	wait := func(what string, d time.Duration, ok func() bool) time.Duration {
+		start := time.Now()
+		for !ok() {
+			if time.Since(start) > d {
+				t.Fatalf("%s: still waiting after %s", what, d)
+			}
+			time.Sleep(20 * time.Millisecond)
+		}
+		return time.Since(start)
+	}
+	wait("preparing", 10*time.Second, func() bool {
+		a.vid.mu.Lock()
+		defer a.vid.mu.Unlock()
+		return a.vid.preparing == c.ID && a.vid.pct > 0
+	})
+	ct, b := form(nil)
+	do(t, h, admin, "POST", "/admin/home-video/clips/"+strconv.Itoa(c.ID)+"/remove", ct, b)
+	took := wait("stopping", 3*time.Second, idle)
+	t.Logf("stopped %s after Remove", took)
+	v := a.store.HeroVideo()
+	if len(v.Clips) != 0 || v.Error != "" || v.Video != "" || v.Dirty {
+		t.Errorf("after: %+v", v)
+	}
+	if _, err := os.Stat(filepath.Join(a.videoUploadDir(), raw)); err == nil {
+		t.Error("the upload is deleted")
+	}
+	if left, _ := filepath.Glob(filepath.Join(a.videoDir(), "clip-*")); len(left) > 0 {
+		t.Errorf("half-made files left: %v", left)
 	}
 }

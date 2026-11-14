@@ -251,8 +251,9 @@ func runTool(prog string, args ...string) ([]byte, error) {
 
 // runToolProgress runs ffmpeg like runTool, reporting how far it has got
 // through output secs long (0 to 1) to onPct as it goes.
-func runToolProgress(prog string, secs float64, onPct func(float64), args ...string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), videoTimeout)
+// Stopping ctx stops ffmpeg.
+func runToolProgress(ctx context.Context, prog string, secs float64, onPct func(float64), args ...string) error {
+	ctx, cancel := context.WithTimeout(ctx, videoTimeout)
 	defer cancel()
 	args = append([]string{"-progress", "pipe:1", "-nostats"}, args...)
 	if nice, err := exec.LookPath("nice"); err == nil && runtime.GOOS != "windows" {
@@ -470,6 +471,11 @@ type videoJobs struct {
 	n, steps int
 	pct      float64
 	since    time.Time
+	// The running job's stop button, and what it's on: the clip being
+	// prepared (its ID), or making the video.
+	stop      context.CancelFunc
+	preparing int
+	building  bool
 }
 
 // videoStatus is what the admin page shows while a video is being made.
@@ -554,23 +560,43 @@ func (a *App) VideoBusy() bool {
 	return a.vid.busy
 }
 
-func (a *App) setVideoBusy(b bool) {
+func (a *App) videoLoop() {
+	for range a.vid.kick {
+		ctx, stop := context.WithCancel(context.Background())
+		a.vid.mu.Lock()
+		a.vid.busy, a.vid.stop = true, stop
+		a.vid.mu.Unlock()
+		a.videoWork(ctx)
+		stop()
+		a.vid.mu.Lock()
+		a.vid.busy, a.vid.stop, a.vid.preparing, a.vid.building = false, nil, 0, false
+		a.vid.mu.Unlock()
+	}
+}
+
+// videoDoing says what the job is on, for stopVideoFor.
+func (a *App) videoDoing(clip int, building bool) {
 	a.vid.mu.Lock()
-	a.vid.busy = b
+	a.vid.preparing, a.vid.building = clip, building
 	a.vid.mu.Unlock()
 }
 
-func (a *App) videoLoop() {
-	for range a.vid.kick {
-		a.setVideoBusy(true)
-		a.videoWork()
-		a.setVideoBusy(false)
+// stopVideoFor stops work the clip list just made pointless: making the
+// video from the old list, or preparing the clip removed (removed > 0).
+// Clips still being prepared carry on. The caller then kicks the job, which
+// starts again from the new list.
+func (a *App) stopVideoFor(removed int) {
+	a.vid.mu.Lock()
+	defer a.vid.mu.Unlock()
+	if a.vid.stop != nil && (a.vid.building || removed > 0 && a.vid.preparing == removed) {
+		a.vid.stop()
+		log.Printf("home video: stopped, the clips changed")
 	}
 }
 
 // videoWork prepares clips waiting for it, then makes the video if the clips
 // changed and every one is ready.
-func (a *App) videoWork() {
+func (a *App) videoWork(ctx context.Context) {
 	ffmpeg, ffprobe := videoTools()
 	if ffmpeg == "" {
 		return
@@ -602,7 +628,11 @@ func (a *App) videoWork() {
 		if todo == nil {
 			break
 		}
-		a.prepareClip(ffmpeg, ffprobe, *todo)
+		a.videoDoing(todo.ID, false)
+		a.prepareClip(ctx, ffmpeg, ffprobe, *todo)
+		if ctx.Err() != nil {
+			return // stopped: the job starts again
+		}
 	}
 	v := a.store.HeroVideo()
 	if !v.Dirty {
@@ -613,7 +643,11 @@ func (a *App) videoWork() {
 			return // a failed clip waits to be removed
 		}
 	}
-	err := a.buildVideo(ffmpeg, v)
+	a.videoDoing(0, true)
+	err := a.buildVideo(ctx, ffmpeg, v)
+	if ctx.Err() != nil {
+		return // stopped: the job starts again
+	}
 	if err != nil {
 		log.Printf("home video: %v", err)
 		a.store.updateHeroVideo(func(hv *HeroVideo) error { hv.Error = "The video couldn’t be made: " + err.Error(); return nil })
@@ -625,7 +659,7 @@ func (a *App) videoWork() {
 }
 
 // prepareClip shrinks one upload and takes a still from it.
-func (a *App) prepareClip(ffmpeg, ffprobe string, c HeroClip) {
+func (a *App) prepareClip(ctx context.Context, ffmpeg, ffprobe string, c HeroClip) {
 	dir := a.videoDir()
 	in := filepath.Join(a.videoUploadDir(), c.Raw)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -635,9 +669,15 @@ func (a *App) prepareClip(ffmpeg, ffprobe string, c HeroClip) {
 	base := fmt.Sprintf("clip-%d-%s", c.ID, randHex(4))
 	file, thumb := base+".mp4", base+".jpg"
 	fail := func(why string) {
-		log.Printf("home video clip %d (%s): %s", c.ID, c.Name, why)
 		os.Remove(filepath.Join(dir, file))
 		os.Remove(filepath.Join(dir, thumb))
+		if ctx.Err() != nil { // stopped because it was removed
+			if !slices.ContainsFunc(a.store.HeroVideo().Clips, func(x *HeroClip) bool { return x.ID == c.ID }) {
+				os.Remove(in)
+			}
+			return
+		}
+		log.Printf("home video clip %d (%s): %s", c.ID, c.Name, why)
 		a.store.updateHeroVideo(func(v *HeroVideo) error {
 			for _, x := range v.Clips {
 				if x.ID == c.ID {
@@ -655,9 +695,9 @@ func (a *App) prepareClip(ffmpeg, ffprobe string, c HeroClip) {
 	hdr := src.Transfer == "arib-std-b67" || src.Transfer == "smpte2084"
 	a.videoStep("Preparing " + c.Name)
 	expect := min(src.Secs, clipSeconds)
-	if err := runToolProgress(ffmpeg, expect, a.videoProgress, prepareArgs(in, filepath.Join(dir, file), hdr)...); err != nil && hdr {
+	if err := runToolProgress(ctx, ffmpeg, expect, a.videoProgress, prepareArgs(in, filepath.Join(dir, file), hdr)...); err != nil && hdr && ctx.Err() == nil {
 		// Some ffmpeg builds can't do the HDR step: go without it.
-		err = runToolProgress(ffmpeg, expect, a.videoProgress, prepareArgs(in, filepath.Join(dir, file), false)...)
+		err = runToolProgress(ctx, ffmpeg, expect, a.videoProgress, prepareArgs(in, filepath.Join(dir, file), false)...)
 		if err != nil {
 			fail("That file isn’t a video ffmpeg can read.")
 			return
@@ -701,7 +741,7 @@ func (a *App) prepareClip(ffmpeg, ffprobe string, c HeroClip) {
 // buildVideo joins the prepared clips into the loop for each kind of screen,
 // in H.264 and (when the server's ffmpeg has it) AV1, with a still of each,
 // and swaps them in.
-func (a *App) buildVideo(ffmpeg string, v HeroVideo) error {
+func (a *App) buildVideo(ctx context.Context, ffmpeg string, v HeroVideo) error {
 	dir := a.videoDir()
 	if len(v.Clips) == 0 {
 		old := v
@@ -750,14 +790,14 @@ func (a *App) buildVideo(ffmpeg string, v HeroVideo) error {
 			master = base + sh.Name + "-master.mp4"
 			made = append(made, master)
 			a.videoStep(label + ": working copy")
-			if err := runToolProgress(ffmpeg, loopSecs, a.videoProgress, append(in, "-an", "-map_metadata", "-1",
+			if err := runToolProgress(ctx, ffmpeg, loopSecs, a.videoProgress, append(in, "-an", "-map_metadata", "-1",
 				"-c:v", "libx264", "-preset", "veryfast", "-crf", "14", filepath.Join(dir, master))...); err != nil {
 				cleanup()
 				return err
 			}
 			made = append(made, h264)
 			a.videoStep(label)
-			if err := runToolProgress(ffmpeg, loopSecs, a.videoProgress, append(append([]string{"-hide_banner", "-loglevel", "error", "-y",
+			if err := runToolProgress(ctx, ffmpeg, loopSecs, a.videoProgress, append(append([]string{"-hide_banner", "-loglevel", "error", "-y",
 				"-i", filepath.Join(dir, master), "-preset", "slow"}, h264Args...), filepath.Join(dir, h264))...); err != nil {
 				cleanup()
 				return err
@@ -766,7 +806,7 @@ func (a *App) buildVideo(ffmpeg string, v HeroVideo) error {
 			// A small server: straight from the clips, a little quicker.
 			made = append(made, h264)
 			a.videoStep(label)
-			if err := runToolProgress(ffmpeg, loopSecs, a.videoProgress, append(append(in, append([]string{"-preset", "medium"}, h264Args...)...), filepath.Join(dir, h264))...); err != nil {
+			if err := runToolProgress(ctx, ffmpeg, loopSecs, a.videoProgress, append(append(in, append([]string{"-preset", "medium"}, h264Args...)...), filepath.Join(dir, h264))...); err != nil {
 				cleanup()
 				return err
 			}
@@ -776,9 +816,13 @@ func (a *App) buildVideo(ffmpeg string, v HeroVideo) error {
 			f := base + sh.Name + "-av1.mp4"
 			made = append(made, f)
 			a.videoStep(label + ", AV1")
-			if err := runToolProgress(ffmpeg, loopSecs, a.videoProgress, "-hide_banner", "-loglevel", "error", "-y", "-i", filepath.Join(dir, master), "-an",
+			if err := runToolProgress(ctx, ffmpeg, loopSecs, a.videoProgress, "-hide_banner", "-loglevel", "error", "-y", "-i", filepath.Join(dir, master), "-an",
 				"-c:v", "libsvtav1", "-preset", "7", "-b:v", strconv.Itoa(sh.AV1)+"k", "-svtav1-params", "tune=0",
 				"-pix_fmt", "yuv420p", "-movflags", "+faststart", filepath.Join(dir, f)); err != nil {
+				if ctx.Err() != nil {
+					cleanup()
+					return ctx.Err()
+				}
 				log.Printf("home video: AV1 %s: %v", key, err) // H.264 alone still plays everywhere
 			} else {
 				files[key+"-av1"] = f
@@ -933,6 +977,7 @@ func (a *App) addHeroClips(w http.ResponseWriter, r *http.Request) {
 		reply("err=video-none")
 		return
 	}
+	a.stopVideoFor(0)
 	a.kickVideo()
 	reply("ok=video-added")
 }
@@ -947,6 +992,7 @@ func (a *App) moveHeroClip(w http.ResponseWriter, r *http.Request) {
 		back(w, r, "/admin/home-photos?err=save#video")
 		return
 	}
+	a.stopVideoFor(0)
 	a.kickVideo()
 	back(w, r, "/admin/home-photos?ok=video-changed#video")
 }
@@ -958,7 +1004,10 @@ func (a *App) removeHeroClip(w http.ResponseWriter, r *http.Request) {
 		back(w, r, "/admin/home-photos?err=save#video")
 		return
 	}
-	if ok && (c.Raw == "" || c.Failed != "") { // one being prepared is cleaned up when it's done
+	if ok {
+		a.stopVideoFor(c.ID)
+	}
+	if ok && (c.Raw == "" || c.Failed != "") { // one being prepared is cleaned up when it stops
 		a.dropClipFiles(c)
 	}
 	a.kickVideo()
