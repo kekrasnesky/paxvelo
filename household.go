@@ -87,8 +87,12 @@ func (a *App) emailHousehold(m Member, adults []HouseholdAdult) []string {
 	if !m.Paid() || len(adults) == 0 {
 		return nil
 	}
+	year := a.cfg.ThisYear()
 	var names, emails []string
 	for _, h := range adults {
+		if _, signed := a.store.HouseholdWaiver(m.ID, year, h.Email); signed {
+			continue // nothing for them to sign this year
+		}
 		names, emails = append(names, h.FirstName()), append(emails, h.Email)
 		a.mailer.Go(func() { a.sendHouseholdLink(m, h) }) // a failure is logged by send; the member can send it again
 	}
@@ -375,9 +379,7 @@ func (s *Store) UnsignedHousehold(memberID, year int) (Member, []HouseholdAdult)
 	}
 	var out []HouseholdAdult
 	for _, h := range m.Household {
-		if !slices.ContainsFunc(s.d.Waivers, func(w *Waiver) bool {
-			return w.MemberID == memberID && w.Year == year && w.Household && w.RiderEmail == h.Email
-		}) {
+		if !s.householdSigned(memberID, year, h.Email) {
 			out = append(out, h)
 		}
 	}
@@ -431,10 +433,8 @@ func (s *Store) household(match func(HouseholdAdult) bool) (Member, HouseholdAdu
 func (s *Store) HouseholdWaiver(memberID, year int, email string) (Waiver, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for _, w := range s.d.Waivers {
-		if w.MemberID == memberID && w.Year == year && w.Household && w.RiderEmail == email {
-			return *w, true
-		}
+	if w := s.adultWaiver(memberID, year, email); w != nil {
+		return *w, true
 	}
 	return Waiver{}, false
 }
@@ -442,10 +442,30 @@ func (s *Store) HouseholdWaiver(memberID, year int, email string) (Waiver, bool)
 // householdSigned is whether an adult on a member's Family plan has signed
 // that year's waiver. Callers hold s.mu.
 func (s *Store) householdSigned(memberID, year int, email string) bool {
+	return s.adultWaiver(memberID, year, email) != nil
+}
+
+// adultWaiver is the waiver an adult on a member's Family plan signed for a
+// year: with their link on the plan, or their own, signed as a member (before
+// joining the plan, or on their own record). Callers hold s.mu.
+func (s *Store) adultWaiver(memberID, year int, email string) *Waiver {
+	var own *Waiver
 	for _, w := range s.d.Waivers {
-		if w.MemberID == memberID && w.Year == year && w.Household && w.RiderEmail == email {
-			return true
+		if w.Year != year || w.Minor {
+			continue
+		}
+		if w.Household {
+			if w.MemberID == memberID && w.RiderEmail == email {
+				return w
+			}
+			continue
+		}
+		if own != nil || w.MemberID == memberID {
+			continue
+		}
+		if m := s.byID(w.MemberID); (m != nil && m.Email == email) || strings.EqualFold(strings.TrimSpace(or(w.Account, w.Email)), email) {
+			own = w
 		}
 	}
-	return false
+	return own
 }

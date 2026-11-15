@@ -2,9 +2,12 @@ package main
 
 import (
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 )
 
 // Adults on a Family plan are riders: members too, so club emails reach
@@ -171,5 +174,41 @@ func TestAdminEditsFamilyPlan(t *testing.T) {
 	}
 	if _, ok := a.store.MemberByEmail("jo@example.com"); ok {
 		t.Fatal("removing takes the rider off too")
+	}
+}
+
+// Someone who already signed this year's waiver isn't emailed a link to sign
+// it again when they're added to a paid-up plan, and the plan shows it signed.
+func TestNoWaiverLinkWhenAlreadySigned(t *testing.T) {
+	a, h, admin := testApp(t)
+	year := a.cfg.ThisYear()
+	holly, _, _ := a.store.Join(memberDetails{Name: "Holly Rider", Email: "holly@example.com", Plan: "individual"}, year)
+	if _, _, err := a.store.SignWaiver(Waiver{MemberID: holly.ID, Year: year, Signature: "Holly Rider"}, a.site.waiver); err != nil {
+		t.Fatal(err)
+	}
+	pat, _, _ := a.store.Join(memberDetails{Name: "Pat Rider", Email: "pat@example.com", Plan: "family"}, year)
+	if _, err := a.store.Pay(pat.ID, false); err != nil {
+		t.Fatal(err)
+	}
+	var mu sync.Mutex
+	var to []string
+	a.mailer.onSend = func(addr, subject, body string) {
+		mu.Lock()
+		defer mu.Unlock()
+		to = append(to, addr)
+	}
+	form := url.Values{"do": {"add"}, "adult_name": {"Holly Rider"}, "adult_email": {"holly@example.com"}}
+	do(t, h, admin, "POST", "/admin/members/"+strconv.Itoa(pat.ID)+"/family", "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
+	time.Sleep(100 * time.Millisecond) // the link would go in the background
+	mu.Lock()
+	defer mu.Unlock()
+	if slices.Contains(to, "holly@example.com") {
+		t.Fatal("Holly already signed this year's waiver: no link to sign it again")
+	}
+	if _, ok := a.store.HouseholdWaiver(pat.ID, year, "holly@example.com"); !ok {
+		t.Error("the plan should show Holly's waiver as signed")
+	}
+	if _, unsigned := a.store.UnsignedHousehold(pat.ID, year); len(unsigned) != 0 {
+		t.Error("marking the plan paid shouldn't email Holly either")
 	}
 }
