@@ -219,10 +219,25 @@ func TestOldHeroVideoData(t *testing.T) {
 	var v struct {
 		HeroVideo HeroVideo `json:"hero_video"`
 	}
-	if err := json.Unmarshal([]byte(`{"hero_video":{"clips":[{"id":1,"name":"Club rides"}],"seeded":true,"video":"/media/video/home-1.mp4"}}`), &v); err != nil {
+	old := `{"hero_video":{"clips":[{"id":1,"name":"Club rides","raw":"","file":"clip-1.mp4","thumb":"/media/video/clip-1.jpg","secs":15,"w":1080,"h":1920}],"next_clip":1,"seeded":true,` +
+		`"video":"/media/video/home-1.mp4","phone":"/media/video/home-1-phone.mp4","video_av1":"/media/video/home-1-av1.mp4","phone_av1":"/media/video/home-1-phone-av1.mp4",` +
+		`"poster":"/media/video/home-1.jpg","phone_poster":"/media/video/home-1-phone.jpg","dirty":true,"error":"x","off":false}}`
+	if err := json.Unmarshal([]byte(old), &v); err != nil {
 		t.Fatal(err)
 	}
 	if v.HeroVideo.view() != nil {
 		t.Errorf("old data plays nothing: %+v", v.HeroVideo)
+	}
+	// And the site starts with a data file like that.
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "paxvelo.json"), []byte(old), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s, err := openStore(dir)
+	if err != nil {
+		t.Fatalf("an older data file won't load: %v", err)
+	}
+	if hv := s.HeroVideo(); hv.Computer != nil || hv.Phone != nil {
+		t.Errorf("loaded: %+v", hv)
 	}
 }

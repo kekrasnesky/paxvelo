@@ -87,10 +87,12 @@ func thousands(n int) string {
 	return s
 }
 
-// HeroVideo is the home page video: the computer and phone versions.
+// HeroVideo is the home page video: the computer and phone versions. Their
+// keys aren't "computer" and "phone": older versions kept a file's address
+// under "phone", and a data file with it has to keep loading.
 type HeroVideo struct {
-	Computer *HeroFile `json:"computer,omitempty"`
-	Phone    *HeroFile `json:"phone,omitempty"`
+	Computer *HeroFile `json:"computer_video,omitempty"`
+	Phone    *HeroFile `json:"phone_video,omitempty"`
 	Off      bool      `json:"off,omitempty"` // show the top photo instead
 }
 
