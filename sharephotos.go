@@ -14,7 +14,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode/utf8"
 )
 
 // Photos members share for the gallery (and so for the newsletter, which
@@ -37,7 +36,6 @@ const (
 	maxSharePhotos   = 30       // photos in one go
 	maxShareForm     = 64 << 20 // one go, in case the phone couldn't shrink them
 	maxWaitingPhotos = 300      // sent in but not yet used or deleted; past this the page asks people to try later
-	maxShareNote     = 500      // characters
 
 	shareHeading = "Got photos from a club ride?"
 	shareButton  = "Share your photos"
@@ -72,17 +70,17 @@ func (a *App) submittedDir() string { return filepath.Join(a.cfg.DataDir, "submi
 // ---- The share page ----
 
 type shareData struct {
-	Token             string
-	Name, Email, Note string // what was typed, to show again after a mistake
-	Album, AlbumName  string
-	Agree             bool
-	Albums            []Album // the latest ones, to pick from
-	Max               int
-	PINOn             bool   // the club PIN is set
-	Message           string // a problem
-	Detail            string // after sending: how many came through
-	Link              string // and the album they went into, when they skipped the review
-	Done, Failed      bool
+	Token            string
+	Name             string // what was typed, to show again after a mistake
+	Album, AlbumName string
+	Agree            bool
+	Albums           []Album // the latest ones, to pick from
+	Max              int
+	PINOn            bool   // the club PIN is set
+	Message          string // a problem
+	Detail           string // after sending: how many came through
+	Link             string // and the album they went into, when they skipped the review
+	Done, Failed     bool
 }
 
 const shareAlbums = 12 // albums to pick from on the share page
@@ -126,19 +124,15 @@ func (a *App) sharePhotos(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer r.MultipartForm.RemoveAll()
-	d.Name, d.Email, d.Note, d.Agree = r.FormValue("name"), r.FormValue("email"), r.FormValue("note"), r.FormValue("agree") != ""
+	d.Name, d.Agree = r.FormValue("name"), r.FormValue("agree") != ""
 	d.Album, d.AlbumName = r.FormValue("album"), r.FormValue("album_name")
 	if r.FormValue("website") != "" { // the box only bots fill in
 		d.Done = true
 		reply(http.StatusOK)
 		return
 	}
-	name, note := cleanName(d.Name), strings.TrimSpace(strings.ReplaceAll(d.Note, "\r\n", "\n"))
-	email, emailOK := "", true
-	if typed := strings.TrimSpace(d.Email); typed != "" {
-		email, emailOK = cleanEmail(typed)
-	}
-	from := SubmittedPhoto{Name: name, Email: email, Note: note, IP: clientIP(r)}
+	name := cleanName(d.Name)
+	from := SubmittedPhoto{Name: name, IP: clientIP(r)}
 	if id, err := strconv.Atoi(d.Album); err == nil {
 		if _, ok := a.store.Album(id); ok {
 			from.Album = id
@@ -160,10 +154,6 @@ func (a *App) sharePhotos(w http.ResponseWriter, r *http.Request) {
 		fail(http.StatusBadRequest, fmt.Sprintf("You can share up to %d photos at a time.", maxSharePhotos))
 	case name == "":
 		fail(http.StatusBadRequest, "Enter your name, so we know who took them.")
-	case !emailOK:
-		fail(http.StatusBadRequest, joinProblems["email"])
-	case utf8.RuneCountInString(note) > maxShareNote:
-		fail(http.StatusBadRequest, fmt.Sprintf("Keep the note under %d characters.", maxShareNote))
 	case !d.Agree:
 		fail(http.StatusBadRequest, "Tick the box to say you can share these photos with the club.")
 	case pinProblem == pinLimit:

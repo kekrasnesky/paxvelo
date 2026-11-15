@@ -10,10 +10,7 @@
       <span class="hint share-count" aria-live="polite">Up to {{.Max}} at a time</span>
     </label>
     <ul class="share-previews" hidden></ul>
-    <div class="pair">
-      <label>Your name <input name="name" required maxlength="100" autocomplete="name" value="{{.Name}}"></label>
-      <label>Email (optional) <input type="email" name="email" maxlength="254" autocomplete="email" value="{{.Email}}"></label>
-    </div>
+    <label>Your name <input name="name" required maxlength="100" autocomplete="name" value="{{.Name}}"></label>
     {{$album := .Album}}<label>Ride or event (optional) <select name="album" class="share-album">
       <option value="">Not sure</option>
       {{range .Albums}}<option value="{{.ID}}"{{if eq (print .ID) $album}} selected{{end}}>{{.Title}}{{with .DateLabel}} ({{.}}){{end}}</option>{{end}}
@@ -21,8 +18,7 @@
     </select></label>
     <label class="share-new">Name it <input name="album_name" maxlength="80" placeholder="Saturday ride to Point Lookout, Oct 25" value="{{.AlbumName}}"></label>
     {{if .PINOn}}<label>Club PIN (optional) <input name="pin" maxlength="40" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
-    {{end}}<label>Note (optional) <textarea name="note" rows="2" maxlength="500">{{.Note}}</textarea></label>
-    <label class="check-row share-agree"><input type="checkbox" name="agree" value="yes" required{{if .Agree}} checked{{end}}> I took these or have permission to share them, and PaxVelo can use them online and in the newsletter.</label>
+    {{end}}<label class="check-row share-agree"><input type="checkbox" name="agree" value="yes" required{{if .Agree}} checked{{end}}> I took these or have permission to share them, and PaxVelo can use them online and in the newsletter.</label>
     <button class="btn" type="submit">Share photos</button>
     <div class="share-progress" hidden><span></span></div>
     <p class="msg{{if .Failed}} err{{end}}" role="status" aria-live="polite">{{if .Failed}}{{.Message}}{{end}}</p>

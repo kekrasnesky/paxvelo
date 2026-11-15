@@ -62,8 +62,8 @@ func TestSharePhotos(t *testing.T) {
 		t.Error("the gallery should link to the share page")
 	}
 	photo := encodeJPEG(t, halves(120, 90, 255))
-	good := url.Values{"name": {"Pat Rider"}, "email": {"pat@example.com"}, "note": {"Sunday ride, Point Lookout"}, "agree": {"yes"}}
-	for field, bad := range map[string]string{"name": "", "agree": "", "email": "pat@"} {
+	good := url.Values{"name": {"Pat Rider"}, "agree": {"yes"}}
+	for field, bad := range map[string]string{"name": "", "agree": ""} {
 		v := url.Values{}
 		for k, vs := range good {
 			v[k] = vs
@@ -90,7 +90,7 @@ func TestSharePhotos(t *testing.T) {
 		t.Fatalf("sending: %d %s", w.Code, w.Body)
 	}
 	got := a.store.SubmittedPhotos()
-	if len(got) != 2 || got[0].Name != "Pat Rider" || got[0].Note != "Sunday ride, Point Lookout" || got[0].Batch != got[1].Batch {
+	if len(got) != 2 || got[0].Name != "Pat Rider" || got[0].Batch != got[1].Batch {
 		t.Fatalf("sent-in photos %+v", got)
 	}
 	if _, err := os.Stat(filepath.Join(a.submittedDir(), got[0].File)); err != nil {
