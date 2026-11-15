@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
@@ -39,7 +40,7 @@ func TestRSVP(t *testing.T) {
 		t.Fatalf("writing the email: %s", w.Header().Get("Location"))
 	}
 	d := a.store.Draft()
-	if !strings.Contains(d.Body, "[[RSVP]({rsvp_1})]") || !strings.Contains(d.Body, "({rsvp_1_calendar})") || !strings.Contains(d.Body, "({rsvp_1_google})") || !strings.Contains(d.Body, "12 Spoke Lane") || d.Subject != "You’re invited: December Meeting" {
+	if !strings.Contains(d.Body, "[[RSVP]({rsvp_1})]") || !strings.Contains(d.Body, "({rsvp_1_calendar})") || !strings.Contains(d.Body, "({rsvp_1_google})") || !strings.Contains(d.Body, "[Directions]({rsvp_1_directions})") || !strings.Contains(d.Body, "12 Spoke Lane") || d.Subject != "You’re invited: December Meeting" {
 		t.Fatalf("the draft: %+v", d)
 	}
 	if got := a.mailer.personalize(d.Body, pat); !strings.Contains(got, a.cfg.SiteURL+"/rsvp/1?t="+pat.Token) {
@@ -108,6 +109,28 @@ func TestRSVP(t *testing.T) {
 	}
 	if page := do(t, h, nil, "GET", "/rsvp/1", "", nil).Body.String(); strings.Contains(page, "Pat Rider") {
 		t.Error("without a member's link the guest list stays hidden")
+	}
+
+	// Directions: Apple Maps on an iPhone, Google Maps elsewhere, both to
+	// the street address; without a member's link, back to the RSVP page.
+	directions := func(path, ua string) string {
+		r := httptest.NewRequest("GET", path, nil)
+		r.Header.Set("User-Agent", ua)
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		return w.Header().Get("Location")
+	}
+	if loc := directions("/rsvp/1/directions?t="+pat.Token, "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)"); loc != "https://maps.apple.com/?daddr=12+Spoke+Lane%2C+Leonardtown" {
+		t.Errorf("directions on an iPhone: %s", loc)
+	}
+	if loc := directions("/rsvp/1/directions?t="+pat.Token, "Mozilla/5.0 (Linux; Android 14)"); !strings.HasPrefix(loc, "https://www.google.com/maps/dir/?api=1&destination=12+Spoke+Lane") {
+		t.Errorf("directions on Android: %s", loc)
+	}
+	if loc := directions("/rsvp/1/directions", "iPhone"); loc != "/rsvp/1?t=" {
+		t.Errorf("directions without a link: %s", loc)
+	}
+	if page := do(t, h, nil, "GET", "/rsvp/1?t="+pat.Token, "", nil).Body.String(); !strings.Contains(page, ">Directions</a>") || !strings.Contains(page, "Waze") {
+		t.Error("the page should have the Directions button")
 	}
 
 	// Add to my calendar: the place only from a member's link.
@@ -201,6 +224,15 @@ func TestRSVPLinks(t *testing.T) {
 	}{{"2026-12-09 12:00", true}, {"2026-12-10 23:00", true}, {"2026-12-11 08:00", false}} {
 		if e.IsOpen(at(c.when)) != c.open {
 			t.Errorf("open on %s: want %v", c.when, c.open)
+		}
+	}
+	for place, want := range map[string]string{
+		"Karl’s house, 12 Spoke Lane, Leonardtown": "12 Spoke Lane, Leonardtown",
+		"Leonardtown Square":                       "Leonardtown Square",
+		"The Brewery, Leonardtown":                 "The Brewery, Leonardtown",
+	} {
+		if got := (RSVPEvent{Place: place}).MapAddress(); got != want {
+			t.Errorf("MapAddress(%q) = %q", place, got)
 		}
 	}
 	if csvSafe("=SUM(A1)") != "'=SUM(A1)" || csvSafe("Chili") != "Chili" {

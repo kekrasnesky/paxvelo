@@ -27,6 +27,7 @@ type rsvpView struct {
 	Saved   bool
 	Message string
 	Answers []choice
+	Apple   bool // an iPhone, iPad or Mac: Apple Maps and the calendar file first
 	// The form as sent, when it comes back with a message.
 	Form RSVPReply
 }
@@ -59,6 +60,62 @@ func (v rsvpView) CalendarLink(kind string) string {
 		return ""
 	}
 	return "/rsvp/" + strconv.Itoa(v.Event.ID) + "/" + kind + "?t=" + url.QueryEscape(v.Token)
+}
+
+// rsvpLink is one "Also:" link under the page's buttons.
+type rsvpLink struct {
+	Label, URL string
+	NewTab     bool
+}
+
+// Directions is the Directions button: Apple Maps on Apple devices, else
+// Google Maps; "" without a place (or without a member's link).
+func (v rsvpView) Directions() string {
+	if v.Event.Place == "" {
+		return ""
+	}
+	if v.Apple {
+		return mapsLink("apple", v.Event.MapAddress())
+	}
+	return mapsLink("google", v.Event.MapAddress())
+}
+
+// AddToCalendar is the Add to calendar button: the calendar file on Apple
+// devices, else Google Calendar.
+func (v rsvpView) AddToCalendar() string {
+	if v.Apple {
+		return v.CalendarLink("calendar.ics")
+	}
+	return v.CalendarLink("google")
+}
+
+// OtherApps are the links for people who use other apps than the buttons.
+func (v rsvpView) OtherApps() []rsvpLink {
+	var out []rsvpLink
+	if v.Directions() != "" {
+		addr := v.Event.MapAddress()
+		if v.Apple {
+			out = append(out, rsvpLink{"Google Maps", mapsLink("google", addr), true})
+		} else {
+			out = append(out, rsvpLink{"Apple Maps", mapsLink("apple", addr), true})
+		}
+		out = append(out, rsvpLink{"Waze", mapsLink("waze", addr), true})
+	}
+	if v.AddToCalendar() != "" {
+		if v.Apple {
+			out = append(out, rsvpLink{"Google Calendar", v.CalendarLink("google"), true})
+		} else {
+			out = append(out, rsvpLink{"Apple or Outlook calendar", v.CalendarLink("calendar.ics"), false})
+		}
+	}
+	return out
+}
+
+// appleDevice says the visitor is on an iPhone, iPad (which says Macintosh)
+// or Mac, where Apple Maps and Calendar are the built-in apps.
+func appleDevice(r *http.Request) bool {
+	ua := r.UserAgent()
+	return strings.Contains(ua, "iPhone") || strings.Contains(ua, "iPad") || strings.Contains(ua, "Macintosh")
 }
 
 // GuestChoices are the numbers the "how many with you" box offers.
@@ -115,6 +172,7 @@ func (a *App) rsvpPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	v.Saved = r.URL.Query().Get("saved") != ""
+	v.Apple = appleDevice(r)
 	a.renderRSVP(w, http.StatusOK, v)
 }
 
@@ -144,6 +202,7 @@ func (a *App) rsvpAnswer(w http.ResponseWriter, r *http.Request) {
 		reply.Guests = min(n, maxRSVPGuests)
 	}
 	v.Form = reply
+	v.Apple = appleDevice(r)
 	if v.Test {
 		v.Message = "That was a test email, so nothing was saved. In the real email, each member’s link saves their own answer."
 		a.renderRSVP(w, http.StatusOK, v)
@@ -180,7 +239,8 @@ func (a *App) rsvpAnswer(w http.ResponseWriter, r *http.Request) {
 
 // rsvpLinks fills in each member's own links in an email: {rsvp_<id>} to the
 // event's RSVP page, {rsvp_<id>_calendar} to its calendar file (Apple,
-// Outlook) and {rsvp_<id>_google} to Google Calendar.
+// Outlook), {rsvp_<id>_google} to Google Calendar and {rsvp_<id>_directions}
+// to directions in their phone's maps app.
 func rsvpLinks(s, siteURL, token string) string {
 	if !strings.Contains(s, "{rsvp_") {
 		return s
@@ -193,12 +253,14 @@ func rsvpLinks(s, siteURL, token string) string {
 			path += "/calendar.ics"
 		case "_google":
 			path += "/google"
+		case "_directions":
+			path += "/directions"
 		}
 		return siteURL + path + "?t=" + url.QueryEscape(token)
 	})
 }
 
-var rsvpPiece = regexp.MustCompile(`\{rsvp_(\d+)(_calendar|_google)?\}`)
+var rsvpPiece = regexp.MustCompile(`\{rsvp_(\d+)(_calendar|_google|_directions)?\}`)
 
 // rsvpCalendarEvent is the event as a calendar app gets it, from a member's
 // link (the place only then); it answers 404 for one without a date.
@@ -256,6 +318,27 @@ func (a *App) rsvpICS(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("X-Robots-Tag", "noindex")
 	w.Write([]byte(b.String()))
+}
+
+// rsvpDirections sends a member to directions in their phone's maps app
+// (the email's Directions link). Without a member's link there's no place,
+// so it goes to the RSVP page.
+func (a *App) rsvpDirections(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.Atoi(r.PathValue("id"))
+	t := r.URL.Query().Get("t")
+	v, ok := a.rsvpView(id, t)
+	if !ok {
+		a.site.notFound(w, r)
+		return
+	}
+	v.Apple = appleDevice(r)
+	to := v.Directions()
+	if to == "" {
+		to = "/rsvp/" + strconv.Itoa(id) + "?t=" + url.QueryEscape(t)
+	}
+	w.Header().Set("Referrer-Policy", "no-referrer") // the link is theirs
+	w.Header().Set("X-Robots-Tag", "noindex")
+	http.Redirect(w, r, to, http.StatusFound)
 }
 
 // rsvpGoogle sends the member to Google Calendar's "add an event" page,

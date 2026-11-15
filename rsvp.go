@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -34,8 +35,8 @@ type RSVPEvent struct {
 	Details     string      `json:"details,omitempty"` // a few lines: parking, what to expect
 	AskBringing bool        `json:"ask_bringing,omitempty"`
 	HideGuests  bool        `json:"hide_guests,omitempty"` // members don't see who's coming (they do by default)
-	Closed      bool        `json:"closed,omitempty"` // no more answers
-	Closes      string      `json:"closes,omitempty"` // last day to answer, 2006-01-02; empty = until the event
+	Closed      bool        `json:"closed,omitempty"`      // no more answers
+	Closes      string      `json:"closes,omitempty"`      // last day to answer, 2006-01-02; empty = until the event
 	Created     time.Time   `json:"created"`
 	Replies     []RSVPReply `json:"replies,omitempty"`
 }
@@ -192,6 +193,32 @@ func (e RSVPEvent) Bringing() []RSVPReply {
 		}
 	}
 	return out
+}
+
+// MapAddress is the place as a maps app should look it up: from the first
+// part that starts with a number ("Karl’s house, 12 Spoke Lane, Leonardtown"
+// → "12 Spoke Lane, Leonardtown"), else all of it.
+func (e RSVPEvent) MapAddress() string {
+	parts := strings.Split(e.Place, ",")
+	for i, p := range parts {
+		if p = strings.TrimSpace(p); p != "" && p[0] >= '0' && p[0] <= '9' {
+			return strings.TrimSpace(strings.Join(parts[i:], ","))
+		}
+	}
+	return strings.TrimSpace(e.Place)
+}
+
+// mapsLink is directions to an address in one maps app: "apple", "google"
+// or "waze". Each opens the app on a phone that has it, else the web.
+func mapsLink(app, addr string) string {
+	q := url.QueryEscape(addr)
+	switch app {
+	case "apple":
+		return "https://maps.apple.com/?daddr=" + q
+	case "waze":
+		return "https://waze.com/ul?q=" + q + "&navigate=yes"
+	}
+	return "https://www.google.com/maps/dir/?api=1&destination=" + q
 }
 
 // Going is who members see on the page: the yeses, then the maybes, by name.

@@ -4,11 +4,15 @@
   <p class="label">RSVP</p>
   <h1>{{.Event.Title}}</h1>
   {{with .Event.When}}<p class="lead rsvp-when">{{.}}</p>{{end}}
-  {{if or .Event.Place .Event.Details}}<div class="rsvp-info">
-    {{with .Event.Place}}<p class="rsvp-place"><strong>Where</strong> {{.}}</p>{{end}}
+  {{if or .Event.Place .Event.Details .AddToCalendar}}<div class="rsvp-info">
+    {{with .Event.Place}}<div class="rsvp-place"><svg class="rsvp-pin" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="10" r="2.6"/></svg><p><strong>Where</strong> {{.}}</p></div>{{end}}
     {{with .Event.Details}}<p class="rsvp-details">{{.}}</p>{{end}}
+    {{if or .Directions .AddToCalendar}}<div class="rsvp-acts">
+      {{with .Directions}}<a class="btn" href="{{.}}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 11 18-8-8 18-2-8z"/></svg>Directions</a>{{end}}
+      {{with .AddToCalendar}}<a class="btn btn-quiet" href="{{.}}"{{if not $v.Apple}} target="_blank" rel="noopener"{{end}}><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Add to calendar</a>{{end}}
+    </div>
+    {{with .OtherApps}}<p class="rsvp-other">Also: {{range $i, $l := .}}{{if $i}} · {{end}}<a href="{{$l.URL}}"{{if $l.NewTab}} target="_blank" rel="noopener"{{end}}>{{$l.Label}}</a>{{end}}</p>{{end}}{{end}}
   </div>{{end}}
-  {{with .CalendarLink "calendar.ics"}}<p class="rsvp-cal">Add to my calendar: <a href="{{.}}">Apple or Outlook</a> · <a href="{{$v.CalendarLink "google"}}" target="_blank" rel="noopener">Google</a></p>{{end}}
 
   <section id="answer" class="rsvp-answer">
   {{if .Test}}<p class="cal-note">That was a test email, so this link isn’t anyone’s. In the real email, each member’s link opens their own RSVP.</p>

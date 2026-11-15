@@ -199,6 +199,9 @@ func rsvpInvitation(e RSVPEvent) EmailDraft {
 	}
 	b.WriteString(".\n\n")
 	b.WriteString("[[RSVP](" + "{" + e.Piece() + "}" + ")]\n\n")
+	if e.Place != "" {
+		b.WriteString("[Directions]({" + e.Piece() + "_directions}) in your maps app\n\n")
+	}
 	if e.Date != "" {
 		b.WriteString("Add it to your calendar: [Apple or Outlook]({" + e.Piece() + "_calendar}) · [Google]({" + e.Piece() + "_google})\n\n")
 	}
@@ -250,6 +253,9 @@ func (a *App) rsvpPieces() []autoPiece {
 			if e.Date != "" {
 				out = append(out, autoPiece{e.Piece() + "_calendar", "Calendar (Apple, Outlook): " + e.Title, "Adds " + e.Title + " to their calendar app"},
 					autoPiece{e.Piece() + "_google", "Google Calendar: " + e.Title, "Adds " + e.Title + " to their Google Calendar"})
+			}
+			if e.Place != "" {
+				out = append(out, autoPiece{e.Piece() + "_directions", "Directions: " + e.Title, "Directions to " + e.Title + " in their maps app"})
 			}
 		}
 	}
