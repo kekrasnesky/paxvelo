@@ -340,7 +340,10 @@ func (s *Site) renderContent(d contentData) error {
 			links = append(links, navLink{p.Path, p.Menu})
 		}
 	}
-	links = append(links, navLink{"/routes", "Club Routes"}, navLink{"/gallery", "Photo Gallery"}, navLink{"/kit", "Club Kit"}) // Share Photos has its own place in the menu
+	if showRoutes {
+		links = append(links, navLink{"/routes", "Club Routes"})
+	}
+	links = append(links, navLink{"/gallery", "Photo Gallery"}, navLink{"/kit", "Club Kit"}) // Share Photos has its own place in the menu
 	links = append(links, last...)
 	s.infoLinks.Store(&links)
 	feed := d.InstaFeed

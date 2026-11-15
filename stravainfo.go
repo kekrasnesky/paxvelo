@@ -571,7 +571,15 @@ type routeCard struct {
 	Next     *RideOcc // the next ride on the calendar that uses it
 }
 
+// showRoutes puts Club Routes in the Info menu, the sitemap and the page
+// editor's links. Off for now: /routes still opens for anyone with the
+// link, unlisted (noindex).
+const showRoutes = false
+
 func (a *App) routesPage(w http.ResponseWriter, r *http.Request) {
+	if !showRoutes {
+		w.Header().Set("X-Robots-Tag", "noindex")
+	}
 	_, connected := a.store.StravaLink()
 	v := routesView{Members: a.store.StravaClub().Members, ClubURL: a.cfg.StravaURL, Connected: connected}
 	today := a.today()
