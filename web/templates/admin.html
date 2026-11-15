@@ -766,8 +766,26 @@ body.addEventListener('submit',function(e){var f=e.target;if(!f.classList.contai
     {{else}}<p class="muted small">No waivers signed yet.</p>{{end}}
     {{with .RideWaivers}}<h2 class="member-h">Ride waivers</h2>
     <ul class="member-list">{{range .}}<li>{{if $.IsBoard}}<a href="/admin/ride-waivers/{{.ID}}">{{date .Signed}}</a>{{else}}{{date .Signed}}{{end}} · {{.BikeLabel}}{{if .Minor}} · for {{.Rider}}, age {{.RiderAge}}{{end}}</li>{{end}}</ul>{{end}}
-    {{with .Household}}<h2 class="member-h">Adults on this family plan</h2>
-    <ul class="member-list">{{range .}}<li>{{.Name}} · <a href="mailto:{{.Email}}">{{.Email}}</a>{{if not .LinkSent}} <span class="muted small">(waiver link not sent yet)</span>{{end}}</li>{{end}}</ul>{{end}}
+    {{with .Primary}}<h2 class="member-h">Family plan</h2>
+    <p class="small">On <a href="/admin/members/{{.ID}}">{{.Name}}</a>’s family membership.</p>{{end}}
+    {{if or .Household (eq .Plan "family")}}{{$pid := .ID}}<h2 class="member-h">Family plan adults</h2>
+    {{if .Household}}<ul class="member-list">{{range .Household}}<li>
+      {{if $.CanManage}}<form class="record" method="post" action="/admin/members/{{$pid}}/family">
+        <input type="hidden" name="do" value="edit"><input type="hidden" name="old_email" value="{{.Email}}">
+        <label>Name <input name="adult_name" value="{{.Name}}" required></label>
+        <label>Email <input type="email" name="adult_email" value="{{.Email}}" required></label>
+        <button class="mini ghost">{{icon "save"}}Save</button>
+      </form>
+      <form method="post" action="/admin/members/{{$pid}}/family"><input type="hidden" name="do" value="remove"><input type="hidden" name="old_email" value="{{.Email}}"><button class="link danger">{{icon "trash"}}Remove</button></form>
+      {{else}}{{.Name}} · <a href="mailto:{{.Email}}">{{.Email}}</a>{{end}}
+      {{if not .LinkSent}}<span class="muted small">Waiver link not sent yet</span>{{end}}
+    </li>{{end}}</ul>{{else}}<p class="muted small">No other adults yet.</p>{{end}}
+    {{if and $.CanManage (eq .Plan "family")}}<form class="record" method="post" action="/admin/members/{{$pid}}/family">
+      <input type="hidden" name="do" value="add">
+      <label>Adult’s name <input name="adult_name" required></label>
+      <label>Adult’s email <input type="email" name="adult_email" required></label>
+      <button class="mini ghost">{{icon "plus"}}Add adult</button>
+    </form>{{end}}{{end}}
     <h2 class="member-h">Contact</h2>
     <p class="small"><a href="mailto:{{.Email}}">Email {{.FirstName}}</a>{{with .Phone}} · <a href="tel:{{.}}">Call {{.}}</a>{{end}}{{with .EmergencyPhone}} · Emergency: <a href="tel:{{.}}">{{.}}</a>{{with $m.EmergencyName}} ({{.}}){{end}}{{end}}</p>
     {{with .TermsAgreed}}<p class="muted small">Agreed to the club terms {{date .}}.</p>{{end}}

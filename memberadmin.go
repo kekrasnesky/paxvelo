@@ -18,6 +18,7 @@ type memberView struct {
 	Member
 	Waivers     []Waiver     // every waiver they signed, for themselves or others, newest first
 	RideWaivers []RideWaiver // ride waivers signed with their email
+	Primary     *Member      // for a rider: the member whose Family plan they're on
 }
 
 var errEmailTaken = errors.New("another member has that email")
@@ -32,7 +33,78 @@ func (a *App) memberPage(w http.ResponseWriter, r *http.Request) {
 	v := adminView{Title: m.Name, Tab: "members", Year: a.cfg.ThisYear(), CanManage: a.isBoard(r)}
 	v.Flash, v.Error = flashFrom(r)
 	v.MemberPage = &memberView{Member: m, Waivers: a.store.WaiversOf(id), RideWaivers: a.store.RideWaiversOf(id)}
+	if m.FamilyOf != 0 {
+		if p, ok := a.store.MemberByID(m.FamilyOf); ok {
+			v.MemberPage.Primary = &p
+		}
+	}
 	a.renderAdmin(w, r, http.StatusOK, "member", v)
+}
+
+// saveFamily changes who's on a member's Family plan, from their page: add an
+// adult (who is emailed their waiver link once the dues are paid), change
+// their name or email, or take them off.
+func (a *App) saveFamily(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.Atoi(r.PathValue("id"))
+	page := "/admin/members/" + strconv.Itoa(id)
+	m, ok := a.store.MemberByID(id)
+	if !ok || m.FamilyOf != 0 { // riders are changed on their plan's page
+		back(w, r, page+"?err=save")
+		return
+	}
+	name, email := r.FormValue("adult_name"), r.FormValue("adult_email")
+	old := r.FormValue("old_email")
+	switch r.FormValue("do") {
+	case "add":
+		if m.Plan != "family" {
+			back(w, r, page+"?err=not-family")
+			return
+		}
+		adults, problem := readHousehold([]adultRow{{Name: name, Email: email}}, m.Email)
+		switch {
+		case problem != "" || len(adults) == 0:
+			back(w, r, page+"?err="+or(problem, "adult-name"))
+			return
+		case len(m.Household) >= maxHousehold:
+			back(w, r, page+"?err=family-full")
+			return
+		}
+		added, err := a.store.AddHousehold(id, adults, false)
+		switch {
+		case err != nil:
+			back(w, r, page+"?err=save")
+			return
+		case len(added) == 0:
+			back(w, r, page+"?err=adult-listed")
+			return
+		}
+		a.emailHousehold(m, added) // sends the waiver link if their dues are paid
+		back(w, r, page+"?ok=family-added")
+	case "edit":
+		adults, problem := readHousehold([]adultRow{{Name: name, Email: email}}, m.Email)
+		if problem != "" || len(adults) == 0 {
+			back(w, r, page+"?err="+or(problem, "adult-name"))
+			return
+		}
+		switch err := a.store.UpdateHousehold(id, old, adults[0].Name, adults[0].Email); {
+		case errors.Is(err, errEmailTaken):
+			back(w, r, page+"?err=email-taken")
+		case errors.Is(err, errAdultListed):
+			back(w, r, page+"?err=adult-listed")
+		case err != nil:
+			back(w, r, page+"?err=save")
+		default:
+			back(w, r, page+"?ok=family-saved")
+		}
+	case "remove":
+		if err := a.store.RemoveHousehold(id, old); err != nil {
+			back(w, r, page+"?err=save")
+			return
+		}
+		back(w, r, page+"?ok=family-removed")
+	default:
+		back(w, r, page+"?err=save")
+	}
 }
 
 // saveMember changes a member's details, as typed on their page. Unlike the

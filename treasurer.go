@@ -631,6 +631,9 @@ func (a *App) duesIncome(year int, through string) (sum duesSum) {
 	y := strconv.Itoa(year)
 	fee := a.store.PayPalFee()
 	for _, m := range a.store.Members() {
+		if m.FamilyOf != 0 { // a rider's dues are their plan's, counted once there
+			continue
+		}
 		for _, p := range m.PaidYears {
 			t, ok := m.PaidOn[p]
 			if !ok {

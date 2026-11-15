@@ -271,6 +271,7 @@ func (a *App) routes() http.Handler {
 	mux.Handle("POST /admin/members/paid", a.boardOnly(a.markPaidMany))
 	mux.Handle("POST /admin/members/{id}/delete", a.boardOnly(a.deleteMember))
 	mux.Handle("POST /admin/members/{id}/paid", a.boardOnly(a.markPaid))
+	mux.Handle("POST /admin/members/{id}/family", a.boardOnly(a.saveFamily))
 	mux.Handle("POST /admin/members/delete", a.boardOnly(a.deleteMembers))
 	mux.Handle("POST /admin/members/moved", a.boardOnly(a.movedMany))
 	mux.Handle("POST /admin/moved", a.boardOnly(a.saveMoved))

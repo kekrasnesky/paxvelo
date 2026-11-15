@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -60,6 +61,11 @@ type Member struct {
 	// Other adults who ride on their Family plan, each signing their own
 	// waiver (household.go).
 	Household []HouseholdAdult `json:"household,omitempty"`
+	// FamilyOf is set on a rider: an adult on someone's Family plan, who is
+	// also a member record so they get club emails. Their dues are their
+	// plan's, copied in save (syncRiders), and they're edited from the
+	// plan's page (household.go).
+	FamilyOf int `json:"family_of,omitempty"`
 	// PendingJoin is the join form filled in for their address, waiting for
 	// them to confirm it was them (renewal.go).
 	PendingJoin *PendingJoin `json:"pending_join,omitempty"`
@@ -349,6 +355,7 @@ func openStore(dir string) (*Store, error) {
 	s.tidyGroups()
 	s.upgradeIssues()
 	s.albumize()
+	s.ensureRiders()
 	s.relinkWaivers()
 	s.seedTreasury()
 	s.seedFee()
@@ -362,6 +369,7 @@ func openStore(dir string) (*Store, error) {
 // then rename it over the old one. A crash mid-write can't corrupt the data.
 // Callers must hold s.mu.
 func (s *Store) save() error {
+	s.syncRiders()
 	s.version++
 	b, err := json.MarshalIndent(&s.d, "", "  ")
 	if err != nil {
@@ -604,14 +612,34 @@ func (s *Store) Import(list []Member) (added, existing int, err error) {
 func (s *Store) DeleteMember(id int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for i, m := range s.d.Members {
-		if m.ID == id {
-			s.d.Members = append(s.d.Members[:i], s.d.Members[i+1:]...)
-			s.linkRideWaivers()
-			return s.save()
+	ids := s.expandFamily([]int{id})
+	if !slices.ContainsFunc(s.d.Members, func(m *Member) bool { return slices.Contains(ids, m.ID) }) {
+		return nil
+	}
+	s.d.Members = slices.DeleteFunc(s.d.Members, func(m *Member) bool { return slices.Contains(ids, m.ID) })
+	s.linkRideWaivers()
+	return s.save()
+}
+
+// expandFamily adds the riders of members being deleted, since they go with
+// their plan, and takes any deleted rider off their plan's list, so the
+// adult isn't made back into a rider at the next start. Callers hold s.mu.
+func (s *Store) expandFamily(ids []int) []int {
+	out := slices.Clone(ids)
+	for _, m := range s.d.Members {
+		if m.FamilyOf != 0 && slices.Contains(ids, m.FamilyOf) {
+			out = append(out, m.ID)
 		}
 	}
-	return nil
+	for _, m := range s.d.Members {
+		if m.FamilyOf == 0 || !slices.Contains(out, m.ID) || slices.Contains(out, m.FamilyOf) {
+			continue
+		}
+		if p := s.byID(m.FamilyOf); p != nil {
+			p.Household = slices.DeleteFunc(p.Household, func(h HouseholdAdult) bool { return h.Email == m.Email })
+		}
+	}
+	return out
 }
 
 func (s *Store) MemberByToken(token string) (Member, bool) {
@@ -933,6 +961,12 @@ func (s *Store) signedWaivers(year int) map[int]bool {
 	for _, w := range s.d.Waivers {
 		if w.Year == year && !w.Minor && !w.Household {
 			signed[w.MemberID] = true
+		}
+	}
+	// A rider signs on their plan's page: that waiver counts for them.
+	for _, r := range s.d.Members {
+		if r.FamilyOf != 0 && s.householdSigned(r.FamilyOf, year, r.Email) {
+			signed[r.ID] = true
 		}
 	}
 	return signed

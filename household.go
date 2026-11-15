@@ -1,8 +1,10 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
+	"maps"
 	"net/http"
 	"net/url"
 	"slices"
@@ -137,11 +139,13 @@ func (a *App) adultView(m Member, h HouseholdAdult, token string) membershipData
 // on a member's Family plan. It returns the waiver they'd sign (who it
 // covers, not yet signed), the name they sign with, and their page.
 func (a *App) waiverSigner(t string) (Waiver, string, membershipData, bool) {
-	if m, ok := a.store.MemberByToken(t); ok {
-		return Waiver{MemberID: m.ID}, m.Name, a.membershipView(m, t), true
-	}
+	// A rider's link is their adult link too (same token), so it's checked
+	// first: riders sign their waiver on their plan, like any other adult.
 	if m, h, ok := a.store.HouseholdByToken(t); ok {
 		return Waiver{MemberID: m.ID, Household: true, Rider: h.Name, RiderEmail: h.Email}, h.Name, a.adultView(m, h, t), true
+	}
+	if m, ok := a.store.MemberByToken(t); ok {
+		return Waiver{MemberID: m.ID}, m.Name, a.membershipView(m, t), true
 	}
 	return Waiver{}, "", membershipData{}, false
 }
@@ -153,7 +157,7 @@ func (a *App) saveHousehold(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	t := r.PostFormValue("t")
 	m, ok := a.store.MemberByToken(t)
-	if !ok {
+	if !ok || m.FamilyOf != 0 { // riders are on someone else's plan: nothing to add to
 		a.renderMembership(w, http.StatusOK, membershipData{State: "invalid"})
 		return
 	}
@@ -249,6 +253,7 @@ func (s *Store) AddHousehold(memberID int, adults []HouseholdAdult, onlyFirst bo
 		}
 		h.Token, h.Added = randHex(16), time.Now().UTC()
 		m.Household = append(m.Household, h)
+		s.addRider(m, h)
 		added = append(added, h)
 	}
 	if len(added) == 0 {
@@ -256,6 +261,90 @@ func (s *Store) AddHousehold(memberID int, adults []HouseholdAdult, onlyFirst bo
 	}
 	return added, s.save()
 }
+
+// addRider makes an adult on a Family plan a member record too, so club
+// emails reach them. It shares the adult's link token, so the link in their
+// waiver email is also their membership page. An email already on the list
+// is left alone: that person already gets club emails. Callers hold s.mu.
+func (s *Store) addRider(primary *Member, h HouseholdAdult) {
+	if s.byEmail(h.Email) != nil {
+		return
+	}
+	s.d.Members = append(s.d.Members, &Member{ID: s.d.NextMember, Name: h.Name, Email: h.Email, Token: h.Token,
+		Joined: h.Added, Plan: primary.Plan, FamilyOf: primary.ID})
+	s.d.NextMember++
+}
+
+// syncRiders copies each rider's dues and plan from the member they're on
+// the plan of, so Paid and the emails about dues treat them the same. A rider
+// with no plan left is kept as they are. Callers hold s.mu (save does).
+func (s *Store) syncRiders() {
+	for _, r := range s.d.Members {
+		if r.FamilyOf == 0 {
+			continue
+		}
+		p := s.byID(r.FamilyOf)
+		if p == nil {
+			continue
+		}
+		r.Plan = p.Plan
+		r.PaidYears = slices.Clone(p.PaidYears)
+		r.PaidOn = maps.Clone(p.PaidOn)
+	}
+}
+
+// ensureRiders makes sure every adult on a Family plan has a rider record,
+// for plans listed before riders were members. Run at startup. Callers hold s.mu.
+func (s *Store) ensureRiders() {
+	for _, m := range s.d.Members {
+		for _, h := range m.Household {
+			if s.byEmail(h.Email) == nil {
+				s.addRider(m, h)
+			}
+		}
+	}
+}
+
+// removeRider takes a rider's record off with their place on the plan.
+// Callers hold s.mu.
+func (s *Store) removeRider(primaryID int, email string) {
+	s.d.Members = slices.DeleteFunc(s.d.Members, func(m *Member) bool {
+		return m.FamilyOf == primaryID && m.Email == email
+	})
+}
+
+// UpdateHousehold changes an adult's name and email on a member's Family
+// plan, and their rider record with it.
+func (s *Store) UpdateHousehold(memberID int, oldEmail, name, email string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	m := s.byID(memberID)
+	if m == nil {
+		return nil
+	}
+	i := slices.IndexFunc(m.Household, func(h HouseholdAdult) bool { return h.Email == oldEmail })
+	if i < 0 {
+		return nil
+	}
+	if o := s.byEmail(email); o != nil && o.ID != memberID && (o.FamilyOf != memberID || o.Email != oldEmail) {
+		return errEmailTaken
+	}
+	if email == m.Email {
+		return errEmailTaken
+	}
+	if slices.ContainsFunc(m.Household, func(h HouseholdAdult) bool { return h.Email == email && h.Email != oldEmail }) {
+		return errAdultListed
+	}
+	m.Household[i].Name, m.Household[i].Email = name, email
+	for _, r := range s.d.Members {
+		if r.FamilyOf == memberID && r.Email == oldEmail {
+			r.Name, r.Email = name, email
+		}
+	}
+	return s.save()
+}
+
+var errAdultListed = errors.New("that adult is already on this family plan")
 
 // MarkLinksSent notes that adults on a member's Family plan were emailed
 // their links.
@@ -308,6 +397,7 @@ func (s *Store) RemoveHousehold(memberID int, email string) error {
 	if len(m.Household) == n {
 		return nil
 	}
+	s.removeRider(memberID, email)
 	return s.save()
 }
 
@@ -346,4 +436,15 @@ func (s *Store) HouseholdWaiver(memberID, year int, email string) (Waiver, bool)
 		}
 	}
 	return Waiver{}, false
+}
+
+// householdSigned is whether an adult on a member's Family plan has signed
+// that year's waiver. Callers hold s.mu.
+func (s *Store) householdSigned(memberID, year int, email string) bool {
+	for _, w := range s.d.Waivers {
+		if w.MemberID == memberID && w.Year == year && w.Household && w.RiderEmail == email {
+			return true
+		}
+	}
+	return false
 }

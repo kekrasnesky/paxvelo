@@ -543,6 +543,10 @@ type unsignedRider struct {
 func (a *App) unsignedRiders(year int) []unsignedRider {
 	var out []unsignedRider
 	for _, m := range a.store.Members() {
+		// Riders are listed under their plan's member, below.
+		if m.FamilyOf != 0 {
+			continue
+		}
 		// Members for the year, and website joiners not marked paid yet:
 		// not everyone on the email list rides.
 		if st := m.Standing(); st == standList || (st == standUnpaid && !m.WelcomePending) {

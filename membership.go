@@ -306,7 +306,7 @@ func (a *App) sendMembershipLink(w http.ResponseWriter, r *http.Request) {
 				d.Message = "The email didn’t send. Try again later."
 				break
 			}
-		} else if found {
+		} else if found && m.FamilyOf == 0 { // a rider's link is their family one, below
 			body := fmt.Sprintf("Hi %s,\n\nHere's the link to your PaxVelo membership page. Check your %d dues, and update your phone and emergency contact:\n\n[[My membership](%s)]\n\nKeep this email: the link is just for you, and it doesn't expire.",
 				or(m.FirstName(), "there"), a.cfg.ThisYear(), a.cfg.membershipURL(m.Token))
 			if err := a.mailer.SendMine(mailMyLink, m, "Your PaxVelo membership link", body); err != nil {

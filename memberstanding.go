@@ -100,6 +100,7 @@ func (s *Store) SetRecord(id int, years []int, joined time.Time, emails bool) er
 func (s *Store) DeleteMembers(ids []int) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	ids = s.expandFamily(ids)
 	kept := s.d.Members[:0]
 	n := 0
 	for _, m := range s.d.Members {
