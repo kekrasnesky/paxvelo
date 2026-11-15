@@ -276,7 +276,8 @@ func (s *Store) addRider(primary *Member, h HouseholdAdult) {
 }
 
 // syncRiders copies each rider's dues and plan from the member they're on
-// the plan of, so Paid and the emails about dues treat them the same. A rider
+// the plan of, so Paid and the emails about dues treat them the same. Their
+// dues run from the plan's join day, not the day they were added. A rider
 // with no plan left is kept as they are. Callers hold s.mu (save does).
 func (s *Store) syncRiders() {
 	for _, r := range s.d.Members {
@@ -287,7 +288,7 @@ func (s *Store) syncRiders() {
 		if p == nil {
 			continue
 		}
-		r.Plan = p.Plan
+		r.Plan, r.Joined = p.Plan, p.Joined
 		r.PaidYears = slices.Clone(p.PaidYears)
 		r.PaidOn = maps.Clone(p.PaidOn)
 	}

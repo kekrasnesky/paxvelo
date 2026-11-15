@@ -43,6 +43,9 @@ func TestRidersGetClubEmails(t *testing.T) {
 	if jo, _ = a.store.MemberByEmail("jo@example.com"); !jo.Paid() {
 		t.Fatal("a rider's dues are their plan's")
 	}
+	if p, _ := a.store.MemberByID(pat.ID); jo.DuesExpire() != p.DuesExpire() {
+		t.Fatalf("a rider's dues run to the plan's date: %v vs %v", jo.DuesExpire(), p.DuesExpire())
+	}
 	if sum := a.duesIncome(year, "9999-12-31"); len(sum.Lines) != 1 {
 		t.Fatalf("dues income should count the plan once, got %d lines", len(sum.Lines))
 	}
