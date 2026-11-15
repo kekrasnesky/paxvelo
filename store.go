@@ -286,11 +286,27 @@ Before your first club ride, take a couple of minutes to read Bike Safety 101:
 Every ride is posted on Strava, so join the club there too:
 {strava}
 
-Want to ride in club colors? Our kit is in the team store:
+` + welcomeCalendar + `Want to ride in club colors? Our kit is in the team store:
 {site}/kit
 
 See you on the road!
 PaxVelo`
+
+// welcomeCalendar is the default welcome email's calendar paragraph, added
+// with the calendar feed (calfeed.go).
+const welcomeCalendar = `Get every club ride in your phone's calendar:
+{calendar_link}
+
+`
+
+// staleWelcome reports whether a welcome email is an earlier default nobody
+// changed: the one from before payment, the one from before the calendar
+// paragraph, or either with the Strava address typed in.
+func staleWelcome(b string) bool {
+	typed := func(s string) string { return strings.ReplaceAll(s, "{strava}", "https://www.strava.com/clubs/10197") }
+	before := strings.Replace(defaultWelcomeBody, welcomeCalendar, "", 1)
+	return b == oldWelcomeBody || b == before || b == typed(before) || b == typed(defaultWelcomeBody)
+}
 
 // oldWelcomeBody is the default from when the welcome email went out at
 // signup, before payment. A welcome email nobody changed from it becomes the
@@ -335,9 +351,8 @@ func openStore(dir string) (*Store, error) {
 	if s.d.Secret == "" {
 		s.d.Secret = randHex(32)
 	}
-	// A welcome email nobody changed from an earlier default gets today's:
-	// the one from before payment, or the one with the Strava address typed in.
-	if b := s.d.Welcome.Body; b == oldWelcomeBody || b == strings.ReplaceAll(defaultWelcomeBody, "{strava}", "https://www.strava.com/clubs/10197") {
+	// A welcome email nobody changed from an earlier default gets today's.
+	if staleWelcome(s.d.Welcome.Body) {
 		s.d.Welcome.Body = defaultWelcomeBody
 	}
 	if s.d.NextMember == 0 {

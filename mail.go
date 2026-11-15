@@ -129,6 +129,7 @@ func (m *Mailer) personalize(s string, mem Member) string {
 		"{my_link}", m.cfg.membershipURL(mem.Token),
 		"{kit_link}", m.cfg.SiteURL+"/kit?t="+url.QueryEscape(mem.Token),
 		"{dues_expire}", duesExpireText(mem),
+		"{calendar_link}", m.cfg.SiteURL+"/calendar/subscribe",
 	).Replace(s)
 	s = rsvpLinks(s, m.cfg.SiteURL, mem.Token)
 	return extraBlankLines.ReplaceAllString(s, "\n\n") // where {ride_tips} came out empty

@@ -274,7 +274,7 @@ func newSite(cfg Config) (*Site, error) {
 	if err := s.renderContent(contentData{}); err != nil {
 		return nil, err
 	}
-	for _, name := range []string{"join", "unsubscribe", "membership", "notfound", "newsletter", "calendar", "ride", "ride-new", "routes", "share-photos", "gallery", "album", "photo", "minutes", "kit", "ride-waiver", "rsvp"} {
+	for _, name := range []string{"join", "unsubscribe", "membership", "notfound", "newsletter", "calendar", "subscribe", "ride", "ride-new", "routes", "share-photos", "gallery", "album", "photo", "minutes", "kit", "ride-waiver", "rsvp"} {
 		if s.dynamic[name], err = parse(name + ".html"); err != nil {
 			return nil, err
 		}

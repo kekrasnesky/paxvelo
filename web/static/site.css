@@ -372,7 +372,10 @@ strong{font-weight:500}
 .page-cal{max-width:calc(1240px + 2 * var(--pad))}
 .cal-top{display:flex;align-items:center;justify-content:space-between;gap:1rem}
 .cal-top h1{margin:0}
-.cal-actions{margin:0!important}
+.cal-actions{margin:0!important;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:.6rem}
+@media (max-width:767px){.cal-top{flex-wrap:wrap}.cal-actions{flex:1 1 100%;justify-content:stretch}.cal-actions .btn{flex:1 1 9rem}.cal-top{margin-bottom:1.2rem}}
+.cal-sub-feed{display:block;margin:1.6rem 0 1.2rem;font-size:.95rem}
+.cal-sub-feed input{display:block;width:100%;margin-top:.4rem;padding:.6rem .7rem;font:inherit;font-size:.9rem;color:var(--ink);background:var(--paper);border:1px solid var(--rule);border-radius:6px}
 .page-cal .lead{max-width:44rem;margin:.4rem 0 .9rem}
 .cal-up{margin:0 0 .9rem}
 .cal-up h2{margin:0 0 .5rem;font-size:1.05rem}

@@ -46,6 +46,8 @@ type calView struct {
 	RSVP       *rsvpView    // the event's invitation, when it has one (rsvpcal.go)
 	Directions string       // the event's Directions button, with an invitation
 
+	Sub *subView // the Subscribe page (calfeed.go)
+
 	// Adding a ride
 	Form     CalRide
 	FormName string
@@ -296,41 +298,13 @@ func (a *App) rideICS(w http.ResponseWriter, r *http.Request) {
 		a.site.notFound(w, r)
 		return
 	}
-	day, err := time.ParseInLocation("2006-01-02", o.Date, a.cfg.Location)
-	if err != nil {
+	ev := a.rideEvent(o, false) // calfeed.go
+	if ev == nil {
 		a.site.notFound(w, r)
 		return
 	}
-	link := a.cfg.SiteURL + "/calendar/ride/" + o.Key
-	host := strings.TrimPrefix(strings.TrimPrefix(a.cfg.SiteURL, "https://"), "http://")
-	lines := []string{"BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//PaxVelo//Ride calendar//EN", "METHOD:PUBLISH", "BEGIN:VEVENT",
-		"UID:" + o.Key + "@" + host, "DTSTAMP:" + time.Now().UTC().Format("20060102T150405Z")}
-	if t, err := time.ParseInLocation("2006-01-02 15:04", o.Date+" "+o.Time, a.cfg.Location); err == nil {
-		lines = append(lines, "DTSTART:"+t.UTC().Format("20060102T150405Z"), "DTEND:"+t.Add(o.Length()).UTC().Format("20060102T150405Z"))
-	} else {
-		lines = append(lines, "DTSTART;VALUE=DATE:"+day.Format("20060102"), "DTEND;VALUE=DATE:"+day.AddDate(0, 0, 1).Format("20060102"))
-	}
-	lines = append(lines, "SUMMARY:"+icsText(o.Name))
-	if p := o.Place; p != "" {
-		lines = append(lines, "LOCATION:"+icsText(p))
-	}
-	desc := link
-	if d := strings.TrimSpace(o.Details); d != "" {
-		desc = d + "\n\n" + link
-	}
-	lines = append(lines, "DESCRIPTION:"+icsText(desc), "URL:"+link)
-	if o.Cancelled {
-		lines = append(lines, "STATUS:CANCELLED")
-	}
-	lines = append(lines, "END:VEVENT", "END:VCALENDAR")
-	var b strings.Builder
-	for _, l := range lines {
-		b.WriteString(icsFold(l))
-	}
-	w.Header().Set("Content-Type", "text/calendar; charset=utf-8")
-	w.Header().Set("Content-Disposition", `inline; filename="paxvelo-ride.ics"`)
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Write([]byte(b.String()))
+	lines := append([]string{"BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//PaxVelo//Ride calendar//EN", "METHOD:PUBLISH"}, ev...)
+	writeICS(w, "paxvelo-ride.ics", append(lines, "END:VCALENDAR"))
 }
 
 // spotView is one leader's spot on the ride page.

@@ -166,6 +166,8 @@ adult on their Family plan. */}}
   {{else if $m.Unconfirmed}}<p>Off. Confirm your email at the top of this page to turn them back on.</p>
   {{else}}<p>Off. You unsubscribed.</p>
   <form method="post" action="/membership/emails#emails"><input type="hidden" name="t" value="{{.Token}}"><button class="btn btn-quiet" type="submit">Turn club emails back on</button></form>{{end}}
+  <h2 class="my-h" id="calendar">Club calendar</h2>
+  <p><a class="btn btn-quiet" href="/calendar/subscribe">{{icon "calendar"}}Subscribe on this device</a></p>
   <form class="my-signout" method="post" action="/membership/forget"><p class="muted-note"><button class="link-button" type="submit">Sign out of this device</button></p></form>
 {{else if eq .State "adult"}}
   <h1>My Waiver</h1>

@@ -471,6 +471,7 @@ var (
 		{"dues_expire", "Dues run out", "The day their dues run out"},
 		{"my_link", "My membership link", "Their own membership page"},
 		{"kit_link", "Kit order link", "Their own link to reserve club kit"},
+		{"calendar_link", "Subscribe to the calendar", "Puts every ride in their phone’s calendar"},
 		{"year", "Year", "This year"},
 		{"site", "Website address", ""},
 		{"strava", "Club on Strava", ""},
