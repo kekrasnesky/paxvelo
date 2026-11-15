@@ -1,6 +1,6 @@
 {{define "head"}}<meta name="robots" content="noindex">{{end}}
 {{define "content"}}{{with .Data}}{{$v := .}}{{$f := .Value}}
-<article class="page rsvp">
+<article class="page page-narrow rsvp">
   <p class="label">RSVP</p>
   <h1>{{.Event.Title}}</h1>
   {{with .Event.When}}<p class="lead rsvp-when">{{.}}</p>{{end}}

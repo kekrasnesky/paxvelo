@@ -1,5 +1,5 @@
 {{define "content"}}{{with .Data}}
-<article class="page">
+<article class="page page-narrow">
   <h1>Share Your Photos</h1>
   <form class="join share" method="post" action="/share-photos" enctype="multipart/form-data"{{if .Done}} hidden{{end}}>
     <input type="hidden" name="ft" value="{{.Token}}">

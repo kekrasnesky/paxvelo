@@ -1,5 +1,5 @@
 {{define "content"}}{{with .Data}}
-<article class="page">
+<article class="page page-narrow">
   {{with .Ride}}<p class="cal-back"><a href="/calendar/ride/{{.Key}}">← {{.Name}}</a></p>
   <h1>Borrow a Club Bike</h1>
   <p class="lead">{{.Name}} · {{.DateLabel}}{{with .Time}} · {{timeLabel .}}{{end}}</p>

@@ -32,7 +32,7 @@ adult on their Family plan. */}}
     <p class="msg{{if .WaiverMessage}} err{{end}}" role="status">{{.WaiverMessage}}</p>
   </form>{{else if .WaiverSigned}}<p class="cal-msg" id="waiver" role="status">Thanks, your {{.Year}} waiver is signed.</p>{{end}}{{end}}
 {{define "content"}}{{with .Data}}
-<article class="page my-page">
+<article class="page page-narrow my-page">
 {{if eq .State "page"}}{{$m := .Member}}
   <h1>My Membership</h1>
   <p class="lead">{{$m.Name}} · {{$m.Email}}</p>
