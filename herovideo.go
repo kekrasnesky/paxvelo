@@ -1,11 +1,8 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -19,84 +16,123 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
-// The video at the top of the home page, made from clips admins add on
-// Website → Home photos → Top video. They upload clips straight from a phone
-// or a GoPro, put them in order and remove them; the site does the rest in
-// the background with ffmpeg (deploy/setup.sh installs it). Each upload keeps
-// its shape, vertical or wide: it's shrunk to at most 1080 across its short
-// side, 30 fps, without sound or the camera's GPS track, and an iPhone's HDR
-// is turned into ordinary colors (prepareClip). Then the clips are joined into
-// one loop for each kind of screen (buildVideo): a wide 1280×720 one for
-// computers and a tall 720×1280 one for phones. Each clip fills the frame:
-// a vertical clip on a computer is cut to a band a little above its middle,
-// so heads stay in, and a wide clip on a phone to its middle. Each clip fades
-// into the next over a second and the last back into the first, starting just
-// after that fade so the browser's loop has no cut. Both come in AV1, which
-// looks as good in about 40% less data (Chrome, Firefox, Android, the newest
-// iPhones), and H.264 for every other browser, which picks the first it can
-// play; a still of each one's first frame shows while it loads.
+// The video at the top of the home page (Website → Home photos → Top video):
+// the board uploads two finished videos made in an editor, one for computers
+// (wide) and one for phones (tall), in AV1. The site never compresses them
+// again. It only copies the picture into a clean MP4: no sound, no metadata
+// or camera GPS track, and the index at the front so it starts at once. It
+// takes a still of the first frame too. Browsers that can't play AV1 (older
+// iPhones and Macs) show that still, and so does anyone saving data. People
+// who turn motion off get the top photo.
 //
-// Until a video is made from the clips, or with the video switched off, the
-// home page shows the top photo.
+// With no phone video, phones play the computer one cut to fit. With no
+// computer video, computers show the top photo.
 
 const (
-	maxHeroClips   = 8
-	maxClipUpload  = 2 << 30          // one upload, in case a phone sends 4K
-	clipSeconds    = 30               // the most of each clip used
-	minClipSeconds = 3.0              // a clip has to outlast its fades
-	heroFade       = 1.0              // seconds each clip fades into the next
-	videoTimeout   = 30 * time.Minute // one ffmpeg run, on a small server
+	maxVideoUpload = 1 << 30         // one upload
+	videoTimeout   = 5 * time.Minute // one ffmpeg or ffprobe run
+	bestVideoRate  = 3000            // kbit/s: plenty for a background loop
+	maxVideoRate   = 4500            // above this, a warning
+	maxVideoSecs   = 60              // longer, a warning
 )
 
-// HeroClip is one clip in the home page video.
-type HeroClip struct {
-	ID     int     `json:"id"`
-	Name   string  `json:"name"`            // the file name it was uploaded with
-	Raw    string  `json:"raw,omitempty"`   // the upload, in the private uploads folder, until it's prepared
-	File   string  `json:"file,omitempty"`  // the prepared copy, in the video folder
-	Thumb  string  `json:"thumb,omitempty"` // a still, under /media/
-	Secs   float64 `json:"secs,omitempty"`  // how long the prepared copy runs
-	W      int     `json:"w,omitempty"`     // the prepared copy's size: taller than wide is a vertical clip
-	H      int     `json:"h,omitempty"`
-	Failed string  `json:"failed,omitempty"` // why it couldn't be prepared
+// heroKind is one of the two videos, with the size it looks best at.
+type heroKind struct {
+	Kind, Label string
+	W, H        int
 }
 
-// Ready says whether the clip is prepared and can go in the video.
-func (c HeroClip) Ready() bool { return c.File != "" && c.Failed == "" }
+var heroKinds = []heroKind{
+	{"computer", "Computer video", 1920, 1080},
+	{"phone", "Phone video", 1080, 1920},
+}
 
-// SecsLabel is its length, like "9 s".
-func (c HeroClip) SecsLabel() string { return fmt.Sprintf("%.0f s", c.Secs) }
+// HeroFile is one uploaded video, as served.
+type HeroFile struct {
+	File   string   `json:"file"`             // under /media/video/
+	Poster string   `json:"poster,omitempty"` // its first frame, the same
+	Type   string   `json:"type"`             // the <source> type, with the codec
+	Name   string   `json:"name,omitempty"`   // as uploaded
+	W      int      `json:"w"`
+	H      int      `json:"h"`
+	Secs   float64  `json:"secs"`
+	Size   int64    `json:"size"`
+	Warn   []string `json:"warn,omitempty"` // things worth fixing, shown on the admin page
+}
 
-// Vertical says whether it was filmed upright, taller than wide.
-func (c HeroClip) Vertical() bool { return c.H > c.W }
+// Rate is its data rate in kbit/s.
+func (f HeroFile) Rate() int {
+	if f.Secs <= 0 {
+		return 0
+	}
+	return int(math.Round(float64(f.Size) * 8 / 1000 / f.Secs))
+}
 
-// HeroVideo is the home page video: its clips, and the files made from them.
+// Info is what the admin page says about it: "1920×1080 · 15 s · 2,690 kb/s · 5.0 MB".
+func (f HeroFile) Info() string {
+	return fmt.Sprintf("%d×%d · %.0f s · %s kb/s · %.1f MB", f.W, f.H, f.Secs, thousands(f.Rate()), float64(f.Size)/1e6)
+}
+
+// Tall says it's taller than wide.
+func (f HeroFile) Tall() bool { return f.H > f.W }
+
+func thousands(n int) string {
+	s := strconv.Itoa(n)
+	for i := len(s) - 3; i > 0; i -= 3 {
+		s = s[:i] + "," + s[i:]
+	}
+	return s
+}
+
+// HeroVideo is the home page video: the computer and phone versions.
 type HeroVideo struct {
-	Clips    []*HeroClip `json:"clips,omitempty"`
-	NextClip int         `json:"next_clip,omitempty"`
-	Seeded   bool        `json:"seeded,omitempty"` // an older version added its built-in "Club rides" clip (dropBuiltinClip takes it out)
-	Off      bool        `json:"off,omitempty"`    // show the top photo instead
-	// The video made from the clips, under /media/; empty until it's made
-	// (the top photo shows meanwhile).
-	Video       string `json:"video,omitempty"`        // computers, H.264
-	Phone       string `json:"phone,omitempty"`        // phones, H.264
-	VideoAV1    string `json:"video_av1,omitempty"`    // the same in AV1, when the server can make it
-	PhoneAV1    string `json:"phone_av1,omitempty"`    //
-	Poster      string `json:"poster,omitempty"`       // each one's first frame
-	PhonePoster string `json:"phone_poster,omitempty"` //
-	Dirty       bool   `json:"dirty,omitempty"`        // the clips changed since it was made
-	Error       string `json:"error,omitempty"`        // why the last try to make it failed
+	Computer *HeroFile `json:"computer,omitempty"`
+	Phone    *HeroFile `json:"phone,omitempty"`
+	Off      bool      `json:"off,omitempty"` // show the top photo instead
 }
 
-// heroVideoView is what the home page plays. Made says it's made from the
-// clips, already cut to each screen's shape.
+func (v HeroVideo) file(kind string) *HeroFile {
+	if kind == "phone" {
+		return v.Phone
+	}
+	return v.Computer
+}
+
+func (v *HeroVideo) set(kind string, f *HeroFile) {
+	if kind == "phone" {
+		v.Phone = f
+	} else {
+		v.Computer = f
+	}
+}
+
+// heroVideoView is what the home page plays. An empty Video means computers
+// don't get one (only phones do).
 type heroVideoView struct {
-	Video, Phone, VideoAV1, PhoneAV1, Poster, PhonePoster string
-	Made                                                  bool
+	Video, VideoType, Poster      string
+	Phone, PhoneType, PhonePoster string
+}
+
+// view picks what the home page plays, or nil for the top photo.
+func (v HeroVideo) view() *heroVideoView {
+	if v.Off || v.Computer == nil && v.Phone == nil {
+		return nil
+	}
+	hv := &heroVideoView{}
+	if c := v.Computer; c != nil {
+		hv.Video, hv.VideoType, hv.Poster = c.File, c.Type, c.Poster
+	}
+	p := v.Phone
+	if p == nil {
+		p = v.Computer
+	}
+	if p != nil {
+		hv.Phone, hv.PhoneType, hv.PhonePoster = p.File, p.Type, p.Poster
+	}
+	return hv
 }
 
 // ---- Store ----
@@ -105,15 +141,16 @@ func (s *Store) HeroVideo() HeroVideo {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	v := s.d.HeroVideo
-	v.Clips = nil
-	for _, c := range s.d.HeroVideo.Clips {
-		cc := *c
-		v.Clips = append(v.Clips, &cc)
+	for _, f := range []**HeroFile{&v.Computer, &v.Phone} {
+		if *f != nil {
+			c := **f
+			c.Warn = slices.Clone(c.Warn)
+			*f = &c
+		}
 	}
 	return v
 }
 
-// updateHeroVideo changes the video under the store's lock and saves it.
 func (s *Store) updateHeroVideo(f func(v *HeroVideo) error) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -123,92 +160,21 @@ func (s *Store) updateHeroVideo(f func(v *HeroVideo) error) error {
 	return s.save()
 }
 
-var errTooManyClips = fmt.Errorf("the video can have up to %d clips", maxHeroClips)
-
-// AddHeroClip adds an uploaded clip at the end, waiting to be prepared.
-func (s *Store) AddHeroClip(name, raw string) (HeroClip, error) {
-	var out HeroClip
+// SetHeroFile puts in (or with nil takes out) one of the two videos and
+// returns the one it replaced, so its files can go.
+func (s *Store) SetHeroFile(kind string, f *HeroFile) (*HeroFile, error) {
+	var old *HeroFile
 	err := s.updateHeroVideo(func(v *HeroVideo) error {
-		if len(v.Clips) >= maxHeroClips {
-			return errTooManyClips
-		}
-		v.NextClip++
-		c := &HeroClip{ID: v.NextClip, Name: name, Raw: raw}
-		v.Clips, v.Dirty, v.Error = append(v.Clips, c), true, ""
-		out = *c
+		old = v.file(kind)
+		v.set(kind, f)
 		return nil
 	})
-	return out, err
-}
-
-// MoveHeroClip moves a clip one place earlier (by -1) or later (by 1).
-func (s *Store) MoveHeroClip(id, by int) error {
-	return s.updateHeroVideo(func(v *HeroVideo) error {
-		i := slices.IndexFunc(v.Clips, func(c *HeroClip) bool { return c.ID == id })
-		j := i + by
-		if i < 0 || j < 0 || j >= len(v.Clips) {
-			return nil
-		}
-		v.Clips[i], v.Clips[j] = v.Clips[j], v.Clips[i]
-		v.Dirty, v.Error = true, ""
-		return nil
-	})
-}
-
-// RemoveHeroClip takes a clip out and returns it, so its files can go.
-func (s *Store) RemoveHeroClip(id int) (HeroClip, bool, error) {
-	var out HeroClip
-	var found bool
-	err := s.updateHeroVideo(func(v *HeroVideo) error {
-		i := slices.IndexFunc(v.Clips, func(c *HeroClip) bool { return c.ID == id })
-		if i < 0 {
-			return nil
-		}
-		out, found = *v.Clips[i], true
-		v.Clips = slices.Delete(v.Clips, i, i+1)
-		v.Dirty, v.Error = true, ""
-		return nil
-	})
-	return out, found, err
+	return old, err
 }
 
 // SetHeroVideoOff switches the video off (the top photo shows) or on.
 func (s *Store) SetHeroVideoOff(off bool) error {
 	return s.updateHeroVideo(func(v *HeroVideo) error { v.Off = off; return nil })
-}
-
-// heroVideoView picks what the home page plays: the video made from the
-// clips, or nothing (the top photo) until it's made or when it's switched off.
-func (v HeroVideo) view() *heroVideoView {
-	if v.Off || v.Video == "" {
-		return nil
-	}
-	return &heroVideoView{Video: v.Video, Phone: or(v.Phone, v.Video), VideoAV1: v.VideoAV1, PhoneAV1: v.PhoneAV1,
-		Poster: v.Poster, PhonePoster: or(v.PhonePoster, v.Poster), Made: true}
-}
-
-// dropBuiltinClip takes out the "Club rides" clip an older version put first
-// in the list from the video built into the site, once. If other clips are
-// left the video is made again without it. It returns the clip so its files
-// can go.
-func (s *Store) dropBuiltinClip() (HeroClip, bool) {
-	var out HeroClip
-	var found bool
-	s.updateHeroVideo(func(v *HeroVideo) error {
-		if !v.Seeded {
-			return nil
-		}
-		v.Seeded = false
-		i := slices.IndexFunc(v.Clips, func(c *HeroClip) bool { return c.Name == "Club rides" })
-		if i < 0 {
-			return nil
-		}
-		out, found = *v.Clips[i], true
-		v.Clips = slices.Delete(v.Clips, i, i+1)
-		v.Dirty, v.Error = true, ""
-		return nil
-	})
-	return out, found
 }
 
 // ---- ffmpeg ----
@@ -228,10 +194,7 @@ func videoTools() (ffmpeg, ffprobe string) {
 	return ffmpeg, ffprobe
 }
 
-var errNoFFmpeg = errors.New("ffmpeg isn't installed on the server")
-
-// runTool runs ffmpeg or ffprobe, at low priority where the server has
-// nice, so the site stays quick while a video is made.
+// runTool runs ffmpeg or ffprobe, at low priority where the server has nice.
 func runTool(prog string, args ...string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), videoTimeout)
 	defer cancel()
@@ -249,88 +212,34 @@ func runTool(prog string, args ...string) ([]byte, error) {
 	return out, nil
 }
 
-// runToolProgress runs ffmpeg like runTool, reporting how far it has got
-// through output secs long (0 to 1) to onPct as it goes.
-// Stopping ctx stops ffmpeg.
-func runToolProgress(ctx context.Context, prog string, secs float64, onPct func(float64), args ...string) error {
-	ctx, cancel := context.WithTimeout(ctx, videoTimeout)
-	defer cancel()
-	args = append([]string{"-progress", "pipe:1", "-nostats"}, args...)
-	if nice, err := exec.LookPath("nice"); err == nil && runtime.GOOS != "windows" {
-		args, prog = append([]string{"-n", "15", prog}, args...), nice
-	}
-	cmd := exec.CommandContext(ctx, prog, args...)
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	out, err := cmd.StdoutPipe()
-	if err != nil {
-		return err
-	}
-	if err := cmd.Start(); err != nil {
-		return err
-	}
-	sc := bufio.NewScanner(out)
-	for sc.Scan() {
-		if v, ok := strings.CutPrefix(sc.Text(), "out_time_us="); ok && secs > 0 && onPct != nil {
-			if us, err := strconv.ParseFloat(v, 64); err == nil && us > 0 {
-				onPct(min(1, us/1e6/secs))
-			}
-		}
-	}
-	if err := cmd.Wait(); err != nil {
-		msg := strings.TrimSpace(stderr.String())
-		if i := strings.LastIndex(msg, "\n"); i >= 0 {
-			msg = msg[i+1:]
-		}
-		return fmt.Errorf("%v: %s", err, msg)
-	}
-	return nil
-}
-
-// useAV1 says whether to make AV1 copies: when ffmpeg has the encoder and the
-// server has room for it, at least 2 CPUs and 2 GB of memory (AV1 is slow, and
-// can run a 1 GB server out of memory). PAXVELO_AV1=on or off decides instead.
-func useAV1(ffmpeg string) bool {
-	switch os.Getenv("PAXVELO_AV1") {
-	case "on":
-		return hasEncoder(ffmpeg, "libsvtav1")
-	case "off":
-		return false
-	}
-	return hasEncoder(ffmpeg, "libsvtav1") && runtime.NumCPU() >= 2 && memoryGB() >= 1.8
-}
-
-// memoryGB is the server's memory, or plenty when it can't be read (not Linux).
-func memoryGB() float64 {
-	b, err := os.ReadFile("/proc/meminfo")
-	if err != nil {
-		return 64
-	}
-	for _, line := range strings.Split(string(b), "\n") {
-		if v, ok := strings.CutPrefix(line, "MemTotal:"); ok {
-			kb, _ := strconv.ParseFloat(strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(v), "kB")), 64)
-			return kb / (1 << 20)
-		}
-	}
-	return 64
-}
-
-// clipInfo is how long a video file runs, in seconds, and its size as it
-// plays (turned the right way up), and how its colors are coded.
+// clipInfo is what ffprobe says about a video file's picture: its codec, its
+// size as it plays (turned the right way up), how long it runs and how its
+// colors are coded.
 type clipInfo struct {
-	Secs     float64
-	W, H     int
+	Codec    string // av1, h264, hevc…
+	Profile  string // Main, High, Professional (AV1)
+	Level    int    // AV1: seq_level_idx
+	PixFmt   string // yuv420p, yuv420p10le…
 	Transfer string // arib-std-b67 (HLG) or smpte2084 (PQ) is HDR
+	W, H     int
+	Secs     float64
 }
+
+// HDR says the colors are HDR (iPhones film in it).
+func (c clipInfo) HDR() bool { return c.Transfer == "arib-std-b67" || c.Transfer == "smpte2084" }
 
 func probeClip(ffprobe, file string) (clipInfo, error) {
 	out, err := runTool(ffprobe, "-v", "error", "-select_streams", "v:0", "-show_entries",
-		"stream=width,height,color_transfer:stream_side_data=rotation:format=duration", "-of", "json", file)
+		"stream=codec_name,profile,level,pix_fmt,width,height,color_transfer:stream_side_data=rotation:format=duration", "-of", "json", file)
 	if err != nil {
 		return clipInfo{}, err
 	}
 	var p struct {
 		Streams []struct {
+			Codec         string `json:"codec_name"`
+			Profile       string `json:"profile"`
+			Level         int    `json:"level"`
+			PixFmt        string `json:"pix_fmt"`
 			Width, Height int
 			Transfer      string `json:"color_transfer"`
 			SideData      []struct {
@@ -345,580 +254,132 @@ func probeClip(ffprobe, file string) (clipInfo, error) {
 		return clipInfo{}, fmt.Errorf("no video in it")
 	}
 	st := p.Streams[0]
-	info := clipInfo{W: st.Width, H: st.Height, Transfer: st.Transfer}
+	info := clipInfo{Codec: st.Codec, Profile: st.Profile, Level: st.Level, PixFmt: st.PixFmt, Transfer: st.Transfer, W: st.Width, H: st.Height}
 	for _, sd := range st.SideData {
 		if r := int(math.Abs(sd.Rotation)) % 180; r == 90 { // filmed sideways: plays turned
 			info.W, info.H = info.H, info.W
 		}
 	}
 	info.Secs, err = strconv.ParseFloat(p.Format.Duration, 64)
-	return info, err
-}
-
-// clipLength is how long a video file runs, in seconds.
-func clipLength(ffprobe, file string) (float64, error) {
-	info, err := probeClip(ffprobe, file)
-	return info.Secs, err
-}
-
-// hdrToSDR turns HDR video (an iPhone films in it) into ordinary colors, so it
-// isn't washed out or dull in a browser.
-const hdrToSDR = "zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv,"
-
-// prepareFilter keeps a clip's shape: at most 1080 across its short side
-// (never enlarged), 30 fps.
-func prepareFilter(hdr bool) string {
-	f := ""
-	if hdr {
-		f = hdrToSDR
+	if err != nil || info.W == 0 || info.H == 0 {
+		return clipInfo{}, fmt.Errorf("no video in it")
 	}
-	return f + "fps=30,scale='if(gt(iw,ih),-2,min(1080,iw))':'if(gt(iw,ih),min(1080,ih),-2)':flags=lanczos,setsar=1,format=yuv420p"
+	return info, nil
 }
 
-// prepareArgs shrinks an upload to the copy the video is made from: no
-// sound, subtitles, data tracks (a GoPro's GPS) or metadata, at most
-// clipSeconds long. ffmpeg turns clips filmed upside down or sideways the
-// right way up.
-func prepareArgs(in, out string, hdr bool) []string {
-	return []string{"-hide_banner", "-loglevel", "error", "-y", "-i", in, "-t", strconv.Itoa(clipSeconds),
-		"-map", "0:v:0", "-an", "-sn", "-dn", "-map_metadata", "-1", "-map_chapters", "-1",
-		"-vf", prepareFilter(hdr), "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-movflags", "+faststart", out}
-}
-
-// videoShape is one kind of screen the loop is made for.
-type videoShape struct {
-	Name string // in the file names
-	W, H int
-	// Data rates: H264 is the most the H.264 copy may use (it's CRF 23, so a
-	// calm clip uses less); AV1 is the AV1 copy's target, which looks about
-	// the same in less data. Both shapes get the same, set by the board.
-	H264, AV1 int // kbit/s
-}
-
-var (
-	computerShape = videoShape{Name: "", W: 1280, H: 720, H264: 3100, AV1: 2500}
-	phoneShape    = videoShape{Name: "-phone", W: 720, H: 1280, H264: 3100, AV1: 2500}
-)
-
-// fitFilter makes one clip fill a shape: shrunk or enlarged to cover it, then
-// cut to it. A vertical clip in a wide frame keeps the band 40% of the way
-// down, where heads and bikes usually are; anything else keeps the middle.
-// Clips from before shapes were kept count as 1280×720.
-func fitFilter(c HeroClip, sh videoShape) string {
-	w, h := c.W, c.H
-	if w == 0 || h == 0 {
-		w, h = 1280, 720
+// av1Type is the <source> type for an AV1 video, with the codec spelled out
+// (av01.profile.levelTier.bitDepth), so a browser that can't play this one
+// skips it instead of fetching it.
+func av1Type(c clipInfo) string {
+	profile := map[string]int{"High": 1, "Professional": 2}[c.Profile]
+	level := c.Level
+	if level < 0 || level > 31 {
+		level = 8 // 4.0, what 1080p30 needs
 	}
-	y := "0.5"
-	if h > w && sh.W > sh.H {
-		y = "0.4"
+	depth := 8
+	if strings.Contains(c.PixFmt, "10") {
+		depth = 10
+	} else if strings.Contains(c.PixFmt, "12") {
+		depth = 12
 	}
-	return fmt.Sprintf("scale=%d:%d:force_original_aspect_ratio=increase:flags=lanczos,crop=%d:%d:(iw-ow)/2:(ih-oh)*%s,setsar=1,fps=30,format=yuv420p",
-		sh.W, sh.H, sh.W, sh.H, y)
+	return fmt.Sprintf(`video/mp4; codecs="av01.%d.%02dM.%02d"`, profile, level, depth)
 }
 
-// loopFilter joins clips of these lengths into one loop: each fades into the
-// next over heroFade, the last fades into the start of the first, and the
-// result starts heroFade in, just after that, so the end runs straight into
-// the start. Input i is clip i, shaped by fit[i] first (if given); the
-// output is [v].
-func loopFilter(secs []float64, fit []string) string {
-	var b strings.Builder
-	n := len(secs)
-	for i := range secs {
-		fmt.Fprintf(&b, "[%d:v]", i)
-		if i < len(fit) && fit[i] != "" {
-			b.WriteString(fit[i] + ",")
-		}
-		b.WriteString("settb=AVTB,setpts=PTS-STARTPTS")
-		if i == 0 {
-			b.WriteString(",split[c0][head];[head]trim=0:" + ffNum(heroFade) + ",setpts=PTS-STARTPTS[h];")
-		} else {
-			fmt.Fprintf(&b, "[c%d];", i)
-		}
+// videoWarnings are the things worth fixing in an upload; none stop it.
+func videoWarnings(c clipInfo, size int64, bestW, bestH int) []string {
+	var w []string
+	switch {
+	case c.W*c.H > bestW*bestH:
+		w = append(w, fmt.Sprintf("Bigger than %d×%d: slower to load, and no sharper.", bestW, bestH))
+	case c.W*c.H < bestW*bestH:
+		w = append(w, fmt.Sprintf("Smaller than %d×%d: it may look soft.", bestW, bestH))
 	}
-	prev, total := "c0", secs[0]
-	for i := 1; i <= n; i++ {
-		next := "h"
-		if i < n {
-			next = fmt.Sprintf("c%d", i)
-		}
-		out := fmt.Sprintf("x%d", i)
-		fmt.Fprintf(&b, "[%s][%s]xfade=transition=fade:duration=%s:offset=%s[%s];", prev, next, ffNum(heroFade), ffNum(total-heroFade), out)
-		if i < n {
-			total += secs[i] - heroFade
-		}
-		prev = out
+	if f := (HeroFile{Size: size, Secs: c.Secs}); f.Rate() > maxVideoRate {
+		w = append(w, fmt.Sprintf("%s kb/s: slow on phone data; about %s is plenty.", thousands(f.Rate()), thousands(bestVideoRate)))
 	}
-	fmt.Fprintf(&b, "[%s]trim=start=%s,setpts=PTS-STARTPTS,format=yuv420p[v]", prev, ffNum(heroFade))
-	return b.String()
-}
-
-func ffNum(f float64) string { return strconv.FormatFloat(f, 'f', 3, 64) }
-
-// ---- The background job ----
-
-// videoJobs runs one ffmpeg job at a time, in the background, so a page
-// never waits for a video.
-type videoJobs struct {
-	mu      sync.Mutex
-	busy    bool
-	kick    chan struct{}
-	started bool
-	// What it's doing, for the admin page: step n of steps, how far along
-	// that step is, and when the job began.
-	step     string
-	n, steps int
-	pct      float64
-	since    time.Time
-	// The running job's stop button, and what it's on: the clip being
-	// prepared (its ID), or making the video.
-	stop      context.CancelFunc
-	preparing int
-	building  bool
-}
-
-// videoStatus is what the admin page shows while a video is being made.
-type videoStatus struct {
-	Busy    bool   `json:"busy"`
-	Step    string `json:"step,omitempty"` // like "Phone version"
-	N       int    `json:"n,omitempty"`    // step N of Of
-	Of      int    `json:"of,omitempty"`
-	Pct     int    `json:"pct"`               // how far along this step is
-	Elapsed string `json:"elapsed,omitempty"` // since the job began, like "4 min"
-}
-
-// startVideoSteps begins counting a job's steps.
-func (a *App) startVideoSteps(steps int) {
-	a.vid.mu.Lock()
-	a.vid.n, a.vid.steps, a.vid.step, a.vid.pct, a.vid.since = 0, steps, "", 0, time.Now()
-	a.vid.mu.Unlock()
-}
-
-// videoStep moves on to the next step, with what it's called.
-func (a *App) videoStep(label string) {
-	a.vid.mu.Lock()
-	a.vid.n++
-	if a.vid.n > a.vid.steps {
-		a.vid.steps = a.vid.n
+	if c.Secs > maxVideoSecs {
+		w = append(w, fmt.Sprintf("%.0f seconds: a big download; 10 to 30 is plenty.", c.Secs))
 	}
-	a.vid.step, a.vid.pct = label, 0
-	a.vid.mu.Unlock()
-}
-
-func (a *App) videoProgress(p float64) {
-	a.vid.mu.Lock()
-	a.vid.pct = p
-	a.vid.mu.Unlock()
-}
-
-// VideoStatus says what the job is doing.
-func (a *App) VideoStatus() videoStatus {
-	busy := a.VideoBusy() || a.videoWaiting()
-	a.vid.mu.Lock()
-	defer a.vid.mu.Unlock()
-	st := videoStatus{Busy: busy}
-	if !busy || !a.vid.busy {
-		return st
+	if c.HDR() {
+		w = append(w, "HDR: it may look brighter than the page. Export it in SDR (Rec.709).")
 	}
-	st.Step, st.N, st.Of, st.Pct = a.vid.step, a.vid.n, a.vid.steps, int(a.vid.pct*100)
-	if !a.vid.since.IsZero() {
-		if m := int(time.Since(a.vid.since).Minutes()); m < 1 {
-			st.Elapsed = "under a minute"
-		} else {
-			st.Elapsed = fmt.Sprintf("%d min", m)
-		}
-	}
-	return st
+	return w
 }
 
+// ---- Files ----
+
+// videoDir holds the videos as served, under /media/video/.
 func (a *App) videoDir() string { return filepath.Join(a.mediaDir(), "video") }
 
-// videoUploadDir holds uploads until they're prepared. It isn't served: a
-// camera's file can carry where it was filmed.
+// videoUploadDir holds uploads until they're copied: it isn't served, since
+// camera files carry GPS.
 func (a *App) videoUploadDir() string { return filepath.Join(a.cfg.DataDir, "video-uploads") }
 
-// kickVideo starts the job if there's anything to do.
-func (a *App) kickVideo() {
-	j := &a.vid
-	j.mu.Lock()
-	if !j.started {
-		j.started, j.kick = true, make(chan struct{}, 1)
-		go a.videoLoop()
-	}
-	j.mu.Unlock()
-	select {
-	case j.kick <- struct{}{}:
-	default:
-	}
-}
-
-// VideoBusy says whether a clip is being prepared or the video made.
-func (a *App) VideoBusy() bool {
-	a.vid.mu.Lock()
-	defer a.vid.mu.Unlock()
-	return a.vid.busy
-}
-
-func (a *App) videoLoop() {
-	for range a.vid.kick {
-		ctx, stop := context.WithCancel(context.Background())
-		a.vid.mu.Lock()
-		a.vid.busy, a.vid.stop = true, stop
-		a.vid.mu.Unlock()
-		a.videoWork(ctx)
-		stop()
-		a.vid.mu.Lock()
-		a.vid.busy, a.vid.stop, a.vid.preparing, a.vid.building = false, nil, 0, false
-		a.vid.mu.Unlock()
-	}
-}
-
-// videoDoing says what the job is on, for stopVideoFor.
-func (a *App) videoDoing(clip int, building bool) {
-	a.vid.mu.Lock()
-	a.vid.preparing, a.vid.building = clip, building
-	a.vid.mu.Unlock()
-}
-
-// stopVideoFor stops work the clip list just made pointless: making the
-// video from the old list, or preparing the clip removed (removed > 0).
-// Clips still being prepared carry on. The caller then kicks the job, which
-// starts again from the new list.
-func (a *App) stopVideoFor(removed int) {
-	a.vid.mu.Lock()
-	defer a.vid.mu.Unlock()
-	if a.vid.stop != nil && (a.vid.building || removed > 0 && a.vid.preparing == removed) {
-		a.vid.stop()
-		log.Printf("home video: stopped, the clips changed")
-	}
-}
-
-// videoWork prepares clips waiting for it, then makes the video if the clips
-// changed and every one is ready.
-func (a *App) videoWork(ctx context.Context) {
-	ffmpeg, ffprobe := videoTools()
-	if ffmpeg == "" {
+// dropHeroFile deletes a video's files once it's replaced or removed.
+func (a *App) dropHeroFile(f *HeroFile) {
+	if f == nil {
 		return
 	}
-	// Count the steps ahead: each clip to prepare, then each version.
-	v0 := a.store.HeroVideo()
-	steps := 0
-	for _, c := range v0.Clips {
-		if c.Raw != "" && c.Failed == "" {
-			steps++
-		}
-	}
-	if steps > 0 || v0.Dirty {
-		perShape := 1
-		if useAV1(ffmpeg) {
-			perShape = 3 // a working copy, H.264, AV1
-		}
-		steps += 2 * perShape
-	}
-	a.startVideoSteps(steps)
-	for {
-		var todo *HeroClip
-		for _, c := range a.store.HeroVideo().Clips {
-			if c.Raw != "" && c.Failed == "" {
-				todo = c
-				break
-			}
-		}
-		if todo == nil {
-			break
-		}
-		a.videoDoing(todo.ID, false)
-		a.prepareClip(ctx, ffmpeg, ffprobe, *todo)
-		if ctx.Err() != nil {
-			return // stopped: the job starts again
-		}
-	}
-	v := a.store.HeroVideo()
-	if !v.Dirty {
-		return
-	}
-	for _, c := range v.Clips {
-		if !c.Ready() {
-			return // a failed clip waits to be removed
-		}
-	}
-	a.videoDoing(0, true)
-	err := a.buildVideo(ctx, ffmpeg, v)
-	if ctx.Err() != nil {
-		return // stopped: the job starts again
-	}
-	if err != nil {
-		log.Printf("home video: %v", err)
-		a.store.updateHeroVideo(func(hv *HeroVideo) error { hv.Error = "The video couldn’t be made: " + err.Error(); return nil })
-		return
-	}
-	if err := a.rebuildContent(); err != nil {
-		log.Printf("home video: %v", err)
-	}
-}
-
-// prepareClip shrinks one upload and takes a still from it.
-func (a *App) prepareClip(ctx context.Context, ffmpeg, ffprobe string, c HeroClip) {
-	dir := a.videoDir()
-	in := filepath.Join(a.videoUploadDir(), c.Raw)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		log.Printf("home video: %v", err)
-		return
-	}
-	base := fmt.Sprintf("clip-%d-%s", c.ID, randHex(4))
-	file, thumb := base+".mp4", base+".jpg"
-	fail := func(why string) {
-		os.Remove(filepath.Join(dir, file))
-		os.Remove(filepath.Join(dir, thumb))
-		if ctx.Err() != nil { // stopped because it was removed
-			if !slices.ContainsFunc(a.store.HeroVideo().Clips, func(x *HeroClip) bool { return x.ID == c.ID }) {
-				os.Remove(in)
-			}
-			return
-		}
-		log.Printf("home video clip %d (%s): %s", c.ID, c.Name, why)
-		a.store.updateHeroVideo(func(v *HeroVideo) error {
-			for _, x := range v.Clips {
-				if x.ID == c.ID {
-					x.Failed = why
-				}
-			}
-			return nil
-		})
-	}
-	src, err := probeClip(ffprobe, in)
-	if err != nil {
-		fail("That file isn’t a video ffmpeg can read.")
-		return
-	}
-	hdr := src.Transfer == "arib-std-b67" || src.Transfer == "smpte2084"
-	a.videoStep("Preparing " + c.Name)
-	expect := min(src.Secs, clipSeconds)
-	if err := runToolProgress(ctx, ffmpeg, expect, a.videoProgress, prepareArgs(in, filepath.Join(dir, file), hdr)...); err != nil && hdr && ctx.Err() == nil {
-		// Some ffmpeg builds can't do the HDR step: go without it.
-		err = runToolProgress(ctx, ffmpeg, expect, a.videoProgress, prepareArgs(in, filepath.Join(dir, file), false)...)
-		if err != nil {
-			fail("That file isn’t a video ffmpeg can read.")
-			return
-		}
-	} else if err != nil {
-		fail("That file isn’t a video ffmpeg can read.")
-		return
-	}
-	info, err := probeClip(ffprobe, filepath.Join(dir, file))
-	secs := info.Secs
-	if err != nil {
-		fail("That file isn’t a video ffmpeg can read.")
-		return
-	}
-	if secs < minClipSeconds {
-		fail(fmt.Sprintf("Too short: clips need at least %.0f seconds.", minClipSeconds))
-		return
-	}
-	runTool(ffmpeg, "-hide_banner", "-loglevel", "error", "-y", "-ss", "1", "-i", filepath.Join(dir, file), "-frames:v", "1", "-vf", "scale=320:-2", "-q:v", "4", filepath.Join(dir, thumb))
-	gone := false
-	a.store.updateHeroVideo(func(v *HeroVideo) error {
-		i := slices.IndexFunc(v.Clips, func(x *HeroClip) bool { return x.ID == c.ID })
-		if i < 0 {
-			gone = true // removed while it was being prepared
-			return nil
-		}
-		x := v.Clips[i]
-		x.Raw, x.File, x.Secs, x.W, x.H = "", file, secs, info.W, info.H
-		if _, err := os.Stat(filepath.Join(dir, thumb)); err == nil {
-			x.Thumb = "/media/video/" + thumb
-		}
-		return nil
-	})
-	os.Remove(in)
-	if gone {
-		os.Remove(filepath.Join(dir, file))
-		os.Remove(filepath.Join(dir, thumb))
-	}
-}
-
-// buildVideo joins the prepared clips into the loop for each kind of screen,
-// in H.264 and (when the server's ffmpeg has it) AV1, with a still of each,
-// and swaps them in.
-func (a *App) buildVideo(ctx context.Context, ffmpeg string, v HeroVideo) error {
-	dir := a.videoDir()
-	if len(v.Clips) == 0 {
-		old := v
-		a.store.updateHeroVideo(func(hv *HeroVideo) error {
-			hv.Video, hv.Phone, hv.VideoAV1, hv.PhoneAV1, hv.Poster, hv.PhonePoster, hv.Dirty, hv.Error = "", "", "", "", "", "", false, ""
-			return nil
-		})
-		a.dropVideoFiles(old)
-		return nil
-	}
-	base := "home-" + time.Now().UTC().Format("20060102-150405") + "-" + randHex(3)
-	av1 := useAV1(ffmpeg)
-	loopSecs := -float64(len(v.Clips)) * heroFade
-	for _, c := range v.Clips {
-		loopSecs += c.Secs
-	}
-	var made []string
-	cleanup := func() {
-		for _, f := range made {
-			os.Remove(filepath.Join(dir, f))
-		}
-	}
-	files := map[string]string{} // what each is called: "video", "video-av1", "poster", and "phone…"
-	for _, sh := range []videoShape{computerShape, phoneShape} {
-		key, label := "video", "Computer version"
-		if sh == phoneShape {
-			key, label = "phone", "Phone version"
-		}
-		// The clips joined into this shape's loop.
-		in := []string{"-hide_banner", "-loglevel", "error", "-y"}
-		var secs []float64
-		var fit []string
-		for _, c := range v.Clips {
-			in = append(in, "-i", filepath.Join(dir, c.File))
-			secs = append(secs, c.Secs)
-			fit = append(fit, fitFilter(*c, sh))
-		}
-		in = append(in, "-filter_complex", loopFilter(secs, fit), "-map", "[v]")
-		kb := strconv.Itoa(sh.H264)
-		h264Args := []string{"-an", "-map_metadata", "-1", "-c:v", "libx264", "-crf", "23", "-maxrate", kb + "k", "-bufsize", strconv.Itoa(2*sh.H264) + "k",
-			"-profile:v", "high", "-level", "4.0", "-pix_fmt", "yuv420p", "-movflags", "+faststart"}
-		h264 := base + sh.Name + ".mp4"
-		master := ""
-		if av1 {
-			// One very good copy of the loop, encoded from twice; deleted at the end.
-			master = base + sh.Name + "-master.mp4"
-			made = append(made, master)
-			a.videoStep(label + ": working copy")
-			if err := runToolProgress(ctx, ffmpeg, loopSecs, a.videoProgress, append(in, "-an", "-map_metadata", "-1",
-				"-c:v", "libx264", "-preset", "veryfast", "-crf", "14", filepath.Join(dir, master))...); err != nil {
-				cleanup()
-				return err
-			}
-			made = append(made, h264)
-			a.videoStep(label)
-			if err := runToolProgress(ctx, ffmpeg, loopSecs, a.videoProgress, append(append([]string{"-hide_banner", "-loglevel", "error", "-y",
-				"-i", filepath.Join(dir, master), "-preset", "slow"}, h264Args...), filepath.Join(dir, h264))...); err != nil {
-				cleanup()
-				return err
-			}
-		} else {
-			// A small server: straight from the clips, a little quicker.
-			made = append(made, h264)
-			a.videoStep(label)
-			if err := runToolProgress(ctx, ffmpeg, loopSecs, a.videoProgress, append(append(in, append([]string{"-preset", "medium"}, h264Args...)...), filepath.Join(dir, h264))...); err != nil {
-				cleanup()
-				return err
-			}
-		}
-		files[key] = h264
-		if av1 {
-			f := base + sh.Name + "-av1.mp4"
-			made = append(made, f)
-			a.videoStep(label + ", AV1")
-			if err := runToolProgress(ctx, ffmpeg, loopSecs, a.videoProgress, "-hide_banner", "-loglevel", "error", "-y", "-i", filepath.Join(dir, master), "-an",
-				"-c:v", "libsvtav1", "-preset", "7", "-b:v", strconv.Itoa(sh.AV1)+"k", "-svtav1-params", "tune=0",
-				"-pix_fmt", "yuv420p", "-movflags", "+faststart", filepath.Join(dir, f)); err != nil {
-				if ctx.Err() != nil {
-					cleanup()
-					return ctx.Err()
-				}
-				log.Printf("home video: AV1 %s: %v", key, err) // H.264 alone still plays everywhere
-			} else {
-				files[key+"-av1"] = f
-			}
-		}
-		poster := base + sh.Name + ".jpg"
-		made = append(made, poster)
-		runTool(ffmpeg, "-hide_banner", "-loglevel", "error", "-y", "-i", filepath.Join(dir, h264), "-frames:v", "1", "-q:v", "3", filepath.Join(dir, poster))
-		if _, err := os.Stat(filepath.Join(dir, poster)); err == nil {
-			files[key+"-poster"] = poster
-		}
-		if master != "" {
-			os.Remove(filepath.Join(dir, master))
-		}
-	}
-	url := func(key string) string {
-		if f := files[key]; f != "" {
-			return "/media/video/" + f
-		}
-		return ""
-	}
-	// Made from the clips as they were: if the list changed meanwhile, it
-	// stays dirty and the next round makes it again.
-	var old HeroVideo
-	a.store.updateHeroVideo(func(hv *HeroVideo) error {
-		old = *hv
-		same := len(hv.Clips) == len(v.Clips)
-		for i := range hv.Clips {
-			same = same && i < len(v.Clips) && hv.Clips[i].ID == v.Clips[i].ID
-		}
-		hv.Video, hv.Phone, hv.VideoAV1, hv.PhoneAV1 = url("video"), url("phone"), url("video-av1"), url("phone-av1")
-		hv.Poster, hv.PhonePoster, hv.Error = url("video-poster"), url("phone-poster"), ""
-		hv.Dirty = !same
-		return nil
-	})
-	a.dropVideoFiles(old)
-	if a.store.HeroVideo().Dirty {
-		a.kickVideo()
-	}
-	return nil
-}
-
-// hasEncoder says whether ffmpeg can encode with this encoder (asked once).
-func hasEncoder(ffmpeg, name string) bool {
-	encodersOnce.Do(func() {
-		out, _ := runTool(ffmpeg, "-hide_banner", "-encoders")
-		encodersList = string(out)
-	})
-	return strings.Contains(encodersList, " "+name+" ")
-}
-
-var (
-	encodersOnce sync.Once
-	encodersList string
-)
-
-// dropVideoFiles deletes a made video's files once another replaces it.
-func (a *App) dropVideoFiles(v HeroVideo) {
-	for _, u := range []string{v.Video, v.Phone, v.VideoAV1, v.PhoneAV1, v.Poster, v.PhonePoster} {
+	for _, u := range []string{f.File, f.Poster} {
 		if name, ok := strings.CutPrefix(u, "/media/video/"); ok && name != "" && !strings.ContainsAny(name, `/\`) {
 			os.Remove(filepath.Join(a.videoDir(), name))
 		}
 	}
 }
 
-// dropClipFiles deletes a removed clip's files.
-func (a *App) dropClipFiles(c HeroClip) {
-	thumb, _ := strings.CutPrefix(c.Thumb, "/media/video/")
-	for _, name := range []string{c.File, thumb} {
-		if name != "" && !strings.ContainsAny(name, `/\`) {
-			os.Remove(filepath.Join(a.videoDir(), name))
+// cleanVideoFiles, at startup, deletes files no video uses: half-done
+// uploads, and the files of older versions of this feature.
+func (a *App) cleanVideoFiles() {
+	v := a.store.HeroVideo()
+	keep := map[string]bool{}
+	for _, f := range []*HeroFile{v.Computer, v.Phone} {
+		if f != nil {
+			keep[path.Base(f.File)], keep[path.Base(f.Poster)] = true, true
 		}
 	}
-	if c.Raw != "" && !strings.ContainsAny(c.Raw, `/\`) {
-		os.Remove(filepath.Join(a.videoUploadDir(), c.Raw))
+	if entries, err := os.ReadDir(a.videoDir()); err == nil {
+		for _, e := range entries {
+			if !keep[e.Name()] && !e.IsDir() {
+				os.Remove(filepath.Join(a.videoDir(), e.Name()))
+				log.Printf("home video: removed %s, not in use", e.Name())
+			}
+		}
 	}
+	os.RemoveAll(a.videoUploadDir())
 }
 
 // ---- Admin ----
 
-var videoTypes = []string{".mp4", ".mov", ".m4v", ".webm", ".mkv", ".avi", ".3gp"}
+var videoTypes = []string{".mp4", ".mov", ".m4v", ".webm", ".mkv"}
 
-// addHeroClips takes uploaded clips, streamed straight to disk: a phone's
-// video can be hundreds of megabytes, and a slow connection takes minutes.
-func (a *App) addHeroClips(w http.ResponseWriter, r *http.Request) {
+// uploadHeroVideo takes one finished video, streamed straight to disk (a
+// slow connection can take minutes), checks it, copies its picture into a
+// clean MP4 without compressing it again, and puts it live.
+func (a *App) uploadHeroVideo(w http.ResponseWriter, r *http.Request) {
+	kind := r.PathValue("kind")
+	i := slices.IndexFunc(heroKinds, func(k heroKind) bool { return k.Kind == kind })
+	if i < 0 {
+		http.NotFound(w, r)
+		return
+	}
+	best := heroKinds[i]
 	rc := http.NewResponseController(w)
 	rc.SetReadDeadline(time.Now().Add(time.Hour))
 	rc.SetWriteDeadline(time.Now().Add(time.Hour))
-	r.Body = http.MaxBytesReader(w, r.Body, maxHeroClips*maxClipUpload)
+	r.Body = http.MaxBytesReader(w, r.Body, maxVideoUpload+(1<<20))
 	reply := func(code string) {
+		to := "/admin/home-photos?" + code + "&slot=" + kind + "#video-" + kind
 		if strings.Contains(r.Header.Get("Accept"), "application/json") {
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]string{"go": "/admin/home-photos?" + code + "#video"})
+			json.NewEncoder(w).Encode(map[string]string{"go": to})
 			return
 		}
-		back(w, r, "/admin/home-photos?"+code+"#video")
+		back(w, r, to)
+	}
+	ffmpeg, ffprobe := videoTools()
+	if ffmpeg == "" {
+		reply("err=video-noff")
+		return
 	}
 	mr, err := r.MultipartReader()
 	if err != nil {
@@ -929,8 +390,13 @@ func (a *App) addHeroClips(w http.ResponseWriter, r *http.Request) {
 		reply("err=save")
 		return
 	}
-	added := 0
-	for {
+	var raw, name string
+	defer func() {
+		if raw != "" {
+			os.Remove(raw)
+		}
+	}()
+	for raw == "" {
 		part, err := mr.NextPart()
 		if err == io.EOF {
 			break
@@ -939,79 +405,105 @@ func (a *App) addHeroClips(w http.ResponseWriter, r *http.Request) {
 			reply("err=video-upload")
 			return
 		}
-		if part.FormName() != "clips" || part.FileName() == "" {
+		if part.FormName() != "video" || part.FileName() == "" {
 			continue
 		}
-		name := path.Base(strings.ReplaceAll(part.FileName(), `\`, "/"))
+		name = path.Base(strings.ReplaceAll(part.FileName(), `\`, "/"))
 		ext := strings.ToLower(path.Ext(name))
 		if !slices.Contains(videoTypes, ext) {
 			reply("err=video-type")
 			return
 		}
-		raw := "raw-" + randHex(8) + ext
-		f, err := os.OpenFile(filepath.Join(a.videoUploadDir(), raw), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+		raw = filepath.Join(a.videoUploadDir(), "raw-"+randHex(8)+ext)
+		f, err := os.OpenFile(raw, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
 		if err != nil {
+			raw = ""
 			reply("err=save")
 			return
 		}
-		_, err = io.Copy(f, io.LimitReader(part, maxClipUpload+1))
+		_, err = io.Copy(f, part)
 		f.Close()
 		if err != nil {
-			os.Remove(filepath.Join(a.videoUploadDir(), raw))
 			reply("err=video-upload")
 			return
 		}
-		if _, err := a.store.AddHeroClip(cleanTitle(strings.TrimSuffix(name, path.Ext(name)), 80), raw); err != nil {
-			os.Remove(filepath.Join(a.videoUploadDir(), raw))
-			if errors.Is(err, errTooManyClips) {
-				reply("err=video-many")
-			} else {
-				reply("err=save")
-			}
-			a.kickVideo()
-			return
-		}
-		added++
 	}
-	if added == 0 {
+	if raw == "" {
 		reply("err=video-none")
 		return
 	}
-	a.stopVideoFor(0)
-	a.kickVideo()
+	info, err := probeClip(ffprobe, raw)
+	switch {
+	case err != nil:
+		reply("err=video-bad")
+		return
+	case info.Codec != "av1":
+		reply("err=video-codec")
+		return
+	case kind == "computer" && info.H > info.W:
+		reply("err=video-wide")
+		return
+	case kind == "phone" && info.W > info.H:
+		reply("err=video-tall")
+		return
+	}
+	if err := os.MkdirAll(a.videoDir(), 0o755); err != nil {
+		reply("err=save")
+		return
+	}
+	base := kind + "-" + time.Now().UTC().Format("20060102-150405") + "-" + randHex(3)
+	file, poster := base+".mp4", base+".jpg"
+	out := filepath.Join(a.videoDir(), file)
+	// The picture only, as it is: no sound, subtitles, data tracks (GPS),
+	// chapters or metadata; the index at the front so it starts at once.
+	if _, err := runTool(ffmpeg, "-hide_banner", "-loglevel", "error", "-y", "-i", raw, "-map", "0:v:0", "-c", "copy",
+		"-map_metadata", "-1", "-map_metadata:s:v", "-1", "-map_chapters", "-1", "-movflags", "+faststart", "-f", "mp4", out); err != nil {
+		log.Printf("home video: copying %s: %v", name, err)
+		os.Remove(out)
+		reply("err=video-bad")
+		return
+	}
+	st, err := os.Stat(out)
+	if err != nil {
+		reply("err=save")
+		return
+	}
+	hf := &HeroFile{File: "/media/video/" + file, Type: av1Type(info), Name: cleanTitle(name, 80), W: info.W, H: info.H, Secs: info.Secs, Size: st.Size()}
+	hf.Warn = videoWarnings(info, st.Size(), best.W, best.H)
+	if _, err := runTool(ffmpeg, "-hide_banner", "-loglevel", "error", "-y", "-i", out, "-frames:v", "1", "-q:v", "3", filepath.Join(a.videoDir(), poster)); err == nil {
+		hf.Poster = "/media/video/" + poster
+	} else {
+		log.Printf("home video: still of %s: %v", name, err)
+	}
+	old, err := a.store.SetHeroFile(kind, hf)
+	if err != nil {
+		a.dropHeroFile(hf)
+		reply("err=save")
+		return
+	}
+	a.dropHeroFile(old)
+	if err := a.rebuildContent(); err != nil {
+		log.Printf("home video: %v", err)
+	}
 	reply("ok=video-added")
 }
 
-func (a *App) moveHeroClip(w http.ResponseWriter, r *http.Request) {
-	id, _ := strconv.Atoi(r.PathValue("id"))
-	by := 1
-	if r.FormValue("dir") == "up" {
-		by = -1
-	}
-	if err := a.store.MoveHeroClip(id, by); err != nil {
-		back(w, r, "/admin/home-photos?err=save#video")
+func (a *App) removeHeroVideo(w http.ResponseWriter, r *http.Request) {
+	kind := r.PathValue("kind")
+	if !slices.ContainsFunc(heroKinds, func(k heroKind) bool { return k.Kind == kind }) {
+		http.NotFound(w, r)
 		return
 	}
-	a.stopVideoFor(0)
-	a.kickVideo()
-	back(w, r, "/admin/home-photos?ok=video-changed#video")
-}
-
-func (a *App) removeHeroClip(w http.ResponseWriter, r *http.Request) {
-	id, _ := strconv.Atoi(r.PathValue("id"))
-	c, ok, err := a.store.RemoveHeroClip(id)
+	old, err := a.store.SetHeroFile(kind, nil)
 	if err != nil {
 		back(w, r, "/admin/home-photos?err=save#video")
 		return
 	}
-	if ok {
-		a.stopVideoFor(c.ID)
+	a.dropHeroFile(old)
+	if err := a.rebuildContent(); err != nil {
+		log.Printf("home video: %v", err)
 	}
-	if ok && (c.Raw == "" || c.Failed != "") { // one being prepared is cleaned up when it stops
-		a.dropClipFiles(c)
-	}
-	a.kickVideo()
-	back(w, r, "/admin/home-photos?ok=video-changed#video")
+	back(w, r, "/admin/home-photos?ok=video-removed#video")
 }
 
 func (a *App) switchHeroVideo(w http.ResponseWriter, r *http.Request) {
@@ -1022,77 +514,38 @@ func (a *App) switchHeroVideo(w http.ResponseWriter, r *http.Request) {
 	back(w, r, "/admin/home-photos?ok=saved#video")
 }
 
-// heroVideoStatus tells the open admin page when the job is done.
-func (a *App) heroVideoStatus(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "no-store")
-	json.NewEncoder(w).Encode(a.VideoStatus())
-}
-
-// videoWaiting says whether clips are waiting to be prepared or the video to
-// be made, with ffmpeg there to do it.
-func (a *App) videoWaiting() bool {
-	if ff, _ := videoTools(); ff == "" {
-		return false
-	}
-	v := a.store.HeroVideo()
-	waiting := false
-	for _, c := range v.Clips {
-		if c.Failed != "" {
-			return false // nothing more happens until it's removed
-		}
-		waiting = waiting || c.Raw != ""
-	}
-	return waiting || v.Dirty && v.Error == ""
-}
-
 // heroVideoAdmin is what the Top video section shows.
 type heroVideoAdmin struct {
-	HeroVideo
-	Now    *heroVideoView // what the home page plays now
-	Busy   bool
-	Status videoStatus
+	Off    bool
 	FFmpeg bool
-	Max    int
+	Slots  []heroVideoSlot
+}
+
+// heroVideoSlot is one of the two videos, with the size it looks best at,
+// and what the last upload to it said.
+type heroVideoSlot struct {
+	Kind, Label, Best string
+	File              *HeroFile
+	Flash, Error      string
+}
+
+// slotMessage moves the page's message into the slot an upload went to, so
+// it shows where the page scrolls to.
+func (hv *heroVideoAdmin) slotMessage(r *http.Request, flash, err *string) {
+	for i := range hv.Slots {
+		if s := &hv.Slots[i]; s.Kind == r.FormValue("slot") {
+			s.Flash, s.Error, *flash, *err = *flash, *err, "", ""
+		}
+	}
 }
 
 func (a *App) heroVideoAdmin() heroVideoAdmin {
 	v := a.store.HeroVideo()
 	ff, _ := videoTools()
-	return heroVideoAdmin{HeroVideo: v, Now: v.view(), Busy: a.VideoBusy() || a.videoWaiting(), Status: a.VideoStatus(), FFmpeg: ff != "", Max: maxHeroClips}
-}
-
-// cleanVideoFiles deletes video files nothing uses any more: ones a restart
-// (a deploy) cut off halfway, or uploads whose clip is gone. Run at startup,
-// before the job starts.
-func (a *App) cleanVideoFiles() {
-	if c, ok := a.store.dropBuiltinClip(); ok {
-		a.dropClipFiles(c)
-		log.Printf("home video: removed the built-in Club rides clip")
+	hv := heroVideoAdmin{Off: v.Off, FFmpeg: ff != ""}
+	for _, k := range heroKinds {
+		hv.Slots = append(hv.Slots, heroVideoSlot{Kind: k.Kind, Label: k.Label,
+			Best: fmt.Sprintf("AV1 · %d×%d · about %s kb/s", k.W, k.H, thousands(bestVideoRate)), File: v.file(k.Kind)})
 	}
-	v := a.store.HeroVideo()
-	keep := map[string]bool{}
-	for _, u := range []string{v.Video, v.Phone, v.VideoAV1, v.PhoneAV1, v.Poster, v.PhonePoster} {
-		keep[path.Base(u)] = true
-	}
-	raws := map[string]bool{}
-	for _, c := range v.Clips {
-		keep[c.File], keep[path.Base(c.Thumb)], raws[c.Raw] = true, true, true
-	}
-	if entries, err := os.ReadDir(a.videoDir()); err == nil {
-		for _, e := range entries {
-			n := e.Name()
-			if (strings.HasPrefix(n, "clip-") || strings.HasPrefix(n, "home-")) && !keep[n] {
-				os.Remove(filepath.Join(a.videoDir(), n))
-				log.Printf("home video: removed %s, left unfinished or unused", n)
-			}
-		}
-	}
-	if entries, err := os.ReadDir(a.videoUploadDir()); err == nil {
-		for _, e := range entries {
-			if !raws[e.Name()] {
-				os.Remove(filepath.Join(a.videoUploadDir(), e.Name()))
-			}
-		}
-	}
+	return hv
 }

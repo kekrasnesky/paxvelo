@@ -2,387 +2,227 @@ package main
 
 import (
 	"bytes"
-	"context"
-	"math"
+	"encoding/json"
 	"mime/multipart"
-	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
-	"time"
 )
 
-// The loop: each clip fades into the next a second before it ends, the last
-// fades into the first second of the first, and the result starts after it.
-func TestLoopFilter(t *testing.T) {
-	f := loopFilter([]float64{9, 7, 12}, nil)
-	for _, want := range []string{
-		"[0:v]settb=AVTB,setpts=PTS-STARTPTS,split[c0][head];[head]trim=0:1.000",
-		"[c0][c1]xfade=transition=fade:duration=1.000:offset=8.000[x1]",
-		"[x1][c2]xfade=transition=fade:duration=1.000:offset=14.000[x2]",
-		"[x2][h]xfade=transition=fade:duration=1.000:offset=25.000[x3]",
-		"[x3]trim=start=1.000,setpts=PTS-STARTPTS,format=yuv420p[v]",
-	} {
-		if !strings.Contains(f, want) {
-			t.Errorf("filter should have %q:\n%s", want, f)
-		}
-	}
-	if fit := loopFilter([]float64{5, 5}, []string{"crop=10:10", ""}); !strings.Contains(fit, "[0:v]crop=10:10,settb=AVTB") || !strings.Contains(fit, "[1:v]settb=AVTB") {
-		t.Errorf("each clip is shaped first:\n%s", fit)
-	}
-	if one := loopFilter([]float64{5}, nil); !strings.Contains(one, "[c0][h]xfade=transition=fade:duration=1.000:offset=4.000[x1]") {
-		t.Errorf("one clip loops into itself:\n%s", one)
-	}
-}
-
-// What the home page plays: the made video, and nothing (the top photo)
-// until it's made or when it's off.
+// What the home page plays: each shape's own video; phones fall back to the
+// computer one; nothing when it's off or there are none.
 func TestHeroVideoView(t *testing.T) {
-	made := HeroVideo{Clips: []*HeroClip{{ID: 1}}, Video: "/media/video/a.mp4", Phone: "/media/video/a-phone.mp4", Poster: "/media/video/a.jpg"}
-	if v := made.view(); v == nil || v.Video != "/media/video/a.mp4" || v.Phone != "/media/video/a-phone.mp4" {
-		t.Errorf("made: %+v", v)
+	comp := &HeroFile{File: "/media/video/c.mp4", Poster: "/media/video/c.jpg", Type: "video/mp4; codecs=\"av01.0.08M.08\""}
+	phone := &HeroFile{File: "/media/video/p.mp4", Poster: "/media/video/p.jpg", Type: "video/mp4; codecs=\"av01.0.08M.08\""}
+	if v := (HeroVideo{Computer: comp, Phone: phone}).view(); v == nil || v.Video != comp.File || v.Phone != phone.File || v.PhonePoster != phone.Poster {
+		t.Errorf("both: %+v", v)
+	}
+	if v := (HeroVideo{Computer: comp}).view(); v == nil || v.Phone != comp.File || v.PhonePoster != comp.Poster {
+		t.Errorf("phones play the computer one: %+v", v)
+	}
+	if v := (HeroVideo{Phone: phone}).view(); v == nil || v.Video != "" || v.Phone != phone.File {
+		t.Errorf("phone only: %+v", v)
 	}
 	if v := (HeroVideo{}).view(); v != nil {
-		t.Errorf("no clips: %+v", v)
+		t.Errorf("none: %+v", v)
 	}
-	if v := (HeroVideo{Clips: []*HeroClip{{ID: 1}}, Dirty: true}).view(); v != nil {
-		t.Errorf("until it's made, nothing plays: %+v", v)
-	}
-	made.Off = true
-	if v := made.view(); v != nil {
+	if v := (HeroVideo{Computer: comp, Off: true}).view(); v != nil {
 		t.Errorf("off: %+v", v)
 	}
 }
 
-// The "Club rides" clip an older version added is taken out once, and the
-// video is made again from what's left.
-func TestDropBuiltinClip(t *testing.T) {
-	a, _, _ := testApp(t)
-	a.store.updateHeroVideo(func(v *HeroVideo) error {
-		v.Seeded, v.NextClip = true, 2
-		v.Clips = []*HeroClip{{ID: 1, Name: "Club rides", File: "clip-1-aa.mp4"}, {ID: 2, Name: "Mine", File: "clip-2-bb.mp4"}}
-		v.Video = "/media/video/home-x.mp4"
-		return nil
-	})
-	a.cleanVideoFiles()
-	v := a.store.HeroVideo()
-	if v.Seeded || len(v.Clips) != 1 || v.Clips[0].Name != "Mine" || !v.Dirty {
-		t.Fatalf("after: %+v", v)
-	}
-	if _, ok := a.store.dropBuiltinClip(); ok {
-		t.Error("dropped twice")
+func TestAV1Type(t *testing.T) {
+	for c, want := range map[clipInfo]string{
+		{Profile: "Main", Level: 8, PixFmt: "yuv420p"}:     `av01.0.08M.08`,
+		{Profile: "Main", Level: 9, PixFmt: "yuv420p10le"}: `av01.0.09M.10`,
+		{Profile: "High", Level: 12, PixFmt: "yuv444p"}:    `av01.1.12M.08`,
+		{Profile: "Main", Level: -99, PixFmt: "yuv420p"}:   `av01.0.08M.08`,
+	} {
+		if got := av1Type(c); got != `video/mp4; codecs="`+want+`"` {
+			t.Errorf("%+v: %s, want %s", c, got, want)
+		}
 	}
 }
 
-func clipUpload(t *testing.T, files map[string][]byte) (string, *bytes.Buffer) {
+func TestVideoWarnings(t *testing.T) {
+	good := clipInfo{W: 1920, H: 1080, Secs: 15}
+	if w := videoWarnings(good, 15*3000*1000/8, 1920, 1080); len(w) != 0 {
+		t.Errorf("a good one: %v", w)
+	}
+	w := videoWarnings(clipInfo{W: 3840, H: 2160, Secs: 90, Transfer: "smpte2084"}, 90*8000*1000/8, 1920, 1080)
+	if len(w) != 4 || !strings.Contains(w[0], "Bigger than 1920×1080") || !strings.Contains(w[1], "8,000 kb/s") || !strings.Contains(w[2], "90 seconds") || !strings.HasPrefix(w[3], "HDR") {
+		t.Errorf("4K, fast, long, HDR: %q", w)
+	}
+	if w := videoWarnings(clipInfo{W: 1280, H: 720, Secs: 15}, 1000, 1920, 1080); len(w) != 1 || !strings.HasPrefix(w[0], "Smaller") {
+		t.Errorf("small: %q", w)
+	}
+}
+
+func videoUpload(t *testing.T, file string) (string, *bytes.Buffer) {
 	var b bytes.Buffer
 	mw := multipart.NewWriter(&b)
-	for name, data := range files {
-		w, err := mw.CreateFormFile("clips", name)
-		if err != nil {
-			t.Fatal(err)
-		}
-		w.Write(data)
+	data, err := os.ReadFile(file)
+	if err != nil {
+		t.Fatal(err)
 	}
+	w, _ := mw.CreateFormFile("video", filepath.Base(file))
+	w.Write(data)
 	mw.Close()
 	return mw.FormDataContentType(), &b
 }
 
-// Admins upload clips, put them in order, remove them and switch the video
-// off. Uploads wait in a folder that isn't served.
-func TestHeroClipsAdmin(t *testing.T) {
-	a, h, admin := testApp(t)
-	a.vid.started = true // no background job in this test
-	ct, b := clipUpload(t, map[string][]byte{"GX011193.MP4": []byte("first"), "beach.mov": []byte("second")})
-	w := do(t, h, admin, "POST", "/admin/home-video/clips", ct, b)
-	if !strings.Contains(w.Header().Get("Location"), "ok=video-added") {
-		t.Fatalf("upload: %d %s", w.Code, w.Header().Get("Location"))
+// makeVideo makes a short test video with sound and camera details, or
+// skips the test when this ffmpeg can't.
+func makeVideo(t *testing.T, ffmpeg, out, size, codec string) {
+	t.Helper()
+	args := []string{"-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "testsrc2=size=" + size + ":rate=30", "-f", "lavfi", "-i", "sine",
+		"-t", "4", "-pix_fmt", "yuv420p", "-metadata", "title=Secret", "-metadata", "location=+38.29-076.63/"}
+	if codec == "av1" {
+		args = append(args, "-c:v", "libsvtav1", "-preset", "12", "-b:v", "1000k")
+	} else {
+		args = append(args, "-c:v", "libx264", "-preset", "ultrafast")
 	}
-	v := a.store.HeroVideo()
-	if len(v.Clips) != 2 || !v.Dirty {
-		t.Fatalf("clips %+v", v)
-	}
-	for _, c := range v.Clips {
-		if c.Raw == "" || c.Ready() {
-			t.Errorf("an upload waits to be prepared: %+v", c)
-		}
-		if _, err := os.Stat(filepath.Join(a.videoUploadDir(), c.Raw)); err != nil {
-			t.Errorf("upload kept: %v", err)
-		}
-		if strings.HasPrefix(a.videoUploadDir(), a.mediaDir()) {
-			t.Error("uploads aren't in the served media folder")
-		}
-	}
-	first, second := v.Clips[0], v.Clips[1]
-
-	ct, b = clipUpload(t, map[string][]byte{"notes.txt": []byte("hi")})
-	if w := do(t, h, admin, "POST", "/admin/home-video/clips", ct, b); !strings.Contains(w.Header().Get("Location"), "err=video-type") {
-		t.Errorf("only videos: %s", w.Header().Get("Location"))
-	}
-
-	ct2, b2 := form(map[string][]string{"dir": {"down"}})
-	do(t, h, admin, "POST", "/admin/home-video/clips/"+strconv.Itoa(first.ID)+"/move", ct2, b2)
-	if v := a.store.HeroVideo(); v.Clips[0].ID != second.ID {
-		t.Errorf("moved: %+v", v.Clips)
-	}
-
-	page := do(t, h, admin, "GET", "/admin/home-photos", "", nil).Body.String()
-	for _, want := range []string{`id="video"`, "Top video", first.Name, second.Name, "Preparing…", `name="clips"`} {
-		if !strings.Contains(page, want) {
-			t.Errorf("Home photos should show %q", want)
-		}
-	}
-
-	ct2, b2 = form(nil)
-	do(t, h, admin, "POST", "/admin/home-video/clips/"+strconv.Itoa(first.ID)+"/remove", ct2, b2)
-	if v := a.store.HeroVideo(); len(v.Clips) != 1 || v.Clips[0].ID != second.ID {
-		t.Errorf("removed: %+v", v.Clips)
-	}
-
-	ct2, b2 = form(nil) // the switch sends on="" to turn it off
-	do(t, h, admin, "POST", "/admin/home-video/switch", ct2, b2)
-	if !a.store.HeroVideo().Off || strings.Contains(do(t, h, nil, "GET", "/", "", nil).Body.String(), "<video") {
-		t.Error("switched off, the home page has no video")
-	}
-	ct2, b2 = form(map[string][]string{"on": {"1"}})
-	do(t, h, admin, "POST", "/admin/home-video/switch", ct2, b2)
-	if a.store.HeroVideo().Off {
-		t.Error("switched back on")
-	}
-
-	if w := do(t, h, nil, "GET", "/admin/home-video/status", "", nil); w.Code == http.StatusOK {
-		t.Error("the status is for admins")
+	if _, err := runTool(ffmpeg, append(args, "-c:a", "aac", "-shortest", out)...); err != nil {
+		t.Skipf("this ffmpeg can't make a %s test video: %v", codec, err)
 	}
 }
 
-// Each clip fills each screen: cut to the middle, except a vertical clip on a
-// computer, cut a little above its middle so heads stay in.
-func TestFitFilter(t *testing.T) {
-	vertical, wide := HeroClip{W: 1080, H: 1920}, HeroClip{W: 1920, H: 1080}
-	for name, c := range map[string]struct {
-		clip  HeroClip
-		shape videoShape
-		want  string
-	}{
-		"vertical on a computer": {vertical, computerShape, "scale=1280:720:force_original_aspect_ratio=increase:flags=lanczos,crop=1280:720:(iw-ow)/2:(ih-oh)*0.4"},
-		"vertical on a phone":    {vertical, phoneShape, "scale=720:1280:force_original_aspect_ratio=increase:flags=lanczos,crop=720:1280:(iw-ow)/2:(ih-oh)*0.5"},
-		"wide on a phone":        {wide, phoneShape, "crop=720:1280:(iw-ow)/2:(ih-oh)*0.5"},
-		"from before shapes":     {HeroClip{}, computerShape, "crop=1280:720:(iw-ow)/2:(ih-oh)*0.5"},
-	} {
-		if f := fitFilter(c.clip, c.shape); !strings.Contains(f, c.want) {
-			t.Errorf("%s: %s", name, f)
-		}
-	}
-	if !vertical.Vertical() || wide.Vertical() {
-		t.Error("Vertical")
-	}
-	if !strings.Contains(prepareFilter(true), "tonemap") || strings.Contains(prepareFilter(false), "tonemap") {
-		t.Error("only HDR clips are tone mapped")
-	}
-}
-
-// With ffmpeg there, uploads are prepared and joined into the loop, and the
-// home page plays it: wide for computers, tall for phones, a vertical clip
-// keeping its shape.
-func TestHeroVideoMade(t *testing.T) {
+// A finished AV1 video goes live as it is: the same picture, not compressed
+// again, without sound or camera details, with a still; the wrong codec or
+// shape is turned away.
+func TestHeroVideoUpload(t *testing.T) {
 	ffmpeg, ffprobe := videoTools()
 	if ffmpeg == "" {
 		t.Skip("ffmpeg isn't installed")
 	}
-	a, h, _ := testApp(t)
-	a.vid.started = true
-	if err := os.MkdirAll(a.videoUploadDir(), 0o700); err != nil {
-		t.Fatal(err)
+	a, h, admin := testApp(t)
+	dir := t.TempDir()
+	wide, tall, h264 := filepath.Join(dir, "wide.mp4"), filepath.Join(dir, "Gabe Test.mp4"), filepath.Join(dir, "h264.mp4")
+	makeVideo(t, ffmpeg, wide, "1920x1080", "av1")
+	makeVideo(t, ffmpeg, tall, "720x1280", "av1")
+	makeVideo(t, ffmpeg, h264, "1920x1080", "h264")
+	send := func(kind, file string) string {
+		ct, b := videoUpload(t, file)
+		return do(t, h, admin, "POST", "/admin/home-video/"+kind, ct, b).Header().Get("Location")
 	}
-	for i, src := range []string{"testsrc2=size=640x480:rate=25", "mandelbrot=size=640x360:rate=60", "testsrc2=size=1080x1920:rate=30"} {
-		raw := "test" + strconv.Itoa(i) + ".mp4"
-		if _, err := runTool(ffmpeg, "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i", src, "-t", "4",
-			"-pix_fmt", "yuv420p", filepath.Join(a.videoUploadDir(), raw)); err != nil {
-			t.Fatal(err)
-		}
-		if _, err := a.store.AddHeroClip("Clip "+strconv.Itoa(i), raw); err != nil {
-			t.Fatal(err)
-		}
+
+	loc := send("computer", h264)
+	if !strings.Contains(loc, "err=video-codec") {
+		t.Errorf("H.264: %s", loc)
 	}
-	a.videoWork(context.Background())
+	// The message shows in that video's own box, where the page scrolls to.
+	page := do(t, h, admin, "GET", strings.Split(loc, "#")[0], "", nil).Body.String() // browsers don't send the #
+	if i, j := strings.Index(page, `id="video-computer"`), strings.Index(page, "isn’t AV1"); i < 0 || j < i || strings.Count(page, "isn’t AV1") != 1 {
+		t.Errorf("error in the computer box: %d %d", i, j)
+	}
+	if loc := send("computer", tall); !strings.Contains(loc, "err=video-wide") {
+		t.Errorf("tall for computers: %s", loc)
+	}
+	if loc := send("phone", wide); !strings.Contains(loc, "err=video-tall") {
+		t.Errorf("wide for phones: %s", loc)
+	}
+	if v := a.store.HeroVideo(); v.Computer != nil || v.Phone != nil {
+		t.Fatalf("nothing kept: %+v", v)
+	}
+
+	if loc := send("computer", wide); !strings.Contains(loc, "ok=video-added") {
+		t.Fatalf("computer: %s", loc)
+	}
+	if loc := send("phone", tall); !strings.Contains(loc, "ok=video-added") {
+		t.Fatalf("phone: %s", loc)
+	}
 	v := a.store.HeroVideo()
-	if v.Video == "" || v.Phone == "" || v.Dirty || v.Error != "" {
-		t.Fatalf("video not made: %+v", v)
+	c, p := v.Computer, v.Phone
+	if c == nil || p == nil || c.W != 1920 || c.H != 1080 || p.W != 720 || p.H != 1280 || c.Poster == "" || !strings.Contains(c.Type, "av01.") {
+		t.Fatalf("stored: %+v %+v", c, p)
 	}
-	for _, c := range v.Clips {
-		if !c.Ready() || c.Raw != "" || c.Thumb == "" || math.Abs(c.Secs-4) > 0.2 {
-			t.Errorf("clip %+v", c)
+	if len(c.Warn) != 0 || len(p.Warn) != 1 || !strings.Contains(p.Warn[0], "Smaller than 1080×1920") {
+		t.Errorf("warnings: %q %q", c.Warn, p.Warn)
+	}
+	served := filepath.Join(a.videoDir(), filepath.Base(c.File))
+	// The very same picture: its checksum matches the upload's.
+	sum := func(f string) string {
+		out, err := runTool(ffmpeg, "-hide_banner", "-loglevel", "error", "-i", f, "-map", "0:v", "-c", "copy", "-f", "md5", "-")
+		if err != nil {
+			t.Fatal(err)
 		}
+		return string(out)
 	}
-	if c := v.Clips[2]; !c.Vertical() || c.W != 1080 || c.H != 1920 {
-		t.Errorf("a vertical clip keeps its shape and size: %dx%d", c.W, c.H)
+	if sum(served) != sum(wide) {
+		t.Error("the picture was changed")
 	}
-	if c := v.Clips[1]; c.W != 640 || c.H != 360 {
-		t.Errorf("a small clip isn't enlarged: %dx%d", c.W, c.H)
+	out, _ := runTool(ffprobe, "-v", "error", "-show_entries", "stream=codec_type:format_tags:stream_tags", "-of", "default", served)
+	if s := string(out); strings.Contains(s, "audio") || strings.Contains(s, "Secret") || strings.Contains(s, "location") || strings.Contains(s, "+38.29") {
+		t.Errorf("sound or camera details kept:\n%s", s)
 	}
-	for url, want := range map[string][2]int{v.Video: {1280, 720}, v.Phone: {720, 1280}, v.VideoAV1: {1280, 720}, v.PhoneAV1: {720, 1280}} {
-		if url == "" {
-			continue // AV1, where this ffmpeg can't make it
-		}
-		info, err := probeClip(ffprobe, filepath.Join(a.videoDir(), strings.TrimPrefix(url, "/media/video/")))
-		if err != nil || info.W != want[0] || info.H != want[1] || math.Abs(info.Secs-9) > 0.25 { // 4+4+4, less three fades
-			t.Errorf("%s: %+v %v", url, info, err)
-		}
-	}
-	if useAV1(ffmpeg) && (v.VideoAV1 == "" || v.PhoneAV1 == "") {
-		t.Errorf("AV1 copies: %+v", v)
-	}
-	if a.vid.n != a.vid.steps || a.vid.steps == 0 {
-		t.Errorf("every step counted: %d of %d", a.vid.n, a.vid.steps)
-	}
-	if st := a.VideoStatus(); st.Busy {
-		t.Errorf("done: %+v", st)
-	}
-	if v.Poster == "" || v.PhonePoster == "" {
-		t.Errorf("a still for each: %+v", v)
-	}
-	if entries, _ := os.ReadDir(a.videoUploadDir()); len(entries) != 0 {
-		t.Errorf("uploads are deleted once prepared: %d left", len(entries))
-	}
-	file := filepath.Join(a.videoDir(), strings.TrimPrefix(v.Video, "/media/video/"))
-	page := do(t, h, nil, "GET", "/", "", nil).Body.String()
-	if !strings.Contains(page, `src="`+v.Video+`"`) || !strings.Contains(page, `src="`+v.Phone+`"`) || !strings.Contains(page, "video-fitted") ||
-		!strings.Contains(page, `srcset="`+v.PhonePoster+`"`) {
-		t.Error("the home page plays the made video, with each still")
-	}
-	if v.PhoneAV1 != "" && strings.Index(page, v.PhoneAV1) > strings.Index(page, `src="`+v.Phone+`"`) {
-		t.Error("AV1 comes first, so browsers that can play it pick it")
-	}
-	if w := do(t, h, nil, "GET", v.Video, "", nil); w.Code != http.StatusOK || w.Header().Get("Content-Type") != "video/mp4" {
-		t.Errorf("served: %d %s", w.Code, w.Header().Get("Content-Type"))
+	if left, _ := os.ReadDir(a.videoUploadDir()); len(left) != 0 {
+		t.Errorf("uploads left: %v", left)
 	}
 
-	// Removing one remakes it from the other; the old files go.
-	a.store.RemoveHeroClip(v.Clips[0].ID)
-	a.dropClipFiles(*v.Clips[0])
-	a.videoWork(context.Background())
-	v2 := a.store.HeroVideo()
-	if v2.Video == v.Video || v2.Video == "" {
-		t.Errorf("remade: %+v", v2)
+	home := do(t, h, nil, "GET", "/", "", nil).Body.String()
+	for _, want := range []string{`src="` + p.File + `"`, `media="(max-width: 767px)"`, `src="` + c.File + `"`, `media="(min-width: 768px)"`, `codecs=&#34;av01.`, `srcset="` + c.Poster + `"`} {
+		if !strings.Contains(home, want) {
+			t.Errorf("home page should have %s", want)
+		}
 	}
-	if _, err := os.Stat(file); !os.IsNotExist(err) {
-		t.Error("the old video is deleted")
+	page = do(t, h, admin, "GET", "/admin/home-photos", "", nil).Body.String()
+	for _, want := range []string{"Computer video", "Phone video", "AV1 · 1920×1080", "AV1 · 1080×1920", "Gabe Test.mp4", "1920×1080 · 4 s", "Smaller than 1080×1920"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("admin page should show %q", want)
+		}
+	}
+
+	// Replacing one deletes the old files; removing deletes its own.
+	if loc := send("computer", wide); !strings.Contains(loc, "ok=video-added") {
+		t.Fatalf("replace: %s", loc)
+	}
+	if _, err := os.Stat(served); err == nil {
+		t.Error("the replaced video is deleted")
+	}
+	ct, b := form(nil)
+	do(t, h, admin, "POST", "/admin/home-video/phone/remove", ct, b)
+	if v := a.store.HeroVideo(); v.Phone != nil || v.Computer == nil {
+		t.Errorf("removed: %+v", v)
+	}
+	if _, err := os.Stat(filepath.Join(a.videoDir(), filepath.Base(p.File))); err == nil {
+		t.Error("the removed video is deleted")
 	}
 }
 
-// ffmpeg reports how far it has got, for the admin page's progress bar.
-func TestRunToolProgress(t *testing.T) {
-	ffmpeg, _ := videoTools()
-	if ffmpeg == "" {
-		t.Skip("ffmpeg isn't installed")
-	}
-	var last float64
-	calls := 0
-	err := runToolProgress(context.Background(), ffmpeg, 3, func(p float64) { last = p; calls++ }, "-hide_banner", "-loglevel", "error", "-y",
-		"-f", "lavfi", "-i", "testsrc2=size=320x240:rate=30", "-t", "3", "-c:v", "libx264", "-preset", "ultrafast", filepath.Join(t.TempDir(), "p.mp4"))
-	if err != nil || calls == 0 || last < 0.9 || last > 1 {
-		t.Errorf("progress: %v calls, last %.2f, %v", calls, last, err)
-	}
-	if err := runToolProgress(context.Background(), ffmpeg, 1, nil, "-hide_banner", "-loglevel", "error", "-i", "nothing-here.mp4", "-f", "null", "-"); err == nil {
-		t.Error("a failed run is an error")
-	}
-}
-
-// AV1 only on a server with room for it, unless told.
-func TestUseAV1(t *testing.T) {
-	ffmpeg, _ := videoTools()
-	t.Setenv("PAXVELO_AV1", "off")
-	if useAV1(ffmpeg) {
-		t.Error("off means off")
-	}
-	t.Setenv("PAXVELO_AV1", "")
-	if memoryGB() <= 0 {
-		t.Error("memory")
-	}
-}
-
-// At startup, files a restart cut off halfway, and uploads whose clip is gone,
-// are deleted; everything in use stays.
+// At startup, files no video uses (older versions' clips and loops, half-done
+// uploads) are deleted; the videos in use stay.
 func TestCleanVideoFiles(t *testing.T) {
 	a, _, _ := testApp(t)
 	for _, d := range []string{a.videoDir(), a.videoUploadDir()} {
 		os.MkdirAll(d, 0o755)
 	}
-	for _, n := range []string{"clip-1-aa.mp4", "clip-1-aa.jpg", "clip-1-old.mp4", "home-1.mp4", "home-1-phone.jpg", "home-2-master.mp4", "other.txt"} {
+	for _, n := range []string{"computer-1.mp4", "computer-1.jpg", "clip-1-aa.mp4", "home-1.mp4", "home-2-av1.mp4"} {
 		os.WriteFile(filepath.Join(a.videoDir(), n), []byte("x"), 0o644)
 	}
-	for _, n := range []string{"raw-keep.mp4", "raw-gone.mp4"} {
-		os.WriteFile(filepath.Join(a.videoUploadDir(), n), []byte("x"), 0o600)
-	}
-	a.store.updateHeroVideo(func(v *HeroVideo) error {
-		v.Clips = []*HeroClip{{ID: 1, File: "clip-1-aa.mp4", Thumb: "/media/video/clip-1-aa.jpg"}, {ID: 2, Raw: "raw-keep.mp4"}}
-		v.Video, v.PhonePoster = "/media/video/home-1.mp4", "/media/video/home-1-phone.jpg"
-		return nil
-	})
+	os.WriteFile(filepath.Join(a.videoUploadDir(), "raw-1.mp4"), []byte("x"), 0o600)
+	a.store.SetHeroFile("computer", &HeroFile{File: "/media/video/computer-1.mp4", Poster: "/media/video/computer-1.jpg"})
 	a.cleanVideoFiles()
-	for n, want := range map[string]bool{"clip-1-aa.mp4": true, "clip-1-aa.jpg": true, "home-1.mp4": true, "home-1-phone.jpg": true, "other.txt": true,
-		"clip-1-old.mp4": false, "home-2-master.mp4": false} {
+	for n, want := range map[string]bool{"computer-1.mp4": true, "computer-1.jpg": true, "clip-1-aa.mp4": false, "home-1.mp4": false, "home-2-av1.mp4": false} {
 		if _, err := os.Stat(filepath.Join(a.videoDir(), n)); (err == nil) != want {
 			t.Errorf("%s kept %v, want %v", n, err == nil, want)
 		}
 	}
-	if _, err := os.Stat(filepath.Join(a.videoUploadDir(), "raw-keep.mp4")); err != nil {
-		t.Error("an upload waiting to be prepared stays")
-	}
-	if _, err := os.Stat(filepath.Join(a.videoUploadDir(), "raw-gone.mp4")); err == nil {
-		t.Error("an upload with no clip goes")
+	if _, err := os.Stat(a.videoUploadDir()); err == nil {
+		t.Error("half-done uploads are deleted")
 	}
 }
 
-// Removing the clip being prepared stops ffmpeg there and then, instead of
-// finishing it (and making the video) first.
-func TestRemoveStopsVideo(t *testing.T) {
-	ffmpeg, _ := videoTools()
-	if ffmpeg == "" {
-		t.Skip("ffmpeg isn't installed")
+// An older version's data (clips and a loop made from them) loads without
+// a video.
+func TestOldHeroVideoData(t *testing.T) {
+	var v struct {
+		HeroVideo HeroVideo `json:"hero_video"`
 	}
-	a, h, admin := testApp(t)
-	os.MkdirAll(a.videoUploadDir(), 0o700)
-	raw := "long.mp4"
-	if _, err := runTool(ffmpeg, "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "testsrc2=size=1080x1920:rate=30", "-t", "30",
-		"-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", filepath.Join(a.videoUploadDir(), raw)); err != nil {
+	if err := json.Unmarshal([]byte(`{"hero_video":{"clips":[{"id":1,"name":"Club rides"}],"seeded":true,"video":"/media/video/home-1.mp4"}}`), &v); err != nil {
 		t.Fatal(err)
 	}
-	c, err := a.store.AddHeroClip("Long", raw)
-	if err != nil {
-		t.Fatal(err)
-	}
-	a.kickVideo()
-	idle := func() bool { return !a.VideoBusy() && !a.videoWaiting() }
-	wait := func(what string, d time.Duration, ok func() bool) time.Duration {
-		start := time.Now()
-		for !ok() {
-			if time.Since(start) > d {
-				t.Fatalf("%s: still waiting after %s", what, d)
-			}
-			time.Sleep(20 * time.Millisecond)
-		}
-		return time.Since(start)
-	}
-	wait("preparing", 10*time.Second, func() bool {
-		a.vid.mu.Lock()
-		defer a.vid.mu.Unlock()
-		return a.vid.preparing == c.ID && a.vid.pct > 0
-	})
-	ct, b := form(nil)
-	do(t, h, admin, "POST", "/admin/home-video/clips/"+strconv.Itoa(c.ID)+"/remove", ct, b)
-	took := wait("stopping", 3*time.Second, idle)
-	t.Logf("stopped %s after Remove", took)
-	v := a.store.HeroVideo()
-	if len(v.Clips) != 0 || v.Error != "" || v.Video != "" || v.Dirty {
-		t.Errorf("after: %+v", v)
-	}
-	if _, err := os.Stat(filepath.Join(a.videoUploadDir(), raw)); err == nil {
-		t.Error("the upload is deleted")
-	}
-	if left, _ := filepath.Glob(filepath.Join(a.videoDir(), "clip-*")); len(left) > 0 {
-		t.Errorf("half-made files left: %v", left)
+	if v.HeroVideo.view() != nil {
+		t.Errorf("old data plays nothing: %+v", v.HeroVideo)
 	}
 }

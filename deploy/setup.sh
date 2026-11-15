@@ -14,7 +14,7 @@ apt-get install -y caddy
 # LibreOffice without a screen, for turning Word minutes into PDFs (docpdf.go),
 # and fonts that match Word's (Calibri, Cambria, Arial, Times New Roman).
 apt-get install -y --no-install-recommends libreoffice-writer-nogui fonts-crosextra-carlito fonts-crosextra-caladea fonts-liberation
-# ffmpeg, for the home page video made from clips admins upload (herovideo.go).
+# ffmpeg, to check and clean the home page videos admins upload (herovideo.go).
 apt-get install -y --no-install-recommends ffmpeg
 id paxvelo >/dev/null 2>&1 || useradd --system --home /opt/paxvelo --shell /usr/sbin/nologin paxvelo
 mkdir -p /opt/paxvelo/data /opt/paxvelo/backups

@@ -99,14 +99,6 @@ func (r *Route) TimeLabel() string {
 // Stats is the route in one line: "21 mi · 400 ft of climbing".
 func (r *Route) Stats() string { return r.Miles() + " · " + r.Feet() + " of climbing" }
 
-func thousands(n int) string {
-	s := fmt.Sprint(n)
-	if n >= 1000 {
-		s = s[:len(s)-3] + "," + s[len(s)-3:]
-	}
-	return s
-}
-
 // Notes is the ride notes from the Strava event. The club's Strava events
 // are private only to keep bots out, so their notes and starts are public.
 func (o RideOcc) Notes() string {

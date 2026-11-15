@@ -271,6 +271,9 @@
   // motion off (CSS hides it too), so it doesn't download for them.
   var heroVid=d.querySelector('.hero-video');
   if(heroVid&&((navigator.connection&&navigator.connection.saveData)||(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches))){heroVid.remove();heroVid=null}
+  // It's AV1 only: a browser that can't play it (older iPhones and Macs), or a
+  // computer when there's only a phone video, keeps the still under it.
+  if(heroVid&&![].some.call(heroVid.querySelectorAll('source'),function(s){return (!s.media||!window.matchMedia||matchMedia(s.media).matches)&&heroVid.canPlayType(s.type)})){heroVid.remove();heroVid=null}
   // It plays only while it's on screen: scrolled past, it pauses, which saves
   // phones' battery and data.
   if(heroVid&&'IntersectionObserver' in window)new IntersectionObserver(function(es){
