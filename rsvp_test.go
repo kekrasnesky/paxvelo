@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -165,6 +166,31 @@ func TestRSVP(t *testing.T) {
 	}
 	if csv := do(t, h, admin, "GET", "/admin/rsvp/1/answers.csv", "", nil).Body.String(); !strings.Contains(csv, "Pat Rider,pat@example.com,Maybe,0,,Cookies") {
 		t.Errorf("the spreadsheet: %s", csv)
+	}
+
+	// Removing answers: one row's, or every ticked one; Undo puts them back.
+	ct, body = form(url.Values{"member": {strconv.Itoa(sam.ID)}})
+	if w := do(t, h, admin, "POST", "/admin/rsvp/1/answers/remove", ct, body); !strings.HasSuffix(w.Header().Get("Location"), "#dropped") {
+		t.Errorf("removing Sam's answer: %s", w.Header().Get("Location"))
+	}
+	if e, _ := a.store.RSVPEvent(1); len(e.Replies) != 1 {
+		t.Errorf("after removing one: %+v", e.Replies)
+	}
+	if page := do(t, h, admin, "GET", "/admin/rsvp/1", "", nil).Body.String(); !strings.Contains(page, "Removed Sam’s answer") {
+		t.Error("the page should offer Undo")
+	}
+	do(t, h, admin, "POST", "/admin/rsvp/1/answers/restore", "", nil)
+	ct, body = form(url.Values{"member": {strconv.Itoa(sam.ID), strconv.Itoa(pat.ID)}})
+	do(t, h, admin, "POST", "/admin/rsvp/1/answers/remove", ct, body)
+	if e, _ := a.store.RSVPEvent(1); len(e.Replies) != 0 {
+		t.Errorf("after removing the ticked ones: %+v", e.Replies)
+	}
+	if page := do(t, h, admin, "GET", "/admin/rsvp/1", "", nil).Body.String(); !strings.Contains(page, "Removed 2 answers") {
+		t.Error("Undo for two")
+	}
+	do(t, h, admin, "POST", "/admin/rsvp/1/answers/restore", "", nil)
+	if e, _ := a.store.RSVPEvent(1); len(e.Replies) != 2 {
+		t.Errorf("after Undo: %+v", e.Replies)
 	}
 
 	// An event can keep the guest list to admins.

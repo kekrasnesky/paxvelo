@@ -24,6 +24,13 @@ type RSVPBook struct {
 	Next    int          `json:"next,omitempty"`
 	Events  []*RSVPEvent `json:"events,omitempty"`
 	Removed *RSVPEvent   `json:"removed,omitempty"` // the last event removed, for Undo
+	Dropped *RSVPDropped `json:"dropped,omitempty"` // the last answers removed, for Undo
+}
+
+// RSVPDropped are answers an admin took off an event, kept for Undo.
+type RSVPDropped struct {
+	Event   int         `json:"event"`
+	Replies []RSVPReply `json:"replies"`
 }
 
 type RSVPEvent struct {
@@ -394,15 +401,63 @@ func (s *Store) AnswerRSVP(id int, m Member, r RSVPReply, now time.Time) error {
 	return errNotFound
 }
 
-// DropRSVPReply takes a member's answer off an event (an admin tidying up).
-func (s *Store) DropRSVPReply(id, member int) error {
+// DropRSVPReplies takes members' answers off an event (an admin tidying
+// up), keeping them for Undo. It says how many went.
+func (s *Store) DropRSVPReplies(id int, members []int) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, e := range s.d.RSVP.Events {
-		if e.ID == id {
-			e.Replies = slices.DeleteFunc(e.Replies, func(r RSVPReply) bool { return r.Member == member })
-			return s.save()
+		if e.ID != id {
+			continue
 		}
+		var gone []RSVPReply
+		e.Replies = slices.DeleteFunc(e.Replies, func(r RSVPReply) bool {
+			if slices.Contains(members, r.Member) {
+				gone = append(gone, r)
+				return true
+			}
+			return false
+		})
+		if len(gone) == 0 {
+			return 0, nil
+		}
+		s.d.RSVP.Dropped = &RSVPDropped{Event: id, Replies: gone}
+		return len(gone), s.save()
+	}
+	return 0, errNotFound
+}
+
+// DroppedRSVP is the last answers removed, if they were from this event.
+func (s *Store) DroppedRSVP(id int) *RSVPDropped {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	d := s.d.RSVP.Dropped
+	if d == nil || d.Event != id {
+		return nil
+	}
+	return &RSVPDropped{Event: d.Event, Replies: slices.Clone(d.Replies)}
+}
+
+// RestoreRSVPReplies puts the last removed answers back (unless the member
+// has answered again since).
+func (s *Store) RestoreRSVPReplies(id int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	d := s.d.RSVP.Dropped
+	if d == nil || d.Event != id {
+		return nil
+	}
+	for _, e := range s.d.RSVP.Events {
+		if e.ID != id {
+			continue
+		}
+		for _, r := range d.Replies {
+			if !slices.ContainsFunc(e.Replies, func(x RSVPReply) bool { return x.Member == r.Member }) {
+				e.Replies = append(e.Replies, r)
+			}
+		}
+		s.d.RSVP.Dropped = nil
+		return s.save()
 	}
 	return errNotFound
 }

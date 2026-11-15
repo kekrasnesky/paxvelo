@@ -15,6 +15,7 @@
     {{if $c.Maybe}}<span><strong>{{$c.Maybe}}</strong> <span class="muted">maybe</span></span>{{end}}
     {{if $c.No}}<span><strong>{{$c.No}}</strong> <span class="muted">can’t</span></span>{{end}}
     {{if .IsOpen $k.Now}}<span class="tag tag-ok">Open</span>{{else}}<span class="tag">Closed</span>{{end}}
+    <form method="post" action="/admin/rsvp/{{.ID}}/remove" class="inline"><button class="link danger" title="Remove this invitation and its answers">{{icon "trash"}}Remove</button></form>
   </span>
 </li>{{else}}<li class="empty">No invitations yet.</li>{{end}}
 </ul>
@@ -37,7 +38,9 @@
   <form method="post" action="/admin/rsvp/{{$e.ID}}/email" class="inline"><button title="Writes the invitation on Email → Send an email, with each member’s own RSVP link"{{if not $k.Open}} disabled{{end}}>{{icon "mail"}}Write the invitation email</button></form>
   <form method="post" action="/admin/rsvp/{{$e.ID}}/close" class="inline">{{if $e.Closed}}<input type="hidden" name="closed" value="0"><button class="ghost">{{icon "undo"}}Take RSVPs again</button>{{else}}<input type="hidden" name="closed" value="1"><button class="ghost">{{icon "ban"}}Stop taking RSVPs</button>{{end}}</form>
   <a class="btn ghost" href="/rsvp/{{$e.ID}}?t=test" target="_blank" rel="noopener" title="The page as members see it (answers aren’t saved)">{{icon "eye"}}See the page</a>
+  <form method="post" action="/admin/rsvp/{{$e.ID}}/remove" class="inline rsvp-remove"><button class="link danger" title="Remove this invitation and its answers">{{icon "trash"}}Remove</button></form>
 </div>
+{{with $k.Dropped}}<form class="flash warn undo-flash" id="dropped" method="post" action="/admin/rsvp/{{$e.ID}}/answers/restore">Removed {{if eq (len .Replies) 1}}{{(index .Replies 0).Name}}’s answer{{else}}{{len .Replies}} answers{{end}}. <button class="link">{{icon "undo"}}Undo</button></form>{{end}}
 
 <section class="card" id="answers">
   <div class="title-row">
@@ -50,17 +53,32 @@
     <span><strong>{{$c.No}}</strong> <span class="muted">can’t make it</span></span>
     <span><strong>{{len $k.Waiting}}</strong> <span class="muted">members haven’t answered</span></span>
   </p>
-  {{if $e.Replies}}<div class="table-wrap"><table class="rsvp-table">
-    <thead><tr><th>Name</th><th>Answer</th><th>Bringing along</th>{{if $e.AskBringing}}<th>Bringing to share</th>{{end}}<th class="nowrap">Answered</th><th></th></tr></thead>
+  {{if $e.Replies}}<form id="bulk" class="bulk-bar" method="post" action="/admin/rsvp/{{$e.ID}}/answers/remove" hidden>
+    <span class="bulk-n"></span>
+    <button class="mini ghost danger">{{icon "trash"}}Remove them</button>
+    <button type="button" class="link small bulk-clear">Clear</button>
+  </form>
+  <div class="table-wrap"><table class="tight cards rsvp-table">
+    <thead><tr><th class="pick-col"><input type="checkbox" class="pick-all" aria-label="Tick every answer"></th><th>Name</th><th>Answer</th><th>Bringing along</th>{{if $e.AskBringing}}<th>Bringing to share</th>{{end}}<th class="nowrap">Answered</th><th></th></tr></thead>
     <tbody>{{range $e.ByAnswer}}<tr class="rsvp-{{.Answer}}">
-      <td><strong>{{.Name}}</strong><br><span class="muted small">{{.Email}}</span>{{with .Note}}<br><span class="small">“{{.}}”</span>{{end}}</td>
-      <td class="nowrap"><span class="tag{{if eq .Answer "yes"}} tag-ok{{else if eq .Answer "maybe"}} tag-warn{{end}}">{{.AnswerLabel}}</span></td>
-      <td>{{if .Guests}}+{{.Guests}}{{with .Who}} · {{.}}{{end}}{{end}}</td>
-      {{if $e.AskBringing}}<td>{{.Bringing}}</td>{{end}}
-      <td class="nowrap muted small">{{date .Updated}}</td>
-      <td class="right"><form method="post" action="/admin/rsvp/{{$e.ID}}/answers/{{.Member}}/remove" class="inline" onsubmit="return confirm('Take {{.Name}}’s answer off?')"><button class="link danger" title="Take this answer off">{{icon "trash"}}<span class="sr">Remove</span></button></form></td>
+      <td class="pick-col" data-label="Tick"><input type="checkbox" name="member" value="{{.Member}}" form="bulk" aria-label="Tick {{.Name}}"></td>
+      <td data-label="Name"><strong>{{.Name}}</strong><br><span class="muted small">{{.Email}}</span>{{with .Note}}<br><span class="small">“{{.}}”</span>{{end}}</td>
+      <td class="nowrap" data-label="Answer"><span class="tag{{if eq .Answer "yes"}} tag-ok{{else if eq .Answer "maybe"}} tag-warn{{end}}">{{.AnswerLabel}}</span></td>
+      <td data-label="Bringing along">{{if .Guests}}+{{.Guests}}{{with .Who}} · {{.}}{{end}}{{else}}<span class="muted">—</span>{{end}}</td>
+      {{if $e.AskBringing}}<td data-label="Bringing to share">{{with .Bringing}}{{.}}{{else}}<span class="muted">—</span>{{end}}</td>{{end}}
+      <td class="nowrap muted small" data-label="Answered">{{date .Updated}}</td>
+      <td class="cell-act right"><div class="acts"><form method="post" action="/admin/rsvp/{{$e.ID}}/answers/remove"><input type="hidden" name="member" value="{{.Member}}"><button class="link danger">{{icon "trash"}}Remove</button></form></div></td>
     </tr>{{end}}</tbody>
   </table></div>
+  <script>
+  // Ticking answers shows a bar to remove them all at once (like Members).
+  (function(){var bulk=document.getElementById('bulk'),table=document.querySelector('.rsvp-table'),all=table.querySelector('.pick-all');
+  function picks(){return [].slice.call(table.querySelectorAll('tbody input[name=member]'))}
+  function count(){var n=picks().filter(function(c){return c.checked}).length;bulk.hidden=!n;bulk.querySelector('.bulk-n').textContent=n+(n===1?' answer ticked':' answers ticked');all.checked=n>0&&n===picks().length}
+  table.addEventListener('change',function(e){if(e.target===all)picks().forEach(function(c){c.checked=all.checked});count()});
+  bulk.querySelector('.bulk-clear').addEventListener('click',function(){picks().forEach(function(c){c.checked=false});count()});
+  count()})();
+  </script>
   {{else}}<p class="empty">No answers yet.</p>{{end}}
 
   {{if and $e.AskBringing $e.Bringing}}<h3>Who’s bringing what</h3>
@@ -74,7 +92,6 @@
 <details class="card" id="details">
   <summary class="btn ghost">{{icon "pencil"}}Edit details</summary>
   {{template "rsvp-form" $e}}
-  <form method="post" action="/admin/rsvp/{{$e.ID}}/remove" class="inline rsvp-remove" onsubmit="return confirm('Remove {{$e.Title}} and its answers?')"><button class="link danger">{{icon "trash"}}Remove this invitation</button></form>
 </details>
 {{template "foot" .}}{{end}}
 

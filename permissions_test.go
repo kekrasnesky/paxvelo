@@ -53,7 +53,7 @@ var websiteAdminRoutes = map[string]bool{
 	"GET /admin/minutes": true,
 	"GET /admin/rsvp":    true, "POST /admin/rsvp": true, "POST /admin/rsvp/restore": true, "GET /admin/rsvp/{id}": true, "POST /admin/rsvp/{id}": true,
 	"GET /admin/rsvp/{id}/answers.csv": true, "POST /admin/rsvp/{id}/close": true, "POST /admin/rsvp/{id}/email": true,
-	"POST /admin/rsvp/{id}/remove": true, "POST /admin/rsvp/{id}/answers/{member}/remove": true,
+	"POST /admin/rsvp/{id}/remove": true, "POST /admin/rsvp/{id}/answers/remove": true, "POST /admin/rsvp/{id}/answers/restore": true,
 	"GET /admin/loaners": true, "POST /admin/loaners/bikes": true, "POST /admin/loaners/bikes/{id}/remove": true,
 	"POST /admin/loaners/{id}/confirm": true, "POST /admin/loaners/{id}/decline": true, "POST /admin/loaners/{id}/cancel": true,
 	"GET /admin/treasurer/requests": true, "POST /admin/treasurer/requests": true, "GET /admin/treasurer/receipts/{name}": true,

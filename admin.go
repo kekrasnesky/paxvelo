@@ -292,7 +292,6 @@ var flashText = map[string]string{
 	"rsvp-closed":          "No more RSVPs: the page now says they’re closed.",
 	"rsvp-opened":          "Taking RSVPs again.",
 	"rsvp-restored":        "Put back.",
-	"rsvp-dropped":         "Answer taken off.",
 	"kit-item":             "Saved.",
 	"kit-restored":         "Put back.",
 	"kit-round":            "Next year’s order is ready. Last year’s orders are under Orders.",

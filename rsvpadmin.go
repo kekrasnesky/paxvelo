@@ -22,6 +22,7 @@ type rsvpAdminView struct {
 	Waiting []Member // current members who haven't answered
 	Open    bool
 	Removed *RSVPEvent
+	Dropped *RSVPDropped // answers just removed from this event, for Undo
 	Now     time.Time
 }
 
@@ -40,7 +41,7 @@ func (a *App) rsvpAdminEvent(w http.ResponseWriter, r *http.Request) {
 		back(w, r, rsvpAdminPath+"?err=rsvp-gone")
 		return
 	}
-	v := rsvpAdminView{Event: &e, Count: e.Count(), Open: e.IsOpen(time.Now()), Now: time.Now()}
+	v := rsvpAdminView{Event: &e, Count: e.Count(), Open: e.IsOpen(time.Now()), Dropped: a.store.DroppedRSVP(id), Now: time.Now()}
 	answered := map[int]bool{}
 	for _, rep := range e.Replies {
 		answered[rep.Member] = true
@@ -138,14 +139,36 @@ func (a *App) restoreRSVP(w http.ResponseWriter, r *http.Request) {
 	back(w, r, rsvpAdminPath+"/"+strconv.Itoa(id)+"?ok=rsvp-restored")
 }
 
-func (a *App) dropRSVPReply(w http.ResponseWriter, r *http.Request) {
+// dropRSVPReplies takes answers off: a row's Remove, or every ticked one.
+// Undo puts them back.
+func (a *App) dropRSVPReplies(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.Atoi(r.PathValue("id"))
-	member, _ := strconv.Atoi(r.PathValue("member"))
-	if err := a.store.DropRSVPReply(id, member); err != nil {
+	r.ParseForm()
+	var members []int
+	for _, m := range r.Form["member"] {
+		if n, err := strconv.Atoi(m); err == nil {
+			members = append(members, n)
+		}
+	}
+	here := rsvpAdminPath + "/" + strconv.Itoa(id)
+	n, err := a.store.DropRSVPReplies(id, members)
+	switch {
+	case err != nil:
+		back(w, r, rsvpAdminPath+"?err=rsvp-gone")
+	case n == 0:
+		back(w, r, here+"#answers")
+	default:
+		back(w, r, here+"#dropped")
+	}
+}
+
+func (a *App) restoreRSVPReplies(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.Atoi(r.PathValue("id"))
+	if err := a.store.RestoreRSVPReplies(id); err != nil {
 		back(w, r, rsvpAdminPath+"?err=rsvp-gone")
 		return
 	}
-	back(w, r, rsvpAdminPath+"/"+strconv.Itoa(id)+"?ok=rsvp-dropped#answers")
+	back(w, r, rsvpAdminPath+"/"+strconv.Itoa(id)+"?ok=rsvp-restored#answers")
 }
 
 // rsvpEmail writes the invitation into the Email members draft, with each

@@ -1309,4 +1309,5 @@ dl.facts dd{margin:0;overflow-wrap:anywhere}
 .rsvp-bringing{margin:.3rem 0 1rem;padding-left:1.2rem}
 .rsvp-waiting{margin-top:.8rem}
 .rsvp-edit{display:grid;gap:.8rem;margin-top:.8rem}
-.rsvp-remove{display:block;margin-top:1rem}
+.rsvp-acts .rsvp-remove{margin-left:auto;align-self:center}
+
