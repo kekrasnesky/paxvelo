@@ -2035,7 +2035,9 @@ document.querySelectorAll('.copy-link').forEach(function(b){b.addEventListener('
     <div class="photo-field">
       {{template "framer" (framer (or .Hero.Photo "/photos/hero.webp") .Hero.Focus "hero_focus" "hero")}}
       <div class="fields">
-        <label>Replace it with <input type="file" name="hero_photo" id="hero-file" accept="image/jpeg,image/png,image/webp"></label>
+        <input type="hidden" name="hero_gallery" id="hero-gallery">
+        <button type="button" class="ghost gal-choose" id="hero-choose">Choose from the gallery</button>
+        <label>Or upload a photo <input type="file" name="hero_photo" id="hero-file" accept="image/jpeg,image/png,image/webp"></label>
         <label>What’s in the photo <input name="hero_alt" value="{{.Hero.Alt}}" maxlength="120" placeholder="Riders climbing a country road on the Saturday ride"></label>
         {{if .Hero.Photo}}<label class="check"><input type="checkbox" name="builtin"> Go back to the original photo</label>{{end}}
       </div>
@@ -2043,6 +2045,18 @@ document.querySelectorAll('.copy-link').forEach(function(b){b.addEventListener('
     <div class="save-bar"><button>{{icon "save"}}Save top photo</button></div>
   </section>
 </form>
+<script>
+// Choose from the gallery: the picked photo shows right away, ready to
+// frame, and becomes the top photo when Save top photo is pressed.
+(function(){var f=document.getElementById('hero'),box=f.querySelector('.photo-field'),g=document.getElementById('hero-gallery'),file=document.getElementById('hero-file'),
+  alt=f.elements.hero_alt,back=f.elements.builtin;
+  document.getElementById('hero-choose').addEventListener('click',function(){pickFromGallery(1,function(urls,caps){if(!urls[0])return;
+    g.value=urls[0];file.value='';if(back)back.checked=false;
+    var c=(caps[0]||'').split(' · Photo by ')[0];if(!/^Photo by /.test(c)&&c)alt.value=c;
+    var t=document.createElement('div');t.innerHTML=framerHTML(urls[0],'hero_focus','hero');box.replaceChild(t.firstChild,box.firstElementChild);initFramer(box.firstElementChild)})});
+  file.addEventListener('change',function(){if(file.files.length)g.value=''});
+})();
+</script>
 {{with .Video}}<section class="card issue video-card" id="video">
   <div class="video-head">
     <h2>Top video</h2>
@@ -2106,7 +2120,9 @@ document.querySelectorAll('form.video-upload').forEach(function(f){
   </section>{{end}}
   {{if lt (len .HomePhotos) .MaxHomePhotos}}<section class="card">
     <h2>Add photos</h2>
-    <label>Photos <input type="file" name="add" id="add-photos" accept="image/jpeg,image/png,image/webp" multiple data-room="{{sub .MaxHomePhotos (len .HomePhotos)}}"></label>
+    <button type="button" class="ghost gal-choose" id="add-gallery">Choose from the gallery</button>
+    <label>Or upload photos <input type="file" name="add" id="add-photos" accept="image/jpeg,image/png,image/webp" multiple data-room="{{sub .MaxHomePhotos (len .HomePhotos)}}"></label>
+    <div class="picked" id="from-gallery" hidden></div>
     <div class="picked" id="picked" hidden></div>
   </section>{{end}}
   <div class="save-bar"><button id="save-photos">{{icon "save"}}Save</button><span class="muted small" id="save-status" role="status"></span></div>
@@ -2123,7 +2139,7 @@ function cards(){return [].slice.call(form.querySelectorAll('.home-photo'))}
 function order(){return cards().map(function(c){return c.querySelector('[name^=photo]').value}).join('|')}
 var startOrder=order();
 function pending(){
-  var adding=add?add.files.length:0,removing=form.querySelectorAll('.remove-photo:checked').length,parts=[];
+  var adding=(add?add.files.length:0)+galleryCount(),removing=form.querySelectorAll('.remove-photo:checked').length,parts=[];
   if(order()!==startOrder)parts.push('a new order');
   if(adding)parts.push(n(adding,'photo','photos')+' to add');
   if(removing)parts.push(n(removing,'photo','photos')+' to remove');
@@ -2151,8 +2167,21 @@ form.querySelectorAll('.drag-handle').forEach(function(h){
 });
 form.querySelectorAll('.remove-photo').forEach(function(c){c.addEventListener('change',function(){
   var card=c.closest('.home-photo');card.classList.toggle('removing',c.checked);card.querySelector('.removing-note').hidden=!c.checked;pending()})});
+// Choose from the gallery: picked photos show here and join the row on Save.
+var gal=document.getElementById('from-gallery'),galBtn=document.getElementById('add-gallery');
+function galleryCount(){return gal?gal.children.length:0}
+function room(){return add?+add.dataset.room-galleryCount():0}
+if(galBtn)galBtn.addEventListener('click',function(){
+  if(room()<=0){status.textContent='The row is full. Remove a photo to add another.';return}
+  pickFromGallery(room(),function(urls,caps){urls.forEach(function(u,i){
+    var c=(caps[i]||'').split(' · Photo by ')[0];if(/^Photo by /.test(c))c='';
+    var fg=document.createElement('figure');fg.innerHTML='<img src="'+esc(u)+'" alt=""><figcaption><button type="button" class="link danger small">Remove</button></figcaption>'+
+      '<input type="hidden" name="gallery" value="'+esc(u)+'"><input type="hidden" name="gallery_alt" value="'+esc(c)+'">';
+    fg.querySelector('button').addEventListener('click',function(){fg.remove();gal.hidden=!galleryCount();pending()});
+    gal.appendChild(fg)});
+    gal.hidden=!galleryCount();if(add.files.length)changed(add);pending()})});
 if(add)add.addEventListener('change',function(){
-  picked.innerHTML='';var fs=add.files,room=+add.dataset.room;
+  picked.innerHTML='';var fs=add.files,room=+add.dataset.room-galleryCount();
   for(var i=0;i<fs.length;i++){var f=document.createElement('figure'),img=document.createElement('img'),cap=document.createElement('figcaption');
     img.src=URL.createObjectURL(fs[i]);img.alt='';cap.textContent=fs[i].name;f.appendChild(img);f.appendChild(cap);if(i>=room)f.className='over';picked.appendChild(f)}
   picked.hidden=!fs.length;

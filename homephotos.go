@@ -108,8 +108,24 @@ func (a *App) saveHomePhotos(w http.ResponseWriter, r *http.Request) {
 		photos = append(photos, rw.HomePhoto)
 	}
 
-	// New photos go on the end, as many as there's room for.
+	// New photos go on the end, as many as there's room for: picked from
+	// the gallery first (already copied, see galleryPicked), then uploads.
 	var problems []string
+	alts := r.Form["gallery_alt"]
+	for i, u := range r.Form["gallery"] {
+		if len(photos) >= maxHomePhotos {
+			break
+		}
+		if !strings.HasPrefix(u, "/media/") || !sitePhoto(u) {
+			continue
+		}
+		p := HomePhoto{Photo: u}
+		if i < len(alts) {
+			p.Alt = cleanName(strings.TrimSpace(alts[i]))
+		}
+		photos = append(photos, p)
+		added++
+	}
 	if r.MultipartForm != nil {
 		files := r.MultipartForm.File["add"]
 		for i, fh := range files {

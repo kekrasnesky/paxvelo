@@ -136,6 +136,10 @@ func (a *App) saveHero(w http.ResponseWriter, r *http.Request) {
 	} else {
 		h.Alt = cleanName(strings.TrimSpace(r.FormValue("hero_alt")))
 		h.Focus = cleanFocus(r.FormValue("hero_focus"))
+		if u := r.FormValue("hero_gallery"); strings.HasPrefix(u, "/media/") && sitePhoto(u) && u != h.Photo {
+			// Picked from the gallery (already copied, see galleryPicked).
+			h.Photo, h.Focus = u, cleanFocus(r.FormValue("hero_focus"))
+		}
 		if r.MultipartForm != nil {
 			if files := r.MultipartForm.File["hero_photo"]; len(files) > 0 {
 				u, err := a.savePhotoFile(files[0])

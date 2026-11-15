@@ -236,6 +236,21 @@ func TestGalleryToNewsletter(t *testing.T) {
 	if b := a.store.Board(); len(b) != 1 || b[0].Photo != picked.URLs[0] {
 		t.Errorf("board %+v", b)
 	}
+	// So does Home photos, for the photo row and the top photo.
+	if page := do(t, h, admin, "GET", "/admin/home-photos", "", nil).Body.String(); strings.Count(page, `class="ghost gal-choose"`) != 2 {
+		t.Error("Home photos should offer Choose from the gallery for the top photo and the row")
+	}
+	before := len(a.store.HomePhotos())
+	ct, body = form(url.Values{"count": {"0"}, "gallery": {picked.URLs[0], "/etc/passwd"}, "gallery_alt": {"Costumes", "x"}})
+	do(t, h, admin, "POST", "/admin/home-photos", ct, body)
+	if hp := a.store.HomePhotos(); len(hp) != 1 || hp[0].Photo != picked.URLs[0] || hp[0].Alt != "Costumes" {
+		t.Errorf("home photos (had %d) %+v", before, hp)
+	}
+	ct, body = form(url.Values{"hero_gallery": {picked.URLs[0]}, "hero_focus": {"30% 40%"}})
+	do(t, h, admin, "POST", "/admin/home-hero", ct, body)
+	if hero := a.store.Hero(); hero.Photo != picked.URLs[0] || hero.Focus != "30% 40%" {
+		t.Errorf("hero %+v", hero)
+	}
 	if got := newsCaption(GalleryPhoto{Caption: "Costumes", By: "Sam"}); got != "Costumes · Photo by Sam" {
 		t.Errorf("caption %q", got)
 	}
