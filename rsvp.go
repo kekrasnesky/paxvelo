@@ -47,6 +47,7 @@ type RSVPEvent struct {
 	AskBringing bool        `json:"ask_bringing,omitempty"`
 	HideGuests  bool        `json:"hide_guests,omitempty"` // members don't see who's coming (they do by default)
 	NoReminder  bool        `json:"no_reminder,omitempty"` // no day-before reminder for this one
+	Ride        string      `json:"ride,omitempty"`        // the club calendar event it's for (a RideOcc key), rsvpcal.go
 	Closed      bool        `json:"closed,omitempty"`      // no more answers
 	Closes      string      `json:"closes,omitempty"`      // last day to answer, 2006-01-02; empty = until the event
 	Created     time.Time   `json:"created"`

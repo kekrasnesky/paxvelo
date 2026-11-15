@@ -209,7 +209,6 @@ func newSite(cfg Config) (*Site, error) {
 		"mdy":          mdy,
 		"blankRow":     func() budgetRow { return budgetRow{} },
 		"blankKitItem": func() KitItem { return KitItem{} },
-		"blankRSVP":    func() RSVPEvent { return RSVPEvent{} },
 		"nextKitName":  func() string { return strconv.Itoa(time.Now().In(clubTZ).Year()+1) + " club kit order" },
 		"sentBatch":    func(b submittedBatch, albums []Album) sentBatchView { return sentBatchView{Batch: b, Albums: albums} },
 		"riderLevels":  func() []choice { return riderLevels },
@@ -218,7 +217,7 @@ func newSite(cfg Config) (*Site, error) {
 		"guardianText": func() template.HTML { return s.waiver.Guardian },
 		"loanerText":   func() template.HTML { return s.waiver.Loaner },
 	}
-	base, err := template.New("").Funcs(funcs).ParseFS(webFS, "web/templates/layout.html", "web/templates/signature.html")
+	base, err := template.New("").Funcs(funcs).ParseFS(webFS, "web/templates/layout.html", "web/templates/signature.html", "web/templates/rsvp-parts.html")
 	if err != nil {
 		return nil, err
 	}

@@ -39,6 +39,7 @@ const (
 	mailRequest      = "Spending request"
 	mailLoaner       = "Loaner bike"
 	mailRSVPReminder = "RSVP reminder"
+	mailRSVPLink     = "RSVP link"
 )
 
 type sentEmail struct {

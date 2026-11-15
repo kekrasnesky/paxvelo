@@ -1,5 +1,5 @@
 {{define "head"}}<meta name="robots" content="noindex">{{end}}
-{{define "content"}}{{with .Data}}{{$v := .}}{{$f := .Value}}
+{{define "content"}}{{with .Data}}{{$v := .}}
 <article class="page page-narrow rsvp">
   <p class="label">RSVP</p>
   <h1>{{.Event.Title}}</h1>
@@ -13,47 +13,10 @@
     </div>
     {{with .OtherApps}}<p class="rsvp-other">Also: {{range $i, $l := .}}{{if $i}} · {{end}}<a href="{{$l.URL}}"{{if $l.NewTab}} target="_blank" rel="noopener"{{end}}>{{$l.Label}}</a>{{end}}</p>{{end}}{{end}}
   </div>{{end}}
+  {{with .CalLink}}<p class="rsvp-on-cal"><a href="{{.}}">On the club calendar →</a></p>{{end}}
 
-  <section id="answer" class="rsvp-answer">
-  {{if .Test}}<p class="cal-note">That was a test email, so this link isn’t anyone’s. In the real email, each member’s link opens their own RSVP.</p>
-  {{else if .Invalid}}<p class="cal-note">Open the RSVP button in the email we sent you: it’s your own link. Lost it? Email the club and we’ll send it again.</p>{{end}}
+  <section id="answer" class="rsvp-answer">{{template "rsvp-answer" .}}</section>
 
-  {{if and .Saved .Reply}}<div class="joined rsvp-saved" tabindex="-1">
-    <p class="joined-title">{{if eq .Reply.Answer "yes"}}Thanks, {{.Member.FirstName}}! See you there.{{else if eq .Reply.Answer "maybe"}}Thanks, {{.Member.FirstName}}! Let us know when you’re sure.{{else}}Thanks for letting us know, {{.Member.FirstName}}.{{end}}</p>
-  </div>{{end}}
-
-  {{if and .Reply (not .Saved)}}<p class="rsvp-current">Your answer: <strong>{{.Reply.AnswerLabel}}</strong>{{if .Reply.Guests}}, plus {{.Reply.Guests}}{{end}}{{with .Reply.Bringing}} · bringing {{.}}{{end}}</p>{{end}}
-
-  {{if and (not .Open) (or .Member .Test)}}<p class="cal-note">{{if .Past}}This was on {{.Event.When}}.{{else}}RSVPs are closed. Email the club if your plans changed.{{end}}</p>
-  {{else if or .Member .Test}}
-  {{if .Reply}}<details class="rsvp-change"{{if or .Message (not .Saved)}} open{{end}}><summary class="btn btn-quiet">Change my answer</summary>{{end}}
-  <form class="join rsvp-form" method="post" action="/rsvp/{{.Event.ID}}">
-    <input type="hidden" name="t" value="{{.Token}}">
-    {{with .Message}}<p class="cal-msg cal-err" role="alert">{{.}}</p>{{end}}
-    <label>Your name <input name="name" required maxlength="100" autocomplete="name" value="{{$f.Name}}"></label>
-    <fieldset class="pick rsvp-pick">
-      <legend>Can you come?{{with .Event.ClosesLabel}} <span class="rsvp-by">Let us know by {{.}}</span>{{end}}</legend>
-      {{range .Answers}}<label><input type="radio" name="answer" value="{{.Value}}" required{{if eq .Value $f.Answer}} checked{{end}}><span><strong>{{.Label}}</strong></span></label>{{end}}
-    </fieldset>
-    <div class="rsvp-more rsvp-yes pair">
-      <label>Bringing anyone? <select name="guests"><option value="0">Just me</option>{{range .GuestChoices}}<option value="{{.}}"{{if eq . $f.Guests}} selected{{end}}>Me + {{.}}</option>{{end}}</select></label>
-      <label>Who’s coming with you? <input name="who" maxlength="200" value="{{$f.Who}}" placeholder="Their names (optional)"></label>
-    </div>
-    {{if .Event.AskBringing}}<label class="rsvp-more rsvp-bring">What are you bringing? (optional) <input name="bringing" maxlength="200" value="{{$f.Bringing}}" placeholder="A dish, drinks, dessert…"></label>{{end}}
-    <label class="rsvp-more">Anything else? (optional) <input name="note" maxlength="300" value="{{$f.Note}}"></label>
-    <button class="btn" type="submit">{{if .Reply}}Save my answer{{else}}Send my RSVP{{end}}</button>
-  </form>
-  {{if .Reply}}</details>{{end}}
-  {{end}}
-  </section>
-
-  {{if .ShowGuests}}{{$c := .Event.Count}}<section class="rsvp-going" id="going">
-    <h2>Who’s coming{{if $c.Coming}} <span class="rsvp-going-count">{{$c.Coming}}</span>{{end}}</h2>
-    {{with .Event.Going}}<ul class="rsvp-going-list">{{range .}}<li>
-      <strong>{{.Name}}</strong>{{if .Guests}} <span class="rsvp-plus">+{{.Guests}}</span>{{end}}{{if eq .Answer "maybe"}} <span class="rsvp-maybe">maybe</span>{{end}}
-      {{if or .Who .Bringing}}<span class="rsvp-going-more">{{with .Who}}with {{.}}{{end}}{{if and .Who .Bringing}} · {{end}}{{with .Bringing}}bringing {{.}}{{end}}</span>{{end}}
-    </li>{{end}}</ul>
-    {{else}}<p class="muted">No one yet.</p>{{end}}
-  </section>{{end}}
+  {{template "rsvp-guests" .}}
 </article>
 {{end}}{{end}}

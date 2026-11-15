@@ -24,13 +24,28 @@ type rsvpAdminView struct {
 	Removed    *RSVPEvent
 	Dropped    *RSVPDropped // answers just removed from this event, for Undo
 	ReminderOn bool         // the day-before reminder is switched on
+	Form       rsvpFormData // the new-invitation or edit form
+	OnCal      *RideOcc     // the calendar event it's tied to
 	Now        time.Time
 }
 
 const rsvpAdminPath = "/admin/rsvp"
 
+// rsvpFormData is the invitation form: the invitation, and the calendar's
+// events it can be tied to (Ride preselected: its own, or the only event on
+// its day).
+type rsvpFormData struct {
+	E      RSVPEvent
+	Events []RideOcc
+	Ride   string
+}
+
+func (a *App) rsvpForm(e RSVPEvent) rsvpFormData {
+	return rsvpFormData{E: e, Events: a.calEvents(), Ride: a.guessRide(e)}
+}
+
 func (a *App) rsvpAdmin(w http.ResponseWriter, r *http.Request) {
-	v := rsvpAdminView{Events: a.store.RSVPEvents(), Removed: a.store.RemovedRSVP(), Now: time.Now()}
+	v := rsvpAdminView{Events: a.store.RSVPEvents(), Removed: a.store.RemovedRSVP(), Now: time.Now(), Form: a.rsvpForm(RSVPEvent{AskBringing: true})}
 	flash, errMsg := flashFrom(r)
 	a.renderAdmin(w, r, http.StatusOK, "rsvps", adminView{Title: "RSVPs", Tab: "rsvp", Flash: flash, Error: errMsg, RSVP: &v})
 }
@@ -42,7 +57,10 @@ func (a *App) rsvpAdminEvent(w http.ResponseWriter, r *http.Request) {
 		back(w, r, rsvpAdminPath+"?err=rsvp-gone")
 		return
 	}
-	v := rsvpAdminView{Event: &e, Count: e.Count(), Open: e.IsOpen(time.Now()), Dropped: a.store.DroppedRSVP(id), ReminderOn: a.store.RSVPReminderOn(), Now: time.Now()}
+	v := rsvpAdminView{Event: &e, Count: e.Count(), Open: e.IsOpen(time.Now()), Dropped: a.store.DroppedRSVP(id), ReminderOn: a.store.RSVPReminderOn(), Now: time.Now(), Form: a.rsvpForm(e)}
+	if o, ok := a.store.Ride(e.Ride); ok && e.Ride != "" {
+		v.OnCal = &o
+	}
 	answered := map[int]bool{}
 	for _, rep := range e.Replies {
 		answered[rep.Member] = true
@@ -83,6 +101,14 @@ func (a *App) saveRSVPEvent(w http.ResponseWriter, r *http.Request) {
 		HideGuests:  r.FormValue("show_guests") == "",
 		NoReminder:  r.FormValue("remind") == "",
 		Closes:      strings.TrimSpace(r.FormValue("closes")),
+	}
+	if k := r.FormValue("ride"); k != "" {
+		if o, ok := a.store.Ride(k); ok {
+			e.Ride = k
+			if e.Date == "" { // the calendar has the day
+				e.Date, e.Time = o.Date, or(e.Time, o.Time)
+			}
+		}
 	}
 	if len(e.Details) > 1000 {
 		e.Details = e.Details[:1000]

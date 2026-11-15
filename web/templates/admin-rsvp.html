@@ -22,7 +22,7 @@
 
 <details class="card rsvp-new"{{if not $k.Events}} open{{end}}>
   <summary class="btn ghost">{{icon "plus"}}New invitation</summary>
-  {{template "rsvp-form" blankRSVP}}
+  {{template "rsvp-form" $k.Form}}
 </details>
 {{template "foot" .}}{{end}}
 
@@ -33,7 +33,7 @@
   <p>{{if $k.Open}}<span class="tag tag-ok">Taking RSVPs{{with $e.ClosesLabel}} until {{.}}{{end}}</span>{{else}}<span class="tag">Closed</span>{{end}}
     {{if $e.Reminded}}<span class="tag" title="The day-before reminder">Reminder sent to {{$e.Reminded}}</span>{{else if and $k.ReminderOn $e.ReminderLabel (not ($e.Past $k.Now))}}<a class="tag" href="/admin/email/auto#a-rsvp-reminder" title="Emailed to everyone who said I’ll be there or Maybe">Reminder {{$e.ReminderLabel}}</a>{{end}}</p>
 </div>
-<p class="muted">{{or $e.When "No date"}}{{with $e.Place}} · {{.}}{{end}}</p>
+<p class="muted">{{or $e.When "No date"}}{{with $e.Place}} · {{.}}{{end}}{{with $k.OnCal}} · <a href="/calendar/ride/{{.Key}}#rsvp" target="_blank" rel="noopener" title="Its event on the club calendar">{{icon "calendar"}}On the calendar</a>{{end}}</p>
 
 <div class="card rsvp-acts">
   <form method="post" action="/admin/rsvp/{{$e.ID}}/email" class="inline"><button title="Writes the invitation on Email → Send an email, with each member’s own RSVP link"{{if not $k.Open}} disabled{{end}}>{{icon "mail"}}Write the invitation email</button></form>
@@ -92,11 +92,11 @@
 
 <details class="card" id="details">
   <summary class="btn ghost">{{icon "pencil"}}Edit details</summary>
-  {{template "rsvp-form" $e}}
+  {{template "rsvp-form" $k.Form}}
 </details>
 {{template "foot" .}}{{end}}
 
-{{define "rsvp-form"}}<form class="rsvp-edit" method="post" action="/admin/rsvp{{if .ID}}/{{.ID}}{{end}}">
+{{define "rsvp-form"}}{{$fd := .}}{{with .E}}<form class="rsvp-edit" method="post" action="/admin/rsvp{{if .ID}}/{{.ID}}{{end}}">
   <label>Name <input name="title" maxlength="100" required value="{{.Title}}" placeholder="December Meeting"></label>
   <div class="pair">
     <label>Date <input type="date" name="date" value="{{.Date}}"></label>
@@ -112,5 +112,6 @@
     <label class="check" title="On the RSVP page, from a member’s own link: names, guests and what they’re bringing"><input type="checkbox" name="show_guests" value="1"{{if not .HideGuests}} checked{{end}}> Members see who’s coming</label>
     <label class="check" title="Emailed the day before to everyone who said I’ll be there or Maybe (Email → Automations → RSVP reminder)"><input type="checkbox" name="remind" value="1"{{if not .NoReminder}} checked{{end}}> Remind them the day before</label>
   </div>
+  <label title="The club calendar shows who’s coming on this event, and its page takes RSVPs">On the calendar <select name="ride"><option value="">Not on the calendar</option>{{range $fd.Events}}<option value="{{.Key}}"{{if eq .Key $fd.Ride}} selected{{end}}>{{.ShortDate}}{{with .TimeLabel}} · {{.}}{{end}} · {{.Name}}</option>{{end}}</select></label>
   <div class="row-acts"><button>{{icon "save"}}Save</button></div>
-</form>{{end}}
+</form>{{end}}{{end}}

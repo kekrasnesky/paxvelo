@@ -16,18 +16,21 @@ import (
 // a member's link it shows only the event's name and day, never the place.
 
 type rsvpView struct {
-	Event   RSVPEvent
-	Open    bool
-	Past    bool
-	Token   string
-	Member  *Member
-	Reply   *RSVPReply // their answer so far
-	Test    bool       // the link in a test email
-	Invalid bool       // no member's link, or one that isn't anyone's any more
-	Saved   bool
-	Message string
-	Answers []choice
-	Apple   bool // an iPhone, iPad or Mac: Apple Maps and the calendar file first
+	Event    RSVPEvent
+	Open     bool
+	Past     bool
+	Token    string
+	Member   *Member
+	Reply    *RSVPReply // their answer so far
+	Test     bool       // the link in a test email
+	Invalid  bool       // no member's link, or one that isn't anyone's any more
+	Saved    bool
+	Message  string
+	Answers  []choice
+	Apple    bool   // an iPhone, iPad or Mac: Apple Maps and the calendar file first
+	Back     string // the calendar event's key, when it's shown on the event's page
+	CalLink  string // the event on the club calendar, for the RSVP page
+	LinkSent bool   // someone just asked for their link by email
 	// The form as sent, when it comes back with a message.
 	Form RSVPReply
 }
@@ -47,10 +50,23 @@ func (v rsvpView) Value() RSVPReply {
 	return RSVPReply{}
 }
 
-// ShowGuests says the page lists who's coming: from a member's own link,
-// unless the event keeps it to admins.
+// ShowGuests says the page lists who's coming: from a member's own link or
+// on the club calendar, unless the event keeps it to admins.
 func (v rsvpView) ShowGuests() bool {
-	return (v.Member != nil || v.Test) && !v.Event.HideGuests
+	return (v.Member != nil || v.Test || v.Back != "") && !v.Event.HideGuests
+}
+
+// Private says the visitor came from a member's own link (or a test email),
+// so names show in full and who's coming with them shows too.
+func (v rsvpView) Private() bool { return v.Member != nil || v.Test }
+
+// GuestName is an answer's name as this page shows it: in full from a
+// member's link, short ("Pat R.") on the public calendar.
+func (v rsvpView) GuestName(r RSVPReply) string {
+	if v.Private() {
+		return r.Name
+	}
+	return shortName(r.Name)
 }
 
 // CalendarLink is the member's own "Add to my calendar" address for kind
@@ -173,6 +189,16 @@ func (a *App) rsvpPage(w http.ResponseWriter, r *http.Request) {
 	}
 	v.Saved = r.URL.Query().Get("saved") != ""
 	v.Apple = appleDevice(r)
+	v.LinkSent = r.URL.Query().Get("ok") == "rsvplink"
+	v.Message = calError[r.URL.Query().Get("err")]
+	if v.Event.Ride != "" {
+		if _, ok := a.store.Ride(v.Event.Ride); ok {
+			v.CalLink = "/calendar/ride/" + v.Event.Ride
+			if v.Member != nil {
+				v.CalLink += "?t=" + url.QueryEscape(v.Token) + "#rsvp"
+			}
+		}
+	}
 	a.renderRSVP(w, http.StatusOK, v)
 }
 
@@ -232,6 +258,10 @@ func (a *App) rsvpAnswer(w http.ResponseWriter, r *http.Request) {
 		log.Printf("rsvp %d: %v", id, err)
 		v.Message = "Something went wrong on our end. Try again in a minute."
 		a.renderRSVP(w, http.StatusInternalServerError, v)
+		return
+	}
+	if k := r.PostFormValue("back"); k != "" && k == v.Event.Ride { // answered on the club calendar
+		http.Redirect(w, r, "/calendar/ride/"+k+"?t="+url.QueryEscape(t)+"&saved=1#rsvp", http.StatusSeeOther)
 		return
 	}
 	http.Redirect(w, r, "/rsvp/"+strconv.Itoa(id)+"?t="+url.QueryEscape(t)+"&saved=1#answer", http.StatusSeeOther)

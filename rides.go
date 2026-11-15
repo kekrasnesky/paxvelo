@@ -140,8 +140,9 @@ type CalRide struct {
 type RideOcc struct {
 	Key string // s3-2026-11-04 for a weekly ride's date, r12 for a one-off ride
 	CalRide
-	Custom bool   // a one-off ride, not a weekly one
-	Route  *Route // the Strava route, when the event has one
+	Custom bool       // a one-off ride, not a weekly one
+	Route  *Route     // the Strava route, when the event has one
+	RSVP   *rsvpOnCal `json:"-"` // its invitation's answers, on the calendar pages (rsvpcal.go)
 }
 
 func (o RideOcc) TimeLabel() string { return timeLabel(o.Time) }

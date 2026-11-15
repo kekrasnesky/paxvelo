@@ -37,12 +37,14 @@ type calView struct {
 	Token                  string // form token, for spam checks
 
 	// One ride
-	Ride      RideOcc
-	Spots     []spotView
-	Series    bool
-	Past      bool
-	CanManage bool         // open, with a leader, so a leader can step down or cancel with the club PIN
-	Loaners   []bikeChoice // ready loaner bikes, while the ride takes requests (loaners.go)
+	Ride       RideOcc
+	Spots      []spotView
+	Series     bool
+	Past       bool
+	CanManage  bool         // open, with a leader, so a leader can step down or cancel with the club PIN
+	Loaners    []bikeChoice // ready loaner bikes, while the ride takes requests (loaners.go)
+	RSVP       *rsvpView    // the event's invitation, when it has one (rsvpcal.go)
+	Directions string       // the event's Directions button, with an invitation
 
 	// Adding a ride
 	Form     CalRide
@@ -57,6 +59,7 @@ var calFlash = map[string]string{
 	"cancelled": "Ride cancelled.",
 	"restored":  "Ride back on the calendar.",
 	"strava":    "Strava event link saved.",
+	"rsvplink":  "If that email is on our list, your RSVP link is on its way.",
 }
 
 var calError = map[string]string{
@@ -73,6 +76,8 @@ var calError = map[string]string{
 	"notyours":  "That name isn’t leading this ride. Type it the way you signed up, or ask a club admin.",
 	"form":      "Add at least a date and a name for the ride.",
 	"link":      "Paste the event’s Strava link, starting with https://www.strava.com/.",
+	"rsvpemail": "Type the email you get club emails at.",
+	"rsvplimit": "Too many links sent. Try again in an hour.",
 }
 
 func (a *App) calBase(r *http.Request) calView {
@@ -166,8 +171,10 @@ func (a *App) month(m string) calMonth {
 func (a *App) calendarPage(w http.ResponseWriter, r *http.Request) {
 	v := a.calBase(r)
 	m := a.month(r.URL.Query().Get("m"))
+	a.withRSVPsMonth(&m)
 	v.MonthLabel, v.Prev, v.Next, v.Weeks, v.Days, v.NoDays = m.MonthLabel, m.Prev, m.Next, m.Weeks, m.Days, m.NoDays
 	v.Upcoming, v.UpcomingNote = a.upcomingRides()
+	a.withRSVPs(v.Upcoming)
 	a.renderCal(w, http.StatusOK, "calendar", "/calendar", "Club Calendar", v)
 }
 
@@ -257,6 +264,25 @@ func (a *App) ridePage(w http.ResponseWriter, r *http.Request) {
 	}
 	v := a.calBase(r)
 	a.rideRights(&v, o)
+	if v.RSVP = a.calRSVP(r, o); v.RSVP != nil {
+		if v.RSVP.LinkSent = r.URL.Query().Get("ok") == "rsvplink"; v.RSVP.LinkSent {
+			v.Flash = ""
+		}
+		if m := calError[r.URL.Query().Get("err")]; strings.HasPrefix(r.URL.Query().Get("err"), "rsvp") {
+			v.RSVP.Message, v.Error = m, ""
+		}
+		switch {
+		case v.RSVP.Directions() != "": // the invitation's place, from a member's link
+			v.Directions = v.RSVP.Directions()
+		case o.Place != "" && v.RSVP.Apple:
+			v.Directions = mapsLink("apple", o.Place)
+		default:
+			v.Directions = o.Directions()
+		}
+		if r.URL.Query().Get("t") != "" {
+			w.Header().Set("Referrer-Policy", "same-origin") // the link is theirs
+		}
+	}
 	a.renderCal(w, http.StatusOK, "ride", "/calendar", o.Name, v)
 }
 
