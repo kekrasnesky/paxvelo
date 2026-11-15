@@ -16,14 +16,15 @@ import (
 // coming, who they're bringing and what, as the answers come in (rsvp.go).
 
 type rsvpAdminView struct {
-	Events  []RSVPEvent // the list
-	Event   *RSVPEvent  // the one open
-	Count   RSVPCount
-	Waiting []Member // current members who haven't answered
-	Open    bool
-	Removed *RSVPEvent
-	Dropped *RSVPDropped // answers just removed from this event, for Undo
-	Now     time.Time
+	Events     []RSVPEvent // the list
+	Event      *RSVPEvent  // the one open
+	Count      RSVPCount
+	Waiting    []Member // current members who haven't answered
+	Open       bool
+	Removed    *RSVPEvent
+	Dropped    *RSVPDropped // answers just removed from this event, for Undo
+	ReminderOn bool         // the day-before reminder is switched on
+	Now        time.Time
 }
 
 const rsvpAdminPath = "/admin/rsvp"
@@ -41,7 +42,7 @@ func (a *App) rsvpAdminEvent(w http.ResponseWriter, r *http.Request) {
 		back(w, r, rsvpAdminPath+"?err=rsvp-gone")
 		return
 	}
-	v := rsvpAdminView{Event: &e, Count: e.Count(), Open: e.IsOpen(time.Now()), Dropped: a.store.DroppedRSVP(id), Now: time.Now()}
+	v := rsvpAdminView{Event: &e, Count: e.Count(), Open: e.IsOpen(time.Now()), Dropped: a.store.DroppedRSVP(id), ReminderOn: a.store.RSVPReminderOn(), Now: time.Now()}
 	answered := map[int]bool{}
 	for _, rep := range e.Replies {
 		answered[rep.Member] = true
@@ -80,6 +81,7 @@ func (a *App) saveRSVPEvent(w http.ResponseWriter, r *http.Request) {
 		Details:     strings.TrimSpace(strings.ReplaceAll(r.FormValue("details"), "\r\n", "\n")),
 		AskBringing: r.FormValue("ask_bringing") != "",
 		HideGuests:  r.FormValue("show_guests") == "",
+		NoReminder:  r.FormValue("remind") == "",
 		Closes:      strings.TrimSpace(r.FormValue("closes")),
 	}
 	if len(e.Details) > 1000 {

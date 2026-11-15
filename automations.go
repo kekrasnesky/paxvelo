@@ -195,6 +195,7 @@ func (a *App) automationLoop(ctx context.Context) {
 	for {
 		a.runAutomations(time.Now())
 		a.runRequestReminders(time.Now()) // requestreminders.go
+		a.runRSVPReminders(time.Now())    // rsvpreminder.go
 		select {
 		case <-t.C:
 		case <-ctx.Done():
@@ -304,7 +305,7 @@ func (s *Store) RestoreAutomation(id int) bool {
 // deleted one leaves the list and stops: it is switched off (confirm: new
 // joiners start confirmed; welcome: paused) or, for the site-move email,
 // its buttons go. The president can put it back from the list's foot.
-var builtinKeys = []string{"confirm", "welcome", "moved"}
+var builtinKeys = []string{"confirm", "welcome", "rsvp-reminder", "moved"}
 
 func isBuiltinKey(k string) bool { return slices.Contains(builtinKeys, k) }
 
@@ -328,6 +329,8 @@ func (s *Store) RemoveBuiltin(key string) error {
 		s.d.ConfirmOff = true
 	case "welcome":
 		s.d.Welcome.Enabled = false
+	case "rsvp-reminder":
+		s.d.RSVP.ReminderOff = true
 	}
 	return s.save()
 }
@@ -346,6 +349,8 @@ func (s *Store) RestoreBuiltin(key string) error {
 		s.d.ConfirmOff = false
 	case "welcome":
 		s.d.Welcome.Enabled = true
+	case "rsvp-reminder":
+		s.d.RSVP.ReminderOff = false
 	}
 	return s.save()
 }
@@ -549,7 +554,7 @@ func (a *App) sentCounts() (map[string]int, map[string]time.Time) {
 // remove the ones admins made (the board).
 func (a *App) autoRows(canRemove bool) (autos, manual []autoRow) {
 	n, last := a.sentCounts()
-	w, c, mv := a.store.Welcome(), a.store.ConfirmText(), a.store.MovedEmail()
+	w, c, mv, rr := a.store.Welcome(), a.store.ConfirmText(), a.store.MovedEmail(), a.store.RSVPReminderText()
 	autos = []autoRow{
 		{Key: "confirm", Name: "Confirm your email", When: "Right away when someone joins on the website", Who: "The new member",
 			Subject: c.Subject, Paused: !a.store.ConfirmOn(), CanPause: true, CanEdit: true, Sent: n[mailConfirm], Last: last[mailConfirm],
@@ -557,6 +562,9 @@ func (a *App) autoRows(canRemove bool) (autos, manual []autoRow) {
 		{Key: "welcome", Name: "Welcome email", When: "The first time someone who joined on the website is marked paid", Who: "The new member",
 			Subject: w.Subject, Paused: !w.Enabled, CanPause: true, CanEdit: true, Sent: n[mailWelcome], Last: last[mailWelcome],
 			About: "With where to start riding, from their answer on the join form."},
+		{Key: "rsvp-reminder", Name: "RSVP reminder", When: "The day before an invitation’s day, from 9 am", Who: "Members who answered I’ll be there or Maybe",
+			Subject: rr.Subject, Paused: !a.store.RSVPReminderOn(), CanPause: true, CanEdit: true, Sent: n[mailRSVPReminder], Last: last[mailRSVPReminder],
+			About: "With their answer, the place, a Directions button and their link to change it. Once per answer. An invitation can skip it: untick Remind them the day before on Email → RSVPs."},
 	}
 	for _, au := range a.store.Automations() {
 		r := autoRow{Key: strconv.Itoa(au.ID), Name: au.Name, When: au.When(), Who: "Members who reach that point, unless they unsubscribed",
@@ -601,7 +609,7 @@ func (a *App) autoPage(w http.ResponseWriter, r *http.Request) {
 		av.Removed = strconv.Itoa(id)
 	}
 	if a.isBoard(r) {
-		names := map[string]string{"confirm": "Confirm your email", "welcome": "Welcome email", "moved": "Site-move email"}
+		names := map[string]string{"confirm": "Confirm your email", "welcome": "Welcome email", "rsvp-reminder": "RSVP reminder", "moved": "Site-move email"}
 		for _, k := range builtinKeys {
 			if a.store.BuiltinRemoved(k) {
 				av.Gone = append(av.Gone, autoRow{Key: k, Name: names[k]})
@@ -630,6 +638,10 @@ func (a *App) autoFormFor(key string) (*autoForm, bool) {
 		we := a.store.Welcome()
 		return &autoForm{Key: key, Name: "Welcome email", Subject: we.Subject, Body: we.Body, Paused: !we.Enabled, Welcome: true, Pieces: piecesWelcome,
 			About: "Goes the first time someone who joined on the website is marked paid."}, true
+	case "rsvp-reminder":
+		e := a.store.RSVPReminderText()
+		return &autoForm{Key: key, Name: "RSVP reminder", Subject: e.Subject, Body: e.Body, Paused: !a.store.RSVPReminderOn(), Pieces: piecesRSVPReminder,
+			About: "Goes the day before an invitation’s day to everyone who answered I’ll be there or Maybe."}, true
 	case "moved":
 		e := a.store.MovedEmail()
 		return &autoForm{Key: key, Name: "Site-move email", Subject: e.Subject, Body: e.Body, Pieces: piecesMember,
@@ -704,6 +716,8 @@ func (a *App) autoSave(w http.ResponseWriter, r *http.Request) {
 		err = a.store.SetConfirmText(EmailDraft{Subject: f.Subject, Body: f.Body})
 	case "moved":
 		err = a.store.SetMovedEmail(EmailDraft{Subject: f.Subject, Body: f.Body})
+	case "rsvp-reminder":
+		err = a.store.SetRSVPReminderText(EmailDraft{Subject: f.Subject, Body: f.Body})
 	case "welcome":
 		we := a.store.Welcome()
 		we.Subject, we.Body = f.Subject, f.Body
@@ -742,6 +756,8 @@ func (a *App) autoPause(w http.ResponseWriter, r *http.Request) {
 		a.store.SetWelcome(we)
 	case "confirm":
 		a.store.SetConfirmOn(!paused)
+	case "rsvp-reminder":
+		a.store.SetRSVPReminderOn(!paused)
 	default:
 		id, _ := strconv.Atoi(key)
 		a.store.PauseAutomation(id, paused)
@@ -821,6 +837,10 @@ func (a *App) autoPreview(w http.ResponseWriter, r *http.Request) {
 		pat.PaidYears = nil
 		d.Body = a.fillConfirm(d.Body, pat)
 	}
+	if key == "rsvp-reminder" {
+		e, rep := a.sampleRSVP()
+		d.Subject, d.Body = fillRSVPReminder(d.Subject, e, rep), fillRSVPReminder(d.Body, e, rep)
+	}
 	page, err := a.site.renderEmail(a.mailer.personalize(d.Subject, pat), a.mailer.personalize(d.Body, pat), memberLinks{Mine: "#", Unsub: "#"}, "")
 	if err != nil {
 		http.Error(w, "The preview couldn’t be made.", http.StatusInternalServerError)
@@ -849,6 +869,10 @@ func (a *App) autoTest(w http.ResponseWriter, r *http.Request) {
 	if r.PathValue("key") == "confirm" {
 		d.Body = a.fillConfirm(d.Body, Member{Token: testToken, Plan: "individual", Level: "some"})
 	}
+	if r.PathValue("key") == "rsvp-reminder" {
+		e, rep := a.sampleRSVP()
+		d.Subject, d.Body = fillRSVPReminder(d.Subject, e, rep), fillRSVPReminder(d.Body, e, rep)
+	}
 	if err := a.mailer.SendTest(to, d.Subject, d.Body); err != nil {
 		say(false, "The test didn’t send: "+err.Error())
 		return
@@ -861,4 +885,4 @@ func (a *App) autoTest(w http.ResponseWriter, r *http.Request) {
 }
 
 // mailPieces are the pieces each kind of email editor offers, for templates.
-var mailPieces = map[string][]autoPiece{"member": piecesMember, "welcome": piecesWelcome, "confirm": piecesConfirm}
+var mailPieces = map[string][]autoPiece{"member": piecesMember, "welcome": piecesWelcome, "confirm": piecesConfirm, "rsvp-reminder": piecesRSVPReminder}

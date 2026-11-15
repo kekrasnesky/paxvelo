@@ -25,19 +25,20 @@ const emailLogMax = 4 << 20
 
 // Kinds of email, as the sent log names them.
 const (
-	mailCampaign   = "Email to members"
-	mailWelcome    = "Welcome email"
-	mailTest       = "Test email"
-	mailClub       = "Notice to the club"
-	mailSignup     = "New member alert"
-	mailPassword   = "Admin password link"
-	mailWaiverLink = "Waiver link"
-	mailMyLink     = "Membership link"
-	mailConfirm    = "Email check"
-	mailMoved      = "Site-move email"
-	mailAuto       = "Automated email"
-	mailRequest    = "Spending request"
-	mailLoaner     = "Loaner bike"
+	mailCampaign     = "Email to members"
+	mailWelcome      = "Welcome email"
+	mailTest         = "Test email"
+	mailClub         = "Notice to the club"
+	mailSignup       = "New member alert"
+	mailPassword     = "Admin password link"
+	mailWaiverLink   = "Waiver link"
+	mailMyLink       = "Membership link"
+	mailConfirm      = "Email check"
+	mailMoved        = "Site-move email"
+	mailAuto         = "Automated email"
+	mailRequest      = "Spending request"
+	mailLoaner       = "Loaner bike"
+	mailRSVPReminder = "RSVP reminder"
 )
 
 type sentEmail struct {

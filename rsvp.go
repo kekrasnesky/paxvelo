@@ -25,6 +25,10 @@ type RSVPBook struct {
 	Events  []*RSVPEvent `json:"events,omitempty"`
 	Removed *RSVPEvent   `json:"removed,omitempty"` // the last event removed, for Undo
 	Dropped *RSVPDropped `json:"dropped,omitempty"` // the last answers removed, for Undo
+	// The day-before reminder (rsvpreminder.go): its words (empty = the
+	// built-in ones) and whether it's switched off.
+	Reminder    EmailDraft `json:"reminder,omitempty"`
+	ReminderOff bool       `json:"reminder_off,omitempty"`
 }
 
 // RSVPDropped are answers an admin took off an event, kept for Undo.
@@ -42,6 +46,7 @@ type RSVPEvent struct {
 	Details     string      `json:"details,omitempty"` // a few lines: parking, what to expect
 	AskBringing bool        `json:"ask_bringing,omitempty"`
 	HideGuests  bool        `json:"hide_guests,omitempty"` // members don't see who's coming (they do by default)
+	NoReminder  bool        `json:"no_reminder,omitempty"` // no day-before reminder for this one
 	Closed      bool        `json:"closed,omitempty"`      // no more answers
 	Closes      string      `json:"closes,omitempty"`      // last day to answer, 2006-01-02; empty = until the event
 	Created     time.Time   `json:"created"`
@@ -50,15 +55,16 @@ type RSVPEvent struct {
 
 // RSVPReply is one member's answer. They can change it until it closes.
 type RSVPReply struct {
-	Member   int       `json:"member"`
-	Name     string    `json:"name"`  // as they typed it
-	Email    string    `json:"email"` // their email when they answered
-	Answer   string    `json:"answer"`
-	Guests   int       `json:"guests,omitempty"` // people coming with them
-	Who      string    `json:"who,omitempty"`    // who they're bringing
-	Bringing string    `json:"bringing,omitempty"`
-	Note     string    `json:"note,omitempty"`
-	Updated  time.Time `json:"updated"`
+	Member   int        `json:"member"`
+	Name     string     `json:"name"`  // as they typed it
+	Email    string     `json:"email"` // their email when they answered
+	Answer   string     `json:"answer"`
+	Guests   int        `json:"guests,omitempty"` // people coming with them
+	Who      string     `json:"who,omitempty"`    // who they're bringing
+	Bringing string     `json:"bringing,omitempty"`
+	Note     string     `json:"note,omitempty"`
+	Updated  time.Time  `json:"updated"`
+	Reminded *time.Time `json:"reminded,omitempty"` // when the day-before reminder went
 }
 
 const (
@@ -70,8 +76,9 @@ const (
 // rsvpAnswers are the choices, in the order the page shows them.
 var rsvpAnswers = []choice{{Value: rsvpYes, Label: "I’ll be there"}, {Value: rsvpMaybe, Label: "Maybe"}, {Value: rsvpNo, Label: "Can’t make it"}}
 
-// maxRSVPGuests keeps a typo (20 guests) out of the head count.
-const maxRSVPGuests = 9
+// maxRSVPGuests is the most the "Bringing anyone?" box offers (a family
+// of five), and keeps a typo out of the head count.
+const maxRSVPGuests = 4
 
 // Coming counts them and their guests, for a yes.
 func (r RSVPReply) Coming() int {
@@ -392,6 +399,7 @@ func (s *Store) AnswerRSVP(id int, m Member, r RSVPReply, now time.Time) error {
 			r.Bringing = ""
 		}
 		if i := slices.IndexFunc(e.Replies, func(x RSVPReply) bool { return x.Member == m.ID }); i >= 0 {
+			r.Reminded = e.Replies[i].Reminded // reminded once, even if they change it
 			e.Replies[i] = r
 		} else {
 			e.Replies = append(e.Replies, r)

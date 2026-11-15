@@ -30,7 +30,8 @@
 <p class="back-link"><a href="/admin/rsvp">← RSVPs</a></p>
 <div class="title-row">
   <h1>{{$e.Title}}</h1>
-  <p>{{if $k.Open}}<span class="tag tag-ok">Taking RSVPs{{with $e.ClosesLabel}} until {{.}}{{end}}</span>{{else}}<span class="tag">Closed</span>{{end}}</p>
+  <p>{{if $k.Open}}<span class="tag tag-ok">Taking RSVPs{{with $e.ClosesLabel}} until {{.}}{{end}}</span>{{else}}<span class="tag">Closed</span>{{end}}
+    {{if $e.Reminded}}<span class="tag" title="The day-before reminder">Reminder sent to {{$e.Reminded}}</span>{{else if and $k.ReminderOn $e.ReminderLabel (not ($e.Past $k.Now))}}<a class="tag" href="/admin/email/auto#a-rsvp-reminder" title="Emailed to everyone who said I’ll be there or Maybe">Reminder {{$e.ReminderLabel}}</a>{{end}}</p>
 </div>
 <p class="muted">{{or $e.When "No date"}}{{with $e.Place}} · {{.}}{{end}}</p>
 
@@ -107,6 +108,9 @@
     <label>Last day to RSVP <input type="date" name="closes" value="{{.Closes}}"></label>
     <label class="check"><input type="checkbox" name="ask_bringing" value="1"{{if or .AskBringing (not .ID)}} checked{{end}}> Ask what they’re bringing</label>
   </div>
-  <label class="check" title="On the RSVP page, from a member’s own link: names, guests and what they’re bringing"><input type="checkbox" name="show_guests" value="1"{{if not .HideGuests}} checked{{end}}> Members see who’s coming</label>
+  <div class="pair">
+    <label class="check" title="On the RSVP page, from a member’s own link: names, guests and what they’re bringing"><input type="checkbox" name="show_guests" value="1"{{if not .HideGuests}} checked{{end}}> Members see who’s coming</label>
+    <label class="check" title="Emailed the day before to everyone who said I’ll be there or Maybe (Email → Automations → RSVP reminder)"><input type="checkbox" name="remind" value="1"{{if not .NoReminder}} checked{{end}}> Remind them the day before</label>
+  </div>
   <div class="row-acts"><button>{{icon "save"}}Save</button></div>
 </form>{{end}}
