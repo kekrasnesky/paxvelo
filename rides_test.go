@@ -241,10 +241,10 @@ func TestRideLeaders(t *testing.T) {
 		t.Error("putting it back")
 	}
 
-	// With no PIN set, leaders ask an admin.
+	// With no PIN set, there's nothing for leaders to do on the page.
 	a.store.SetClubPIN("")
-	if page := do(t, h, nil, "GET", "/calendar/ride/"+key, "", nil).Body.String(); !strings.Contains(page, "ask a club admin") || strings.Contains(page, `name="pin"`) {
-		t.Error("with no PIN, the ride page should send leaders to an admin")
+	if page := do(t, h, nil, "GET", "/calendar/ride/"+key, "", nil).Body.String(); strings.Contains(page, "Leading this ride?") || strings.Contains(page, `name="pin"`) {
+		t.Error("with no PIN, the ride page should have no leader tools")
 	}
 
 	// Past rides can't be taken.

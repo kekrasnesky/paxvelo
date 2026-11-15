@@ -3,7 +3,6 @@
 <article class="page page-narrow">
   <p class="cal-back"><a href="/calendar">← Club calendar</a></p>
   <h1>Add to the Calendar</h1>
-  <p class="lead">A ride, or a club event like a meeting or a party. Just the basics: a ride’s details and route go on Strava.</p>
   {{template "rider-bar" .}}
   <form class="join" method="post" action="/calendar/new">
     <input type="hidden" name="ft" value="{{.Token}}">

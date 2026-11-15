@@ -43,7 +43,7 @@ func TestGallery(t *testing.T) {
 	if home := do(t, h, nil, "GET", "/", "", nil).Body.String(); !strings.Contains(home, `<a href="/gallery">Photo Gallery</a>`) {
 		t.Error("the Info menu should link to the gallery")
 	}
-	if page := do(t, h, nil, "GET", "/gallery", "", nil).Body.String(); !strings.Contains(page, "just getting started") {
+	if page := do(t, h, nil, "GET", "/gallery", "", nil).Body.String(); !strings.Contains(page, "No photos yet.") {
 		t.Error("an empty gallery should ask for photos")
 	}
 	share := do(t, h, nil, "GET", "/share-photos", "", nil).Body.String()
@@ -62,7 +62,7 @@ func TestGallery(t *testing.T) {
 	if len(sent) != 2 || sent[0].AlbumName != "Halloween ride" || sent[0].Caption != "Climbing to Point Lookout" || sent[1].Caption != "" {
 		t.Fatalf("sent-in %+v", sent)
 	}
-	if page := do(t, h, nil, "GET", "/gallery", "", nil).Body.String(); !strings.Contains(page, "just getting started") {
+	if page := do(t, h, nil, "GET", "/gallery", "", nil).Body.String(); !strings.Contains(page, "No photos yet.") {
 		t.Error("sent-in photos aren't public until they're approved")
 	}
 	batch := strconv.Itoa(sent[0].Batch)

@@ -1,7 +1,7 @@
 {{define "content"}}{{with .Data}}
 <article class="page">
   <h1>Club Routes</h1>
-  <p class="lead">The roads PaxVelo rides most, from our rides posted on <a href="{{.ClubURL}}" target="_blank" rel="noopener">Strava</a>{{with .Members}}, where the club is {{.}} riders strong{{end}}. Open a route on Strava to see the turns or load it on your bike computer.</p>
+  <p class="lead">The roads PaxVelo rides most, from our rides posted on <a href="{{.ClubURL}}" target="_blank" rel="noopener">Strava</a>{{with .Members}}, where the club is {{.}} riders strong{{end}}.</p>
   {{if .Routes}}
   <ul class="routes">
     {{range .Routes}}<li class="route">

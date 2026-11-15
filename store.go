@@ -195,6 +195,7 @@ type storeData struct {
 	Automations    []*Automation  `json:"automations,omitempty"`        // admins' own automated emails (automations.go)
 	RemovedAuto    *Automation    `json:"removed_automation,omitempty"` // the one removed last, for Undo
 	RemovedBuiltin []string       `json:"removed_builtin,omitempty"`    // built-in automations the president deleted (automations.go)
+	RenewalSeeded  bool           `json:"renewal_seeded,omitempty"`     // the Renewal reminder was added once (seedRenewal)
 	Draft          EmailDraft     `json:"draft"`
 	NextIssue      int            `json:"next_issue_id,omitempty"`
 	Issues         []*Issue       `json:"newsletter,omitempty"`
@@ -376,6 +377,7 @@ func openStore(dir string) (*Store, error) {
 	s.seedFee()
 	s.seedKit()
 	s.seedLoaners()
+	s.seedRenewal()
 	s.linkBoard()
 	return s, s.save()
 }

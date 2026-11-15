@@ -5,13 +5,13 @@
   <section class="section kit-shop" id="order">
     <h2>{{or .Shop.Name "The yearly bulk order"}}</h2>
     {{if .Open}}<p class="kit-status open"><strong>Open now</strong>{{with .Shop.ClosesLabel}}, until {{.}}{{end}}. Members pay the club price.</p>
-    {{else}}<p class="kit-status">Closed right now. When the next one opens, members get an email with their own link to order.</p>{{end}}
+    {{else}}<p class="kit-status">Closed right now.</p>{{end}}
 
-    {{if .Test}}<p class="kit-note">That was a test email, so this link isn’t anyone’s. In the real email, each member’s link opens their own order.</p>
+    {{if .Test}}<p class="kit-note">That was a test email, so this link isn’t anyone’s.</p>
     {{else if .Invalid}}<p class="kit-note">That link doesn’t work any more. Open the newest kit email, or get your link from <a href="/membership">My Membership</a>.</p>
     {{else if .Member}}
       {{if .Lapsed}}<p class="kit-note">Hi {{.Member.FirstName}}! Your membership has run out, so the club price isn’t open to you right now. <a href="{{.MyLink}}">Renew on your membership page</a>, then come back here.</p>
-      {{else if .Open}}<p class="kit-hi">Hi {{.Member.FirstName}}! Pick your pieces and sizes, then save. {{if not .Order}}You can change it until the order closes.{{end}}</p>{{end}}
+      {{else if .Open}}<p class="kit-hi">Hi {{.Member.FirstName}}!</p>{{end}}
     {{else if .Open}}<p class="kit-note">Members: open the link in the kit email we sent you, or find it on <a href="/membership">My Membership</a>. Not a member yet? <a href="/join">Join</a> to get the club price.</p>{{end}}
 
     {{with .Message}}<p class="kit-msg err" role="alert">{{.}}</p>{{end}}
@@ -22,7 +22,7 @@
       <p class="kit-total"><span>Total</span> <strong>{{money .Total}}</strong></p>
       {{if .Paid}}<p class="kit-small">Thanks! We’ll let you know when the kit arrives.</p>
       {{else}}{{with $v.PayLink}}<p><a class="btn" href="{{.}}" target="_blank" rel="noopener">Pay {{money $v.Order.Total}} with PayPal</a></p>
-        <p class="kit-small">Your order goes in once it’s paid. We’ll mark it paid here when it comes through.</p>
+        <p class="kit-small">Your order goes in once it’s paid.</p>
       {{else}}<p class="kit-small">We’ll email you how to pay.</p>{{end}}{{end}}
     </div>{{end}}
 

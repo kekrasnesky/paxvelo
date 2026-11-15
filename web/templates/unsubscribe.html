@@ -11,7 +11,6 @@
     {{if eq .Data.From "events"}}<button class="btn btn-quiet" type="submit" name="what" value="newsletter">The newsletter</button>{{end}}
     <button class="btn btn-quiet" type="submit" name="what" value="all">Everything</button>
   </form>
-  <p class="muted-note">Change these any time from <a href="/membership?t={{.Data.Token}}#emails">your membership page</a>.</p>
 {{else if eq .Data.State "topic"}}
   <h1>Done</h1>
   <p class="lead">You won’t get {{.Data.Topic}} any more{{with .Data.Email}} at {{.}}{{end}}. Other club emails still come.</p>
@@ -26,11 +25,9 @@
 {{else if eq .Data.State "test"}}
   <h1>That was a test email</h1>
   <p class="lead">Nothing changed. This is the Unsubscribe link from a test email, so it isn’t anyone’s.</p>
-  <p>In a real club email, each member’s own link opens this page, where they press Unsubscribe to stop club emails.</p>
 {{else}}
   <h1>Link not recognized</h1>
-  <p class="lead">This unsubscribe link isn’t valid. It may have been copied incompletely.</p>
-  <p>Enter your email and we’ll send you a link to your membership page, where you can unsubscribe.</p>
+  <p class="lead">This unsubscribe link isn’t valid.</p>
   <form class="join" method="post" action="/membership/link">
     <label>Email <input type="email" name="email" required maxlength="254" autocomplete="email"></label>
     <button class="btn" type="submit">{{icon "send"}}Send me my link</button>

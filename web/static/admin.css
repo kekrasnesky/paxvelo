@@ -916,6 +916,8 @@ body.resizing iframe{pointer-events:none}
 .switch span{position:absolute;top:.22rem;left:.22rem;width:1.26rem;height:1.26rem;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:left .15s}
 .switch[aria-checked=true] span{left:1.62rem}
 .switch:disabled{opacity:.6}
+.title-row .auto-pause{display:flex;align-items:center;gap:.5rem;align-self:center}
+.switch-state{font-size:.85rem;font-weight:500;color:var(--muted)}
 .auto-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:1.25rem;padding:1rem;border-top:1px solid var(--line)}
 .auto-body[hidden],.auto-pick[hidden]{display:none}
 .auto-pick{display:grid;gap:.75rem;padding:1rem;border-top:1px solid #efdca4;background:#fffbea}

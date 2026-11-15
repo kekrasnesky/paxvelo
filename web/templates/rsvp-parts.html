@@ -4,7 +4,7 @@
 {{/* Answering: the member's form (from their own link), or a box that emails
    them their link. */}}
 {{define "rsvp-answer"}}{{$v := .}}{{$f := .Value}}
-  {{if .Test}}<p class="cal-note">That was a test email, so this link isn’t anyone’s. In the real email, each member’s link opens their own RSVP.</p>
+  {{if .Test}}<p class="cal-note">That was a test email, so this link isn’t anyone’s.</p>
   {{else if .Invalid}}<p class="cal-note">Open the RSVP button in the email we sent you: it’s your own link.</p>{{end}}
   {{if .LinkSent}}<p class="cal-msg" role="status">If that email is on our list, your RSVP link is on its way.</p>{{end}}
 

@@ -2,7 +2,6 @@
 {{define "content"}}{{with .Data}}
 <article class="page">
   <h1>Meeting Minutes</h1>
-  <p class="lead">Notes from PaxVelo club meetings, newest first. Upcoming meetings are on the <a href="/calendar">ride calendar</a>.</p>
   {{if .List}}<ul class="minutes">
     {{range .List}}<li id="m{{.ID}}">
       <h2>{{.Title}}</h2>

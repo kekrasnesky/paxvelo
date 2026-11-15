@@ -20,16 +20,6 @@ editor for one, and the easy editor every email box uses (mail-cards). */}}
   function open(row,on){var b=row.querySelector('.auto-body'),o=row.querySelector('.auto-open');if(!b)return;b.hidden=!on;o.setAttribute('aria-expanded',on);
     var f=b.querySelector('iframe[data-src]');if(on&&f){var u=f.dataset.src;f.removeAttribute('data-src');fetch(u).then(function(r){return r.text()}).then(function(h){f.srcdoc=h})}}
   document.querySelectorAll('.auto-open').forEach(function(o){o.addEventListener('click',function(){var row=o.closest('.auto-row');open(row,o.getAttribute('aria-expanded')!=='true')})});
-  // The switch turns an automation on or off, in place.
-  document.querySelectorAll('form.auto-pause').forEach(function(f){f.addEventListener('submit',function(e){e.preventDefault();
-    var b=f.querySelector('.switch'),row=f.closest('.auto-row'),name=row.querySelector('.auto-open strong').textContent;
-    if(f.paused.value==='1'&&row.dataset.key==='confirm'&&!confirm('Turn off “'+name+'”? New members will get club emails without confirming their address.'))return;
-    b.disabled=true;
-    fetch(f.action,{method:'POST',headers:{Accept:'application/json'},body:new URLSearchParams(new FormData(f))}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(j){
-      row.classList.toggle('is-on',!j.paused);row.classList.toggle('is-off',j.paused);
-      b.setAttribute('aria-checked',!j.paused);b.title=j.paused?'Off: press to turn on':'On: press to turn off';
-      f.paused.value=j.paused?'0':'1';b.disabled=false})
-    .catch(function(){f.submit()})})});
   // Send to members: the list opens in the row. Members not paid yet are
   // marked paid when the site-move email goes (it's for people who paid on
   // the old site).
@@ -51,7 +41,23 @@ editor for one, and the easy editor every email box uses (mail-cards). */}}
   var r=location.hash&&document.getElementById(location.hash.slice(1));if(r&&r.classList.contains('auto-row')){open(r,true);r.scrollIntoView({block:'center'})}
 })();
 </script>
+{{template "auto-switch-js"}}
 {{template "foot" .}}{{end}}
+
+{{/* The on/off switch, on the list and the editor: it answers in place. */}}
+{{define "auto-switch"}}<form class="auto-pause" method="post" action="/admin/email/auto/{{.Key}}/pause" data-key="{{.Key}}" data-name="{{.Name}}"><input type="hidden" name="paused" value="{{if .Paused}}0{{else}}1{{end}}"><button class="switch" role="switch" aria-checked="{{if .Paused}}false{{else}}true{{end}}" aria-label="{{.Name}}" title="{{if .Paused}}Off: press to turn on{{else}}On: press to turn off{{end}}"><span></span></button>{{if .ShowState}}<span class="switch-state" aria-hidden="true">{{if .Paused}}Off{{else}}On{{end}}</span>{{end}}</form>{{end}}
+
+{{define "auto-switch-js"}}<script>
+document.querySelectorAll('form.auto-pause').forEach(function(f){f.addEventListener('submit',function(e){e.preventDefault();
+  var b=f.querySelector('.switch'),st=f.querySelector('.switch-state'),row=f.closest('.auto-row'),name=f.dataset.name;
+  if(f.paused.value==='1'&&f.dataset.key==='confirm'&&!confirm('Turn off “'+name+'”? New members will get club emails without confirming their address.'))return;
+  b.disabled=true;
+  fetch(f.action,{method:'POST',headers:{Accept:'application/json'},body:new URLSearchParams(new FormData(f))}).then(function(r){if(!r.ok)throw r;return r.json()}).then(function(j){
+    if(row){row.classList.toggle('is-on',!j.paused);row.classList.toggle('is-off',j.paused)}
+    b.setAttribute('aria-checked',!j.paused);b.title=j.paused?'Off: press to turn on':'On: press to turn off';if(st)st.textContent=j.paused?'Off':'On';
+    f.paused.value=j.paused?'0':'1';b.disabled=false})
+  .catch(function(){f.submit()})})});
+</script>{{end}}
 
 {{define "auto-row"}}<section class="auto-row {{if .Manual}}is-manual{{else if .Paused}}is-off{{else}}is-on{{end}}" id="a-{{.Key}}" data-key="{{.Key}}">
   <div class="auto-head">
@@ -62,7 +68,7 @@ editor for one, and the easy editor every email box uses (mail-cards). */}}
     <span class="auto-acts">
       {{if .CanSend}}<button type="button" class="auto-send" aria-expanded="false">{{icon "send"}}Send to members</button>{{end}}
       {{if .CanEdit}}<a class="btn ghost" href="/admin/email/auto/{{.Key}}">{{icon "pencil"}}Edit</a>{{end}}
-      {{if .CanPause}}<form class="auto-pause" method="post" action="/admin/email/auto/{{.Key}}/pause"><input type="hidden" name="paused" value="{{if .Paused}}0{{else}}1{{end}}"><button class="switch" role="switch" aria-checked="{{if .Paused}}false{{else}}true{{end}}" aria-label="{{.Name}}" title="{{if .Paused}}Off: press to turn on{{else}}On: press to turn off{{end}}"><span></span></button></form>{{end}}
+      {{if .CanPause}}{{template "auto-switch" .}}{{end}}
     </span>
   </div>
   {{if .CanSend}}<form class="auto-pick" method="post" action="/admin/members/moved" hidden>
@@ -89,7 +95,7 @@ editor for one, and the easy editor every email box uses (mail-cards). */}}
 
 {{define "auto-edit"}}{{template "head" .}}{{$f := .Auto.Form}}
 <p class="crumb"><a href="/admin/email/auto">← Automations</a></p>
-<div class="title-row"><h1>{{if $f.New}}New automated email{{else}}{{$f.Name}}{{end}}</h1>{{if $f.Paused}}<span class="auto-state off">Paused</span>{{end}}</div>
+<div class="title-row"><h1>{{if $f.New}}New automated email{{else}}{{$f.Name}}{{end}}</h1>{{if $f.CanPause}}{{template "auto-switch" $f}}{{end}}</div>
 <form class="card mail-form auto-form" method="post" action="/admin/email/auto/{{$f.Key}}/save" data-preview="/admin/email/auto/{{$f.Key}}/preview" data-test="/admin/email/auto/{{$f.Key}}/test">
   {{if $f.Custom}}<div class="auto-setup">
     <label>Name <input name="name" required maxlength="80" value="{{$f.Name}}" placeholder="Dues reminder"></label>
@@ -139,6 +145,7 @@ editor for one, and the easy editor every email box uses (mail-cards). */}}
   window.addEventListener('beforeunload',function(e){if(dirty&&!saved){e.preventDefault();e.returnValue=''}});
 })();
 </script>
+{{template "auto-switch-js"}}
 {{template "mail-tools" .}}
 {{template "foot" .}}{{end}}
 

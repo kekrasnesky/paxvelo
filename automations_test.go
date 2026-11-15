@@ -20,6 +20,7 @@ func TestAutomationRuns(t *testing.T) {
 	var got []string
 	a.mailer.onSend = func(to, subject, body string) { mu.Lock(); got = append(got, to+"|"+subject+"|"+body); mu.Unlock() }
 	sent := func() []string { mu.Lock(); defer mu.Unlock(); out := got; got = nil; return out }
+	a.store.d.Automations = nil // without the built-in renewal reminder (renewalreminder_test.go)
 
 	// Made from the editor: 2 days after joining, if they haven't paid.
 	ct, body := form(url.Values{"name": {"Pay nudge"}, "trigger": {"unpaid"}, "days": {"2"}, "subject": {"Still want to ride, {first_name}?"}, "body": {"Hi {first_name},\n\n[[Pay now]({pay_link})]"}})

@@ -11,7 +11,7 @@ adult on their Family plan. */}}
       {{with .Waiver}}<p class="status-state">Signed</p>
       <p class="status-meta">As {{.Signature}}, {{date .Signed}}</p>
       {{else}}<p class="status-state">Not signed</p>
-      <p class="status-meta">Needed to ride with the club.</p>{{end}}
+{{end}}
     </div>
     {{if not .Waiver}}<a class="btn status-act" href="#waiver">Sign</a>{{end}}
   </li>{{end}}
@@ -54,7 +54,7 @@ adult on their Family plan. */}}
         {{if .Paid}}<p class="status-state">Paid</p>
         <p class="status-meta">{{with .DuesExpire}}{{if not .IsZero}}Good through {{date .}}. {{end}}{{end}}{{if .PaidOn.IsZero}}Confirmed by the club{{else}}Confirmed by the club on {{date .PaidOn}}{{end}}</p>
         {{else}}<p class="status-state">Not paid</p>
-        <p class="status-meta">{{$m.PlanName}} plan. Already paid? It shows here once the club confirms it.</p>{{end}}
+        <p class="status-meta">{{$m.PlanName}} plan</p>{{end}}
       </div>
       {{if not .Paid}}{{with .PayURL}}<a class="btn status-act" href="{{.}}">{{$.Data.PayLabel}}</a>{{else}}<a class="btn btn-quiet status-act" href="mailto:PaxVeloClub@gmail.com">Ask how to pay</a>{{end}}{{end}}
     </li>
@@ -135,7 +135,6 @@ adult on their Family plan. */}}
   <summary><h2 class="my-h">{{if .DetailsDone}}Update your details{{else}}Add your details{{end}}</h2></summary>
   <form class="join" method="post" action="/membership#details">
     <input type="hidden" name="t" value="{{.Token}}">
-    {{if or .PhoneOnFile .EmergencyOnFile}}<p class="hint">Leave a box blank to keep what’s on file.</p>{{end}}
     <label>{{if .PhoneOnFile}}New phone{{else}}Phone{{end}} <input type="tel" name="phone"{{if not .PhoneOnFile}} required{{end}} maxlength="20" autocomplete="tel-national" placeholder="301-555-0123" pattern="\d{3}-\d{3}-\d{4}|\+[0-9 \(\)\-.]{7,22}" title="10 digits, like 301-555-0123, or + and the country code outside the US" value="{{.Form.Phone}}"></label>
     <fieldset class="emergency">
       <legend>{{if .EmergencyOnFile}}New emergency contact{{else}}Emergency contact{{end}}</legend>
@@ -174,21 +173,19 @@ adult on their Family plan. */}}
   <p class="lead">{{.Adult.Name}} · on {{.Member.Name}}’s family membership</p>
   <ul class="status-list">{{template "waiver-status" .}}</ul>
   {{template "my-waiver" .}}
-  <form class="my-signout" method="post" action="/membership/forget"><p class="muted-note">You’ll sign each new year’s waiver here. <button class="link-button" type="submit">Sign out of this device</button></p></form>
+  <form class="my-signout" method="post" action="/membership/forget"><p class="muted-note"><button class="link-button" type="submit">Sign out of this device</button></p></form>
 {{else if eq .State "test"}}
   <h1>That was a test email</h1>
   <p class="lead">This is the My membership link from a test email, so it isn’t anyone’s.</p>
-  <p>In a real club email, each member’s own link opens their membership page.</p>
 {{else if eq .State "sent"}}
   <h1>Check your email</h1>
   <p class="lead">If {{.Email}} is on our member list, your link is on its way.</p>
   <p>Not there in a few minutes? Check spam, or email <a href="mailto:PaxVeloClub@gmail.com">PaxVeloClub@gmail.com</a>.</p>
 {{else}}
   <h1>My Membership</h1>
-  {{if eq .State "invalid"}}<p class="lead">That link isn’t valid. It may have been copied incompletely. Enter your email for a fresh one.</p>
+  {{if eq .State "invalid"}}<p class="lead">That link isn’t valid.</p>
   {{else if .SignedOut}}<p class="cal-msg" role="status">Signed out of this device.</p>
-  <p class="lead">Check your dues, waiver and details. Enter your email and we’ll send you a link.</p>
-  {{else}}<p class="lead">Check your dues, waiver and details. Enter your email and we’ll send you a link. After you open it, this device remembers you.</p>{{end}}
+  {{end}}
   <form class="join" method="post" action="/membership/link">
     <label>Email <input type="email" name="email" required maxlength="254" autocomplete="email" value="{{.Email}}"></label>
     <button class="btn" type="submit">{{icon "send"}}Send me my link</button>

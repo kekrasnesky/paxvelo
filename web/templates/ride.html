@@ -41,7 +41,6 @@
 
   {{if $r.IsRide}}<section class="cal-act">
     <h2>{{if gt (len .Spots) 1}}Ride leaders{{else}}Ride leader{{end}}</h2>
-    {{if and (not .Past) (not $r.Cancelled)}}<p>Want to lead{{if gt (len .Spots) 1}} a group{{end}}? Type your name and press the button.</p>{{end}}
     <ul class="spots">
       {{range .Spots}}<li class="spot {{if .Leader}}led{{else}}open{{end}}">
         <div class="spot-who">
@@ -60,10 +59,9 @@
     </ul>
     {{if .Past}}<p class="cal-note">This ride has already happened.</p>{{end}}
 
-    {{if .CanManage}}<details class="ride-manage">
+    {{if and .CanManage .PINOn}}<details class="ride-manage">
       <summary>Leading this ride?</summary>
-      {{if .PINOn}}<p class="muted-note">Type the name you signed up with and the club PIN, then step down, add the Strava event link, or {{if $r.Cancelled}}put it back on the calendar{{else}}cancel the ride (the club gets an email){{end}}.</p>
-      <form class="ride-manage-form" method="post" action="/calendar/ride/{{$r.Key}}/stepdown">
+            <form class="ride-manage-form" method="post" action="/calendar/ride/{{$r.Key}}/stepdown">
         <div class="pair">
           <label>Your name <input name="leader_name" required maxlength="60" autocomplete="name"></label>
           <label>Club PIN <input name="pin" required maxlength="40" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
@@ -76,7 +74,6 @@
           <button class="link-button" formaction="/calendar/ride/{{$r.Key}}/cancel"{{if not $r.Cancelled}} data-confirm="Cancel {{$r.Name}} on {{$r.DateLabel}}? The club gets an email."{{end}}>{{if $r.Cancelled}}{{icon "undo"}}Put it back on the calendar{{else}}{{icon "ban"}}Cancel this ride{{end}}</button>
         </div>
       </form>
-      {{else}}<p class="muted-note">To step down, cancel, or add the Strava link, ask a club admin.</p>{{end}}
     </details>{{end}}
   </section>{{end}}
 </article>

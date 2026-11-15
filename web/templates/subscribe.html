@@ -3,9 +3,7 @@
 <article class="page page-narrow cal-sub">
   <p class="cal-back"><a href="/calendar">← Club calendar</a></p>
   <h1>Subscribe to the Calendar</h1>
-  <p class="lead">Every club ride and event in your own calendar. New rides, time changes and cancellations show up by themselves.</p>
   <p class="ride-tools">{{range $i, $a := .Apps}}<a class="btn{{if $i}} btn-quiet{{end}}" href="{{$a.URL}}"{{if $a.NewTab}} target="_blank" rel="noopener"{{end}}>{{if not $i}}{{icon "calendar"}}{{end}}{{$a.Label}}</a>{{end}}</p>
-  <label class="cal-sub-feed">Another app? Add this address <input readonly value="{{.Feed}}" aria-label="Calendar address"></label>
-  <p class="muted-note">Your calendar app checks for changes on its own schedule, sometimes only once a day. On the morning of a ride, look at the ride’s page.</p>
+  <label class="cal-sub-feed">Other apps <input readonly value="{{.Feed}}" aria-label="Calendar address"></label>
 </article>
 {{end}}{{end}}{{end}}

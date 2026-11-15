@@ -46,15 +46,16 @@ type autoTrigger struct {
 	Key, Event, If string
 	Before         bool // the email goes before the day (dues running out), not after
 	Help           string
+	Who            string // who gets it, for the list
 }
 
 var autoTriggers = []autoTrigger{
-	{"joined", "someone joins on the website", "", false, "Everyone who fills in the join form, paid or not."},
-	{"unpaid", "someone joins on the website", "if they haven’t paid yet", false, "A nudge to pay: it’s skipped once they’re marked paid."},
-	{"paid", "a member is marked paid", "", false, "Each time dues are marked paid, joining or renewing."},
-	{"waiver", "a member is marked paid", "if they haven’t signed this year’s waiver", false, "A reminder to sign: it’s skipped once they have."},
-	{"expiring", "a member’s dues run out", "", true, "A renewal reminder: it’s skipped if they renew first."},
-	{"expired", "a member’s dues ran out", "if they haven’t renewed", false, "For members whose dues lapsed."},
+	{"joined", "someone joins on the website", "", false, "Everyone who fills in the join form, paid or not.", "Everyone who joins on the website"},
+	{"unpaid", "someone joins on the website", "if they haven’t paid yet", false, "A nudge to pay: it’s skipped once they’re marked paid.", "New members who haven’t paid yet"},
+	{"paid", "a member is marked paid", "", false, "Each time dues are marked paid, joining or renewing.", "Members marked paid"},
+	{"waiver", "a member is marked paid", "if they haven’t signed this year’s waiver", false, "A reminder to sign: it’s skipped once they have.", "Members marked paid who haven’t signed this year’s waiver"},
+	{"expiring", "a member’s dues run out", "", true, "A renewal reminder: it’s skipped if they renew first.", "Paid-up members (on a Family plan, only the one who pays)"},
+	{"expired", "a member’s dues ran out", "if they haven’t renewed", false, "For members whose dues lapsed.", "Members who haven’t renewed (on a Family plan, only the one who pays)"},
 }
 
 func triggerFor(key string) (autoTrigger, bool) {
@@ -132,12 +133,12 @@ func (a *App) autoDue(au Automation, m Member) (due time.Time, occ string, ok bo
 			}
 		}
 	case "expiring":
-		if !m.Paid() {
+		if !m.Paid() || m.FamilyOf != 0 { // a family rider's dues are the plan holder's to renew
 			return
 		}
 		base = m.DuesExpire()
 	case "expired":
-		if m.Paid() {
+		if m.Paid() || m.FamilyOf != 0 {
 			return
 		}
 		base = m.DuesExpire()
@@ -355,6 +356,38 @@ func (s *Store) RestoreBuiltin(key string) error {
 	return s.save()
 }
 
+// ---- The renewal reminder ----
+
+// The renewal reminder is an ordinary automation (switch, editor, Remove and
+// Undo all work as for admins' own), added once so it's on from the start.
+// RenewalSeeded keeps a deleted one from coming back.
+
+const defaultRenewalSubject = "Your PaxVelo membership runs out {dues_expire}"
+
+const defaultRenewalBody = `Hi {first_name},
+
+Just a heads-up: your PaxVelo membership runs out on {dues_expire}. Renewing takes a minute and keeps you riding with us.
+
+[[Renew now]({pay_link})]
+
+Already renewed? Thank you! You can check your dues and details any time on your membership page:
+{my_link}
+
+See you on the road!
+PaxVelo`
+
+func (s *Store) seedRenewal() {
+	if s.d.RenewalSeeded {
+		return
+	}
+	s.d.NextAuto++
+	s.d.Automations = append(s.d.Automations, &Automation{
+		ID: s.d.NextAuto, Name: "Renewal reminder", Trigger: "expiring", Days: 30,
+		Subject: defaultRenewalSubject, Body: defaultRenewalBody, Created: time.Now().UTC(),
+	})
+	s.d.RenewalSeeded = true
+}
+
 // MarkAutoSent records that an automation is going to a member for a day,
 // and reports false if it already went (or the automation is gone or paused).
 func (s *Store) MarkAutoSent(id, member int, occ string) bool {
@@ -445,6 +478,7 @@ type autoRow struct {
 	Key, Name, When, Who, Subject, About  string
 	Paused                                bool
 	CanPause, CanEdit, CanRemove, CanSend bool
+	ShowState                             bool         // On/Off words by the switch (always false on the list)
 	Manual                                bool         // sent by hand, not by itself
 	Fixed                                 bool         // the site writes it: can't be changed
 	Movers                                []moveChoice // who it can go to, for one sent by hand
@@ -456,7 +490,8 @@ type autoRow struct {
 type autoForm struct {
 	Key, Name, Trigger, Subject, Body, About string
 	Days                                     int
-	New, Custom, Paused, Welcome             bool
+	New, Custom, Paused, Welcome, CanPause   bool
+	ShowState                                bool        // On/Off words by the switch
 	Pieces                                   []autoPiece // what can be put in its words
 }
 
@@ -568,10 +603,10 @@ func (a *App) autoRows(canRemove bool) (autos, manual []autoRow) {
 			About: "With their answer, the place, a Directions button and their link to change it. Once per answer. An invitation can skip it: untick Remind them the day before on Email → RSVPs."},
 	}
 	for _, au := range a.store.Automations() {
-		r := autoRow{Key: strconv.Itoa(au.ID), Name: au.Name, When: au.When(), Who: "Members who reach that point, unless they unsubscribed",
+		r := autoRow{Key: strconv.Itoa(au.ID), Name: au.Name, When: au.When(), Who: "Members who reach that point",
 			Subject: au.Subject, Paused: au.Paused, CanPause: true, CanEdit: true, CanRemove: canRemove, Sent: au.Count}
 		if t, ok := triggerFor(au.Trigger); ok {
-			r.About = t.Help
+			r.About, r.Who = t.Help, t.Who
 		}
 		if au.Last != nil {
 			r.Last = *au.Last
@@ -594,7 +629,22 @@ func (a *App) autoRows(canRemove bool) (autos, manual []autoRow) {
 		}
 		*list = kept
 	}
+	for _, list := range [][]autoRow{autos, manual} { // the subject as Pat would see it, not {pieces}
+		for i := range list {
+			list[i].Subject = a.sampleSubject(list[i].Key, list[i].Subject)
+		}
+	}
 	return
+}
+
+// sampleSubject is a subject filled in for the sample member Pat, as the
+// preview shows it.
+func (a *App) sampleSubject(key, subject string) string {
+	if key == "rsvp-reminder" {
+		e, rep := a.sampleRSVP()
+		subject = fillRSVPReminder(subject, e, rep)
+	}
+	return a.mailer.personalize(subject, a.samplePat())
 }
 
 func (a *App) autoPage(w http.ResponseWriter, r *http.Request) {
@@ -633,15 +683,15 @@ func (a *App) autoFormFor(key string) (*autoForm, bool) {
 	switch key {
 	case "confirm":
 		e := a.store.ConfirmText()
-		return &autoForm{Key: key, Name: "Confirm your email", Subject: e.Subject, Body: e.Body, Pieces: piecesConfirm,
+		return &autoForm{Key: key, Name: "Confirm your email", Subject: e.Subject, Body: e.Body, Paused: !a.store.ConfirmOn(), CanPause: true, Pieces: piecesConfirm,
 			About: "Goes right away when someone joins on the website. Keep the Confirm button in it: club emails reach them once they press it."}, true
 	case "welcome":
 		we := a.store.Welcome()
-		return &autoForm{Key: key, Name: "Welcome email", Subject: we.Subject, Body: we.Body, Paused: !we.Enabled, Welcome: true, Pieces: piecesWelcome,
+		return &autoForm{Key: key, Name: "Welcome email", Subject: we.Subject, Body: we.Body, Paused: !we.Enabled, CanPause: true, Welcome: true, Pieces: piecesWelcome,
 			About: "Goes the first time someone who joined on the website is marked paid."}, true
 	case "rsvp-reminder":
 		e := a.store.RSVPReminderText()
-		return &autoForm{Key: key, Name: "RSVP reminder", Subject: e.Subject, Body: e.Body, Paused: !a.store.RSVPReminderOn(), Pieces: piecesRSVPReminder,
+		return &autoForm{Key: key, Name: "RSVP reminder", Subject: e.Subject, Body: e.Body, Paused: !a.store.RSVPReminderOn(), CanPause: true, Pieces: piecesRSVPReminder,
 			About: "Goes the day before an invitation’s day to everyone who answered I’ll be there or Maybe."}, true
 	case "moved":
 		e := a.store.MovedEmail()
@@ -656,7 +706,7 @@ func (a *App) autoFormFor(key string) (*autoForm, bool) {
 	if !ok {
 		return nil, false
 	}
-	return &autoForm{Key: key, Custom: true, Name: au.Name, Trigger: au.Trigger, Days: au.Days, Subject: au.Subject, Body: au.Body, Paused: au.Paused, Pieces: piecesMember}, true
+	return &autoForm{Key: key, Custom: true, Name: au.Name, Trigger: au.Trigger, Days: au.Days, Subject: au.Subject, Body: au.Body, Paused: au.Paused, CanPause: true, Pieces: piecesMember}, true
 }
 
 func (a *App) autoEditPage(w http.ResponseWriter, r *http.Request) {
@@ -674,6 +724,7 @@ func (a *App) renderAutoEdit(w http.ResponseWriter, r *http.Request, f *autoForm
 		title = "New automated email"
 	}
 	v := adminView{Title: title, Tab: "auto", TestTo: a.cfg.AdminEmail, Live: a.mailer.live(), Links: a.editorLinks(), Welcome: a.store.Welcome()}
+	f.ShowState = true
 	v.Auto = &autoView{Form: f, Triggers: autoTriggers}
 	v.Flash, v.Error = flashFrom(r)
 	if problem != "" {
