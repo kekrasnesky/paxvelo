@@ -24,7 +24,7 @@ func TestRSVP(t *testing.T) {
 
 	day := time.Now().In(clubTZ).AddDate(0, 0, 20).Format("2006-01-02")
 	ct, body := form(url.Values{"title": {"December Meeting"}, "date": {day}, "time": {"18:30"}, "place": {"12 Spoke Lane, Leonardtown"},
-		"details": {"Park on the street."}, "ask_bringing": {"1"}})
+		"details": {"Park on the street."}, "ask_bringing": {"1"}, "show_guests": {"1"}})
 	w := do(t, h, admin, "POST", "/admin/rsvp", ct, body)
 	if w.Code != http.StatusSeeOther || !strings.Contains(w.Header().Get("Location"), "/admin/rsvp/1?ok=rsvp-saved") {
 		t.Fatalf("making the invitation: %d %s", w.Code, w.Header().Get("Location"))
@@ -39,7 +39,7 @@ func TestRSVP(t *testing.T) {
 		t.Fatalf("writing the email: %s", w.Header().Get("Location"))
 	}
 	d := a.store.Draft()
-	if !strings.Contains(d.Body, "[[RSVP]({rsvp_1})]") || !strings.Contains(d.Body, "12 Spoke Lane") || d.Subject != "You’re invited: December Meeting" {
+	if !strings.Contains(d.Body, "[[RSVP]({rsvp_1})]") || !strings.Contains(d.Body, "({rsvp_1_calendar})") || !strings.Contains(d.Body, "({rsvp_1_google})") || !strings.Contains(d.Body, "12 Spoke Lane") || d.Subject != "You’re invited: December Meeting" {
 		t.Fatalf("the draft: %+v", d)
 	}
 	if got := a.mailer.personalize(d.Body, pat); !strings.Contains(got, a.cfg.SiteURL+"/rsvp/1?t="+pat.Token) {
@@ -100,6 +100,31 @@ func TestRSVP(t *testing.T) {
 		t.Errorf("after answering: %s", page)
 	}
 
+	// Members see who's coming and what they're bringing (not who can't).
+	page = do(t, h, nil, "GET", "/rsvp/1?t="+sam.Token, "", nil).Body.String()
+	going := page[max(0, strings.Index(page, `id="going"`)):]
+	if !strings.Contains(going, "Pat Rider") || !strings.Contains(going, "with Alex and Jo") || !strings.Contains(going, "bringing Chili") || strings.Contains(going, ">Sam<") {
+		t.Errorf("who's coming: %s", going)
+	}
+	if page := do(t, h, nil, "GET", "/rsvp/1", "", nil).Body.String(); strings.Contains(page, "Pat Rider") {
+		t.Error("without a member's link the guest list stays hidden")
+	}
+
+	// Add to my calendar: the place only from a member's link.
+	w = do(t, h, nil, "GET", "/rsvp/1/calendar.ics?t="+pat.Token, "", nil)
+	ics := w.Body.String()
+	if !strings.HasPrefix(w.Header().Get("Content-Type"), "text/calendar") || !strings.Contains(ics, "SUMMARY:December Meeting") ||
+		!strings.Contains(ics, "LOCATION:12 Spoke Lane\\, Leonardtown") || !strings.Contains(ics, "DTSTART:") {
+		t.Errorf("the calendar file: %s", ics)
+	}
+	if ics := do(t, h, nil, "GET", "/rsvp/1/calendar.ics", "", nil).Body.String(); strings.Contains(ics, "Spoke Lane") {
+		t.Error("a calendar file without a link shouldn't have the place")
+	}
+	if loc := do(t, h, nil, "GET", "/rsvp/1/google?t="+pat.Token, "", nil).Header().Get("Location"); !strings.HasPrefix(loc, "https://calendar.google.com/calendar/render?") ||
+		!strings.Contains(loc, "location=12+Spoke+Lane") || !strings.Contains(loc, "dates=") {
+		t.Errorf("Google Calendar: %s", loc)
+	}
+
 	// Pat changes their mind: still one answer.
 	ct, body = form(url.Values{"t": {pat.Token}, "name": {"Pat Rider"}, "answer": {"maybe"}, "bringing": {"Cookies"}})
 	do(t, h, nil, "POST", "/rsvp/1", ct, body)
@@ -117,6 +142,14 @@ func TestRSVP(t *testing.T) {
 	}
 	if csv := do(t, h, admin, "GET", "/admin/rsvp/1/answers.csv", "", nil).Body.String(); !strings.Contains(csv, "Pat Rider,pat@example.com,Maybe,0,,Cookies") {
 		t.Errorf("the spreadsheet: %s", csv)
+	}
+
+	// An event can keep the guest list to admins.
+	ev, _ := a.store.RSVPEvent(1)
+	ev.HideGuests = true
+	a.store.SaveRSVPEvent(ev)
+	if page := do(t, h, nil, "GET", "/rsvp/1?t="+sam.Token, "", nil).Body.String(); strings.Contains(page, `id="going"`) {
+		t.Error("a hidden guest list")
 	}
 
 	// Closed: answers stop.
@@ -155,8 +188,8 @@ func TestRSVPForWebsiteAdmins(t *testing.T) {
 }
 
 func TestRSVPLinks(t *testing.T) {
-	got := rsvpLinks("[[RSVP]({rsvp_3})] and {rsvp_12} but not {rsvp_x}", "https://x.club", "abc")
-	want := "[[RSVP](https://x.club/rsvp/3?t=abc)] and https://x.club/rsvp/12?t=abc but not {rsvp_x}"
+	got := rsvpLinks("[[RSVP]({rsvp_3})] and {rsvp_12} but not {rsvp_x}; {rsvp_3_calendar} {rsvp_3_google}", "https://x.club", "abc")
+	want := "[[RSVP](https://x.club/rsvp/3?t=abc)] and https://x.club/rsvp/12?t=abc but not {rsvp_x}; https://x.club/rsvp/3/calendar.ics?t=abc https://x.club/rsvp/3/google?t=abc"
 	if got != want {
 		t.Errorf("got %s", got)
 	}

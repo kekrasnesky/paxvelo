@@ -965,6 +965,17 @@ button:has(>.ic),.btn:has(>.ic){display:inline-flex;align-items:center;justify-c
 .rsvp-form:not(:has([name=answer]:checked)) .rsvp-more,
 .rsvp-form:has([name=answer]:not([value=yes]):checked) .rsvp-yes,
 .rsvp-form:has([name=answer][value=no]:checked) .rsvp-bring{display:none}
+.rsvp-cal{max-width:36rem;margin:-.6rem 0 1.4rem;font-size:.95rem}
+.rsvp-going{max-width:36rem;margin-top:2.5rem}
+.rsvp-going h2{display:flex;align-items:center;gap:.6rem}
+.rsvp-going-count{font-family:inherit;font-size:.95rem;font-weight:600;line-height:1;padding:.3rem .6rem;border-radius:999px;background:var(--red);color:#fff}
+.rsvp-going-list{list-style:none;margin:0;padding-left:0}
+.rsvp-cal a{white-space:nowrap}
+.rsvp-going li{padding:.65rem 0;border-bottom:1px solid var(--line)}
+.rsvp-going li:last-child{border-bottom:0}
+.rsvp-plus{color:#6b625c}
+.rsvp-maybe{font-size:.8rem;padding:.1rem .45rem;border-radius:999px;border:1px solid var(--line);color:#6b625c}
+.rsvp-going-more{display:block;font-size:.9rem;color:#6b625c}
 
 /* ---------- The roomier look: condensed headings, a full-screen top video,
    more space between home sections, labels over headings, flat photos ---------- */

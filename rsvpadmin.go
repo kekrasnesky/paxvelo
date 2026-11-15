@@ -78,6 +78,7 @@ func (a *App) saveRSVPEvent(w http.ResponseWriter, r *http.Request) {
 		Place:       cleanLine(r.FormValue("place"), 200),
 		Details:     strings.TrimSpace(strings.ReplaceAll(r.FormValue("details"), "\r\n", "\n")),
 		AskBringing: r.FormValue("ask_bringing") != "",
+		HideGuests:  r.FormValue("show_guests") == "",
 		Closes:      strings.TrimSpace(r.FormValue("closes")),
 	}
 	if len(e.Details) > 1000 {
@@ -198,6 +199,9 @@ func rsvpInvitation(e RSVPEvent) EmailDraft {
 	}
 	b.WriteString(".\n\n")
 	b.WriteString("[[RSVP](" + "{" + e.Piece() + "}" + ")]\n\n")
+	if e.Date != "" {
+		b.WriteString("Add it to your calendar: [Apple or Outlook]({" + e.Piece() + "_calendar}) · [Google]({" + e.Piece() + "_google})\n\n")
+	}
 	b.WriteString("See you there!\nPaxVelo")
 	return EmailDraft{Subject: "You’re invited: " + e.Title, Body: b.String()}
 }
@@ -243,6 +247,10 @@ func (a *App) rsvpPieces() []autoPiece {
 	for _, e := range a.store.RSVPEvents() {
 		if e.IsOpen(now) {
 			out = append(out, autoPiece{e.Piece(), "RSVP: " + e.Title, "Their own link to answer " + e.Title})
+			if e.Date != "" {
+				out = append(out, autoPiece{e.Piece() + "_calendar", "Calendar (Apple, Outlook): " + e.Title, "Adds " + e.Title + " to their calendar app"},
+					autoPiece{e.Piece() + "_google", "Google Calendar: " + e.Title, "Adds " + e.Title + " to their Google Calendar"})
+			}
 		}
 	}
 	return out

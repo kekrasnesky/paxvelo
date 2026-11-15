@@ -145,6 +145,8 @@ func (a *App) routes() http.Handler {
 	// RSVPs: each member's own page to answer an invitation (rsvppage.go).
 	mux.HandleFunc("GET /rsvp/{id}", a.rsvpPage)
 	mux.HandleFunc("POST /rsvp/{id}", a.rsvpAnswer)
+	mux.HandleFunc("GET /rsvp/{id}/calendar.ics", a.rsvpICS)
+	mux.HandleFunc("GET /rsvp/{id}/google", a.rsvpGoogle)
 	mux.Handle("GET /strava", http.RedirectHandler(a.cfg.StravaURL, http.StatusFound))
 
 	// The newsletter, and photos uploaded for it in the admin.

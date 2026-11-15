@@ -46,6 +46,21 @@ func (v rsvpView) Value() RSVPReply {
 	return RSVPReply{}
 }
 
+// ShowGuests says the page lists who's coming: from a member's own link,
+// unless the event keeps it to admins.
+func (v rsvpView) ShowGuests() bool {
+	return (v.Member != nil || v.Test) && !v.Event.HideGuests
+}
+
+// CalendarLink is the member's own "Add to my calendar" address for kind
+// "calendar.ics" or "google", or "" when the event has no date or is over.
+func (v rsvpView) CalendarLink(kind string) string {
+	if (v.Member == nil && !v.Test) || v.Past || v.Event.Day().IsZero() {
+		return ""
+	}
+	return "/rsvp/" + strconv.Itoa(v.Event.ID) + "/" + kind + "?t=" + url.QueryEscape(v.Token)
+}
+
 // GuestChoices are the numbers the "how many with you" box offers.
 func (v rsvpView) GuestChoices() []int {
 	out := make([]int, maxRSVPGuests)
@@ -163,15 +178,103 @@ func (a *App) rsvpAnswer(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/rsvp/"+strconv.Itoa(id)+"?t="+url.QueryEscape(t)+"&saved=1#answer", http.StatusSeeOther)
 }
 
-// rsvpLinks fills in each {rsvp_<id>} in an email with the member's own
-// link to that event's RSVP page.
+// rsvpLinks fills in each member's own links in an email: {rsvp_<id>} to the
+// event's RSVP page, {rsvp_<id>_calendar} to its calendar file (Apple,
+// Outlook) and {rsvp_<id>_google} to Google Calendar.
 func rsvpLinks(s, siteURL, token string) string {
 	if !strings.Contains(s, "{rsvp_") {
 		return s
 	}
 	return rsvpPiece.ReplaceAllStringFunc(s, func(p string) string {
-		return siteURL + "/rsvp/" + p[len("{rsvp_"):len(p)-1] + "?t=" + url.QueryEscape(token)
+		m := rsvpPiece.FindStringSubmatch(p)
+		path := "/rsvp/" + m[1]
+		switch m[2] {
+		case "_calendar":
+			path += "/calendar.ics"
+		case "_google":
+			path += "/google"
+		}
+		return siteURL + path + "?t=" + url.QueryEscape(token)
 	})
 }
 
-var rsvpPiece = regexp.MustCompile(`\{rsvp_\d+\}`)
+var rsvpPiece = regexp.MustCompile(`\{rsvp_(\d+)(_calendar|_google)?\}`)
+
+// rsvpCalendarEvent is the event as a calendar app gets it, from a member's
+// link (the place only then); it answers 404 for one without a date.
+func (a *App) rsvpCalendarEvent(w http.ResponseWriter, r *http.Request) (v rsvpView, start, end time.Time, allDay, ok bool) {
+	id, _ := strconv.Atoi(r.PathValue("id"))
+	v, found := a.rsvpView(id, r.URL.Query().Get("t"))
+	if found {
+		start, end, allDay, ok = v.Event.CalendarTimes()
+	}
+	if !ok {
+		a.site.notFound(w, r)
+	}
+	return
+}
+
+// rsvpDescription is the calendar entry's notes: the details and the
+// member's own page, to change their answer.
+func (a *App) rsvpDescription(v rsvpView) string {
+	link := a.cfg.SiteURL + "/rsvp/" + strconv.Itoa(v.Event.ID)
+	if v.Member != nil {
+		link += "?t=" + url.QueryEscape(v.Token)
+	}
+	if d := strings.TrimSpace(v.Event.Details); d != "" {
+		return d + "\n\nRSVP: " + link
+	}
+	return "RSVP: " + link
+}
+
+// rsvpICS is the event as a calendar file: on a phone it opens straight in
+// the calendar app (Apple, Outlook and others).
+func (a *App) rsvpICS(w http.ResponseWriter, r *http.Request) {
+	v, start, end, allDay, ok := a.rsvpCalendarEvent(w, r)
+	if !ok {
+		return
+	}
+	host := strings.TrimPrefix(strings.TrimPrefix(a.cfg.SiteURL, "https://"), "http://")
+	lines := []string{"BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//PaxVelo//RSVP//EN", "METHOD:PUBLISH", "BEGIN:VEVENT",
+		"UID:rsvp-" + strconv.Itoa(v.Event.ID) + "@" + host, "DTSTAMP:" + time.Now().UTC().Format("20060102T150405Z")}
+	if allDay {
+		lines = append(lines, "DTSTART;VALUE=DATE:"+start.Format("20060102"), "DTEND;VALUE=DATE:"+end.Format("20060102"))
+	} else {
+		lines = append(lines, "DTSTART:"+start.UTC().Format("20060102T150405Z"), "DTEND:"+end.UTC().Format("20060102T150405Z"))
+	}
+	lines = append(lines, "SUMMARY:"+icsText(v.Event.Title))
+	if p := v.Event.Place; p != "" {
+		lines = append(lines, "LOCATION:"+icsText(p))
+	}
+	lines = append(lines, "DESCRIPTION:"+icsText(a.rsvpDescription(v)), "END:VEVENT", "END:VCALENDAR")
+	var b strings.Builder
+	for _, l := range lines {
+		b.WriteString(icsFold(l))
+	}
+	w.Header().Set("Content-Type", "text/calendar; charset=utf-8")
+	w.Header().Set("Content-Disposition", `inline; filename="paxvelo-event.ics"`)
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("X-Robots-Tag", "noindex")
+	w.Write([]byte(b.String()))
+}
+
+// rsvpGoogle sends the member to Google Calendar's "add an event" page,
+// filled in.
+func (a *App) rsvpGoogle(w http.ResponseWriter, r *http.Request) {
+	v, start, end, allDay, ok := a.rsvpCalendarEvent(w, r)
+	if !ok {
+		return
+	}
+	q := url.Values{"action": {"TEMPLATE"}, "text": {v.Event.Title}, "details": {a.rsvpDescription(v)}}
+	if allDay {
+		q.Set("dates", start.Format("20060102")+"/"+end.Format("20060102"))
+	} else {
+		q.Set("dates", start.UTC().Format("20060102T150405Z")+"/"+end.UTC().Format("20060102T150405Z"))
+	}
+	if p := v.Event.Place; p != "" {
+		q.Set("location", p)
+	}
+	w.Header().Set("Referrer-Policy", "no-referrer") // the link is theirs
+	w.Header().Set("X-Robots-Tag", "noindex")
+	http.Redirect(w, r, "https://calendar.google.com/calendar/render?"+q.Encode(), http.StatusFound)
+}

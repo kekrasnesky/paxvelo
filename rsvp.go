@@ -33,6 +33,7 @@ type RSVPEvent struct {
 	Place       string      `json:"place,omitempty"`   // shown only from a member's own link
 	Details     string      `json:"details,omitempty"` // a few lines: parking, what to expect
 	AskBringing bool        `json:"ask_bringing,omitempty"`
+	HideGuests  bool        `json:"hide_guests,omitempty"` // members don't see who's coming (they do by default)
 	Closed      bool        `json:"closed,omitempty"` // no more answers
 	Closes      string      `json:"closes,omitempty"` // last day to answer, 2006-01-02; empty = until the event
 	Created     time.Time   `json:"created"`
@@ -191,6 +192,34 @@ func (e RSVPEvent) Bringing() []RSVPReply {
 		}
 	}
 	return out
+}
+
+// Going is who members see on the page: the yeses, then the maybes, by name.
+func (e RSVPEvent) Going() []RSVPReply {
+	var out []RSVPReply
+	for _, r := range e.ByAnswer() {
+		if r.Answer != rsvpNo {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+// rsvpLength is how long an event goes in someone's calendar (like a club
+// event on the ride calendar, ridelength.go).
+const rsvpLength = 2 * time.Hour
+
+// CalendarTimes are the event's start and end for a calendar app: timed
+// with a start time, else the whole day. ok is false without a date.
+func (e RSVPEvent) CalendarTimes() (start, end time.Time, allDay, ok bool) {
+	day := e.Day()
+	if day.IsZero() {
+		return
+	}
+	if t, err := time.ParseInLocation("2006-01-02 15:04", e.Date+" "+e.Time, clubTZ); err == nil {
+		return t, t.Add(rsvpLength), false, true
+	}
+	return day, day.AddDate(0, 0, 1), true, true
 }
 
 // ---- Store ----

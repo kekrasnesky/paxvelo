@@ -90,5 +90,6 @@
     <label>Last day to RSVP <input type="date" name="closes" value="{{.Closes}}"></label>
     <label class="check"><input type="checkbox" name="ask_bringing" value="1"{{if or .AskBringing (not .ID)}} checked{{end}}> Ask what they’re bringing</label>
   </div>
+  <label class="check" title="On the RSVP page, from a member’s own link: names, guests and what they’re bringing"><input type="checkbox" name="show_guests" value="1"{{if not .HideGuests}} checked{{end}}> Members see who’s coming</label>
   <div class="row-acts"><button>{{icon "save"}}Save</button></div>
 </form>{{end}}

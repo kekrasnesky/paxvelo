@@ -8,6 +8,7 @@
     {{with .Event.Place}}<p class="rsvp-place"><strong>Where</strong> {{.}}</p>{{end}}
     {{with .Event.Details}}<p class="rsvp-details">{{.}}</p>{{end}}
   </div>{{end}}
+  {{with .CalendarLink "calendar.ics"}}<p class="rsvp-cal">Add to my calendar: <a href="{{.}}">Apple or Outlook</a> · <a href="{{$v.CalendarLink "google"}}" target="_blank" rel="noopener">Google</a></p>{{end}}
 
   <section id="answer" class="rsvp-answer">
   {{if .Test}}<p class="cal-note">That was a test email, so this link isn’t anyone’s. In the real email, each member’s link opens their own RSVP.</p>
@@ -41,5 +42,14 @@
   {{if .Reply}}</details>{{end}}
   {{end}}
   </section>
+
+  {{if .ShowGuests}}{{$c := .Event.Count}}<section class="rsvp-going" id="going">
+    <h2>Who’s coming{{if $c.Coming}} <span class="rsvp-going-count">{{$c.Coming}}</span>{{end}}</h2>
+    {{with .Event.Going}}<ul class="rsvp-going-list">{{range .}}<li>
+      <strong>{{.Name}}</strong>{{if .Guests}} <span class="rsvp-plus">+{{.Guests}}</span>{{end}}{{if eq .Answer "maybe"}} <span class="rsvp-maybe">maybe</span>{{end}}
+      {{if or .Who .Bringing}}<span class="rsvp-going-more">{{with .Who}}with {{.}}{{end}}{{if and .Who .Bringing}} · {{end}}{{with .Bringing}}bringing {{.}}{{end}}</span>{{end}}
+    </li>{{end}}</ul>
+    {{else}}<p class="muted">No one yet.</p>{{end}}
+  </section>{{end}}
 </article>
 {{end}}{{end}}
