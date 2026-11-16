@@ -132,7 +132,7 @@ func TestAlertTopics(t *testing.T) {
 	}
 }
 
-// At most three alerts a day, counted on the server; the fourth is refused
+// At most alertsPerDay alerts a day, counted on the server; one more is refused
 // with a plain error and nothing is sent.
 func TestAlertDailyCap(t *testing.T) {
 	a, h, _ := testApp(t)
@@ -145,16 +145,16 @@ func TestAlertDailyCap(t *testing.T) {
 		a.push.wg.Wait()
 		return w
 	}
-	for i := range 3 {
+	for i := range alertsPerDay {
 		if w := send("Alert " + string(rune('A'+i))); w.Code != http.StatusSeeOther {
 			t.Fatalf("alert %d: %d", i+1, w.Code)
 		}
 	}
 	w := send("One too many")
-	if w.Code != http.StatusTooManyRequests || !strings.Contains(w.Body.String(), "Three alerts have gone out today") {
+	if w.Code != http.StatusTooManyRequests || !strings.Contains(w.Body.String(), "5 alerts have gone out today") {
 		t.Errorf("fourth: %d", w.Code)
 	}
-	if n := len(phone.messages()); n != 3 {
+	if n := len(phone.messages()); n != alertsPerDay {
 		t.Errorf("phone got %d alerts", n)
 	}
 	// Yesterday's don't count.

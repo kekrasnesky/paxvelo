@@ -30,7 +30,7 @@ type PushAlert struct {
 }
 
 const (
-	alertsPerDay   = 3
+	alertsPerDay   = 5
 	alertsKept     = 50
 	alertTitleMax  = 60
 	alertBodyMax   = 180
@@ -39,7 +39,7 @@ const (
 )
 
 var (
-	errAlertCap    = errors.New("Three alerts have gone out today. The next can go tomorrow.")
+	errAlertCap    = errors.New(strconv.Itoa(alertsPerDay) + " alerts have gone out today. The next can go tomorrow.")
 	errAlertPhones = errors.New("No phones have Club news on yet.")
 )
 
@@ -119,7 +119,7 @@ func alertLink(raw, siteURL string) (string, bool) {
 type alertsView struct {
 	Title, Body, Pick, Path string // the form, kept on an error
 	News, Phones, Today     int    // phones with Club news on; with alerts on; alerts sent today
-	Left                    int    // alerts left today
+	Left, PerDay            int    // alerts left today; allowed a day
 	Choices                 []eventChoice
 	Sent                    []PushAlert
 }
@@ -157,7 +157,7 @@ func (a *App) renderAlerts(w http.ResponseWriter, r *http.Request, status int, a
 			av.Today++
 		}
 	}
-	av.Left = max(0, alertsPerDay-av.Today)
+	av.Left, av.PerDay = max(0, alertsPerDay-av.Today), alertsPerDay
 	v := adminView{Title: "Send an alert", Tab: "alerts", Alerts: av, Error: errMsg}
 	if r.URL.Query().Get("ok") == "alert-sent" {
 		n, _ := strconv.Atoi(r.URL.Query().Get("n"))

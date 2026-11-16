@@ -396,7 +396,7 @@ document.querySelectorAll('form.mail-form').forEach(mailCards);
   </select></label>
   <label class="alert-path"{{if ne $v.Pick "other"}} hidden{{end}}>Page <input name="path" maxlength="300" value="{{$v.Path}}" placeholder="/membership" pattern="/.*" title="A page on this site, starting with /"></label>
   <p class="alert-send"><button{{if or (not $v.News) (not $v.Left)}} disabled{{end}}>{{icon "bell"}}Send to {{$v.News}} {{if eq $v.News 1}}phone{{else}}phones{{end}}</button>
-    <span class="muted small" title="Phones with alerts on: {{$v.Phones}}">{{$v.Today}} of 3 today</span></p>
+    <span class="muted small" title="Phones with alerts on: {{$v.Phones}}">{{$v.Today}} of {{$v.PerDay}} today</span></p>
 </form>
 <figure class="alert-preview" aria-label="Preview">
   <div class="note-card">
