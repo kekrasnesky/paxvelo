@@ -231,6 +231,9 @@ type storeData struct {
 	Albums      []*Album        `json:"albums,omitempty"`
 	NextGallery int             `json:"next_gallery_id,omitempty"`
 	Gallery     []*GalleryPhoto `json:"gallery,omitempty"`
+	// Alerts the board sent to phones with Club news on (pushalerts.go).
+	NextPushAlert int         `json:"next_push_alert,omitempty"`
+	PushAlerts    []PushAlert `json:"push_alerts,omitempty"`
 
 	// Ride calendar
 	NextRide        int                  `json:"next_ride_id,omitempty"`

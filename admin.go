@@ -80,6 +80,7 @@ type adminView struct {
 	CanNamePresident bool
 	// Email tab
 	SentLog       *sentLogView // Email → Sent log
+	Alerts        *alertsView  // Email → Send an alert (pushalerts.go)
 	IssueSends    []Campaign   // the times a newsletter issue was emailed
 	Audiences     []audienceOption
 	Campaigns     []Campaign
