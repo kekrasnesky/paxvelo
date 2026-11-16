@@ -120,6 +120,9 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("GET /manifest.webmanifest", a.appManifest) // app.go
 	mux.HandleFunc("GET /sw.js", a.serviceWorker)
 	mux.HandleFunc("GET /offline", a.offlinePage)
+	// iPhones also look for the home screen icon at these two addresses.
+	mux.HandleFunc("GET /apple-touch-icon.png", a.touchIcon)
+	mux.HandleFunc("GET /apple-touch-icon-precomposed.png", a.touchIcon)
 	mux.Handle("GET /favicon.ico", http.RedirectHandler("/static/img/favicon.svg", http.StatusMovedPermanently))
 	mux.HandleFunc("GET /robots.txt", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")

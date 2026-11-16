@@ -33,7 +33,7 @@ func TestHomeScreenApp(t *testing.T) {
 	if m.Name != "PaxVelo" || m.Display != "standalone" || len(m.Icons) < 2 {
 		t.Errorf("manifest = %+v", m)
 	}
-	icons := []string{"/static/img/apple-touch-icon.png"}
+	icons := []string{"/static/img/apple-touch-icon.png", "/apple-touch-icon.png", "/apple-touch-icon-precomposed.png"}
 	for _, i := range m.Icons {
 		icons = append(icons, i.Src)
 	}

@@ -63,6 +63,13 @@ func (a *App) serviceWorker(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(a.site.sw))
 }
 
+// touchIcon is the iPhone home screen icon at the addresses iPhones try when
+// a page doesn't name one (or before they've read the page).
+func (a *App) touchIcon(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "public, max-age=86400")
+	http.ServeFileFS(w, r, a.site.static, "img/apple-touch-icon.png")
+}
+
 // offlinePage is what the app shows for a page it hasn't saved when there's
 // no signal. The service worker saves it when it's installed.
 func (a *App) offlinePage(w http.ResponseWriter, r *http.Request) {
