@@ -653,6 +653,11 @@ func (a *App) autoPage(w http.ResponseWriter, r *http.Request) {
 	for i := range av.Builtin {
 		av.Builtin[i].Fixed = true
 	}
+	n := a.store.PushCount() // push.go: a phone notification, listed with the emails
+	av.Builtin = append(av.Builtin, autoRow{Key: "ride-alert", Name: "Ride alerts", Fixed: true,
+		When:  "When a leader or admin cancels a ride coming up, or puts it back on",
+		Who:   plural(n, "1 phone with ride alerts on", strconv.Itoa(n)+" phones with ride alerts on"),
+		About: "A notification on the phone, not an email: the ride, the day and the leader’s note. Tapping it opens the ride."})
 	av.Autos, av.Manual = a.autoRows(a.isBoard(r))
 	if k := r.URL.Query().Get("removed"); isBuiltinKey(k) {
 		av.Removed = k

@@ -224,7 +224,9 @@ type storeData struct {
 	NextSubmitted   int               `json:"next_submitted_id,omitempty"`
 	SubmittedPhotos []*SubmittedPhoto `json:"submitted_photos,omitempty"`
 	// The public photo gallery (gallery.go), album by album.
-	ClubPIN     string          `json:"club_pin,omitempty"` // lets members post without review (clubpin.go)
+	ClubPIN     string          `json:"club_pin,omitempty"`  // lets members post without review (clubpin.go)
+	PushKey     string          `json:"push_key,omitempty"`  // the site's key for phone notifications (push.go)
+	PushSubs    []PushSub       `json:"push_subs,omitempty"` // phones with ride alerts on
 	NextAlbum   int             `json:"next_album_id,omitempty"`
 	Albums      []*Album        `json:"albums,omitempty"`
 	NextGallery int             `json:"next_gallery_id,omitempty"`
@@ -352,6 +354,11 @@ func openStore(dir string) (*Store, error) {
 	if s.d.Secret == "" {
 		s.d.Secret = randHex(32)
 	}
+	if s.d.PushKey == "" {
+		if s.d.PushKey, err = newVAPIDKey(); err != nil {
+			return nil, err
+		}
+	}
 	// A welcome email nobody changed from an earlier default gets today's.
 	if staleWelcome(s.d.Welcome.Body) {
 		s.d.Welcome.Body = defaultWelcomeBody
@@ -430,6 +437,7 @@ func (s *Store) Snapshot() ([]byte, error) {
 	defer s.mu.Unlock()
 	d := s.d
 	d.Secret = ""
+	d.PushKey, d.PushSubs = "", nil // a restored site makes a new key, and phones turn alerts on again
 	d.Admins = make([]*AdminUser, len(s.d.Admins))
 	for i, u := range s.d.Admins {
 		c := *u

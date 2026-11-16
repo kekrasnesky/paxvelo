@@ -511,5 +511,32 @@
   // show with no signal. The offline page's Try again reloads the page the
   // rider was after.
   if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(function(){});
+
+  // Ride alerts (push.go): the bell button turns phone notifications on or
+  // off for this browser. It only shows where the browser can do it (on an
+  // iPhone, once the site is on the home screen).
+  (function(){
+    var btns=[].slice.call(d.querySelectorAll('.push-btn'));
+    if(!btns.length||!('serviceWorker' in navigator)||!('PushManager' in window)||!('Notification' in window))return;
+    function label(t){btns.forEach(function(b){b.querySelector('span').textContent=t})}
+    function set(on){btns.forEach(function(b){b.hidden=false;b.setAttribute('aria-pressed',on?'true':'false');b.classList.toggle('is-on',on)});label(on?btns[0].dataset.on:btns[0].dataset.off)}
+    function key(s){s=s.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';var r=atob(s),a=new Uint8Array(r.length);for(var i=0;i<r.length;i++)a[i]=r.charCodeAt(i);return a}
+    function post(path,body){return fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})}
+    navigator.serviceWorker.ready.then(function(reg){
+      reg.pushManager.getSubscription().then(function(s){set(!!s&&Notification.permission==='granted')});
+      btns.forEach(function(b){b.addEventListener('click',function(){
+        btns.forEach(function(x){x.disabled=true});
+        reg.pushManager.getSubscription().then(function(s){
+          if(s)return s.unsubscribe().then(function(){post('/push/unsubscribe',{endpoint:s.endpoint});set(false)});
+          return fetch('/push/key').then(function(r){return r.json()}).then(function(k){
+            return reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:key(k.key)});
+          }).then(function(s){
+            return post('/push/subscribe',s.toJSON()).then(function(r){if(!r.ok){s.unsubscribe();throw r.status}set(true)});
+          });
+        }).catch(function(){set(false);if(Notification.permission==='denied')label(btns[0].dataset.blocked)})
+          .then(function(){btns.forEach(function(x){x.disabled=false})});
+      })});
+    });
+  })();
   d.querySelectorAll('[data-reload]').forEach(function(a){a.addEventListener('click',function(e){e.preventDefault();location.reload()})});
 })();

@@ -34,6 +34,7 @@ type App struct {
 	mailer *Mailer
 	limit  *Limiter
 	stats  *Stats
+	push   pushSender // ride alerts to phones (push.go)
 }
 
 func main() {
@@ -120,6 +121,9 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("GET /manifest.webmanifest", a.appManifest) // app.go
 	mux.HandleFunc("GET /sw.js", a.serviceWorker)
 	mux.HandleFunc("GET /offline", a.offlinePage)
+	mux.HandleFunc("GET /push/key", a.pushKeyJSON) // push.go
+	mux.HandleFunc("POST /push/subscribe", a.pushSubscribe)
+	mux.HandleFunc("POST /push/unsubscribe", a.pushUnsubscribe)
 	// iPhones also look for the home screen icon at these two addresses.
 	mux.HandleFunc("GET /apple-touch-icon.png", a.touchIcon)
 	mux.HandleFunc("GET /apple-touch-icon-precomposed.png", a.touchIcon)

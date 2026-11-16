@@ -29,7 +29,7 @@
     {{template "rsvp-answer" .RSVP}}
     {{template "rsvp-guests" .RSVP}}
   </section>
-  {{else if not .Past}}<p class="ride-tools"><a class="btn btn-quiet" href="/calendar/ride/{{$r.Key}}/calendar.ics" rel="nofollow">{{icon "calendar"}}Add to calendar</a><button class="btn btn-quiet ride-share" type="button" hidden>{{icon "share"}}Share</button></p>{{end}}
+  {{else if not .Past}}<p class="ride-tools"><a class="btn btn-quiet" href="/calendar/ride/{{$r.Key}}/calendar.ics" rel="nofollow">{{icon "calendar"}}Add to calendar</a><button class="btn btn-quiet ride-share" type="button" hidden>{{icon "share"}}Share</button>{{if $r.IsRide}}{{template "push-btn"}}{{end}}</p>{{end}}
   {{with $r.Route}}{{if and .Shown .Map}}<a class="ride-map" href="{{.URL}}" target="_blank" rel="noopener"><img src="{{.Map}}" alt="Map of the {{.Name}} route" loading="lazy"><span>Route on Strava</span></a>{{end}}{{end}}
 
   {{with .Loaners}}<section class="cal-act loaner-act" id="loaner">

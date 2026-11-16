@@ -38,6 +38,41 @@ function trim(c){
   });
 }
 
+// Ride alerts (push.go): show the message, and open the ride when it's
+// tapped (or bring the app forward if it's already showing it).
+self.addEventListener('push',function(e){
+  var m={};
+  try{m=e.data?e.data.json():{}}catch(x){}
+  e.waitUntil(self.registration.showNotification(m.title||'PaxVelo',{
+    body:m.body||'',icon:'/static/img/app-192.png',badge:'/static/img/badge.png',
+    tag:m.tag||undefined,renotify:!!m.tag,data:{url:m.url||'/'}
+  }));
+});
+
+self.addEventListener('notificationclick',function(e){
+  e.notification.close();
+  var url=new URL((e.notification.data&&e.notification.data.url)||'/',location.origin);
+  if(url.origin!==location.origin)url=new URL('/',location.origin);
+  e.waitUntil(self.clients.matchAll({type:'window',includeUncontrolled:true}).then(function(ws){
+    for(var i=0;i<ws.length;i++)if(ws[i].url===url.href&&'focus' in ws[i])return ws[i].focus();
+    return self.clients.openWindow(url.href);
+  }));
+});
+
+// The push service changed this phone's address: subscribe again and tell
+// the site.
+self.addEventListener('pushsubscriptionchange',function(e){
+  function post(path,body){return fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})}
+  e.waitUntil(fetch('/push/key').then(function(r){return r.json()}).then(function(k){
+    var s=k.key.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';
+    var raw=atob(s),key=new Uint8Array(raw.length);for(var i=0;i<raw.length;i++)key[i]=raw.charCodeAt(i);
+    return self.registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:key});
+  }).then(function(sub){
+    if(e.oldSubscription)post('/push/unsubscribe',{endpoint:e.oldSubscription.endpoint});
+    return post('/push/subscribe',sub.toJSON());
+  }));
+});
+
 self.addEventListener('fetch',function(e){
   var r=e.request,url=new URL(r.url);
   if(r.method!=='GET'||url.origin!==location.origin)return;

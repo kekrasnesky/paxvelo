@@ -564,6 +564,7 @@ td:hover .cal-add,.cal-add:focus-visible{opacity:1}
 .ride-status.off{border-color:#b3261e;background:#fbe9e7;color:#6e1712}
 .cal-on{display:inline-block;margin-right:.35rem;padding:0 .4rem;border-radius:4px;background:#2e7d4f;color:#fff;font-size:.72rem;font-weight:600;line-height:1.5;text-decoration:none}
 .cal-off-note{text-decoration:none}
+.btn.push-btn.is-on{border-color:#2e7d4f;background:#e7f4ec;color:#1d4d31}
 .opt{font-weight:300;color:#6b625b;font-size:.85rem}
 .check-row{display:flex!important;align-items:center;gap:.6rem;font-weight:300!important}
 .check-row input{width:auto!important}
