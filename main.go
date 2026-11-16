@@ -186,6 +186,7 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("POST /calendar/ride/{key}/stepdown", a.stepDown)
 	mux.HandleFunc("POST /calendar/ride/{key}/strava", a.setRideStrava)
 	mux.HandleFunc("POST /calendar/ride/{key}/cancel", a.cancelRide)
+	mux.HandleFunc("POST /calendar/ride/{key}/status", a.rideStatus) // ridestatus.go
 
 	// Joining and leaving.
 	mux.HandleFunc("GET /join", a.joinPage)

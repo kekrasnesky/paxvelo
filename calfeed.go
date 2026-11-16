@@ -50,6 +50,14 @@ func (a *App) rideEvent(o RideOcc, feed bool) []string {
 	if d := strings.TrimSpace(o.Details); d != "" {
 		desc = d + "\n\n" + link
 	}
+	switch { // the day's word on it (ridestatus.go)
+	case o.Cancelled && o.StatusNote != "":
+		desc = "Cancelled: " + o.StatusNote + "\n\n" + desc
+	case o.On && !o.Cancelled && o.StatusNote != "":
+		desc = "It's on: " + o.StatusNote + "\n\n" + desc
+	case o.On && !o.Cancelled:
+		desc = "It's on.\n\n" + desc
+	}
 	lines = append(lines, "DESCRIPTION:"+icsText(desc), "URL:"+link)
 	if o.Cancelled && !feed {
 		lines = append(lines, "STATUS:CANCELLED")

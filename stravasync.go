@@ -101,8 +101,15 @@ func (s *Store) UpsertExternal(x ExternalRide, matchSeries bool) (RideOcc, strin
 
 // upsertExternal does UpsertExternal's work; callers must hold s.mu and save.
 func (s *Store) upsertExternal(x ExternalRide, matchSeries bool) (RideOcc, string) {
+	// Strava events are never marked cancelled, so the import leaves a ride
+	// cancelled on the website (by a leader or an admin) as it is; the
+	// calendar API says either way.
+	fromStrava := strings.HasPrefix(x.External, "strava:")
 	apply := func(r *CalRide) {
-		r.External, r.Date, r.Name, r.Cancelled = x.External, x.Date, x.Name, x.Cancelled
+		r.External, r.Date, r.Name = x.External, x.Date, x.Name
+		if !fromStrava {
+			r.Cancelled = x.Cancelled
+		}
 		if x.Time != "" {
 			r.Time = x.Time
 		}
@@ -140,7 +147,10 @@ func (s *Store) upsertExternal(x ExternalRide, matchSeries bool) (RideOcc, strin
 				if err != nil || r.External != "" {
 					continue
 				}
-				r.External, r.StravaURL, r.Cancelled = x.External, x.StravaURL, x.Cancelled
+				r.External, r.StravaURL = x.External, x.StravaURL
+				if !fromStrava {
+					r.Cancelled = x.Cancelled
+				}
 				r.withStrava(x.Strava)
 				return occOf(r), "linked"
 			}

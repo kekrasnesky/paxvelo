@@ -1804,7 +1804,7 @@ document.querySelectorAll('.copy-link').forEach(function(b){b.addEventListener('
   <tbody>
   {{range .Upcoming}}<tr{{if .Cancelled}} class="off"{{end}}>
     <td class="nowrap">{{.DateLabel}}<br><span class="muted small">{{.TimeLabel}}</span></td>
-    <td><a href="/admin/rides/{{.Key}}">{{.Name}}</a>{{if .IsVirtual}} {{template "virtual-badge" .}}{{end}}{{if not .IsRide}} <span class="tag">{{template "kind-icon" .}}{{.KindName}}</span>{{end}}{{if .Custom}} <span class="tag">One-off</span>{{end}}{{if .Cancelled}} <span class="tag">Cancelled</span>{{end}}</td>
+    <td><a href="/admin/rides/{{.Key}}">{{.Name}}</a>{{if .IsVirtual}} {{template "virtual-badge" .}}{{end}}{{if not .IsRide}} <span class="tag">{{template "kind-icon" .}}{{.KindName}}</span>{{end}}{{if .Custom}} <span class="tag">One-off</span>{{end}}{{if .Cancelled}} <span class="tag"{{with .StatusNote}} title="{{.}}"{{end}}>Cancelled</span>{{else if .IsOn}} <span class="tag tag-on"{{with .StatusNote}} title="{{.}}"{{end}}>On</span>{{end}}</td>
     <td>{{if not .IsRide}}{{with .Leaders}}{{(index . 0).Name}}{{else}}<span class="muted">–</span>{{end}}{{else}}{{range .Slots}}<span class="leader-line">{{with .Group}}<span class="muted">{{.}}:</span> {{end}}{{with .Leader}}{{.Name}}{{else}}<span class="danger">needs a leader</span>{{end}}</span>{{end}}{{end}}</td>
     <td class="right nowrap row-acts"><a class="btn mini ghost" href="/admin/rides/{{.Key}}">{{icon "pencil"}}Edit</a>
       <form method="post" action="/admin/rides/{{.Key}}/cancel" class="inline"><input type="hidden" name="return" value="rides">{{if .Cancelled}}<input type="hidden" name="cancel" value="0"><button class="link small">{{icon "undo"}}Put back</button>{{else}}<input type="hidden" name="cancel" value="1"><button class="link danger small" onclick="return confirm('Cancel {{.Name}} on {{.ShortDate}}? It shows as cancelled on the calendar and the club is emailed.')">{{icon "ban"}}Cancel</button>{{end}}</form></td>
@@ -1974,7 +1974,7 @@ document.querySelectorAll('.copy-link').forEach(function(b){b.addEventListener('
 <p class="crumb"><a href="/admin/calendar{{if $f.Date}}?m={{slice $f.Date 0 7}}{{end}}">← Calendar</a></p>
 <div class="title-row">
   <h1>{{if $f.New}}Add to the calendar{{else}}{{$f.Name}}{{end}}</h1>
-  {{if not $f.New}}<p>{{if $f.Cancelled}}<span class="tag">Cancelled</span> {{end}}{{if $f.Custom}}One-off{{else}}Weekly · <a href="/admin/weekly/{{$f.SeriesID}}">change every week</a>{{end}} · <a href="/calendar/ride/{{$f.Key}}" target="_blank" rel="noopener">Public page</a></p>{{end}}
+  {{if not $f.New}}<p>{{if $f.Cancelled}}<span class="tag">Cancelled</span> {{else if $f.IsOn}}<span class="tag tag-on">On</span> {{end}}{{with $f.StatusLine}}<span class="muted small">{{.}}</span> · {{end}}{{if $f.Custom}}One-off{{else}}Weekly · <a href="/admin/weekly/{{$f.SeriesID}}">change every week</a>{{end}} · <a href="/calendar/ride/{{$f.Key}}" target="_blank" rel="noopener">Public page</a></p>{{end}}
 </div>
 {{if $f.Past}}<p class="flash warn">This {{$f.Noun}} has already happened.</p>{{end}}
 <form class="card new-issue ride-form" method="post" action="{{if $f.New}}/admin/rides/new{{else}}/admin/rides/{{$f.Key}}{{end}}" data-kinds>
@@ -2015,7 +2015,7 @@ document.querySelectorAll('.copy-link').forEach(function(b){b.addEventListener('
   {{else}}<a class="small" href="/admin/newsletter">Start a newsletter issue</a>{{end}}
 </form>{{end}}
 {{if not $f.New}}<div class="send-row footnote">
-  <form method="post" action="/admin/rides/{{$f.Key}}/cancel" class="inline">{{if $f.Cancelled}}<input type="hidden" name="cancel" value="0"><button class="ghost">{{icon "undo"}}Put it back on the calendar</button>{{else}}<input type="hidden" name="cancel" value="1"><button class="ghost" onclick="return confirm('Cancel {{$f.Name}} on {{$f.DateLabel}}? The club will be emailed.')">{{icon "ban"}}Cancel this {{$f.Noun}}</button>{{end}}</form>
+  <form method="post" action="/admin/rides/{{$f.Key}}/cancel" class="inline ride-status-form"><input name="note" maxlength="120" value="{{$f.StatusNote}}" placeholder="Note" aria-label="Note" title="Shown with On or Cancelled">{{if $f.Cancelled}}<button class="ghost" name="status" value="open">{{icon "undo"}}Put it back on the calendar</button>{{else}}<button class="ghost" name="status" value="on">{{icon "check"}}{{if $f.On}}On{{else}}Mark as on{{end}}</button><button class="ghost" name="status" value="cancel" onclick="return confirm('Cancel {{$f.Name}} on {{$f.DateLabel}}? The club will be emailed.')">{{icon "ban"}}Cancel this {{$f.Noun}}</button>{{end}}</form>
   {{if $f.Custom}}<form method="post" action="/admin/rides/{{$f.Key}}/delete" class="inline" onsubmit="return confirm('Delete {{$f.Name}} for good? To keep it on the calendar as cancelled, use Cancel instead.')"><button class="link danger">{{icon "trash"}}Delete this {{$f.Noun}}</button></form>{{end}}
 </div>{{end}}
 {{template "foot" .}}{{end}}
@@ -3138,7 +3138,7 @@ document.querySelectorAll('[data-board]').forEach(function(box){
     <li>With the club PIN, their photos and the rides they add go up right away.</li></ul></div>
   <div class="card"><h3>Riders and ride leaders</h3><ul>
     <li>Open a ride, type a name, press <b>I’ll lead</b>. The club inbox is told. No account, no Strava sign-in.</li>
-    <li>With their name and the club PIN, leaders step down, add the Strava event link, or cancel their ride under <b>Leading this ride?</b>.</li>
+    <li>With their name and the club PIN, leaders mark their ride <b>Ride is on</b> or cancel it (with an optional note like “Rain”), step down, or add the Strava event link, under <b>Leading this ride?</b>. On or Cancelled shows in a banner on the ride page, on the home page’s next rides, on the calendar and in the calendar feed; a ride cancelled for today or tomorrow stays in the next rides, marked. Admins do the same on the ride’s admin page.</li>
     <li>Anyone can add a ride. It waits for approval on the <a href="/admin/calendar">Calendar</a> tab unless they typed the club PIN.</li></ul></div>
   <div class="card"><h3>Treasurer</h3><ol>
     <li>A “New member” email arrives, then PayPal’s receipt.</li>

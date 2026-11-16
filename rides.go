@@ -123,12 +123,20 @@ type CalRide struct {
 	// ZwiftLogo says whether a virtual ride shows the Zwift logo: "no" for
 	// one on another app (Rouvy, a Zoom meeting), "yes", or empty for
 	// automatic (see guessZwift).
-	ZwiftLogo string    `json:"zwift_logo,omitempty"`
-	Leaders   []Leader  `json:"leaders,omitempty"`
-	External  string    `json:"external,omitempty"` // "strava:<event>:<date>", or an ID sent through the calendar API
-	Cancelled bool      `json:"cancelled,omitempty"`
-	AddedBy   string    `json:"added_by,omitempty"`
-	Added     time.Time `json:"added"`
+	ZwiftLogo string   `json:"zwift_logo,omitempty"`
+	Leaders   []Leader `json:"leaders,omitempty"`
+	External  string   `json:"external,omitempty"` // "strava:<event>:<date>", or an ID sent through the calendar API
+	Cancelled bool     `json:"cancelled,omitempty"`
+	// On is a leader's (or an admin's) word that the ride is going ahead,
+	// usually the morning of. StatusNote goes with it or with a cancellation
+	// ("Rain", "Meet at the back lot"); StatusBy and StatusAt say who and when
+	// (ridestatus.go).
+	On         bool      `json:"on,omitempty"`
+	StatusNote string    `json:"status_note,omitempty"`
+	StatusBy   string    `json:"status_by,omitempty"`
+	StatusAt   time.Time `json:"status_at,omitzero"`
+	AddedBy    string    `json:"added_by,omitempty"`
+	Added      time.Time `json:"added"`
 	// Held is a ride someone added on the website without signing in with Strava.
 	// It stays off the calendar, the newsletter and the API until an admin approves it.
 	Held bool `json:"held,omitempty"`
@@ -487,7 +495,7 @@ func (o RideOcc) Status() string {
 // already on its label: who's hosting, or "Cancelled", or "".
 func (o RideOcc) HostLine() string {
 	if o.Cancelled {
-		return "Cancelled"
+		return o.cancelledLine()
 	}
 	if l := o.leaderFor(""); l != nil {
 		return o.HostLabel() + ": " + l.Name
@@ -498,7 +506,7 @@ func (o RideOcc) HostLine() string {
 // LeaderSummary is the short line under a ride on the calendar.
 func (o RideOcc) LeaderSummary() string {
 	if o.Cancelled {
-		return "Cancelled"
+		return o.cancelledLine()
 	}
 	if !o.IsRide() {
 		if l := o.leaderFor(""); l != nil {

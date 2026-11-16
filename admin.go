@@ -349,6 +349,7 @@ var flashText = map[string]string{
 	"ride-approved":        "Approved. The ride is on the calendar now.",
 	"cancelled":            "Ride cancelled. The club has been emailed.",
 	"restored":             "Ride is back on the calendar.",
+	"on":                   "Marked as on.",
 	"setup":                "You’re logged in with the setup password. Add yourself and the other admins below: each gets an email to choose their own password, and from then on everyone logs in with their email.",
 	"invited":              "Added. They’ve been emailed a link to choose their password.",
 	"link-sent":            "A new password link is on its way.",

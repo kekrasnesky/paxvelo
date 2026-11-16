@@ -129,6 +129,9 @@ tr.off td{color:var(--muted)}
 .mini{padding:.4rem .65rem;font-size:.78rem}
 .paid{color:#2f6b3a;font-weight:500}
 .tag{display:inline-block;margin-left:.3rem;padding:0 .5rem;border:1px solid var(--line);border-radius:999px;color:var(--muted);font-size:.75rem}
+.tag.tag-on{border-color:#2e7d4f;background:#e7f4ec;color:#1d4d31}
+.ride-status-form{display:inline-flex;flex-wrap:wrap;gap:.5rem;align-items:center}
+.ride-status-form input{width:16rem;max-width:100%}
 .inline-label{display:flex;align-items:center;gap:.6rem;font-weight:500}
 .inline-label select{width:auto}
 .compose .send-row+.send-row{padding-top:.4rem;border-top:1px solid var(--line)}

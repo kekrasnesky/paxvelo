@@ -47,7 +47,7 @@
             <span class="cal-pop-when">{{.ShortDate}} · {{.TimeLabel}}{{if .IsVirtual}} · {{if .OnZwift}}{{template "zwift"}} {{end}}Virtual{{end}}</span>
             {{with .Place}}<span class="cal-pop-where">{{.}}</span>{{end}}
             {{with .Levels}}<span class="cal-pop-lvls">{{range .}}<span><span class="lvl lvl-{{.Key}}">{{.Name}}</span> {{.MPH}}</span>{{end}}</span>{{end}}
-            {{if .Cancelled}}<span class="cal-pop-off">This {{.Noun}} is cancelled.</span>{{else if .RSVP}}{{template "cal-pop-rsvp" .RSVP}}{{else if not .IsRide}}<span class="cal-pop-off">{{.LeaderSummary}}</span>{{else}}<ul class="cal-pop-slots">{{range .Slots}}<li>{{with .Group}}<span class="cal-pop-group">{{.}}</span> {{end}}{{with .Leader}}{{.Name}}{{else}}<span class="cal-need">Needs a leader</span>{{end}}</li>{{end}}</ul>{{end}}
+            {{if .Cancelled}}<span class="cal-pop-off">This {{.Noun}} is cancelled.{{with .StatusNote}} {{.}}{{end}}</span>{{else if .RSVP}}{{template "cal-pop-rsvp" .RSVP}}{{else if not .IsRide}}<span class="cal-pop-off">{{.LeaderSummary}}</span>{{else}}<ul class="cal-pop-slots">{{range .Slots}}<li>{{with .Group}}<span class="cal-pop-group">{{.}}</span> {{end}}{{with .Leader}}{{.Name}}{{else}}<span class="cal-need">Needs a leader</span>{{end}}</li>{{end}}</ul>{{end}}
             {{with .Meta}}<span class="cal-meta">{{.}}</span>{{end}}
             <a class="cal-pop-go" href="/calendar/ride/{{.Key}}{{if .RSVP}}#rsvp{{end}}">{{if and .RSVP .RSVP.Open}}View event or RSVP{{else if not .IsRide}}View event{{else if or (eq .Status "open") (eq .Status "partial")}}View ride or sign up to lead{{else}}View ride{{end}} →</a>
           </div>
@@ -75,7 +75,7 @@
 {{end}}{{end}}
 
 {{/* The leader line under a ride: who's leading it, or a badge asking for one */}}
-{{define "cal-lead"}}{{if and .RSVP (not .Cancelled)}}<span class="cal-lead cal-rsvp">{{with .RSVP.Count}}{{if .Coming}}{{.Coming}} coming{{if .Maybe}} · {{.Maybe}} maybe{{end}}{{else if .Maybe}}{{.Maybe}} maybe{{else}}RSVP{{end}}{{end}}</span>{{else if not .IsRide}}{{with .HostLine}}<span class="cal-lead">{{.}}</span>{{end}}{{else if or (eq .Status "open") (eq .Status "partial")}}<span class="cal-lead"><span class="cal-need">{{.LeaderSummary}}</span></span>{{else if eq .Status "led"}}<span class="cal-lead">Led by {{.LeaderSummary}}</span>{{else}}<span class="cal-lead">{{.LeaderSummary}}</span>{{end}}{{end}}
+{{define "cal-lead"}}{{if .IsOn}}<span class="cal-lead"><span class="cal-on">On</span>{{with .StatusNote}}{{.}}{{end}}</span>{{end}}{{if and .RSVP (not .Cancelled)}}<span class="cal-lead cal-rsvp">{{with .RSVP.Count}}{{if .Coming}}{{.Coming}} coming{{if .Maybe}} · {{.Maybe}} maybe{{end}}{{else if .Maybe}}{{.Maybe}} maybe{{else}}RSVP{{end}}{{end}}</span>{{else if not .IsRide}}{{with .HostLine}}<span class="cal-lead">{{.}}</span>{{end}}{{else if or (eq .Status "open") (eq .Status "partial")}}<span class="cal-lead"><span class="cal-need">{{.LeaderSummary}}</span></span>{{else if eq .Status "led"}}<span class="cal-lead">Led by {{.LeaderSummary}}</span>{{else}}<span class="cal-lead">{{.LeaderSummary}}</span>{{end}}{{end}}
 
 {{/* An event's RSVP in its hover card: the head count, then who's coming
    and what they're bringing, like a ride's leaders. */}}

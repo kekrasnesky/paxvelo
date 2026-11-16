@@ -351,18 +351,13 @@ func (a *App) addWeeklyFromRide(w http.ResponseWriter, r *http.Request, c CalRid
 
 func (a *App) cancelRideAdmin(w http.ResponseWriter, r *http.Request) {
 	me, _ := a.adminName(r)
-	cancel := r.FormValue("cancel") == "1"
-	o, err := a.store.UpdateRide(r.PathValue("key"), func(c *CalRide) error { c.Cancelled = cancel; return nil })
+	status := statusOf(r) // ridestatus.go
+	o, err := a.applyStatus(r.PathValue("key"), status, r.FormValue("note"), me, nil)
 	if err != nil {
 		back(w, r, "/admin/calendar?err=save")
 		return
 	}
-	code := "restored"
-	if cancel {
-		code = "cancelled"
-		a.notifyRide(fmt.Sprintf("%s on %s is cancelled", o.Name, shortDate(o.Date)),
-			fmt.Sprintf("%s cancelled %s on %s.", me, o.Name, rideWhen(o)), o, "")
-	}
+	code := statusCode(status)
 	to := "/admin/rides/" + url.PathEscape(o.Key) + "?ok=" + code
 	if r.FormValue("return") == "rides" {
 		to = "/admin/rides?ok=" + code

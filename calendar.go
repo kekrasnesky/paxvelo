@@ -60,6 +60,7 @@ var calFlash = map[string]string{
 	"held":      "Thanks! A club admin will look at your ride and approve it, and then it shows on the calendar. The club has been emailed.",
 	"cancelled": "Ride cancelled.",
 	"restored":  "Ride back on the calendar.",
+	"on":        "Marked as on. Thanks!",
 	"strava":    "Strava event link saved.",
 	"rsvplink":  "If that email is on our list, your RSVP link is on its way.",
 }
@@ -180,23 +181,32 @@ func (a *App) calendarPage(w http.ResponseWriter, r *http.Request) {
 	a.renderCal(w, http.StatusOK, "calendar", "/calendar", "Club Calendar", v)
 }
 
-// upcomingRides returns the next few rides that aren't cancelled. When there
-// are none soon, it says when the next one is (a weekly ride can be out of
-// season for months).
+// upcomingRides returns the next few rides that aren't cancelled. A ride
+// cancelled for today or tomorrow stays in the list, marked, so riders see
+// it's off (ridestatus.go). When there are none soon, it says when the next
+// one is (a weekly ride can be out of season for months).
 func (a *App) upcomingRides() ([]RideOcc, string) {
 	const soon = 4
 	today := a.today()
 	// A ride from earlier today has rolled out, so it isn't upcoming anymore.
 	now := time.Now().In(a.cfg.Location).Format("15:04")
-	todayS := today.Format("2006-01-02")
+	todayS, tomorrow := today.Format("2006-01-02"), today.AddDate(0, 0, 1).Format("2006-01-02")
 	var out []RideOcc
+	live := 0
 	for _, o := range a.store.Rides(today, today.AddDate(0, 0, 120)) {
 		if o.Date == todayS && o.Time != "" && o.Time <= now {
 			continue
 		}
-		if !o.Cancelled && len(out) < soon {
+		switch {
+		case len(out) >= soon:
+		case !o.Cancelled:
+			out, live = append(out, o), live+1
+		case o.Date <= tomorrow:
 			out = append(out, o)
 		}
+	}
+	if live == 0 {
+		out = nil // only cancellations: say when the next ride is instead
 	}
 	if len(out) > 0 {
 		return out, ""
@@ -219,7 +229,7 @@ var upcomingTpl = template.Must(template.New("").Parse(`<div class="next-rides">
 <span class="cal-time">{{.TimeLabel}}</span> {{.Name}}
 {{with .Place}}<span class="cal-place">{{.}}</span>{{end}}
 <span class="lvls">{{range .Levels}}<span class="lvl lvl-{{.Key}}">{{.Name}}</span>{{end}}</span>
-{{if or (eq .Status "open") (eq .Status "partial")}}<span class="cal-lead"><span class="cal-need">{{.LeaderSummary}}</span></span>{{end}}
+{{if .Cancelled}}<span class="cal-lead">{{.LeaderSummary}}</span>{{else if .IsOn}}<span class="cal-lead"><span class="cal-on">On</span>{{.StatusNote}}</span>{{else if or (eq .Status "open") (eq .Status "partial")}}<span class="cal-lead"><span class="cal-need">{{.LeaderSummary}}</span></span>{{end}}
 </a></li>
 {{end}}</ul>{{else}}<p class="cal-none">{{.Note}}</p>{{end}}
 <p class="more"><a href="/calendar">Full ride calendar</a></p>
@@ -482,37 +492,9 @@ func stravaLink(u string) bool {
 }
 
 // cancelRide takes a ride off (or puts it back on) the calendar: one of its
-// leaders, with the club PIN. Admins also can on the admin portal.
-func (a *App) cancelRide(w http.ResponseWriter, r *http.Request) {
-	key := r.PathValue("key")
-	name, code, ok := a.leaderPost(w, r)
-	if !ok {
-		return
-	}
-	if code != "" {
-		rideBack(w, r, key, "err="+code)
-		return
-	}
-	cancel := r.FormValue("cancel") == "1"
-	o, err := a.store.UpdateRide(key, func(c *CalRide) error {
-		if _, leading := c.groupOf(name); !leading {
-			return errNotYours
-		}
-		c.Cancelled = cancel
-		return nil
-	})
-	if code := rideErrCode(err); code != "" {
-		rideBack(w, r, key, "err="+code)
-		return
-	}
-	if cancel {
-		a.notifyRide(fmt.Sprintf("%s on %s is cancelled", o.Name, shortDate(o.Date)),
-			fmt.Sprintf("%s cancelled %s on %s.", name, o.Name, rideWhen(o)), o, "")
-		rideBack(w, r, key, "ok=cancelled")
-		return
-	}
-	rideBack(w, r, key, "ok=restored")
-}
+// leaders, with the club PIN (ridestatus.go). Admins also can on the admin
+// portal.
+func (a *App) cancelRide(w http.ResponseWriter, r *http.Request) { a.rideStatus(w, r) }
 
 // newRidePage is the form for adding a ride: just a date, a time, and a name.
 func (a *App) newRidePage(w http.ResponseWriter, r *http.Request) {

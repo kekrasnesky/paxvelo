@@ -442,7 +442,7 @@ td:hover .cal-add,.cal-add:focus-visible{opacity:1}
 .cal-ride.cancelled{--c:#999;text-decoration:line-through}
 @media (hover:hover){.cal-ride:hover{background:#f1e9df}}
 .cal-time{font-weight:500}
-.cal-ride.cancelled .cal-lead{text-decoration:none}
+.cal-ride.cancelled .cal-lead{display:inline-block;width:100%;text-decoration:none} /* inline-block: the ride's line-through doesn't reach it */
 .cal-lead{display:block;margin-top:.15rem;color:#6b625b;font-size:.8rem;font-weight:500}
 .cal-need{display:inline-block;padding:.05rem .45rem;border:1px dashed #b38600;border-radius:4px;background:#fff6d8;color:#5c4400;font-size:.76rem;font-weight:500;line-height:1.35}
 .cal-need::before{content:"+ ";font-weight:700}
@@ -554,6 +554,16 @@ td:hover .cal-add,.cal-add:focus-visible{opacity:1}
 .ride-manage-form input{width:100%;padding:.65rem .85rem;border:1px solid #cdbfb5;border-radius:8px;background:#fff;font:300 1rem var(--font)}
 .ride-manage-form .opt{margin-left:.3rem;font-size:.85rem;font-weight:300}
 .ride-manage-acts{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem 1rem}
+.ride-manage-strava{margin-top:.6rem;padding-top:.9rem;border-top:1px solid var(--line)}
+/* The day's word on a ride: on (green) or cancelled (red), with the note and who said it */
+.ride-status{display:flex;gap:.6rem;align-items:flex-start;margin:1rem 0 0!important;padding:.75rem 1rem;border-radius:8px;border-left:5px solid;font-weight:400;line-height:1.45}
+.ride-status svg{flex:none;width:1.25rem;height:1.25rem;margin-top:.1rem}
+.ride-status strong{margin-right:.35rem;font-weight:600}
+.ride-status-by{display:block;font-size:.85rem;opacity:.8}
+.ride-status.on{border-color:#2e7d4f;background:#e7f4ec;color:#1d4d31}
+.ride-status.off{border-color:#b3261e;background:#fbe9e7;color:#6e1712}
+.cal-on{display:inline-block;margin-right:.35rem;padding:0 .4rem;border-radius:4px;background:#2e7d4f;color:#fff;font-size:.72rem;font-weight:600;line-height:1.5;text-decoration:none}
+.cal-off-note{text-decoration:none}
 .opt{font-weight:300;color:#6b625b;font-size:.85rem}
 .check-row{display:flex!important;align-items:center;gap:.6rem;font-weight:300!important}
 .check-row input{width:auto!important}
