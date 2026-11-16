@@ -117,6 +117,9 @@ func (a *App) routes() http.Handler {
 	}
 	mux.Handle("GET /static/", a.site.staticFiles("/static/", a.site.static))
 	mux.Handle("GET /photos/", a.site.staticFiles("/photos/", a.site.photos))
+	mux.HandleFunc("GET /manifest.webmanifest", a.appManifest) // app.go
+	mux.HandleFunc("GET /sw.js", a.serviceWorker)
+	mux.HandleFunc("GET /offline", a.offlinePage)
 	mux.Handle("GET /favicon.ico", http.RedirectHandler("/static/img/favicon.svg", http.StatusMovedPermanently))
 	mux.HandleFunc("GET /robots.txt", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")

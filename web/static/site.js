@@ -506,4 +506,10 @@
     function count(){navigator.sendBeacon('/admin/count',JSON.stringify({p:c.getAttribute('href'),r:d.referrer}))}
     if(d.prerendering)d.addEventListener('prerenderingchange',count,{once:true});else count();
   })();
+
+  // The app's service worker (sw.js, app.go): pages already opened still
+  // show with no signal. The offline page's Try again reloads the page the
+  // rider was after.
+  if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(function(){});
+  d.querySelectorAll('[data-reload]').forEach(function(a){a.addEventListener('click',function(e){e.preventDefault();location.reload()})});
 })();

@@ -64,6 +64,7 @@ type Site struct {
 	photoJS     template.JS // photos.js, for the admin pages
 	adminCSS    template.CSS
 	version     string
+	sw          string // the service worker, /sw.js (app.go)
 	notFound404 []byte
 	csp         string // the public pages' Content-Security-Policy (csp.go)
 	waiver      waiverText
@@ -155,6 +156,9 @@ func newSite(cfg Config) (*Site, error) {
 		return nil, err
 	}
 	s.css, s.js, s.adminCSS = template.CSS(css), template.JS(js), template.CSS(adminCSS)
+	if s.sw, err = read("sw.js"); err != nil {
+		return nil, err
+	}
 	if s.waiver, err = loadWaiver(); err != nil {
 		return nil, err
 	}
@@ -274,7 +278,7 @@ func newSite(cfg Config) (*Site, error) {
 	if err := s.renderContent(contentData{}); err != nil {
 		return nil, err
 	}
-	for _, name := range []string{"join", "unsubscribe", "membership", "notfound", "newsletter", "calendar", "subscribe", "ride", "ride-new", "routes", "share-photos", "gallery", "album", "photo", "minutes", "kit", "ride-waiver", "rsvp"} {
+	for _, name := range []string{"join", "unsubscribe", "membership", "notfound", "newsletter", "calendar", "subscribe", "offline", "ride", "ride-new", "routes", "share-photos", "gallery", "album", "photo", "minutes", "kit", "ride-waiver", "rsvp"} {
 		if s.dynamic[name], err = parse(name + ".html"); err != nil {
 			return nil, err
 		}

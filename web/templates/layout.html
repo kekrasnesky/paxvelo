@@ -24,12 +24,15 @@
 <meta property="og:type" content="website">
 <meta name="theme-color" content="#2d2d2d">
 <link rel="icon" href="/static/img/favicon.svg?v={{.V}}" type="image/svg+xml">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/static/img/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="PaxVelo">
 <link rel="preload" href="/static/fonts/poppins-300.woff2?v={{.V}}" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/static/fonts/poppins-500.woff2?v={{.V}}" as="font" type="font/woff2" crossorigin>
 {{with .LD}}<script type="application/ld+json">{{.}}</script>
 {{end}}{{block "head" .}}{{end}}
 <style>{{.CSS}}</style>
-<script type="speculationrules">{"prerender":[{"where":{"and":[{"href_matches":"/*"},{"not":{"href_matches":"/admin*"}},{"not":{"href_matches":"/unsubscribe*"}},{"not":{"href_matches":"/strava*"}},{"not":{"href_matches":"/calendar/new*"}},{"not":{"href_matches":"/files/*"}},{"not":{"href_matches":"/*.ics"}}]},"eagerness":"moderate"}]}</script>
+<script type="speculationrules">{"prerender":[{"where":{"and":[{"href_matches":"/*"},{"not":{"href_matches":"/admin*"}},{"not":{"href_matches":"/unsubscribe*"}},{"not":{"href_matches":"/strava*"}},{"not":{"href_matches":"/calendar/new*"}},{"not":{"href_matches":"/files/*"}},{"not":{"href_matches":"/*.ics"}},{"not":{"href_matches":"/offline"}}]},"eagerness":"moderate"}]}</script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
