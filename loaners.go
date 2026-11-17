@@ -406,6 +406,7 @@ func (a *App) askLoaner(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.notifyLoaner(q)
+	a.alertLoaner(q)
 	http.Redirect(w, r, loanerPath(o.Key)+"?asked=1", http.StatusSeeOther)
 }
 

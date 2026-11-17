@@ -134,6 +134,14 @@ func shortName(name string) string {
 	return f[0] + " " + string(last[0]) + "."
 }
 
+// firstName is the first word of a name.
+func firstName(name string) string {
+	if f := strings.Fields(name); len(f) > 0 {
+		return f[0]
+	}
+	return ""
+}
+
 func (a *App) renderMembership(w http.ResponseWriter, status int, d membershipData) {
 	a.site.render(w, status, "membership", "/membership", "My Membership — "+siteName, d)
 }

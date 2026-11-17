@@ -206,6 +206,7 @@ func (a *App) sharePhotos(w http.ResponseWriter, r *http.Request) {
 		}
 	default:
 		d.Detail = fmt.Sprintf("We got your %d %s. They’ll be in the gallery once an admin approves them.", n, them)
+		a.alertPhotos(n-posted, from.Name)
 	}
 	if len(skipped) > 0 {
 		d.Detail += fmt.Sprintf(" %d couldn’t be used: %s", len(skipped), strings.Join(skipped, " "))

@@ -38,13 +38,13 @@ function trim(c){
   });
 }
 
-// Ride alerts (push.go): show the message, and open the ride when it's
+// Ride alerts (push.go) and admin alerts (adminpush.go): show the message, and open the ride when it's
 // tapped (or bring the app forward if it's already showing it).
 self.addEventListener('push',function(e){
   var m={};
   try{m=e.data?e.data.json():{}}catch(x){}
   e.waitUntil(self.registration.showNotification(m.title||'PaxVelo',{
-    body:m.body||'',icon:'/static/img/app-192.png',badge:'/static/img/badge.png',
+    body:m.body||'',icon:/^\/static\/img\/[\w-]+\.png$/.test(m.icon||'')?m.icon:'/static/img/app-192.png',badge:'/static/img/badge.png',
     tag:m.tag||undefined,renotify:!!m.tag,data:{url:m.url||'/'}
   }));
 });

@@ -31,6 +31,7 @@ type adminView struct {
 	IsPresident                       bool   // the president or the setup password
 	Nav                               adminNav
 	Dashboard                         *dashboardView // Home
+	App                               *adminAppView  // the admin phone app's home (adminapp.go)
 	Guide                             *guideView     // the How the site works page
 	Stats                             *statsView     // the Stats page
 	Money                             *moneyView     // the Treasurer tab (treasureradmin.go)

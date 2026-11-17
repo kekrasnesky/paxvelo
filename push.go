@@ -270,7 +270,12 @@ func (a *App) pushSubscribe(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Bad key.", http.StatusBadRequest)
 		return
 	}
-	if err := a.store.AddPushSub(PushSub{Endpoint: in.Endpoint, P256dh: in.Keys.P256dh, Auth: in.Keys.Auth}, in.Topics, in.Old); err != nil {
+	sub := PushSub{Endpoint: in.Endpoint, P256dh: in.Keys.P256dh, Auth: in.Keys.Auth}
+	if in.Old != "" && a.store.MoveAdminPush(in.Old, sub) { // the admin app's phone got a new address (adminpush.go)
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	if err := a.store.AddPushSub(sub, in.Topics, in.Old); err != nil {
 		http.Error(w, "Ride alerts are full right now.", http.StatusServiceUnavailable)
 		return
 	}
@@ -333,6 +338,7 @@ type pushMsg struct {
 	Body  string `json:"body,omitempty"`
 	URL   string `json:"url,omitempty"`
 	Tag   string `json:"tag,omitempty"` // a newer alert with the same tag replaces it
+	Icon  string `json:"icon,omitempty"` // a picture on this site; empty = the club's app icon
 }
 
 // pushSender sends alerts. Client is for tests; nil is a client with a
@@ -373,9 +379,17 @@ func (a *App) pushAll(m pushMsg, ttl time.Duration, topic string, done func(sent
 // (they're forgotten).
 func (a *App) pushNow(m pushMsg, ttl time.Duration, topic string) (sent, total, gone int) {
 	keyS, subs := a.store.pushKey(topic)
+	sent, dropped := a.pushSend(keyS, subs, m, ttl)
+	a.store.RemovePushSubs(dropped...)
+	return sent, len(subs), len(dropped)
+}
+
+// pushSend sends m to subs, 4 at a time, and waits: how many went, and the
+// phones the push services said are gone.
+func (a *App) pushSend(keyS string, subs []PushSub, m pushMsg, ttl time.Duration) (sent int, dropped []string) {
 	key, err := parseVAPIDKey(keyS)
 	if err != nil || len(subs) == 0 {
-		return 0, len(subs), 0
+		return 0, nil
 	}
 	body, _ := json.Marshal(m)
 	ttlS := strconv.Itoa(max(60, int(ttl.Seconds())))
@@ -384,11 +398,10 @@ func (a *App) pushNow(m pushMsg, ttl time.Duration, topic string) (sent, total, 
 		tag = tag[:32]
 	}
 	var (
-		mu      sync.Mutex
-		dropped []string
-		wg      sync.WaitGroup
-		slots   = make(chan struct{}, 4)
-		client  = a.push.client()
+		mu     sync.Mutex
+		wg     sync.WaitGroup
+		slots  = make(chan struct{}, 4)
+		client = a.push.client()
 	)
 	for _, sub := range subs {
 		wg.Add(1)
@@ -404,15 +417,14 @@ func (a *App) pushNow(m pushMsg, ttl time.Duration, topic string) (sent, total, 
 			case code == http.StatusNotFound || code == http.StatusGone:
 				dropped = append(dropped, sub.Endpoint)
 			case err != nil:
-				log.Printf("ride alert to %s: %v", hostOf(sub.Endpoint), err)
+				log.Printf("alert to %s: %v", hostOf(sub.Endpoint), err)
 			default:
-				log.Printf("ride alert to %s: %d", hostOf(sub.Endpoint), code)
+				log.Printf("alert to %s: %d", hostOf(sub.Endpoint), code)
 			}
 		}(sub)
 	}
 	wg.Wait()
-	a.store.RemovePushSubs(dropped...)
-	return sent, len(subs), len(dropped)
+	return sent, dropped
 }
 
 func hostOf(endpoint string) string {

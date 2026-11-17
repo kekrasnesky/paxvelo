@@ -227,6 +227,7 @@ type storeData struct {
 	ClubPIN     string          `json:"club_pin,omitempty"`     // lets members post without review (clubpin.go)
 	PushKey     string          `json:"push_key,omitempty"`     // the site's key for phone notifications (push.go)
 	PushSubs    []PushSub       `json:"push_subs,omitempty"`    // phones with ride alerts on
+	AdminPush   []AdminPushSub  `json:"admin_push,omitempty"`   // admins' phones with admin alerts on (adminpush.go)
 	AlertEmails []AlertEmail    `json:"alert_emails,omitempty"` // addresses with ride alerts on (alertmail.go)
 	NextAlbum   int             `json:"next_album_id,omitempty"`
 	Albums      []*Album        `json:"albums,omitempty"`
@@ -442,7 +443,7 @@ func (s *Store) Snapshot() ([]byte, error) {
 	defer s.mu.Unlock()
 	d := s.d
 	d.Secret = ""
-	d.PushKey, d.PushSubs = "", nil // a restored site makes a new key, and phones turn alerts on again
+	d.PushKey, d.PushSubs, d.AdminPush = "", nil, nil // a restored site makes a new key, and phones turn alerts on again
 	d.Admins = make([]*AdminUser, len(s.d.Admins))
 	for i, u := range s.d.Admins {
 		c := *u

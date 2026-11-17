@@ -1349,3 +1349,71 @@ dl.facts dd{margin:0;overflow-wrap:anywhere}
 .note-app span{text-transform:none}
 .note-title{font-weight:600;font-size:.95rem}
 .note-body{font-size:.9rem;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+/* ---- The admin phone app (adminapp.go) ----
+   Its home is big buttons, not a website: a dark header with the logo, what
+   needs you, the next rides, then rows of square buttons with icons. Inside
+   the home screen app every other screen trades the menu bar for a Home bar
+   back to the buttons. */
+.app-top{display:none}
+@media (display-mode:standalone){
+  .bar{display:none}
+  .app-top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:.5rem;padding:calc(.7rem + env(safe-area-inset-top)) 1rem .7rem;background:linear-gradient(rgba(45,45,45,.68),rgba(45,45,45,.68)),#2d2d2d url(/static/img/tarmac.jpg?v=__V__) center top/740px 740px repeat;color:#fff;text-decoration:none;font-weight:500}
+  .app-top .ic{width:1.3em;height:1.3em;margin:0}
+  .app-top span{font-size:.85rem;opacity:.75}
+  .app-top b{margin-left:auto;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+}
+/* The app home is the website's asphalt (its header and footer), with warm
+   see-through cards, the site's paper-colored text, and muted colors from
+   its palette: the club's brick red, slate, ochre, sage and plum. */
+body.app-home{--app-card:rgba(34,30,28,.78);--app-card-press:rgba(52,46,43,.9);--app-line:rgba(245,242,236,.1);--app-dim:#b8afa7;
+  --brick:#9a2b29;--slate:#546f7b;--ochre:#a47c38;--sage:#5c7a58;--plum:#77546d;--alert:#b8433a;--alert-text:#e3978d;
+  background:linear-gradient(rgba(45,45,45,.68),rgba(45,45,45,.68)),#2d2d2d url(/static/img/tarmac.jpg?v=__V__) center top/740px 740px repeat;color:var(--paper);color-scheme:dark;-webkit-tap-highlight-color:transparent}
+.app-home .wrap{max-width:34rem;padding:0 1rem calc(2rem + env(safe-area-inset-bottom))}
+.app-head{display:flex;align-items:center;justify-content:space-between;padding:calc(1.1rem + env(safe-area-inset-top)) .25rem .4rem}
+.app-head img{display:block;height:2.4rem;width:auto}
+.app-hi{font-weight:500;font-size:1.05rem}
+.app-home h2{display:flex;align-items:center;gap:.4rem;margin:0 0 .55rem;font-size:.75rem;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--app-dim)}
+.app-home h2 .badge{margin:0}
+.app-home section{margin-top:1.6rem}
+.app-home section ul{margin:0;padding:0;list-style:none;border:1px solid var(--app-line);border-radius:14px;background:var(--app-card);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);overflow:hidden}
+.app-home section li+li{border-top:1px solid var(--app-line)}
+.app-home section li a{display:flex;align-items:center;gap:.75rem;min-height:3.4rem;padding:.7rem 1rem;text-decoration:none;line-height:1.35}
+.app-home section li a:active{background:var(--app-card-press)}
+.app-home section li .ic{margin:0 0 0 auto;color:#7d746d}
+.app-needs li a{font-size:.92rem}
+.app-needs li a::before{content:"";flex:none;width:.5rem;height:.5rem;border-radius:50%;background:var(--alert)}
+.app-day{flex:none;display:grid;width:4.6rem;font-weight:500;font-size:.85rem}
+.app-day small,.app-home .app-ride small{font-weight:300;font-size:.78rem;color:var(--app-dim)}
+.app-ride{display:grid;min-width:0}
+.app-ride strong,.app-ride small{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.app-home .app-ride small.open{color:var(--alert-text)}
+.app-group{--g:var(--brick)}
+.app-group.g-people{--g:var(--slate)}
+.app-group.g-email{--g:var(--ochre)}
+.app-group.g-money{--g:var(--sage)}
+.app-group.g-website{--g:var(--plum)}
+.app-group h2{color:color-mix(in srgb,var(--g) 45%,var(--paper))}
+.app-tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.65rem}
+.app-tile{position:relative;display:grid;justify-items:center;align-content:center;gap:.55rem;aspect-ratio:1;padding:.5rem .3rem;border:1px solid var(--app-line);border-radius:18px;background:var(--app-card);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);text-align:center;text-decoration:none;font-size:.8rem;font-weight:500;line-height:1.2;transition:transform .08s,background-color .15s}
+.app-tile:active{transform:scale(.96);background:var(--app-card-press)}
+.app-ic{display:grid;place-items:center;width:4rem;height:4rem;border-radius:16px;background:var(--g);color:var(--paper);box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 2px 6px rgba(0,0,0,.35)}
+.app-ic .ic{width:2.25rem;height:2.25rem;margin:0;stroke-width:1.7}
+.app-tile .badge{position:absolute;top:.4rem;right:.4rem;margin:0;min-width:1.5rem;height:1.5rem;background:var(--alert);font-size:.8rem;box-shadow:0 0 0 2px rgba(34,30,28,.9)}
+.app-foot{display:flex;justify-content:center;flex-wrap:wrap;gap:.4rem 1.4rem;margin-top:2.2rem;font-size:.85rem}
+.app-foot a,.app-home .app-foot .link{display:inline-flex;align-items:center;color:var(--app-dim);text-decoration:none;background:none;border:0;box-shadow:none;padding:0;font:inherit;font-weight:300}
+.app-foot form{margin:0}
+.app-home .flash{margin-top:1rem}
+/* The Alerts switches at the foot of the app home (adminpush.go) */
+.app-head .app-hi{margin-left:auto}
+.app-alerts li{display:flex;align-items:center;min-height:3.2rem;padding:.6rem 1rem;font-size:.92rem}
+.app-alerts .al-home,.app-alerts .al-blocked{color:#d9b56a}
+.app-switch{display:flex;flex:1;align-items:center;justify-content:space-between;gap:1rem;font-weight:300;font-size:.92rem}
+.app-switch input{appearance:none;-webkit-appearance:none;position:relative;flex:none;width:3.1rem;height:1.9rem;margin:0;padding:0;border:0;border-radius:1rem;background:#4a4440;cursor:pointer;transition:background .15s;box-shadow:none}
+.app-switch input::after{content:"";position:absolute;top:2px;left:2px;width:calc(1.9rem - 4px);height:calc(1.9rem - 4px);border-radius:50%;background:var(--paper);transition:transform .15s}
+.app-switch input:checked{background:var(--sage)}
+.app-switch input:checked::after{transform:translateX(1.2rem)}
+.app-home .app-go{display:inline-flex;align-items:center;justify-content:center;width:100%;padding:.8rem;border:0;border-radius:12px;background:var(--ochre);color:var(--paper);font-weight:500;box-shadow:none}
+.app-home .app-go:hover{background:#b58b45;box-shadow:none}
+.app-home .app-stop{padding:0;border:0;background:none;color:var(--alert-text);font:inherit;box-shadow:none}
+.app-home .app-stop:hover{background:none;box-shadow:none;text-decoration:underline}
+.app-home .app-alerts .app-go .ic{margin:0 .45em 0 0;color:inherit}

@@ -380,6 +380,7 @@ func (a *App) sendRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.mailer.Go(func() { a.mailRequestSent(saved) })
+	a.alertRequestSent(saved)
 	back(w, r, fmt.Sprintf("%s?ok=request-sent#r%d", requestsPath, saved.ID))
 }
 
@@ -663,8 +664,9 @@ func (a *App) mailRequestSent(q SpendRequest) {
 	}
 }
 
-// mailRequestSettled tells the sender the answer.
+// mailRequestSettled tells the sender the answer (and their phone).
 func (a *App) mailRequestSettled(q SpendRequest) {
+	a.alertRequestSettled(q)
 	if q.ByEmail == "" {
 		return
 	}

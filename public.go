@@ -257,6 +257,7 @@ func (a *App) join(w http.ResponseWriter, r *http.Request) {
 		a.renewal(r, reply, m, details, riders, adults, year)
 		return
 	}
+	a.alertSignup(m)
 	a.mailer.Go(func() { a.mailer.NotifySignup(m) }) // their welcome email waits until an admin marks them paid
 	signedFor, added := a.applyJoin(m, year, details.Signature, details.Drawing, clientIP(r), riders, adults)
 	emailed := a.emailHousehold(m, added) // if their dues are paid already; otherwise once they are

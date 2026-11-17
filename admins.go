@@ -188,6 +188,7 @@ func (s *Store) DeleteAdmin(id int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.d.Admins = slices.DeleteFunc(s.d.Admins, func(u *AdminUser) bool { return u.ID == id })
+	s.d.AdminPush = slices.DeleteFunc(s.d.AdminPush, func(p AdminPushSub) bool { return p.Admin == id }) // their phones' alerts stop
 	return s.save()
 }
 
