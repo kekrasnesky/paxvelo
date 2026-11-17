@@ -81,6 +81,7 @@ type view struct {
 	Data                          any
 	Hero                          HeroPhoto      // the home page's top photo (hero.go)
 	HeroVideo                     *heroVideoView // the video that plays over it (herovideo.go)
+	NextRide                      *RideOcc       // the home page's next ride, in the corner of the top photo on computers
 }
 
 // clubInfo holds the settings pages show: dues and outside links.
@@ -380,6 +381,12 @@ func (s *Site) pageHTML(p *contentPage, d contentData) ([]byte, error) {
 	if p.Path == "/" {
 		v.Hero = d.Hero
 		v.HeroVideo = d.HeroVideo.view()
+		for i := range d.Upcoming {
+			if !d.Upcoming[i].Cancelled {
+				v.NextRide = &d.Upcoming[i]
+				break
+			}
+		}
 	}
 	var buf bytes.Buffer
 	if err := t.ExecuteTemplate(&buf, "layout", v); err != nil {

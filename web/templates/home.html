@@ -19,7 +19,13 @@
   </video>{{end}}
   <div class="hero-in">
 <p class="label hero-est">Est. 1997</p>
-{{.Data.Intro}}  </div>
+{{.Data.Intro}}{{with .NextRide}}<a class="hero-next" href="/calendar/ride/{{.Key}}">
+<span class="label">Next ride</span>
+<span class="hero-next-when">{{.ShortDate}}{{with .TimeLabel}} · {{.}}{{end}}{{if .IsOn}} <span class="cal-on">On</span>{{end}}</span>
+<strong>{{.Name}}</strong>{{with .Place}}
+<span class="hero-next-place">{{.}}</span>{{end}}
+</a>{{end}}
+  </div>
 </div>
 {{.Data.Body}}
 {{end}}
