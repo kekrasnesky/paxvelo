@@ -32,7 +32,7 @@ func TestAddEventOnCalendar(t *testing.T) {
 	}
 	fri := nextWeekday(a, time.Friday)
 	ct, body := form(url.Values{"date": {fri}, "time": {"18:30"}, "name": {"Holiday Party"}, "kind": {"social"}, "pace": {"2"},
-		"leader_name": {"Pat Rider"}, "lead": {"on"}, "ft": {oldToken(a)}})
+		"leader_name": {"Pat Rider"}, "lead": {"on"}, "ft": {oldToken(a)}, "official": {"yes"}})
 	if w := do(t, h, nil, "POST", "/calendar/new", ct, body); !strings.Contains(w.Header().Get("Location"), "ok=held") {
 		t.Fatalf("adding an event: %s", w.Header().Get("Location"))
 	}

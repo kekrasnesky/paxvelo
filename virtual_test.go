@@ -94,7 +94,7 @@ func TestVirtualRides(t *testing.T) {
 	add := func(name string, tick bool) CalRide {
 		t.Helper()
 		v := url.Values{"date": {wed}, "time": {"19:00"}, "name": {name}, "kind": {""}, "pace": {"1"},
-			"leader_name": {"Pat Rider"}, "lead": {"on"}, "ft": {oldToken(a)}, "virtual_was": {"0"}}
+			"leader_name": {"Pat Rider"}, "lead": {"on"}, "ft": {oldToken(a)}, "official": {"yes"}, "virtual_was": {"0"}}
 		if tick {
 			v.Set("virtual", "on")
 		}

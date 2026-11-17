@@ -8,7 +8,7 @@
     <p class="joined-title">{{if .Ride}}Requested. We’ll email you once it’s confirmed.{{else}}Signed. Enjoy the ride!{{end}}</p>
   </div>
   {{else if and .Ride (not .LoanerOpen)}}<p class="cal-note">Requests for this ride are closed.</p>
-  {{else if and .Ride (not .Bikes)}}<p class="cal-note">No club bikes are ready yet.</p>
+  {{else if and .Ride (not .Bikes)}}<p class="cal-note">No club bikes are available right now.</p>
   {{else}}<form class="join ride-waiver{{if .Ride}} loaner-form{{end}}" method="post" action="{{.Action}}">
     <input type="hidden" name="ft" value="{{.Token}}">
     <div class="hp" aria-hidden="true"><label>Leave this empty <input name="website" tabindex="-1" autocomplete="off"></label></div>
@@ -23,11 +23,11 @@
       <label>Your name <input name="name" required maxlength="100" autocomplete="name" placeholder="First and last name" value="{{.Name}}"></label>
       <label>Email <input type="email" name="email" required maxlength="254" autocomplete="email" value="{{.Email}}"></label>
     </div>
-    {{if not .Ride}}<fieldset class="pick">
+    {{if not .Ride}}{{if or loanersReady (eq .Bike "loaner")}}<fieldset class="pick">
       <legend>Bike</legend>
       <label><input type="radio" name="bike" value="loaner" required{{if eq .Bike "loaner"}} checked{{end}}><span><strong>Club loaner bike</strong></span></label>
       <label><input type="radio" name="bike" value="own"{{if eq .Bike "own"}} checked{{end}}><span><strong>My own bike</strong></span></label>
-    </fieldset>{{end}}
+    </fieldset>{{else}}<input type="hidden" name="bike" value="own">{{end}}{{end}}
     <fieldset class="terms waiver">
       <legend>Waiver</legend>
       <div class="waiver-text" tabindex="0" role="region" aria-label="Waiver">

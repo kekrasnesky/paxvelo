@@ -282,7 +282,7 @@ func TestAddRideAndCalendar(t *testing.T) {
 	a.store.SetClubPIN("8356")
 	date := nextWeekday(a, time.Saturday)
 	ct, body := form(url.Values{"date": {date}, "time": {"08:30"}, "name": {"Coffee Ride"}, "place": {"Leonardtown Square"}, "lead": {"on"},
-		"leader_name": {"Jane D."}, "pin": {"8356"}, "ft": {oldToken(a)}})
+		"leader_name": {"Jane D."}, "pin": {"8356"}, "ft": {oldToken(a)}, "official": {"yes"}})
 	w := do(t, h, nil, "POST", "/calendar/new", ct, body)
 	if !strings.Contains(w.Header().Get("Location"), "ok=added") {
 		t.Fatalf("add ride: %d %s", w.Code, w.Body.String())
@@ -297,7 +297,7 @@ func TestAddRideAndCalendar(t *testing.T) {
 		}
 	}
 	// Only a name and date are needed.
-	ct, body = form(url.Values{"date": {date}, "name": {""}, "leader_name": {"Jane D."}, "ft": {oldToken(a)}})
+	ct, body = form(url.Values{"date": {date}, "name": {""}, "leader_name": {"Jane D."}, "ft": {oldToken(a)}, "official": {"yes"}})
 	if w := do(t, h, nil, "POST", "/calendar/new", ct, body); w.Code != http.StatusBadRequest {
 		t.Errorf("ride without a name: %d", w.Code)
 	}
@@ -447,7 +447,7 @@ func TestLeadWithJustAName(t *testing.T) {
 	}
 	// Adding a ride works without Strava too, but waits for an admin to approve it.
 	sunday := nextWeekday(a, time.Sunday)
-	ct, body := form(url.Values{"date": {sunday}, "name": {"Sunday Spin"}, "leader_name": {"Pat Rider"}, "lead": {"on"}, "ft": {oldToken(a)}})
+	ct, body := form(url.Values{"date": {sunday}, "name": {"Sunday Spin"}, "leader_name": {"Pat Rider"}, "lead": {"on"}, "ft": {oldToken(a)}, "official": {"yes"}})
 	if w := do(t, h, nil, "POST", "/calendar/new", ct, body); !strings.Contains(w.Header().Get("Location"), "ok=held") {
 		t.Errorf("add ride by name: %d %s", w.Code, w.Header().Get("Location"))
 	}
@@ -466,7 +466,7 @@ func TestRidesAddedByNameAreHeld(t *testing.T) {
 		}
 		return false
 	}
-	ct, body := form(url.Values{"date": {sunday}, "name": {"Sunday Spin"}, "leader_name": {"Pat Rider"}, "ft": {oldToken(a)}})
+	ct, body := form(url.Values{"date": {sunday}, "name": {"Sunday Spin"}, "leader_name": {"Pat Rider"}, "ft": {oldToken(a)}, "official": {"yes"}})
 	if w := do(t, h, nil, "POST", "/calendar/new", ct, body); !strings.Contains(w.Header().Get("Location"), "ok=held") {
 		t.Fatalf("add ride by name: %s", w.Header().Get("Location"))
 	}
@@ -947,7 +947,7 @@ func TestRideWithClubPIN(t *testing.T) {
 		t.Error("Add a ride should ask for the club PIN")
 	}
 	add := func(name, pin string) *httptest.ResponseRecorder {
-		ct, body := form(url.Values{"date": {sunday}, "name": {name}, "leader_name": {"Pat Rider"}, "pin": {pin}, "ft": {oldToken(a)}})
+		ct, body := form(url.Values{"date": {sunday}, "name": {name}, "leader_name": {"Pat Rider"}, "pin": {pin}, "ft": {oldToken(a)}, "official": {"yes"}})
 		return do(t, h, nil, "POST", "/calendar/new", ct, body)
 	}
 	if w := add("Wrong Spin", "nope"); w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "isn’t right") {

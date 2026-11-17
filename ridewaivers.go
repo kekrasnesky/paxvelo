@@ -224,6 +224,9 @@ func (a *App) rideWaiverPage(w http.ResponseWriter, r *http.Request) {
 	if b := r.URL.Query().Get("bike"); b == bikeLoaner || b == bikeOwn {
 		d.Bike = b
 	}
+	if d.Bike == bikeLoaner && !a.store.AnyLoanerReady() {
+		d.Bike = "" // no bike to lend, so the page only takes their own
+	}
 	a.renderRideWaiver(w, http.StatusOK, d)
 }
 

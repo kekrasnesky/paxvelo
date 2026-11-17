@@ -1714,7 +1714,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
     <label>Size <input name="size" required maxlength="20" value="{{.Size}}"></label>
     <label>Rider height <input name="fits" maxlength="40" value="{{.Fits}}"></label>
     <label class="grow">Bike <input name="bike" maxlength="120" value="{{.Bike}}"></label>
-    <label class="check"><input type="checkbox" name="ready" value="yes"{{if .Ready}} checked{{end}}> Ready</label>
+    <label>Status <select name="ready" class="loaner-status{{if not .Ready}} off{{end}}" onchange="this.form.requestSubmit()"><option value="yes"{{if .Ready}} selected{{end}}>Available</option><option value=""{{if not .Ready}} selected{{end}}>Not available</option></select></label>
     <button class="mini ghost">{{icon "save"}}Save</button>
     <button class="link danger" formaction="/admin/loaners/bikes/{{.ID}}/remove" onclick="return confirm('Remove the {{.Size}} bike?')">{{icon "trash"}}Remove</button>
   </form>
@@ -1723,7 +1723,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
     <label>Size <input name="size" required maxlength="20" placeholder="M"></label>
     <label>Rider height <input name="fits" maxlength="40" placeholder="5'4&quot;–5'8&quot;"></label>
     <label class="grow">Bike <input name="bike" maxlength="120" placeholder="Year, make, model, frame size, brakes"></label>
-    <label class="check"><input type="checkbox" name="ready" value="yes"> Ready</label>
+    <label>Status <select name="ready"><option value="yes">Available</option><option value="" selected>Not available</option></select></label>
     <button class="mini">{{icon "plus"}}Add bike</button>
   </form>
 </div>
@@ -1844,7 +1844,7 @@ document.querySelectorAll('.copy-link').forEach(function(b){b.addEventListener('
   <tbody>
   {{range .Upcoming}}<tr{{if .Cancelled}} class="off"{{end}}>
     <td class="nowrap">{{.DateLabel}}<br><span class="muted small">{{.TimeLabel}}</span></td>
-    <td><a href="/admin/rides/{{.Key}}">{{.Name}}</a>{{if .IsVirtual}} {{template "virtual-badge" .}}{{end}}{{if not .IsRide}} <span class="tag">{{template "kind-icon" .}}{{.KindName}}</span>{{end}}{{if .Custom}} <span class="tag">One-off</span>{{end}}{{if .Cancelled}} <span class="tag"{{with .StatusNote}} title="{{.}}"{{end}}>Cancelled</span>{{else if .IsOn}} <span class="tag tag-on"{{with .StatusNote}} title="{{.}}"{{end}}>On</span>{{end}}</td>
+    <td><a href="/admin/rides/{{.Key}}">{{.Name}}</a>{{if .IsVirtual}} {{template "virtual-badge" .}}{{end}}{{if not .IsRide}} <span class="tag">{{template "kind-icon" .}}{{.KindName}}</span>{{end}}{{if .Custom}} <span class="tag">One-off</span>{{end}}{{if .Unofficial}} <span class="tag" title="Not a PaxVelo event">Community</span>{{end}}{{if .Cancelled}} <span class="tag"{{with .StatusNote}} title="{{.}}"{{end}}>Cancelled</span>{{else if .IsOn}} <span class="tag tag-on"{{with .StatusNote}} title="{{.}}"{{end}}>On</span>{{end}}</td>
     <td>{{if not .IsRide}}{{with .Leaders}}{{(index . 0).Name}}{{else}}<span class="muted">–</span>{{end}}{{else}}{{range .Slots}}<span class="leader-line">{{with .Group}}<span class="muted">{{.}}:</span> {{end}}{{with .Leader}}{{.Name}}{{else}}<span class="danger">needs a leader</span>{{end}}</span>{{end}}{{end}}</td>
     <td class="right nowrap row-acts"><a class="btn mini ghost" href="/admin/rides/{{.Key}}">{{icon "pencil"}}Edit</a>
       <form method="post" action="/admin/rides/{{.Key}}/cancel" class="inline"><input type="hidden" name="return" value="rides">{{if .Cancelled}}<input type="hidden" name="cancel" value="0"><button class="link small">{{icon "undo"}}Put back</button>{{else}}<input type="hidden" name="cancel" value="1"><button class="link danger small" onclick="return confirm('Cancel {{.Name}} on {{.ShortDate}}? It shows as cancelled on the calendar and the club is emailed.')">{{icon "ban"}}Cancel</button>{{end}}</form></td>
@@ -1859,7 +1859,7 @@ document.querySelectorAll('.copy-link').forEach(function(b){b.addEventListener('
   <thead><tr><th>Ride</th><th>When</th><th>Season</th><th>Start</th><th><span class="sr">Actions</span></th></tr></thead>
   <tbody>
   {{range .Series}}<tr>
-    <td><a href="/admin/weekly/{{.ID}}"><strong>{{.Name}}</strong></a>{{if .IsVirtual}} {{template "virtual-badge" .}}{{end}}{{with .Details}}<br><span class="muted small">{{firstLine .}}</span>{{end}}{{with .Groups}}<br><span class="muted small">Groups: {{join . ", "}}</span>{{end}}</td>
+    <td><a href="/admin/weekly/{{.ID}}"><strong>{{.Name}}</strong></a>{{if .IsVirtual}} {{template "virtual-badge" .}}{{end}}{{if .Unofficial}} <span class="tag" title="Not a PaxVelo event">Community</span>{{end}}{{with .Details}}<br><span class="muted small">{{firstLine .}}</span>{{end}}{{with .Groups}}<br><span class="muted small">Groups: {{join . ", "}}</span>{{end}}</td>
     <td class="nowrap">{{.WeekdayName}}s, {{timeLabel .Time}}</td>
     <td class="nowrap">{{.SeasonLabel}}</td>
     <td>{{.Place}}</td>
@@ -1956,6 +1956,7 @@ document.querySelectorAll('.copy-link').forEach(function(b){b.addEventListener('
   <input type="hidden" name="virtual_was" value="{{if .IsVirtual}}1{{else}}0{{end}}">
   <label class="check zwift-check"><input type="checkbox" name="zwift"{{if or .OnZwift (not .IsVirtual)}} checked{{end}}> {{template "zwift"}} Show the Zwift logo on the calendar</label>
   <input type="hidden" name="zwift_was" value="{{if or .OnZwift (not .IsVirtual)}}1{{else}}0{{end}}">
+  <label class="check" title="Not organized by PaxVelo: no club waiver, insurance or loaner bikes"><input type="checkbox" name="unofficial"{{if .Unofficial}} checked{{end}}> Community (not a PaxVelo event)</label>
   {{end}}
 
 {{define "kind-pick"}}{{$kind := .}}<fieldset class="kinds">
@@ -2008,11 +2009,11 @@ document.querySelectorAll('.copy-link').forEach(function(b){b.addEventListener('
   <thead><tr><th>Sun</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th></tr></thead>
   <tbody>{{range $m.Weeks}}<tr>{{range .}}<td class="{{if not .InMonth}}out {{end}}{{if .Today}}today {{end}}{{if .Past}}past{{end}}">
     <div class="cal-day"><span>{{.Day}}</span>{{if not .Past}}<a href="/admin/rides/new?date={{.Date}}" aria-label="Add a ride on {{.Date}}">+</a>{{end}}</div>
-    {{range .Rides}}<a class="cal-ride {{.Status}}" href="/admin/rides/{{.Key}}">{{if .IsVirtual}}{{template "virtual-badge" .}} {{end}}<span class="muted">{{.TimeLabel}}</span> {{.Name}}{{if not .IsRide}} {{template "kind-badge" .}}{{end}}<span class="lvls">{{range .Levels}}<span class="lvl lvl-{{.Key}}">{{.Name}}</span>{{end}}</span><span class="cal-lead">{{.LeaderSummary}}</span></a>{{end}}
+    {{range .Rides}}<a class="cal-ride {{.Status}}" href="/admin/rides/{{.Key}}">{{if .IsVirtual}}{{template "virtual-badge" .}} {{end}}<span class="muted">{{.TimeLabel}}</span> {{.Name}}{{if not .IsRide}} {{template "kind-badge" .}}{{end}}{{if .Unofficial}} <span class="tag">Community</span>{{end}}<span class="lvls">{{range .Levels}}<span class="lvl lvl-{{.Key}}">{{.Name}}</span>{{end}}</span><span class="cal-lead">{{.LeaderSummary}}</span></a>{{end}}
   </td>{{end}}</tr>{{end}}</tbody>
 </table></div>
 <ol class="cal-list">{{range $m.Days}}<li><h3>{{(index .Rides 0).DateLabel}}</h3>
-  {{range .Rides}}<a class="cal-ride {{.Status}}" href="/admin/rides/{{.Key}}">{{if .IsVirtual}}{{template "virtual-badge" .}} {{end}}<span class="muted">{{.TimeLabel}}</span> {{.Name}}{{if not .IsRide}} {{template "kind-badge" .}}{{end}}<span class="lvls">{{range .Levels}}<span class="lvl lvl-{{.Key}}">{{.Name}}</span>{{end}}</span><span class="cal-lead">{{.LeaderSummary}}</span></a>{{end}}</li>
+  {{range .Rides}}<a class="cal-ride {{.Status}}" href="/admin/rides/{{.Key}}">{{if .IsVirtual}}{{template "virtual-badge" .}} {{end}}<span class="muted">{{.TimeLabel}}</span> {{.Name}}{{if not .IsRide}} {{template "kind-badge" .}}{{end}}{{if .Unofficial}} <span class="tag">Community</span>{{end}}<span class="lvls">{{range .Levels}}<span class="lvl lvl-{{.Key}}">{{.Name}}</span>{{end}}</span><span class="cal-lead">{{.LeaderSummary}}</span></a>{{end}}</li>
   {{else}}<li class="empty">{{$m.NoDays}}</li>{{end}}</ol>
 {{template "foot" .}}{{end}}
 
@@ -3188,7 +3189,7 @@ document.querySelectorAll('[data-board]').forEach(function(box){
     <li>Every club email has their private membership link: dues status, a PayPal button, this year’s waiver to sign, their details, and emails on or off.</li>
     <li>The insurance waiver is signed once a year, and parents or guardians sign for each rider under 18 there too. Other adults on a Family membership each get an emailed link to sign their own, once the dues are marked paid. The <a href="/admin/waivers">Waivers</a> tab keeps every signed copy and shows who hasn’t signed.</li>
     <li>First-time riders sign at <a href="/ride-waiver" target="_blank" rel="noopener">/ride-waiver</a> (or <a href="/loaner" target="_blank" rel="noopener">/loaner</a>, with the club bike already picked): name, email, loaner or own bike, and a signature. A loaner bike adds the club’s loaner agreement to the League waiver. They’re under Waivers → First rides, and on the member’s page once someone with that email joins.</li>
-    <li>Every group ride’s page lists the loaner bikes marked Ready on <a href="/admin/loaners">Rides → Loaner bikes</a>. A rider picks one and signs the loaner waiver, until 8 pm the day before. The bike is held for that ride, {{.Guide.RidesEmail}} gets an email and Home shows it; Confirm or Decline it there and the rider is emailed. Cancel frees the bike.</li>
+    <li>Every group ride’s page lists the loaner bikes marked Available on <a href="/admin/loaners">Rides → Loaner bikes</a>. A rider picks one and signs the loaner waiver, until 8 pm the day before. The bike is held for that ride, {{.Guide.RidesEmail}} gets an email and Home shows it; Confirm or Decline it there and the rider is emailed. Cancel frees the bike.</li>
     <li>Every member email has an unsubscribe link.</li>
     <li>With the club PIN, their photos and the rides they add go up right away.</li></ul></div>
   <div class="card"><h3>Riders and ride leaders</h3><ul>

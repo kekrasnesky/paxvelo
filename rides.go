@@ -41,11 +41,12 @@ type RideSeries struct {
 	SeasonEnd   string `json:"season_end,omitempty"`
 	// Its first and last dates (2026-11-04), for one added from the Add a ride
 	// page with "Repeat every week". Empty means no limit.
-	Starts    string `json:"starts,omitempty"`
-	Ends      string `json:"ends,omitempty"`
-	Kind      string `json:"kind,omitempty"`       // like CalRide.Kind
-	Virtual   string `json:"virtual,omitempty"`    // like CalRide.Virtual
-	ZwiftLogo string `json:"zwift_logo,omitempty"` // like CalRide.ZwiftLogo
+	Starts     string `json:"starts,omitempty"`
+	Ends       string `json:"ends,omitempty"`
+	Kind       string `json:"kind,omitempty"`       // like CalRide.Kind
+	Virtual    string `json:"virtual,omitempty"`    // like CalRide.Virtual
+	ZwiftLogo  string `json:"zwift_logo,omitempty"` // like CalRide.ZwiftLogo
+	Unofficial bool   `json:"unofficial,omitempty"` // like CalRide.Unofficial
 }
 
 // IsVirtual reports whether the weekly ride is virtual (see CalRide.Virtual).
@@ -125,11 +126,15 @@ type CalRide struct {
 	// ZwiftLogo says whether a virtual ride shows the Zwift logo: "no" for
 	// one on another app (Rouvy, a Zoom meeting), "yes", or empty for
 	// automatic (see guessZwift).
-	ZwiftLogo string      `json:"zwift_logo,omitempty"`
-	Leaders   []Leader    `json:"leaders,omitempty"`
-	Riders    []RideRider `json:"riders,omitempty"`   // who said "I'm in" on the website (imin.go)
-	External  string      `json:"external,omitempty"` // "strava:<event>:<date>", or an ID sent through the calendar API
-	Cancelled bool        `json:"cancelled,omitempty"`
+	ZwiftLogo string `json:"zwift_logo,omitempty"`
+	// Unofficial is a ride or event someone shares that the club doesn't
+	// organize (a mountain bike ride, say): shown as "Community", with no
+	// club waiver, insurance or loaner bikes.
+	Unofficial bool        `json:"unofficial,omitempty"`
+	Leaders    []Leader    `json:"leaders,omitempty"`
+	Riders     []RideRider `json:"riders,omitempty"`   // who said "I'm in" on the website (imin.go)
+	External   string      `json:"external,omitempty"` // "strava:<event>:<date>", or an ID sent through the calendar API
+	Cancelled  bool        `json:"cancelled,omitempty"`
 	// On is a leader's (or an admin's) word that the ride is going ahead,
 	// usually the morning of. StatusNote goes with it or with a cancellation
 	// ("Rain", "Meet at the back lot"); StatusBy and StatusAt say who and when
@@ -626,7 +631,7 @@ func (s *Store) Rides(from, to time.Time) []RideOcc {
 			date := d.Format("2006-01-02")
 			if key := seriesKey(se.ID, date); !stored[key] {
 				out = append(out, RideOcc{Key: key, CalRide: CalRide{SeriesID: se.ID, Date: date, Time: se.Time,
-					Name: se.Name, Place: se.Place, Details: se.Details, StravaURL: se.StravaURL, RouteID: se.RouteID, Groups: append([]string(nil), se.Groups...), Level: se.Level, Kind: se.Kind, Virtual: se.Virtual, ZwiftLogo: se.ZwiftLogo}})
+					Name: se.Name, Place: se.Place, Details: se.Details, StravaURL: se.StravaURL, RouteID: se.RouteID, Groups: append([]string(nil), se.Groups...), Level: se.Level, Kind: se.Kind, Virtual: se.Virtual, ZwiftLogo: se.ZwiftLogo, Unofficial: se.Unofficial}})
 			}
 		}
 	}
@@ -683,7 +688,7 @@ func (s *Store) ride(key string, create bool) (*CalRide, error) {
 		return nil, errNoRide
 	}
 	r := &CalRide{SeriesID: id, Date: date, Time: se.Time, Name: se.Name, Place: se.Place, Details: se.Details, StravaURL: se.StravaURL, RouteID: se.RouteID,
-		Groups: append([]string(nil), se.Groups...), Level: se.Level, Kind: se.Kind, Virtual: se.Virtual, ZwiftLogo: se.ZwiftLogo, Added: time.Now().UTC()}
+		Groups: append([]string(nil), se.Groups...), Level: se.Level, Kind: se.Kind, Virtual: se.Virtual, ZwiftLogo: se.ZwiftLogo, Unofficial: se.Unofficial, Added: time.Now().UTC()}
 	if create {
 		s.d.NextRide = max(s.d.NextRide, 1)
 		r.ID = s.d.NextRide
@@ -812,6 +817,9 @@ func (s *Store) UpdateSeries(se RideSeries, from string) error {
 				follow(&r.Kind, old.Kind, se.Kind)
 				follow(&r.Virtual, old.Virtual, se.Virtual)
 				follow(&r.ZwiftLogo, old.ZwiftLogo, se.ZwiftLogo)
+				if r.Unofficial == old.Unofficial {
+					r.Unofficial = se.Unofficial
+				}
 				if slices.Equal(r.Groups, old.Groups) {
 					r.Groups = append([]string(nil), se.Groups...)
 					r.fitLeaders()

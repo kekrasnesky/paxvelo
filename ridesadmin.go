@@ -154,6 +154,7 @@ func readRide(r *http.Request, c *CalRide, dateEditable bool) string {
 	c.Kind = kindFor(r.FormValue("kind"))
 	c.Virtual = readVirtual(r, c.Virtual, c.Name, c.Place, c.Details)
 	c.ZwiftLogo = readZwiftLogo(r, c.ZwiftLogo, c.Name, c.Place, c.Details)
+	c.Unofficial = r.FormValue("unofficial") != ""
 	c.Groups = groupsFor(r.FormValue("pace"), c.Groups)
 	c.Level = levelFor(r.Form["level"])
 	if !c.IsRide() { // one host, no pace groups or level
@@ -337,7 +338,7 @@ func (a *App) addRideAdmin(w http.ResponseWriter, r *http.Request) {
 func (a *App) addWeeklyFromRide(w http.ResponseWriter, r *http.Request, c CalRide, until, me string) {
 	d, _ := time.Parse("2006-01-02", c.Date)
 	se := RideSeries{Name: c.Name, Weekday: int(d.Weekday()), Time: c.Time, Place: c.Place, Details: c.Details,
-		StravaURL: c.StravaURL, RouteID: c.RouteID, Groups: c.Groups, Level: c.Level, Kind: c.Kind, Virtual: c.Virtual, ZwiftLogo: c.ZwiftLogo, Starts: c.Date, Ends: until}
+		StravaURL: c.StravaURL, RouteID: c.RouteID, Groups: c.Groups, Level: c.Level, Kind: c.Kind, Virtual: c.Virtual, ZwiftLogo: c.ZwiftLogo, Unofficial: c.Unofficial, Starts: c.Date, Ends: until}
 	id, err := a.store.AddSeries(se)
 	if err != nil {
 		back(w, r, "/admin/calendar?err=save")
@@ -411,6 +412,7 @@ func readSeries(r *http.Request, se *RideSeries) string {
 	se.Kind = kindFor(r.FormValue("kind"))
 	se.Virtual = readVirtual(r, se.Virtual, se.Name, se.Place, se.Details)
 	se.ZwiftLogo = readZwiftLogo(r, se.ZwiftLogo, se.Name, se.Place, se.Details)
+	se.Unofficial = r.FormValue("unofficial") != ""
 	se.Groups = groupsFor(r.FormValue("pace"), se.Groups)
 	se.Level = levelFor(r.Form["level"])
 	if se.Kind != "" {

@@ -177,7 +177,7 @@ func TestLoanerBikesAdmin(t *testing.T) {
 	a, h, admin := testApp(t)
 	medium := a.store.LoanerBikes()[1]
 	ct, b := form(url.Values{"id": {strconv.Itoa(medium.ID)}, "size": {"M"}, "fits": {"5'4\"–5'8\""}, "bike": {"2019 Giant Defy, 52 cm"}, "ready": {"yes"}})
-	if w := do(t, h, admin, "POST", "/admin/loaners/bikes", ct, b); !strings.Contains(w.Header().Get("Location"), "ok=saved") {
+	if w := do(t, h, admin, "POST", "/admin/loaners/bikes", ct, b); !strings.Contains(w.Header().Get("Location"), "ok=bike-saved") {
 		t.Fatalf("save: %s", w.Header().Get("Location"))
 	}
 	ct, b = form(url.Values{"size": {"XXL"}, "fits": {"6'4\"+"}})

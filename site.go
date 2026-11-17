@@ -40,6 +40,7 @@ type Page struct {
 
 type Site struct {
 	cfg         Config
+	loaners     func() bool                      // whether any loaner bike is available (loaners.go); nil = yes
 	content     fs.FS                            // the content folder
 	pageTpl     map[string]*template.Template    // "home" and "page"
 	pagePaths   []string                         // every content page's address at startup (pages added in the admin are found by serveAny)
@@ -222,6 +223,7 @@ func newSite(cfg Config) (*Site, error) {
 		"waiverText":   func() template.HTML { return s.waiver.HTML },
 		"guardianText": func() template.HTML { return s.waiver.Guardian },
 		"loanerText":   func() template.HTML { return s.waiver.Loaner },
+		"loanersReady": func() bool { return s.loaners == nil || s.loaners() },
 	}
 	base, err := template.New("").Funcs(funcs).ParseFS(webFS, "web/templates/layout.html", "web/templates/signature.html", "web/templates/rsvp-parts.html")
 	if err != nil {

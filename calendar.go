@@ -54,8 +54,9 @@ type calView struct {
 	Sub *subView // the Subscribe page (calfeed.go)
 
 	// Adding a ride
-	Form     CalRide
-	FormName string
+	Form         CalRide
+	FormName     string
+	FormOfficial string // "yes" or "no" to "PaxVelo event?", as answered
 }
 
 var calFlash = map[string]string{
@@ -239,7 +240,7 @@ var upcomingTpl = template.Must(template.New("").Parse(`<div class="next-rides">
 {{if .Rides}}<ul class="cal-up-list">
 {{range .Rides}}<li><a class="cal-ride {{.Status}}" href="/calendar/ride/{{.Key}}">
 <span class="cal-up-date">{{.ShortDate}}</span>
-<span class="cal-time">{{.TimeLabel}}</span> {{.Name}}
+<span class="cal-time">{{.TimeLabel}}</span> {{.Name}}{{if .Unofficial}} <span class="community-tag">Community</span>{{end}}
 {{with .Place}}<span class="cal-place">{{.}}</span>{{end}}
 <span class="lvls">{{range .Levels}}<span class="lvl lvl-{{.Key}}">{{.Name}}</span>{{end}}</span>
 {{if .Cancelled}}<span class="cal-lead">{{.LeaderSummary}}</span>{{else if .IsOn}}<span class="cal-lead"><span class="cal-on">On</span>{{.StatusNote}}</span>{{else if or (eq .Status "open") (eq .Status "partial")}}<span class="cal-lead"><span class="cal-need">{{.LeaderSummary}}</span></span>{{end}}
@@ -545,6 +546,7 @@ func (a *App) addRide(w http.ResponseWriter, r *http.Request) {
 		Details: cleanName(r.FormValue("details")), StravaURL: strings.TrimSpace(r.FormValue("strava_url")), AddedBy: name,
 		Groups: groupsFor(r.FormValue("pace"), nil), Kind: kindFor(r.FormValue("kind")),
 		Virtual: r.FormValue("virtual_set"), ZwiftLogo: r.FormValue("zwift_set"),
+		Unofficial: r.FormValue("official") == "no",
 		// Anyone can type a name here, so unless they typed the club PIN
 		// (which says they're in the club) an admin approves the ride first.
 		Held: true,
@@ -562,7 +564,7 @@ func (a *App) addRide(w http.ResponseWriter, r *http.Request) {
 	route, routeOK := parseRoute(r.FormValue("route")) // rideroute.go
 	c.RouteID = route
 	v := a.calBase(r)
-	v.Form, v.FormName = c, r.FormValue("leader_name")
+	v.Form, v.FormName, v.FormOfficial = c, r.FormValue("leader_name"), r.FormValue("official")
 	v.ClubRoutes = a.store.ClubRoutes()
 	var pinProblem string
 	if code == "" {
@@ -577,6 +579,8 @@ func (a *App) addRide(w http.ResponseWriter, r *http.Request) {
 		v.Error = calError[code]
 	case dateErr != nil || c.Name == "":
 		v.Error = calError["form"]
+	case v.FormOfficial != "yes" && v.FormOfficial != "no":
+		v.Error = "Say whether it’s a PaxVelo event."
 	case c.Time != "" && timeErr != nil:
 		v.Error = "Pick a start time, or leave it empty."
 	case c.Date < a.today().Format("2006-01-02"):
@@ -605,12 +609,15 @@ func (a *App) addRide(w http.ResponseWriter, r *http.Request) {
 	}
 	if o.Held {
 		a.mailer.Notify(fmt.Sprintf("%s waiting for approval: %s on %s", strings.ToUpper(o.Noun()[:1])+o.Noun()[1:], o.Name, shortDate(o.Date)),
-			fmt.Sprintf("%s added %s on %s without the club PIN. It isn't on the calendar until an admin approves it: %s/admin/calendar\n\nTo delete it instead, open it there.",
-				name, o.Name, rideWhen(o), a.cfg.SiteURL))
+			fmt.Sprintf("%s added %s on %s without the club PIN.%s It isn't on the calendar until an admin approves it: %s/admin/calendar\n\nTo delete it instead, open it there.",
+				name, o.Name, rideWhen(o), heldNote(o), a.cfg.SiteURL))
 		http.Redirect(w, r, "/calendar?ok=held", http.StatusSeeOther)
 		return
 	}
 	body := fmt.Sprintf("%s added %s to the calendar: %s on %s.", name, map[bool]string{true: "a ride", false: "an event"}[o.IsRide()], o.Name, rideWhen(o))
+	if o.Unofficial {
+		body += " It’s not a PaxVelo event, so it shows as a community " + o.Noun() + "."
+	}
 	if len(o.Groups) > 0 {
 		body += " Pace groups: " + strings.Join(o.Groups, ", ") + "."
 	}
@@ -734,4 +741,13 @@ func icsFold(l string) string {
 	}
 	b.WriteString("\r\n")
 	return b.String()
+}
+
+// heldNote tells the admins approving a ride that its poster said it isn't
+// a PaxVelo event.
+func heldNote(o RideOcc) string {
+	if !o.Unofficial {
+		return ""
+	}
+	return " They said it's not a PaxVelo event, so it shows as a community " + o.Noun() + "."
 }

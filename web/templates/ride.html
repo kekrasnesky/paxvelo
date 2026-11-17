@@ -11,6 +11,8 @@
   {{if $r.Cancelled}}<p class="ride-status off" role="status">{{icon "ban"}}<span><strong>Cancelled</strong>{{with $r.StatusNote}} {{.}}{{end}}{{with $r.StatusBy}}<span class="ride-status-by">{{.}}{{with $r.StatusWhen}}, {{.}}{{end}}</span>{{end}}</span></p>
   {{else if and $r.IsOn (not .Past)}}<p class="ride-status on" role="status">{{icon "check"}}<span><strong>{{if $r.IsRide}}Ride is on{{else}}It’s on{{end}}</strong>{{with $r.StatusNote}} {{.}}{{end}}{{with $r.StatusBy}}<span class="ride-status-by">{{.}}{{with $r.StatusWhen}}, {{.}}{{end}}</span>{{end}}</span></p>{{end}}
 
+  {{if $r.Unofficial}}<p class="ride-status community" role="note">{{icon "globe"}}<span><strong>Community {{$r.Noun}}</strong> Not a PaxVelo event: the club waiver and insurance don’t cover it.</span></p>{{end}}
+
   {{with .Forecast}}<p class="ride-weather" title="National Weather Service forecast for the start">{{icon "cloud"}}<span><strong>{{.Hour}}</strong> {{.Line}}</span></p>{{end}}
 
   {{with $r.Details}}<p class="ride-notes">{{.}}</p>{{end}}
@@ -27,7 +29,7 @@
     {{with $r.StravaURL}}<div><dt>Strava</dt><dd><a href="{{.}}" target="_blank" rel="noopener">See the event</a>{{with $r.Strava}}{{if .Going}} · {{.Going}} going{{end}}{{end}}</dd></div>{{end}}
     {{if not $r.IsRide}}<div><dt>What</dt><dd>{{template "kind-icon" $r}}{{$r.KindName}}{{if .Series}}, every week{{end}}</dd></div>{{end}}
   </dl>
-  {{if .RSVP}}{{if not .Past}}<p class="ride-tools rsvp-tools">{{with .Directions}}<a class="btn" href="{{.}}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 11 18-8-8 18-2-8z"/></svg>Directions</a>{{end}}<a class="btn btn-quiet" href="/calendar/ride/{{$r.Key}}/calendar.ics" rel="nofollow">{{icon "calendar"}}Add to calendar</a><button class="btn btn-quiet ride-share" type="button" hidden>{{icon "share"}}Share</button></p>{{end}}{{else if not .Past}}<p class="ride-tools"><a class="btn btn-quiet" href="/calendar/ride/{{$r.Key}}/calendar.ics" rel="nofollow">{{icon "calendar"}}Add to calendar</a><button class="btn btn-quiet ride-share" type="button" hidden>{{icon "share"}}Share</button>{{if $r.IsRide}}{{template "push-btn"}}<a class="btn btn-quiet" href="/qr/ride-waiver" title="For a new rider to scan">{{icon "qr"}}Waiver code</a>{{end}}</p>{{end}}
+  {{if .RSVP}}{{if not .Past}}<p class="ride-tools rsvp-tools">{{with .Directions}}<a class="btn" href="{{.}}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 11 18-8-8 18-2-8z"/></svg>Directions</a>{{end}}<a class="btn btn-quiet" href="/calendar/ride/{{$r.Key}}/calendar.ics" rel="nofollow">{{icon "calendar"}}Add to calendar</a><button class="btn btn-quiet ride-share" type="button" hidden>{{icon "share"}}Share</button></p>{{end}}{{else if not .Past}}<p class="ride-tools"><a class="btn btn-quiet" href="/calendar/ride/{{$r.Key}}/calendar.ics" rel="nofollow">{{icon "calendar"}}Add to calendar</a><button class="btn btn-quiet ride-share" type="button" hidden>{{icon "share"}}Share</button>{{if $r.IsRide}}{{template "push-btn"}}{{if not $r.Unofficial}}<a class="btn btn-quiet" href="/qr/ride-waiver" title="For a new rider to scan">{{icon "qr"}}Waiver code</a>{{end}}{{end}}</p>{{end}}
   </div>
   {{if or .RSVP (and $r.IsRide (or .CanJoin $r.Riders))}}<aside class="ride-side">
   {{if .RSVP}}
@@ -42,7 +44,7 @@
     {{with $r.Riders}}<ul class="going-list">{{range .}}<li>{{.ShortName}}{{with .Group}} <span class="spot-group">{{.}}</span>{{end}}</li>{{end}}</ul>{{end}}
     {{with .Me}}<div class="going-me">
       <p><strong>You’re in</strong>{{with .Group}} · {{.}}{{end}}</p>
-      {{if .First}}<a class="btn" href="/ride-waiver">Sign the ride waiver</a>{{end}}
+      {{if and .First (not $r.Unofficial)}}<a class="btn" href="/ride-waiver">Sign the ride waiver</a>{{end}}
       {{if $d.CanJoin}}<form method="post" action="/calendar/ride/{{$r.Key}}/out"><button type="submit" class="link-button">Can’t make it</button></form>{{end}}
     </div>
     {{else}}{{if .CanJoin}}<form class="in-form" method="post" action="/calendar/ride/{{$r.Key}}/in">
@@ -51,7 +53,7 @@
       <label>Your name <input name="rider_name" required maxlength="60" autocomplete="name" value="{{.RiderName}}"></label>
       {{if gt (len $r.Groups) 1}}<label>Group <select name="group"><option value="">Not sure</option>{{range $r.Groups}}<option>{{.}}</option>{{end}}</select></label>{{end}}
       <label><span>Email <span class="opt">for changes</span></span> <input type="email" name="email" maxlength="254" autocomplete="email"></label>
-      <label class="in-first"><input type="checkbox" name="first" value="1"> First club ride</label>
+      {{if not $r.Unofficial}}<label class="in-first"><input type="checkbox" name="first" value="1"> First club ride</label>{{end}}
       <button type="submit" class="btn">{{icon "check"}}I’m in</button>
     </form>{{end}}{{end}}
   </section>{{end}}
