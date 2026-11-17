@@ -28,6 +28,7 @@ type RideSeries struct {
 	Place     string `json:"place,omitempty"`
 	Details   string `json:"details,omitempty"`
 	StravaURL string `json:"strava_url,omitempty"`
+	RouteID   string `json:"route_id,omitempty"` // a Strava route set on the ride (rideroute.go)
 	// Pace groups, each led by its own leader: "A group", "B group", and so on
 	// (see paceGroups). None means the ride has one leader.
 	Groups []string `json:"groups,omitempty"`
@@ -111,6 +112,7 @@ type CalRide struct {
 	Place     string   `json:"place,omitempty"`
 	Details   string   `json:"details,omitempty"`
 	StravaURL string   `json:"strava_url,omitempty"`
+	RouteID   string   `json:"route_id,omitempty"` // a Strava route set on the ride (rideroute.go)
 	Groups    []string `json:"groups,omitempty"`
 	Level     string   `json:"level,omitempty"` // like RideSeries.Level
 	// Kind is what it is when it isn't a ride: a clinic, a club meeting, and so
@@ -123,10 +125,11 @@ type CalRide struct {
 	// ZwiftLogo says whether a virtual ride shows the Zwift logo: "no" for
 	// one on another app (Rouvy, a Zoom meeting), "yes", or empty for
 	// automatic (see guessZwift).
-	ZwiftLogo string   `json:"zwift_logo,omitempty"`
-	Leaders   []Leader `json:"leaders,omitempty"`
-	External  string   `json:"external,omitempty"` // "strava:<event>:<date>", or an ID sent through the calendar API
-	Cancelled bool     `json:"cancelled,omitempty"`
+	ZwiftLogo string      `json:"zwift_logo,omitempty"`
+	Leaders   []Leader    `json:"leaders,omitempty"`
+	Riders    []RideRider `json:"riders,omitempty"`   // who said "I'm in" on the website (imin.go)
+	External  string      `json:"external,omitempty"` // "strava:<event>:<date>", or an ID sent through the calendar API
+	Cancelled bool        `json:"cancelled,omitempty"`
 	// On is a leader's (or an admin's) word that the ride is going ahead,
 	// usually the morning of. StatusNote goes with it or with a cancellation
 	// ("Rain", "Meet at the back lot"); StatusBy and StatusAt say who and when
@@ -589,6 +592,7 @@ func (s *Store) seriesByID(id int) *RideSeries {
 func occOf(r *CalRide) RideOcc {
 	c := *r
 	c.Leaders = append([]Leader(nil), r.Leaders...)
+	c.Riders = append([]RideRider(nil), r.Riders...)
 	c.Groups = append([]string(nil), r.Groups...)
 	if r.Strava != nil {
 		st := *r.Strava
@@ -622,7 +626,7 @@ func (s *Store) Rides(from, to time.Time) []RideOcc {
 			date := d.Format("2006-01-02")
 			if key := seriesKey(se.ID, date); !stored[key] {
 				out = append(out, RideOcc{Key: key, CalRide: CalRide{SeriesID: se.ID, Date: date, Time: se.Time,
-					Name: se.Name, Place: se.Place, Details: se.Details, StravaURL: se.StravaURL, Groups: append([]string(nil), se.Groups...), Level: se.Level, Kind: se.Kind, Virtual: se.Virtual, ZwiftLogo: se.ZwiftLogo}})
+					Name: se.Name, Place: se.Place, Details: se.Details, StravaURL: se.StravaURL, RouteID: se.RouteID, Groups: append([]string(nil), se.Groups...), Level: se.Level, Kind: se.Kind, Virtual: se.Virtual, ZwiftLogo: se.ZwiftLogo}})
 			}
 		}
 	}
@@ -678,7 +682,7 @@ func (s *Store) ride(key string, create bool) (*CalRide, error) {
 	if se == nil || err != nil || !se.runsOn(d) {
 		return nil, errNoRide
 	}
-	r := &CalRide{SeriesID: id, Date: date, Time: se.Time, Name: se.Name, Place: se.Place, Details: se.Details, StravaURL: se.StravaURL,
+	r := &CalRide{SeriesID: id, Date: date, Time: se.Time, Name: se.Name, Place: se.Place, Details: se.Details, StravaURL: se.StravaURL, RouteID: se.RouteID,
 		Groups: append([]string(nil), se.Groups...), Level: se.Level, Kind: se.Kind, Virtual: se.Virtual, ZwiftLogo: se.ZwiftLogo, Added: time.Now().UTC()}
 	if create {
 		s.d.NextRide = max(s.d.NextRide, 1)
@@ -803,6 +807,7 @@ func (s *Store) UpdateSeries(se RideSeries, from string) error {
 				follow(&r.Place, old.Place, se.Place)
 				follow(&r.Details, old.Details, se.Details)
 				follow(&r.StravaURL, old.StravaURL, se.StravaURL)
+				follow(&r.RouteID, old.RouteID, se.RouteID)
 				follow(&r.Level, old.Level, se.Level)
 				follow(&r.Kind, old.Kind, se.Kind)
 				follow(&r.Virtual, old.Virtual, se.Virtual)

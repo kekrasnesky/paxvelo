@@ -147,6 +147,10 @@ func readRide(r *http.Request, c *CalRide, dateEditable bool) string {
 	c.Time = strings.TrimSpace(r.FormValue("time"))
 	c.Place, c.Details = cleanName(r.FormValue("place")), cleanText(r.FormValue("details"))
 	c.StravaURL = strings.TrimSpace(r.FormValue("strava_url"))
+	route, routeOK := parseRoute(r.FormValue("route")) // rideroute.go
+	if routeOK {
+		c.RouteID = route
+	}
 	c.Kind = kindFor(r.FormValue("kind"))
 	c.Virtual = readVirtual(r, c.Virtual, c.Name, c.Place, c.Details)
 	c.ZwiftLogo = readZwiftLogo(r, c.ZwiftLogo, c.Name, c.Place, c.Details)
@@ -167,6 +171,8 @@ func readRide(r *http.Request, c *CalRide, dateEditable bool) string {
 		return "Pick a start time, or leave it empty."
 	case c.StravaURL != "" && !stravaLink(c.StravaURL):
 		return "Paste the event’s Strava link, starting with https://www.strava.com/."
+	case !routeOK:
+		return routeProblem
 	}
 	return ""
 }
@@ -254,6 +260,7 @@ func (a *App) saveRideAdmin(w http.ResponseWriter, r *http.Request) {
 		back(w, r, "/admin/calendar?err=noride")
 		return
 	}
+	a.readRouteSoon(o.RouteID)
 	if moved := rideMoved(before, o); moved != "" {
 		a.notifyRide(fmt.Sprintf("%s on %s has changed", o.Name, shortDate(o.Date)),
 			fmt.Sprintf("%s changed %s: %s. It’s now on %s.", me, before.Name, moved, rideWhen(o)), o, "")
@@ -302,6 +309,7 @@ func (a *App) addRideAdmin(w http.ResponseWriter, r *http.Request) {
 		a.renderAdmin(w, r, http.StatusBadRequest, "ride", v)
 		return
 	}
+	a.readRouteSoon(c.RouteID)
 	if weekly {
 		a.addWeeklyFromRide(w, r, c, until, me)
 		return
@@ -329,7 +337,7 @@ func (a *App) addRideAdmin(w http.ResponseWriter, r *http.Request) {
 func (a *App) addWeeklyFromRide(w http.ResponseWriter, r *http.Request, c CalRide, until, me string) {
 	d, _ := time.Parse("2006-01-02", c.Date)
 	se := RideSeries{Name: c.Name, Weekday: int(d.Weekday()), Time: c.Time, Place: c.Place, Details: c.Details,
-		StravaURL: c.StravaURL, Groups: c.Groups, Level: c.Level, Kind: c.Kind, Virtual: c.Virtual, ZwiftLogo: c.ZwiftLogo, Starts: c.Date, Ends: until}
+		StravaURL: c.StravaURL, RouteID: c.RouteID, Groups: c.Groups, Level: c.Level, Kind: c.Kind, Virtual: c.Virtual, ZwiftLogo: c.ZwiftLogo, Starts: c.Date, Ends: until}
 	id, err := a.store.AddSeries(se)
 	if err != nil {
 		back(w, r, "/admin/calendar?err=save")
@@ -395,6 +403,11 @@ func readSeries(r *http.Request, se *RideSeries) string {
 	se.Name, se.Weekday, se.Time = cleanName(r.FormValue("name")), wd, strings.TrimSpace(r.FormValue("time"))
 	se.Place, se.Details = cleanName(r.FormValue("place")), cleanText(r.FormValue("details"))
 	se.StravaURL = strings.TrimSpace(r.FormValue("strava_url"))
+	route, routeOK := parseRoute(r.FormValue("route")) // rideroute.go
+	if !routeOK {
+		return "route"
+	}
+	se.RouteID = route
 	se.Kind = kindFor(r.FormValue("kind"))
 	se.Virtual = readVirtual(r, se.Virtual, se.Name, se.Place, se.Details)
 	se.ZwiftLogo = readZwiftLogo(r, se.ZwiftLogo, se.Name, se.Place, se.Details)
@@ -431,6 +444,7 @@ func (a *App) addSeries(w http.ResponseWriter, r *http.Request) {
 		back(w, r, "/admin/rides?err="+code)
 		return
 	}
+	a.readRouteSoon(se.RouteID)
 	if _, err := a.store.AddSeries(se); err != nil {
 		back(w, r, "/admin/rides?err=save")
 		return
@@ -473,6 +487,7 @@ func (a *App) saveSeries(w http.ResponseWriter, r *http.Request) {
 		back(w, r, fmt.Sprintf("/admin/weekly/%d?err=%s", id, code))
 		return
 	}
+	a.readRouteSoon(se.RouteID)
 	if err := a.store.UpdateSeries(se, a.today().Format("2006-01-02")); err != nil {
 		back(w, r, "/admin/rides?err=save")
 		return

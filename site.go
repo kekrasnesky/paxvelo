@@ -183,6 +183,7 @@ func newSite(cfg Config) (*Site, error) {
 		"focusStyle":   focusStyle,
 		"issueSubject": issueSubject,
 		"inc":          func(i int) int { return i + 1 },
+		"qr":           func(path, label string) template.HTML { return qrSVG(cfg.SiteURL+path, label) }, // qr.go
 		"sub":          func(a, b int) int { return a - b },
 		"instagram":    func(posts []string) template.HTML { return instagramRow(posts, *s.instaFeed.Load(), 0) },
 		"timeLabel":    timeLabel,
@@ -278,7 +279,7 @@ func newSite(cfg Config) (*Site, error) {
 	if err := s.renderContent(contentData{}); err != nil {
 		return nil, err
 	}
-	for _, name := range []string{"join", "unsubscribe", "membership", "notfound", "newsletter", "calendar", "subscribe", "offline", "ride", "ride-new", "routes", "share-photos", "gallery", "album", "photo", "minutes", "kit", "ride-waiver", "rsvp"} {
+	for _, name := range []string{"join", "unsubscribe", "membership", "notfound", "newsletter", "calendar", "subscribe", "offline", "qr", "ride", "ride-new", "routes", "share-photos", "gallery", "album", "photo", "minutes", "kit", "ride-waiver", "rsvp"} {
 		if s.dynamic[name], err = parse(name + ".html"); err != nil {
 			return nil, err
 		}

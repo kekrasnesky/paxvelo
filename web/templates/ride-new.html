@@ -23,6 +23,8 @@
     <label class="check-row zwift-pick"><input type="checkbox" name="zwift"{{if or .Form.OnZwift (not .Form.IsVirtual)}} checked{{end}}> <span>{{template "zwift"}} Show the Zwift logo <span class="opt">untick it for another app, like Rouvy or Zoom</span></span></label>
     <input type="hidden" name="zwift_was" value="{{if or .Form.OnZwift (not .Form.IsVirtual)}}1{{else}}0{{end}}"><input type="hidden" name="zwift_set" value="{{.Form.ZwiftLogo}}">
     <label class="ride-only"><span>Pace groups <span class="opt">each group gets its own leader</span></span> <select name="pace">{{$pace := paceOf .Form.Groups}}{{range paceChoices}}<option value="{{.Value}}"{{if eq .Value $pace}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>
+    <label class="ride-only"><span>Strava route <span class="opt">optional</span></span> <input name="route" value="{{.Form.RouteURL}}" list="club-routes" inputmode="url" autocomplete="off" placeholder="https://www.strava.com/routes/…"></label>
+    {{template "club-routes" .ClubRoutes}}
     <label><span>Strava event link <span class="opt">optional, add it later if you like</span></span> <input type="url" name="strava_url" value="{{.Form.StravaURL}}" placeholder="https://www.strava.com/clubs/10197/group_events/…"></label>
     {{if .PINOn}}<label><span>Club PIN <span class="opt">optional</span></span> <input name="pin" maxlength="40" autocomplete="off" autocapitalize="off" spellcheck="false">
       <span class="hint">With the PIN, it goes on the calendar right away. Without it, an admin approves it first.</span></label>

@@ -1,0 +1,9 @@
+{{define "head"}}<meta name="robots" content="noindex">{{end}}
+{{define "content"}}{{with .Data}}
+<article class="page page-narrow qr-page">
+  <h1>{{.Title}}</h1>
+  <p class="lead">{{.Line}}</p>
+  <div class="qr-big">{{qr .Path .Title}}</div>
+  <p class="qr-addr">{{.Address}}</p>
+</article>
+{{end}}{{end}}

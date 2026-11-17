@@ -1062,6 +1062,25 @@ tr.current td{background:#faf8f5}
   .report .table-wrap{border:0;overflow:visible}
   .report-table{font-size:10pt}
 }
+/* Signs to print (signs.go): cards on screen, one sign per sheet on paper */
+.signs{display:grid;grid-template-columns:repeat(auto-fill,minmax(16rem,1fr));gap:1rem;margin-top:1rem}
+.sign{padding:1.5rem;border:1px solid var(--line);border-radius:var(--radius-lg);background:#fff;text-align:center}
+.sign-logo{width:9rem;height:auto}
+.sign h2{margin:.8rem 0 .2rem;font-size:1.6rem}
+.sign-line{margin:0;color:var(--muted)}
+.sign-qr{width:min(100%,14rem);margin:1rem auto .4rem}
+.sign-qr .qr{display:block;width:100%;height:auto}
+.sign-addr{margin:0;font-weight:500;word-break:break-all}
+@media print{
+  .signs{display:block;margin:0}
+  .sign{display:flex;flex-direction:column;align-items:center;justify-content:center;height:96vh;border:0;break-after:page}
+  .sign:last-child{break-after:auto}
+  .sign-logo{width:3in}
+  .sign h2{font-size:40pt;margin-top:.4in}
+  .sign-line{font-size:20pt;color:#333}
+  .sign-qr{width:4.5in;margin:.4in auto .2in}
+  .sign-addr{font-size:16pt}
+}
 .board-who{gap:.9rem}
 a.tag{text-decoration:none}
 a.tag:hover{border-color:var(--ink);color:var(--ink)}

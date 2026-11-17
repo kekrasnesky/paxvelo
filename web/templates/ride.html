@@ -3,11 +3,13 @@
 <article class="page">
   <p class="cal-back"><a href="/calendar?m={{slice $r.Date 0 7}}">← Club calendar</a></p>
   <h1>{{$r.Name}}</h1>
-  <p class="lead">{{$r.DateLabel}}{{with $r.Time}} · {{timeLabel .}}{{end}}</p>
+  <p class="lead">{{$r.DateLabel}}{{with $r.Time}} · {{timeLabel .}}{{end}}{{with $r.RouteStats}}<span class="ride-stats"> · {{.}}</span>{{end}}</p>
   {{template "rider-bar" .}}
 
   {{if $r.Cancelled}}<p class="ride-status off" role="status">{{icon "ban"}}<span><strong>Cancelled</strong>{{with $r.StatusNote}} {{.}}{{end}}{{with $r.StatusBy}}<span class="ride-status-by">{{.}}{{with $r.StatusWhen}}, {{.}}{{end}}</span>{{end}}</span></p>
   {{else if and $r.IsOn (not .Past)}}<p class="ride-status on" role="status">{{icon "check"}}<span><strong>{{if $r.IsRide}}Ride is on{{else}}It’s on{{end}}</strong>{{with $r.StatusNote}} {{.}}{{end}}{{with $r.StatusBy}}<span class="ride-status-by">{{.}}{{with $r.StatusWhen}}, {{.}}{{end}}</span>{{end}}</span></p>{{end}}
+
+  {{with .Forecast}}<p class="ride-weather" title="National Weather Service forecast for the start">{{icon "cloud"}}<span><strong>{{.Hour}}</strong> {{.Line}}</span></p>{{end}}
 
   {{with $r.Details}}<p class="ride-notes">{{.}}</p>{{end}}
 
@@ -17,6 +19,7 @@
     {{if $r.IsVirtual}}<div><dt>Where</dt><dd class="virtual-where">{{if $r.OnZwift}}{{template "zwift"}} Virtual, on Zwift{{else}}Virtual: online or on an indoor trainer{{end}}</dd></div>{{end}}
     {{with $r.Place}}<div><dt>{{if $r.IsRide}}Start{{else}}Where{{end}}</dt><dd>{{.}}{{if not $d.RSVP}}{{with $r.Directions}} · <a href="{{.}}" target="_blank" rel="noopener">Directions</a>{{end}}{{end}}</dd></div>{{else}}{{with $d.RSVP}}{{with .Event.Place}}<div><dt>Where</dt><dd>{{.}}</dd></div>{{end}}{{end}}{{end}}
     {{with $r.Route}}{{if .Shown}}<div><dt>Route</dt><dd><a href="{{.URL}}" target="_blank" rel="noopener">{{.Name}}</a>, {{.Stats}}{{with .TimeLabel}}, about {{.}} of riding{{end}}</dd></div>{{end}}{{end}}
+    {{with $r.RouteOnStrava}}<div><dt>Route</dt><dd><a href="{{.}}" target="_blank" rel="noopener">On Strava</a></dd></div>{{end}}
     {{with $r.Levels}}<div><dt>Level</dt><dd><span class="lvls">{{range $i, $l := .}}{{if $i}} or {{end}}<span class="lvl lvl-{{$l.Key}}">{{$l.Name}}</span> {{$l.MPH}}{{end}}</span>{{if gt (len .) 1}}, depending on who turns out{{end}}</dd></div>{{end}}
     {{if not $r.IsRide}}{{with $r.Leaders}}<div><dt>{{$r.HostLabel}}</dt><dd>{{(index . 0).Name}}</dd></div>{{end}}{{end}}
     {{if or $r.IsRide $r.StravaURL}}<div><dt>Strava</dt><dd>{{with $r.StravaURL}}<a href="{{.}}" target="_blank" rel="noopener">See the event on Strava</a>{{with $r.Strava}}{{if .Going}} · {{.Going}} going{{end}}{{with .Organizer}} · posted by {{.}}{{end}}{{end}}{{else}}Not posted yet. <a href="{{$d.ClubURL}}" target="_blank" rel="noopener">Check the club page</a>{{end}}</dd></div>{{end}}
@@ -29,7 +32,26 @@
     {{template "rsvp-answer" .RSVP}}
     {{template "rsvp-guests" .RSVP}}
   </section>
-  {{else if not .Past}}<p class="ride-tools"><a class="btn btn-quiet" href="/calendar/ride/{{$r.Key}}/calendar.ics" rel="nofollow">{{icon "calendar"}}Add to calendar</a><button class="btn btn-quiet ride-share" type="button" hidden>{{icon "share"}}Share</button>{{if $r.IsRide}}{{template "push-btn"}}{{end}}</p>{{end}}
+  {{else if not .Past}}<p class="ride-tools"><a class="btn btn-quiet" href="/calendar/ride/{{$r.Key}}/calendar.ics" rel="nofollow">{{icon "calendar"}}Add to calendar</a><button class="btn btn-quiet ride-share" type="button" hidden>{{icon "share"}}Share</button>{{if $r.IsRide}}{{template "push-btn"}}<a class="btn btn-quiet" href="/qr/ride-waiver" title="For a new rider to scan">{{icon "qr"}}Waiver code</a>{{end}}</p>{{end}}
+  {{if and $r.IsRide (or .CanJoin $r.Riders)}}<section class="cal-act going-act" id="going">
+    <h2>Who’s going{{with $r.Riders}} <span class="going-n">{{len .}}</span>{{end}}</h2>
+    {{with $r.Riders}}<ul class="going-list">{{range .}}<li>{{.ShortName}}{{with .Group}} <span class="spot-group">{{.}}</span>{{end}}</li>{{end}}</ul>{{end}}
+    {{with .Me}}<div class="going-me">
+      <p><strong>You’re in</strong>{{with .Group}} · {{.}}{{end}}</p>
+      {{if .First}}<a class="btn" href="/ride-waiver">Sign the ride waiver</a>{{end}}
+      {{if $d.CanJoin}}<form method="post" action="/calendar/ride/{{$r.Key}}/out"><button class="link-button">Can’t make it</button></form>{{end}}
+    </div>
+    {{else}}{{if .CanJoin}}<form class="in-form" method="post" action="/calendar/ride/{{$r.Key}}/in">
+      <input type="hidden" name="ft" value="{{$d.Token}}">
+      <span class="hp" aria-hidden="true"><input name="website" tabindex="-1" autocomplete="off"></span>
+      <label>Your name <input name="rider_name" required maxlength="60" autocomplete="name" value="{{.RiderName}}"></label>
+      {{if gt (len $r.Groups) 1}}<label>Group <select name="group"><option value="">Not sure</option>{{range $r.Groups}}<option>{{.}}</option>{{end}}</select></label>{{end}}
+      <label><span>Email <span class="opt">for changes</span></span> <input type="email" name="email" maxlength="254" autocomplete="email"></label>
+      <label class="in-first"><input type="checkbox" name="first" value="1"> First club ride</label>
+      <button class="btn">{{icon "check"}}I’m in</button>
+    </form>{{end}}{{end}}
+  </section>{{end}}
+
   {{with $r.Route}}{{if and .Shown .Map}}<a class="ride-map" href="{{.URL}}" target="_blank" rel="noopener"><img src="{{.Map}}" alt="Map of the {{.Name}} route" loading="lazy"><span>Route on Strava</span></a>{{end}}{{end}}
 
   {{with .Loaners}}<section class="cal-act loaner-act" id="loaner">
@@ -73,7 +95,12 @@
           {{else}}<button class="btn" name="status" value="on">{{icon "check"}}Ride is on</button>
           <button class="btn btn-quiet" name="status" value="cancel" data-confirm="Cancel {{$r.Name}} on {{$r.DateLabel}}? The club gets an email.">{{icon "ban"}}Cancel this ride</button>{{end}}
         </div>
-        <label class="ride-manage-strava"><span>Strava event link</span> <input type="url" name="strava_url" value="{{$r.StravaURL}}" placeholder="https://www.strava.com/clubs/10197/group_events/…"></label>
+        <label class="ride-manage-strava"><span>Strava route</span> <input name="route" value="{{$r.RouteURL}}" list="club-routes" inputmode="url" autocomplete="off" placeholder="https://www.strava.com/routes/…"></label>
+        {{template "club-routes" $d.ClubRoutes}}
+        <div class="ride-manage-acts">
+          <button class="btn btn-quiet" formaction="/calendar/ride/{{$r.Key}}/route">{{icon "save"}}Save route</button>
+        </div>
+        <label><span>Strava event link</span> <input type="url" name="strava_url" value="{{$r.StravaURL}}" placeholder="https://www.strava.com/clubs/10197/group_events/…"></label>
         <div class="ride-manage-acts">
           <button class="btn btn-quiet" formaction="/calendar/ride/{{$r.Key}}/strava">{{icon "save"}}Save link</button>
           {{if not $r.Cancelled}}<button class="link-button" formaction="/calendar/ride/{{$r.Key}}/stepdown" data-confirm="Step down? Someone else will need to lead.">Step down</button>{{end}}

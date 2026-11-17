@@ -430,7 +430,7 @@ func (a *App) readStrava(ctx context.Context) (importResult, error) {
 	if err := a.readHistory(get); err != nil {
 		log.Printf("strava routes: %v", err)
 	}
-	a.readRoutes(get, routes)
+	a.readRoutes(get, append(a.store.rideRouteIDs(), routes...)) // routes set on rides first (rideroute.go)
 	a.archiveGoing(get)
 	var rides []ExternalRide
 	for _, o := range occs {

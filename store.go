@@ -385,6 +385,7 @@ func openStore(dir string) (*Store, error) {
 	s.seedKit()
 	s.seedLoaners()
 	s.seedRenewal()
+	s.tidyRiders(time.Now()) // imin.go
 	s.linkBoard()
 	return s, s.save()
 }

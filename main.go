@@ -28,13 +28,14 @@ var webFS embed.FS
 var contentFS embed.FS
 
 type App struct {
-	cfg    Config
-	store  *Store
-	site   *Site
-	mailer *Mailer
-	limit  *Limiter
-	stats  *Stats
-	push   pushSender // ride alerts to phones (push.go)
+	cfg     Config
+	store   *Store
+	site    *Site
+	mailer  *Mailer
+	limit   *Limiter
+	stats   *Stats
+	push    pushSender      // ride alerts to phones (push.go)
+	weather *weatherService // ride forecasts (weather.go); nil in most tests
 }
 
 func main() {
@@ -54,7 +55,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	app := &App{cfg: cfg, store: store, site: site, limit: newLimiter(), stats: stats}
+	app := &App{cfg: cfg, store: store, site: site, limit: newLimiter(), stats: stats, weather: newWeather(cfg.SiteURL)}
 	app.mailer = newMailer(cfg, store, site)
 	app.mailer.stats = stats
 	app.refreshNewsletter()
@@ -75,6 +76,9 @@ func main() {
 	go app.stats.run(ctx)
 	go app.upcomingLoop(ctx)
 	go app.automationLoop(ctx)
+	if !localSite(cfg.SiteURL) { // a copy running on a computer leaves the weather service alone
+		go app.weatherLoop(ctx) // weather.go
+	}
 	go app.sizeOldPhotos()
 	go app.convertOldMinutes() // Word minutes from before LibreOffice was installed
 	app.cleanVideoFiles()      // half-done uploads, old video files
@@ -121,6 +125,7 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("GET /manifest.webmanifest", a.appManifest) // app.go
 	mux.HandleFunc("GET /sw.js", a.serviceWorker)
 	mux.HandleFunc("GET /offline", a.offlinePage)
+	mux.HandleFunc("GET /qr/{name}", a.qrPage)     // signs.go
 	mux.HandleFunc("GET /push/key", a.pushKeyJSON) // push.go
 	mux.HandleFunc("POST /push/subscribe", a.pushSubscribe)
 	mux.HandleFunc("POST /push/unsubscribe", a.pushUnsubscribe)
@@ -190,7 +195,10 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("POST /calendar/ride/{key}/stepdown", a.stepDown)
 	mux.HandleFunc("POST /calendar/ride/{key}/strava", a.setRideStrava)
 	mux.HandleFunc("POST /calendar/ride/{key}/cancel", a.cancelRide)
-	mux.HandleFunc("POST /calendar/ride/{key}/status", a.rideStatus) // ridestatus.go
+	mux.HandleFunc("POST /calendar/ride/{key}/status", a.rideStatus)  // ridestatus.go
+	mux.HandleFunc("POST /calendar/ride/{key}/in", a.imIn)            // imin.go
+	mux.HandleFunc("POST /calendar/ride/{key}/route", a.setRideRoute) // rideroute.go
+	mux.HandleFunc("POST /calendar/ride/{key}/out", a.imOut)
 
 	// Joining and leaving.
 	mux.HandleFunc("GET /join", a.joinPage)
@@ -297,6 +305,7 @@ func (a *App) routes() http.Handler {
 	mux.Handle("POST /admin/waivers/{id}/delete", a.boardOnly(a.deleteWaiver))
 	mux.Handle("GET /admin/ride-waivers.csv", a.boardOnly(a.exportRideWaivers))
 	mux.Handle("GET /admin/loaners", a.auth(a.loanersPage))
+	mux.Handle("GET /admin/signs", a.auth(a.signsPage))
 	mux.Handle("POST /admin/loaners/bikes", a.auth(a.saveLoanerBike))
 	mux.Handle("POST /admin/loaners/bikes/{id}/remove", a.auth(a.removeLoanerBike))
 	mux.Handle("POST /admin/loaners/{id}/confirm", a.auth(a.answerLoaner(loanConfirmed)))
@@ -368,6 +377,7 @@ func (a *App) routes() http.Handler {
 	mux.Handle("GET /admin/rides/{key}", a.auth(a.rideEditPage))
 	mux.Handle("POST /admin/rides/{key}", a.auth(a.saveRideAdmin))
 	mux.Handle("POST /admin/rides/{key}/cancel", a.auth(a.cancelRideAdmin))
+	mux.Handle("POST /admin/rides/{key}/riders/{id}/remove", a.auth(a.removeRiderAdmin))
 	mux.Handle("POST /admin/rides/{key}/approve", a.auth(a.approveRide))
 	mux.Handle("POST /admin/rides/{key}/delete", a.auth(a.deleteRideAdmin))
 	mux.Handle("POST /admin/rides/{key}/newsletter", a.boardOnly(a.eventToNewsletter))

@@ -133,7 +133,11 @@ func (o RideOcc) Meta() string {
 	if o.Route.Shown() {
 		parts = append(parts, o.Route.Miles())
 	}
-	if o.Strava != nil && o.Strava.Going > 0 && !o.Cancelled {
+	switch { // who said "I'm in" here (imin.go), else who joined on Strava
+	case o.Cancelled:
+	case len(o.Riders) > 0:
+		parts = append(parts, fmt.Sprintf("%d going", len(o.Riders)))
+	case o.Strava != nil && o.Strava.Going > 0:
 		parts = append(parts, fmt.Sprintf("%d going", o.Strava.Going))
 	}
 	return strings.Join(parts, " · ")
@@ -143,10 +147,11 @@ func (o RideOcc) Meta() string {
 
 // withRoute adds the ride's route to it. Callers must hold s.mu.
 func (s *Store) withRoute(o *RideOcc) {
-	if o.Strava == nil || o.Strava.RouteID == "" {
+	id := o.routeIDOf() // the ride's own route, else its Strava event's (rideroute.go)
+	if id == "" {
 		return
 	}
-	if r := s.d.Routes[o.Strava.RouteID]; r != nil {
+	if r := s.d.Routes[id]; r != nil {
 		c := *r
 		o.Route = &c
 	}

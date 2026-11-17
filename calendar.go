@@ -45,6 +45,11 @@ type calView struct {
 	Loaners    []bikeChoice // ready loaner bikes, while the ride takes requests (loaners.go)
 	RSVP       *rsvpView    // the event's invitation, when it has one (rsvpcal.go)
 	Directions string       // the event's Directions button, with an invitation
+	CanJoin    bool         // the ride takes "I'm in" (imin.go)
+	Me         *RideRider   // this browser's "I'm in", if any
+	RiderName  string       // the name it used last time, for the form
+	ClubRoutes []Route      // the Route box's list (rideroute.go)
+	Forecast   *Forecast    // the weather at the start (weather.go)
 
 	Sub *subView // the Subscribe page (calfeed.go)
 
@@ -61,7 +66,11 @@ var calFlash = map[string]string{
 	"cancelled": "Ride cancelled.",
 	"restored":  "Ride back on the calendar.",
 	"on":        "Marked as on. Thanks!",
+	"in":        "You’re in. See you there!",
+	"infirst":   "You’re in. Welcome to your first club ride!",
+	"out":       "Got it. You’re off the list.",
 	"strava":    "Strava event link saved.",
+	"route":     "Route saved.",
 	"rsvplink":  "If that email is on our list, your RSVP link is on its way.",
 }
 
@@ -79,7 +88,11 @@ var calError = map[string]string{
 	"notyours":  "That name isn’t leading this ride. Type it the way you signed up, or ask a club admin.",
 	"form":      "Add at least a date and a name for the ride.",
 	"link":      "Paste the event’s Strava link, starting with https://www.strava.com/.",
+	"route":     routeProblem,
 	"rsvpemail": "Type the email you get club emails at.",
+	"ridername": "Type your name.",
+	"email":     "That email doesn’t look right.",
+	"full":      "This ride is full.",
 	"rsvplimit": "Too many links sent. Try again in an hour.",
 }
 
@@ -276,6 +289,19 @@ func (a *App) ridePage(w http.ResponseWriter, r *http.Request) {
 	}
 	v := a.calBase(r)
 	a.rideRights(&v, o)
+	if v.CanManage {
+		v.ClubRoutes = a.store.ClubRoutes()
+	}
+	if f, ok := a.forecastFor(o); ok {
+		v.Forecast = &f
+	}
+	if v.CanJoin = a.canJoin(o.CalRide); v.CanJoin || len(o.Riders) > 0 { // imin.go
+		device := a.riderDevice(r)
+		v.Me = riderOf(o.CalRide, device)
+		if prev, ok := a.store.RiderByDevice(device); ok {
+			v.RiderName = prev.Name
+		}
+	}
 	if v.RSVP = a.calRSVP(r, o); v.RSVP != nil {
 		if v.RSVP.LinkSent = r.URL.Query().Get("ok") == "rsvplink"; v.RSVP.LinkSent {
 			v.Flash = ""
@@ -503,6 +529,7 @@ func (a *App) newRidePage(w http.ResponseWriter, r *http.Request) {
 	if _, err := time.Parse("2006-01-02", v.Form.Date); err != nil {
 		v.Form.Date = a.today().Format("2006-01-02")
 	}
+	v.ClubRoutes = a.store.ClubRoutes()
 	a.renderCal(w, http.StatusOK, "ride-new", "/calendar", "Add to the Calendar", v)
 }
 
@@ -532,8 +559,11 @@ func (a *App) addRide(w http.ResponseWriter, r *http.Request) {
 	}
 	c.Virtual = readVirtual(r, c.Virtual, c.Name, c.Place, c.Details)
 	c.ZwiftLogo = readZwiftLogo(r, c.ZwiftLogo, c.Name, c.Place, c.Details)
+	route, routeOK := parseRoute(r.FormValue("route")) // rideroute.go
+	c.RouteID = route
 	v := a.calBase(r)
 	v.Form, v.FormName = c, r.FormValue("leader_name")
+	v.ClubRoutes = a.store.ClubRoutes()
 	var pinProblem string
 	if code == "" {
 		var viaPIN bool
@@ -553,6 +583,8 @@ func (a *App) addRide(w http.ResponseWriter, r *http.Request) {
 		v.Error = "Pick today or a date coming up."
 	case c.StravaURL != "" && !stravaLink(c.StravaURL):
 		v.Error = calError["link"]
+	case !routeOK:
+		v.Error = routeProblem
 	case pinProblem != "":
 		v.Error = pinProblem
 	}
@@ -565,6 +597,7 @@ func (a *App) addRide(w http.ResponseWriter, r *http.Request) {
 		c.setLeader(c.groupNames()[0], &Leader{Name: name, Since: time.Now().UTC()})
 	}
 	o, err := a.store.AddRide(c)
+	a.readRouteSoon(c.RouteID)
 	if err != nil {
 		v.Error = "Couldn’t save it. Try again."
 		a.renderCal(w, http.StatusInternalServerError, "ride-new", "/calendar", "Add to the Calendar", v)

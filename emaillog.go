@@ -38,6 +38,7 @@ const (
 	mailAuto         = "Automated email"
 	mailRequest      = "Spending request"
 	mailLoaner       = "Loaner bike"
+	mailRider        = "Ride change"
 	mailRSVPReminder = "RSVP reminder"
 	mailRSVPLink     = "RSVP link"
 )

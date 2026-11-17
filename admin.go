@@ -127,6 +127,8 @@ type adminView struct {
 	StravaLink  *StravaLink
 	APIEnabled  bool
 	SeriesForm  seriesForm
+	ClubRoutes  []Route      // the Route box's list on ride forms (rideroute.go)
+	Signs       []qrSign     // Signs to print (signs.go)
 	History     *historyView // the ride history page
 	// Calendar tab and ride pages
 	Month    calMonth
@@ -235,6 +237,9 @@ func (a *App) renderAdmin(w http.ResponseWriter, r *http.Request, status int, na
 	v.Me, _ = a.adminName(r)
 	v.IsBoard, v.IsPresident = a.isBoard(r), a.level(r) == levelPresident
 	v.MovedOn = !a.store.BuiltinRemoved("moved")
+	if name == "ride" || name == "series" || name == "rides" {
+		v.ClubRoutes = a.store.ClubRoutes() // the Route box's list (rideroute.go)
+	}
 	if v.Tab != "" {
 		items, requests := a.attentionFor(r)
 		v.Nav = adminNavFor(v.Tab, len(items), a.canSeeMoney(r), requests)
@@ -350,6 +355,7 @@ var flashText = map[string]string{
 	"cancelled":            "Ride cancelled. The club has been emailed.",
 	"restored":             "Ride is back on the calendar.",
 	"on":                   "Marked as on.",
+	"rider-removed":        "Removed from the ride.",
 	"setup":                "You’re logged in with the setup password. Add yourself and the other admins below: each gets an email to choose their own password, and from then on everyone logs in with their email.",
 	"invited":              "Added. They’ve been emailed a link to choose their password.",
 	"link-sent":            "A new password link is on its way.",
@@ -436,6 +442,7 @@ var errorText = map[string]string{
 	"month":             "Choose a month and year.",
 	"series":            "A weekly ride needs a name, a day, and a start time.",
 	"ends":              "The last date has to be a date after the weekly ride starts, or empty.",
+	"route":             routeProblem,
 	"connect":           "Connecting to Strava didn’t work. Try again.",
 	"sync":              "Reading the club’s events from Strava didn’t work. See the error below.",
 	"nostrava":          "Add the Strava API settings to paxvelo.conf first (CLAUDE.md, “Strava import”).",

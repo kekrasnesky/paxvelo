@@ -1626,6 +1626,19 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
     <td class="nowrap" data-label="Asked">{{datetime .Asked}}{{with .Waiver}}<br><a class="small" href="/admin/ride-waivers/{{.}}">Waiver</a>{{end}}</td>
 {{end}}
 
+{{/* Signs to print (signs.go): one per sheet, each with a QR code to the site */}}
+{{define "signs"}}{{template "head" .}}
+<div class="title-row no-print"><h1>Signs to print</h1><button type="button" onclick="print()">{{icon "printer"}}Print</button></div>
+<div class="signs">{{range .Signs}}<section class="sign">
+  <img class="sign-logo" src="/static/img/logo.svg" alt="PaxVelo">
+  <h2>{{.Title}}</h2>
+  <p class="sign-line">{{.Line}}</p>
+  <div class="sign-qr">{{qr .Path .Title}}</div>
+  <p class="sign-addr">{{.Host $.SiteURL}}</p>
+  <p class="no-print"><a href="/qr/{{.Key}}" target="_blank" rel="noopener">{{icon "eye"}}On a phone screen</a></p>
+</section>{{end}}</div>
+{{template "foot" .}}{{end}}
+
 {{define "loaners"}}{{template "head" .}}
 <div class="title-row">
   <h1>Loaner bikes</h1>
@@ -1836,6 +1849,7 @@ document.querySelectorAll('.copy-link').forEach(function(b){b.addEventListener('
 </form>
 
 
+{{template "club-routes" .ClubRoutes}}
 {{template "foot" .}}{{end}}
 
 {{define "history"}}{{template "head" .}}{{$h := .History}}
@@ -1896,6 +1910,7 @@ document.querySelectorAll('.copy-link').forEach(function(b){b.addEventListener('
     {{template "level-select" .Level}}
   </div>
   {{template "strava-link" .StravaURL}}
+  {{template "route-field" .RouteURL}}
   <div class="pair">
     <label>Season starts (optional) <input type="date" name="season_start" value="{{.From}}"></label>
     <label>Season ends <input type="date" name="season_end" value="{{.Until}}"></label>
@@ -1921,6 +1936,9 @@ document.querySelectorAll('.copy-link').forEach(function(b){b.addEventListener('
     <div class="kind-opts">{{range eventKinds}}<label><input type="radio" name="kind" value="{{.Key}}" data-host="{{.Host}}"{{if eq .Key $kind}} checked{{end}}><span>{{.Name}}</span></label>{{end}}</div>
   </fieldset>{{end}}
 
+{{/* A ride's Strava route (rideroute.go): paste a link, or pick from the club's routes */}}
+{{define "route-field"}}<label>Strava route (optional) <input name="route" value="{{.}}" list="club-routes" inputmode="url" autocomplete="off" placeholder="https://www.strava.com/routes/…" title="Paste a Strava route link, or pick one of the club’s routes"></label>{{end}}
+{{define "club-routes"}}<datalist id="club-routes">{{range .}}<option value="{{.URL}}">{{.Name}} · {{.Miles}}</option>{{end}}</datalist>{{end}}
 {{define "strava-link"}}<label>Strava event link (optional) <input type="url" name="strava_url" value="{{.}}" placeholder="https://www.strava.com/clubs/10197/group_events/…" data-strava-preview></label>
   <div class="strava-preview" data-strava-out hidden aria-live="polite"></div>{{end}}
 
@@ -1940,6 +1958,7 @@ document.querySelectorAll('.copy-link').forEach(function(b){b.addEventListener('
   <button>{{icon "save"}}Save weekly ride</button>
 </form>
 <form class="footnote" method="post" action="/admin/weekly/{{$f.ID}}/delete" onsubmit="return confirm('Remove {{$f.Name}} from the calendar? Dates that already have a leader stay, as one-off rides.')"><button class="link danger">{{icon "trash"}}Remove this weekly ride</button></form>
+{{template "club-routes" .ClubRoutes}}
 {{template "foot" .}}{{end}}
 
 {{define "calendar"}}{{template "head" .}}{{$m := .Month}}
@@ -2005,6 +2024,7 @@ document.querySelectorAll('.copy-link').forEach(function(b){b.addEventListener('
       {{with .Note}}<span class="muted small">{{.}}</span>{{end}}</label>{{end}}
   </fieldset>
   {{template "strava-link" $f.StravaURL}}
+  {{template "route-field" $f.RouteURL}}
   </div></div>
   <button>{{if $f.New}}{{icon "plus"}}Add to the calendar{{else}}{{icon "save"}}Save changes{{end}}</button>
 </form>
@@ -2014,10 +2034,18 @@ document.querySelectorAll('.copy-link').forEach(function(b){b.addEventListener('
   <button class="ghost">{{icon "plus"}}Add to newsletter</button>
   {{else}}<a class="small" href="/admin/newsletter">Start a newsletter issue</a>{{end}}
 </form>{{end}}
+{{if not $f.New}}{{with $f.Riders}}<section class="card" id="riders">
+  <h2>Who’s going <span class="tag">{{len .}}</span></h2>
+  <table class="tight cards"><thead><tr><th>Name</th><th>Group</th><th>Email</th><th>First ride</th><th>Said so</th><th><span class="sr">Remove</span></th></tr></thead><tbody>
+  {{range .}}<tr><td data-label="Name">{{.Name}}</td><td data-label="Group">{{.Group}}</td><td data-label="Email">{{with .Email}}<a href="mailto:{{.}}">{{.}}</a>{{end}}</td><td data-label="First ride">{{if .First}}<span class="tag tag-on">First ride</span>{{end}}</td><td data-label="Said so">{{.Added.Format "Jan 2, 3:04 PM"}}</td>
+    <td class="right row-acts"><form method="post" action="/admin/rides/{{$f.Key}}/riders/{{.ID}}/remove" class="inline"><button class="link danger">{{icon "x"}}Remove</button></form></td></tr>{{end}}
+  </tbody></table>
+</section>{{end}}{{end}}
 {{if not $f.New}}<div class="send-row footnote">
   <form method="post" action="/admin/rides/{{$f.Key}}/cancel" class="inline ride-status-form"><input name="note" maxlength="120" value="{{$f.StatusNote}}" placeholder="Note" aria-label="Note" title="Shown with On or Cancelled">{{if $f.Cancelled}}<button class="ghost" name="status" value="open">{{icon "undo"}}Put it back on the calendar</button>{{else}}<button class="ghost" name="status" value="on">{{icon "check"}}{{if $f.On}}On{{else}}Mark as on{{end}}</button><button class="ghost" name="status" value="cancel" onclick="return confirm('Cancel {{$f.Name}} on {{$f.DateLabel}}? The club will be emailed.')">{{icon "ban"}}Cancel this {{$f.Noun}}</button>{{end}}</form>
   {{if $f.Custom}}<form method="post" action="/admin/rides/{{$f.Key}}/delete" class="inline" onsubmit="return confirm('Delete {{$f.Name}} for good? To keep it on the calendar as cancelled, use Cancel instead.')"><button class="link danger">{{icon "trash"}}Delete this {{$f.Noun}}</button></form>{{end}}
 </div>{{end}}
+{{template "club-routes" .ClubRoutes}}
 {{template "foot" .}}{{end}}
 
 {{/* A photo, as it shows on the site, and the button that opens the framing tool (openFraming) */}}
@@ -3139,6 +3167,9 @@ document.querySelectorAll('[data-board]').forEach(function(box){
   <div class="card"><h3>Riders and ride leaders</h3><ul>
     <li>Open a ride, type a name, press <b>I’ll lead</b>. The club inbox is told. No account, no Strava sign-in.</li>
     <li>With their name and the club PIN, leaders mark their ride <b>Ride is on</b> or cancel it (with an optional note like “Rain”), step down, or add the Strava event link, under <b>Leading this ride?</b>. On or Cancelled shows in a banner on the ride page, on the home page’s next rides, on the calendar and in the calendar feed; a ride cancelled for today or tomorrow stays in the next rides, marked. Admins do the same on the ride’s admin page.</li>
+    <li><b>Signs to print</b> (Rides tab) has QR codes for Join, the ride waiver and the calendar, one sign per sheet. On a ride’s page, <b>Waiver code</b> fills a phone screen with the waiver’s code, for a leader to hold up for a new rider at the start.</li>
+    <li>A ride’s <b>Strava route</b> (paste its link, or pick a club route) shows its distance and climbing at the top of the ride page. Rides in the next six days show the National Weather Service forecast for their start.</li>
+    <li><b>I’m in</b> on a group ride’s page: a name, a pace group if there are several, an optional email for changes, and a <b>First club ride</b> tick. The page shows who’s going (first name and last initial) and the calendar shows the count; the same phone can say <b>Can’t make it</b>. First rides email the club inbox and show a <b>Sign the ride waiver</b> button. Cancelling or putting a ride back on emails everyone who left an email. Admins see names and emails on the ride’s admin page and can remove someone; emails are dropped 30 days after the ride.</li>
     <li><b>Ride alerts</b> (the bell on the calendar and ride pages) put a notification on a rider’s phone when a ride coming up is cancelled or put back on, with the leader’s note. On an iPhone the button shows once PaxVelo is on the home screen (Share → Add to Home Screen). Nothing links a phone to a member; Email → Automations shows how many phones have them on.</li>
     <li>Anyone can add a ride. It waits for approval on the <a href="/admin/calendar">Calendar</a> tab unless they typed the club PIN.</li></ul></div>
   <div class="card"><h3>Treasurer</h3><ol>
