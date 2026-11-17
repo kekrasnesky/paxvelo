@@ -348,7 +348,13 @@ func (r *mdRenderer) render(src string, firstLine int, style pageStyle) (string,
 			if err != nil {
 				return "", "", "", fail("%v", err)
 			}
-			fmt.Fprintf(out, "<section class=\"%s\" id=\"%s\">\n%s<h2>%s</h2>\n", sectionClass, uniqueID(ids, b.text), label, h)
+			if home {
+				// The label and heading stay together, so on computers they
+				// can sit beside the section's words (site.css).
+				fmt.Fprintf(out, "<section class=\"band\" id=\"%s\">\n<div class=\"band-head\">\n%s<h2>%s</h2>\n</div>\n", uniqueID(ids, b.text), label, h)
+			} else {
+				fmt.Fprintf(out, "<section class=\"%s\" id=\"%s\">\n%s<h2>%s</h2>\n", sectionClass, uniqueID(ids, b.text), label, h)
+			}
 			label = ""
 		case "h3":
 			closeArticle()

@@ -223,7 +223,7 @@ func TestRenderLabels(t *testing.T) {
 	}
 	b := string(body)
 	for _, want := range []string{
-		`<section class="band" id="become-a-member">` + "\n" + `<p class="label">Join us</p>` + "\n<h2>Become a Member</h2>",
+		`<section class="band" id="become-a-member">` + "\n" + `<div class="band-head">` + "\n" + `<p class="label">Join us</p>` + "\n<h2>Become a Member</h2>\n</div>",
 		`<p class="label">Two</p>` + "\n<h3>Column</h3>",
 		`<p class="label">Loose</p>`,
 	} {

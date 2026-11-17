@@ -1121,16 +1121,21 @@ h1,h2{font-family:var(--display);font-weight:700;letter-spacing:-.01em;line-heig
 @media (min-width:1100px){
   .band{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);column-gap:clamp(40px,5vw,96px);align-items:end;padding-block:clamp(4.5rem,5.5vw,6rem)}
   .band>*{grid-column:1/-1}
-  .band>.label{grid-column:1;grid-row:1}
-  .band>h2{grid-column:1;grid-row:2}
-  .band>h2+p{grid-column:2;grid-row:1/3;max-width:38rem;margin:0}
+  .band>.band-head{grid-column:1}
+  .band>.band-head h2{margin:0}
+  .band>.band-head+p{grid-column:2;max-width:38rem;margin:0}
+  /* Become a Member: heading and words on the left, the plans beside them */
   .band:has(>.plans){grid-template-columns:minmax(0,2fr) minmax(0,3fr);align-items:center}
+  .band:has(>.plans)>.band-head{align-self:end}
+  .band:has(>.plans)>.band-head+p{grid-column:1;align-self:start;margin-top:.8rem}
+  .band>.plans{grid-column:2;grid-row:1/span 2;margin:0;grid-template-columns:repeat(3,minmax(0,1fr));justify-content:stretch}
   .band>.plans .plan-per{text-align:center}
   .band>.plans .plan-go{padding-inline:1.2rem;white-space:nowrap}
-  .band:has(>.plans)>h2+p{grid-column:1;grid-row:3;margin-top:.8rem}
-  .band>.plans{grid-column:2;grid-row:1/4;margin:0;grid-template-columns:repeat(3,minmax(0,1fr));justify-content:stretch}
+  /* Instagram: the posts start at the left, under the heading */
+  .band .insta{justify-content:start}
+  .band>.insta{margin-top:var(--space-lg)}
   /* Next Rides: the four next rides in one row, a little bigger */
-  .next-rides .cal-up-list{grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+  .next-rides .cal-up-list{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:16px}
   .next-rides .cal-ride{padding:1rem 1.1rem;font-size:1rem}
   .next-rides .cal-up-date{margin-bottom:.2rem;font-size:.82rem}
   /* Ride With Us / Giving Back: wider, shorter photos */
