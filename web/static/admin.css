@@ -1428,3 +1428,70 @@ body.app-home{--app-card:rgba(34,30,28,.78);--app-card-press:rgba(52,46,43,.9);-
 .app-home .app-stop{padding:0;border:0;background:none;color:var(--alert-text);font:inherit;box-shadow:none}
 .app-home .app-stop:hover{background:none;box-shadow:none;text-decoration:underline}
 .app-home .app-alerts .app-go .ic{margin:0 .45em 0 0;color:inherit}
+
+/* Phones and touch screens. Fields are 16px so iPhones don't zoom in on
+   every tap; ticks and text-only buttons get a finger-sized hit area. */
+@media (max-width:767px),(pointer:coarse){
+  input,textarea,select,.page-bar select,.ed-head select,.mail-fmt select{font-size:16px}
+  .ed-head button{min-width:2.25rem;min-height:2.25rem}
+  .ed-add{padding:.3rem .8rem;font-size:.82rem}
+  input[type=checkbox],input[type=radio]{width:1.3rem;height:1.3rem}
+  button.link,a.link{padding-block:.45rem}
+  .bulk-bar .bulk-clear{padding:.45rem .2rem}
+}
+/* List tables (rides, sent emails, issues, minutes, pages): on phones each
+   row reads as one block, its main cell first and its actions last. */
+@media (max-width:600px){
+  .stack thead{display:none}
+  .stack,.stack tbody{display:block}
+  .stack tr{display:flex;flex-wrap:wrap;align-items:baseline;gap:.2rem .9rem;padding:.75rem .9rem;border-bottom:1px solid var(--line)}
+  .stack tr[hidden]{display:none}
+  .stack tbody tr:last-child{border-bottom:0}
+  .stack td{display:block;padding:0;border:0;white-space:normal;text-align:left}
+  .stack td br{display:none}
+  .stack td br+.muted,.stack td br+.small{margin-left:.35rem}
+  .stack td.lead{order:-1;flex:1 0 100%;font-weight:500}
+  .stack td.lead br{display:initial}
+  .stack td.lead br+.muted,.stack td.lead br+.small{margin-left:0;font-weight:300}
+  .stack td.acts-cell{flex:1 0 100%;display:flex;flex-wrap:wrap;justify-content:flex-start;align-items:center;gap:.4rem 1rem;margin-top:.35rem}
+  .stack td.empty{flex:1 0 100%;padding:1.5rem 0;text-align:center}
+  .stack td.leaders:has(>.muted:only-child){display:none}
+  .stack .leader-line{display:inline;white-space:normal}
+  .stack .leader-line+.leader-line::before{content:" · "}
+  /* Cards with a label column: a narrower label leaves room for the value. */
+  .cards td{padding-left:7.25rem}
+  .cards td::before{width:6.75rem}
+  .cards td.pick-col{padding-left:7.25rem}
+  /* Members: tick, name, then email and phone with no labels. */
+  .members tr{position:relative}
+  .members tr:has(>.pick-col){padding-left:3rem}
+  .members td.pick-col{position:absolute;left:.85rem;top:.75rem;padding:0}
+  .members td.pick-col::before,.members td[data-label=Name]::before,.members td.email::before,.members td[data-label=Phone]::before{content:none}
+  .members td[data-label=Name],.members td.email,.members td[data-label=Phone]{padding-left:0}
+  .members td[data-label=Name]{font-size:1rem}
+  .members td.email,.members td[data-label=Phone]{padding-block:0;font-size:.85rem}
+  .members td[data-label=Phone]:has(>.muted){display:none}
+  .members td[data-label=Name]+td{margin-top:.1rem}
+  .members td.email+td+td{margin-top:.4rem}
+  /* Email cards: ↑ ↓ ✕ sit on a row above the words, which get the full width. */
+  .mail-cards .ed-card{padding-right:.75rem}
+  .mail-cards .ed-head{position:static;justify-content:flex-end}
+}
+/* Automations: a long "who gets it" wraps instead of pushing the row off the
+   side; on phones it sits on its own line under the name. */
+.auto-head .auto-count{min-width:0;white-space:normal}
+@media (max-width:600px){.auto-head .auto-count:not(:empty){flex:1 0 100%}.auto-head .auto-count:empty{display:none}}
+/* Email editor: nothing inside may widen the column (the Insert list holds
+   long RSVP names), and phones get the short version of the screen. */
+.mail-edit{grid-template-columns:minmax(0,1fr)}
+.mail-write,.mail-preview{min-width:0}
+.mail-write{grid-template-columns:minmax(0,1fr)}
+.mail-fmt select{max-width:100%;min-width:0}
+@media (max-width:600px){
+  .mail-preview-top .seg{display:none}
+  .allowance-pill>:not(strong){display:none}
+  .mail-cards>.ed-gap:not(:last-child),.mail-cards .ed-cards>.ed-gap:not(:last-child){display:none}
+  .mail-form .mail-preview iframe{height:360px}
+  .mail-actions .test-to{flex:1 1 100%}
+  .mail-actions .inline-label{flex:1 1 100%}
+}

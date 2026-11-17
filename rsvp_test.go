@@ -176,8 +176,11 @@ func TestRSVP(t *testing.T) {
 	if e, _ := a.store.RSVPEvent(1); len(e.Replies) != 1 {
 		t.Errorf("after removing one: %+v", e.Replies)
 	}
-	if page := do(t, h, admin, "GET", "/admin/rsvp/1", "", nil).Body.String(); !strings.Contains(page, "Removed Sam’s answer") {
+	if page := do(t, h, admin, "GET", "/admin/rsvp/1?undo=1", "", nil).Body.String(); !strings.Contains(page, "Removed Sam’s answer") {
 		t.Error("the page should offer Undo")
+	}
+	if page := do(t, h, admin, "GET", "/admin/rsvp/1", "", nil).Body.String(); strings.Contains(page, "Removed Sam’s answer") {
+		t.Error("opening the page later shouldn't bring the Undo back")
 	}
 	do(t, h, admin, "POST", "/admin/rsvp/1/answers/restore", "", nil)
 	ct, body = form(url.Values{"member": {strconv.Itoa(sam.ID), strconv.Itoa(pat.ID)}})
@@ -185,7 +188,7 @@ func TestRSVP(t *testing.T) {
 	if e, _ := a.store.RSVPEvent(1); len(e.Replies) != 0 {
 		t.Errorf("after removing the ticked ones: %+v", e.Replies)
 	}
-	if page := do(t, h, admin, "GET", "/admin/rsvp/1", "", nil).Body.String(); !strings.Contains(page, "Removed 2 answers") {
+	if page := do(t, h, admin, "GET", "/admin/rsvp/1?undo=1", "", nil).Body.String(); !strings.Contains(page, "Removed 2 answers") {
 		t.Error("Undo for two")
 	}
 	do(t, h, admin, "POST", "/admin/rsvp/1/answers/restore", "", nil)
@@ -210,9 +213,17 @@ func TestRSVP(t *testing.T) {
 	}
 
 	// Remove, then Undo: the answers come back too.
-	do(t, h, admin, "POST", "/admin/rsvp/1/remove", "", nil)
+	if w := do(t, h, admin, "POST", "/admin/rsvp/1/remove", "", nil); !strings.Contains(w.Header().Get("Location"), "undo=1") {
+		t.Errorf("removing: %s", w.Header().Get("Location"))
+	}
 	if _, ok := a.store.RSVPEvent(1); ok {
 		t.Fatal("removed invitation still there")
+	}
+	if page := do(t, h, admin, "GET", "/admin/rsvp?undo=1", "", nil).Body.String(); !strings.Contains(page, "/admin/rsvp/restore") {
+		t.Error("right after removing, the list should offer Undo")
+	}
+	if page := do(t, h, admin, "GET", "/admin/rsvp", "", nil).Body.String(); strings.Contains(page, "/admin/rsvp/restore") {
+		t.Error("the Undo notice stuck on the RSVP list")
 	}
 	if w := do(t, h, nil, "GET", "/rsvp/1?t="+pat.Token, "", nil); w.Code != http.StatusNotFound {
 		t.Errorf("a removed invitation's page: %d", w.Code)

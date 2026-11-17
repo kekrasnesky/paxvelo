@@ -45,7 +45,10 @@ func (a *App) rsvpForm(e RSVPEvent) rsvpFormData {
 }
 
 func (a *App) rsvpAdmin(w http.ResponseWriter, r *http.Request) {
-	v := rsvpAdminView{Events: a.store.RSVPEvents(), Removed: a.store.RemovedRSVP(), Now: time.Now(), Form: a.rsvpForm(RSVPEvent{AskBringing: true})}
+	v := rsvpAdminView{Events: a.store.RSVPEvents(), Now: time.Now(), Form: a.rsvpForm(RSVPEvent{AskBringing: true})}
+	if justRemoved(r) {
+		v.Removed = a.store.RemovedRSVP()
+	}
 	flash, errMsg := flashFrom(r)
 	a.renderAdmin(w, r, http.StatusOK, "rsvps", adminView{Title: "RSVPs", Tab: "rsvp", Flash: flash, Error: errMsg, RSVP: &v})
 }
@@ -57,9 +60,12 @@ func (a *App) rsvpAdminEvent(w http.ResponseWriter, r *http.Request) {
 		back(w, r, rsvpAdminPath+"?err=rsvp-gone")
 		return
 	}
-	v := rsvpAdminView{Event: &e, Count: e.Count(), Open: e.IsOpen(time.Now()), Dropped: a.store.DroppedRSVP(id), ReminderOn: a.store.RSVPReminderOn(), Now: time.Now(), Form: a.rsvpForm(e)}
+	v := rsvpAdminView{Event: &e, Count: e.Count(), Open: e.IsOpen(time.Now()), ReminderOn: a.store.RSVPReminderOn(), Now: time.Now(), Form: a.rsvpForm(e)}
 	if o, ok := a.store.Ride(e.Ride); ok && e.Ride != "" {
 		v.OnCal = &o
+	}
+	if justRemoved(r) {
+		v.Dropped = a.store.DroppedRSVP(id)
 	}
 	answered := map[int]bool{}
 	for _, rep := range e.Replies {
@@ -155,7 +161,7 @@ func (a *App) removeRSVP(w http.ResponseWriter, r *http.Request) {
 		back(w, r, rsvpAdminPath+"?err=rsvp-gone")
 		return
 	}
-	back(w, r, rsvpAdminPath+"#removed")
+	back(w, r, rsvpAdminPath+"?undo=1#removed")
 }
 
 func (a *App) restoreRSVP(w http.ResponseWriter, r *http.Request) {
@@ -186,7 +192,7 @@ func (a *App) dropRSVPReplies(w http.ResponseWriter, r *http.Request) {
 	case n == 0:
 		back(w, r, here+"#answers")
 	default:
-		back(w, r, here+"#dropped")
+		back(w, r, here+"?undo=1#dropped")
 	}
 }
 
@@ -312,3 +318,7 @@ func (a *App) rsvpPieces() []autoPiece {
 	}
 	return out
 }
+
+// justRemoved is true on the page a Remove sends you back to, the only place
+// its Undo shows; opening the page later doesn't bring the notice back.
+func justRemoved(r *http.Request) bool { return r.URL.Query().Get("undo") != "" }

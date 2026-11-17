@@ -31,7 +31,10 @@ type kitAdminView struct {
 
 func (a *App) kitAdmin(w http.ResponseWriter, r *http.Request) {
 	shop := a.store.Kit()
-	v := kitAdminView{Shop: shop, Round: shop.Round, Open: shop.IsOpen(time.Now()), Removed: shop.Removed}
+	v := kitAdminView{Shop: shop, Round: shop.Round, Open: shop.IsOpen(time.Now())}
+	if justRemoved(r) {
+		v.Removed = shop.Removed
+	}
 	if n, err := strconv.Atoi(r.URL.Query().Get("round")); err == nil && n > 0 {
 		v.Round = n
 	}
@@ -178,7 +181,7 @@ func (a *App) removeKitItem(w http.ResponseWriter, r *http.Request) {
 		back(w, r, "/admin/kit?err=save")
 		return
 	}
-	back(w, r, "/admin/kit#items")
+	back(w, r, "/admin/kit?undo=1#items")
 }
 
 func (a *App) restoreKitItem(w http.ResponseWriter, r *http.Request) {

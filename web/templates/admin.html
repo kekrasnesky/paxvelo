@@ -1112,16 +1112,16 @@ body.addEventListener('submit',function(e){var f=e.target;if(!f.classList.contai
 </script>
 
 <div class="title-row section-row"><h2>Sent emails</h2><a href="/admin/stats">How many opened and clicked</a></div>
-<div class="table-wrap"><table class="sent-list">
+<div class="table-wrap"><table class="sent-list stack">
   <thead><tr><th>Date</th><th>Subject</th><th>Sent to</th><th>Progress</th><th>Status</th><th><span class="sr">Actions</span></th></tr></thead>
   <tbody>
   {{range $i, $c := .Campaigns}}<tr data-id="{{.ID}}"{{if ge $i 5}} class="sent-more" hidden{{end}}>
     <td class="nowrap">{{datetime .Created}}</td>
-    <td>{{.Subject}}</td>
+    <td class="lead">{{.Subject}}</td>
     <td>{{or .Audience "Everyone"}}</td>
     <td class="prog nowrap">{{progress .}}</td>
     <td class="st">{{statusLabel .Status}}{{with .LastError}}<span class="small err-text">{{.}}</span>{{end}}</td>
-    <td class="right act">{{if eq .Status "sending"}}<form method="post" action="/admin/email/{{.ID}}/stop"><button class="link danger">{{icon "pause"}}Stop</button></form>{{else if eq .Status "paused"}}<form method="post" action="/admin/email/{{.ID}}/resume"><button class="link">{{icon "play"}}Resume</button></form>{{end}}</td>
+    <td class="right act acts-cell">{{if eq .Status "sending"}}<form method="post" action="/admin/email/{{.ID}}/stop"><button class="link danger">{{icon "pause"}}Stop</button></form>{{else if eq .Status "paused"}}<form method="post" action="/admin/email/{{.ID}}/resume"><button class="link">{{icon "play"}}Resume</button></form>{{end}}</td>
   </tr>
   {{else}}<tr><td colspan="6" class="empty">Nothing sent yet.</td></tr>
   {{end}}
@@ -1542,15 +1542,15 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
 <div class="title-row">
   <h1>Newsletter</h1>
 </div>
-<div class="table-wrap"><table>
+<div class="table-wrap"><table class="stack">
   <thead><tr><th>Issue</th><th>Status</th><th>Started</th><th>Last edited</th><th><span class="sr">Actions</span></th></tr></thead>
   <tbody>
   {{range .Issues}}<tr>
-    <td><a href="/admin/newsletter/{{.ID}}">{{.Label}}</a> <span class="muted small">#{{.ID}}</span></td>
+    <td class="lead"><a href="/admin/newsletter/{{.ID}}">{{.Label}}</a> <span class="muted small">#{{.ID}}</span></td>
     <td>{{if .IsPublished}}<span class="paid">Live</span>{{with .Published}}<br><span class="muted small">since {{stamp .}}</span>{{end}}{{else}}Draft{{end}}</td>
     <td class="nowrap">{{if not .Created.IsZero}}{{stamp .Created}}{{else}}<span class="muted">Not recorded</span>{{end}}{{with .CreatedBy}}<br><span class="muted small">by {{.}}</span>{{end}}</td>
     <td class="nowrap">{{stamp .Updated}}{{with .EditedBy}}<br><span class="muted small">by {{.}}</span>{{end}}</td>
-    <td class="right nowrap"><a href="/admin/newsletter/{{.ID}}">Edit</a>{{if .IsPublished}} · <a href="{{.Path}}" target="_blank" rel="noopener">View</a>{{end}}</td>
+    <td class="right nowrap acts-cell"><a href="/admin/newsletter/{{.ID}}">Edit</a>{{if .IsPublished}} · <a href="{{.Path}}" target="_blank" rel="noopener">View</a>{{end}}</td>
   </tr>
   {{else}}<tr><td colspan="5" class="empty">No issues yet.</td></tr>
   {{end}}
@@ -1824,14 +1824,14 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
 <div class="title-row">
   <h1>Meeting minutes</h1>
 </div>
-<div class="table-wrap"><table>
+<div class="table-wrap"><table class="stack">
   <thead><tr><th>Meeting</th><th>File</th><th>Uploaded by</th><th><span class="sr">Actions</span></th></tr></thead>
   <tbody>
   {{range .Minutes}}<tr>
-    <td><strong>{{.Title}}</strong><br><span class="muted small">{{.DateLabel}}</span></td>
+    <td class="lead"><strong>{{.Title}}</strong><br><span class="muted small">{{.DateLabel}}</span></td>
     <td><a href="{{.File}}" target="_blank" rel="noopener">{{.FileName}}</a><br><span class="muted small">{{.Kind}}, {{.SizeLabel}}{{with .Original}} · made from the <a href="{{.}}">Word file</a>{{else}}{{if eq .Kind "Word"}} · {{if $.CanConvert}}becomes a PDF when the site next restarts{{else}}stays a Word file until LibreOffice is on the server{{end}}{{end}}{{end}}</span></td>
     <td>{{or .UploadedBy "—"}}</td>
-    <td class="right nowrap row-acts">
+    <td class="right nowrap row-acts acts-cell">
       <button type="button" class="mini ghost copy-link" data-copy="{{$.SiteURL}}/minutes#m{{.ID}}">{{icon "copy"}}Copy link</button>
       <form method="post" action="/admin/minutes/{{.ID}}/delete" class="inline" onsubmit="return confirm('Delete the minutes for {{.DateLabel}}? This can’t be undone.')"><button class="link danger">{{icon "trash"}}Delete</button></form>
     </td>
@@ -1930,14 +1930,14 @@ document.querySelectorAll('.copy-link').forEach(function(b){b.addEventListener('
     <form method="post" action="/admin/rides/{{.Key}}/approve" class="inline"><input type="hidden" name="return" value="rides"><button class="mini">{{icon "check"}}Approve</button></form>
     <a class="btn mini ghost" href="/admin/rides/{{.Key}}">Open</a></li>{{end}}</ul>
 </div>{{end}}
-<div class="table-wrap"><table>
+<div class="table-wrap"><table class="stack">
   <thead><tr><th>Date</th><th>Ride</th><th>Leaders</th><th><span class="sr">Actions</span></th></tr></thead>
   <tbody>
   {{range .Upcoming}}<tr{{if .Cancelled}} class="off"{{end}}>
     <td class="nowrap">{{.DateLabel}}<br><span class="muted small">{{.TimeLabel}}</span></td>
-    <td><a href="/admin/rides/{{.Key}}">{{.Name}}</a>{{if .IsVirtual}} {{template "virtual-badge" .}}{{end}}{{if not .IsRide}} <span class="tag">{{template "kind-icon" .}}{{.KindName}}</span>{{end}}{{if .Custom}} <span class="tag">One-off</span>{{end}}{{if .Unofficial}} <span class="tag" title="Not a PaxVelo event">Community</span>{{end}}{{if .Cancelled}} <span class="tag"{{with .StatusNote}} title="{{.}}"{{end}}>Cancelled</span>{{else if .IsOn}} <span class="tag tag-on"{{with .StatusNote}} title="{{.}}"{{end}}>On</span>{{end}}</td>
-    <td>{{if not .IsRide}}{{with .Leaders}}{{(index . 0).Name}}{{else}}<span class="muted">–</span>{{end}}{{else}}{{range .Slots}}<span class="leader-line">{{with .Group}}<span class="muted">{{.}}:</span> {{end}}{{with .Leader}}{{.Name}}{{else}}<span class="danger">needs a leader</span>{{end}}</span>{{end}}{{end}}</td>
-    <td class="right nowrap row-acts"><a class="btn mini ghost" href="/admin/rides/{{.Key}}">{{icon "pencil"}}Edit</a>
+    <td class="lead"><a href="/admin/rides/{{.Key}}">{{.Name}}</a>{{if .IsVirtual}} {{template "virtual-badge" .}}{{end}}{{if not .IsRide}} <span class="tag">{{template "kind-icon" .}}{{.KindName}}</span>{{end}}{{if .Custom}} <span class="tag">One-off</span>{{end}}{{if .Unofficial}} <span class="tag" title="Not a PaxVelo event">Community</span>{{end}}{{if .Cancelled}} <span class="tag"{{with .StatusNote}} title="{{.}}"{{end}}>Cancelled</span>{{else if .IsOn}} <span class="tag tag-on"{{with .StatusNote}} title="{{.}}"{{end}}>On</span>{{end}}</td>
+    <td class="leaders">{{if not .IsRide}}{{with .Leaders}}{{(index . 0).Name}}{{else}}<span class="muted">–</span>{{end}}{{else}}{{range .Slots}}<span class="leader-line">{{with .Group}}<span class="muted">{{.}}:</span> {{end}}{{with .Leader}}{{.Name}}{{else}}<span class="danger">needs a leader</span>{{end}}</span>{{end}}{{end}}</td>
+    <td class="right nowrap row-acts acts-cell"><a class="btn mini ghost" href="/admin/rides/{{.Key}}">{{icon "pencil"}}Edit</a>
       <form method="post" action="/admin/rides/{{.Key}}/cancel" class="inline"><input type="hidden" name="return" value="rides">{{if .Cancelled}}<input type="hidden" name="cancel" value="0"><button class="link small">{{icon "undo"}}Put back</button>{{else}}<input type="hidden" name="cancel" value="1"><button class="link danger small" onclick="return confirm('Cancel {{.Name}} on {{.ShortDate}}? It shows as cancelled on the calendar and the club is emailed.')">{{icon "ban"}}Cancel</button>{{end}}</form></td>
   </tr>
   {{else}}<tr><td colspan="4" class="empty">No rides in the next 60 days.</td></tr>
@@ -1946,15 +1946,15 @@ document.querySelectorAll('.copy-link').forEach(function(b){b.addEventListener('
 </table></div>
 
 <h2 class="section">Weekly rides</h2>
-<div class="table-wrap"><table>
+<div class="table-wrap"><table class="stack">
   <thead><tr><th>Ride</th><th>When</th><th>Season</th><th>Start</th><th><span class="sr">Actions</span></th></tr></thead>
   <tbody>
   {{range .Series}}<tr>
-    <td><a href="/admin/weekly/{{.ID}}"><strong>{{.Name}}</strong></a>{{if .IsVirtual}} {{template "virtual-badge" .}}{{end}}{{if .Unofficial}} <span class="tag" title="Not a PaxVelo event">Community</span>{{end}}{{with .Details}}<br><span class="muted small">{{firstLine .}}</span>{{end}}{{with .Groups}}<br><span class="muted small">Groups: {{join . ", "}}</span>{{end}}</td>
+    <td class="lead"><a href="/admin/weekly/{{.ID}}"><strong>{{.Name}}</strong></a>{{if .IsVirtual}} {{template "virtual-badge" .}}{{end}}{{if .Unofficial}} <span class="tag" title="Not a PaxVelo event">Community</span>{{end}}{{with .Details}}<br><span class="muted small">{{firstLine .}}</span>{{end}}{{with .Groups}}<br><span class="muted small">Groups: {{join . ", "}}</span>{{end}}</td>
     <td class="nowrap">{{.WeekdayName}}s, {{timeLabel .Time}}</td>
     <td class="nowrap">{{.SeasonLabel}}</td>
     <td>{{.Place}}</td>
-    <td class="right nowrap"><a class="btn mini ghost" href="/admin/weekly/{{.ID}}">{{icon "pencil"}}Edit</a></td>
+    <td class="right nowrap acts-cell"><a class="btn mini ghost" href="/admin/weekly/{{.ID}}">{{icon "pencil"}}Edit</a></td>
   </tr>
   {{else}}<tr><td colspan="5" class="empty">No weekly rides yet.</td></tr>
   {{end}}
@@ -1997,12 +1997,12 @@ document.querySelectorAll('.copy-link').forEach(function(b){b.addEventListener('
   <tbody>{{range $h.Years}}<tr><td><a href="/admin/history?y={{.Year}}">{{.Year}}</a></td><td class="right">{{.Rides}}</td><td class="right">{{if .Joined}}{{.Joined}}{{else}}<span class="muted">–</span>{{end}}</td></tr>{{end}}</tbody>
 </table></div>
 <h2 class="section">{{if eq $h.Year "all"}}Every ride{{else}}Rides in {{$h.Year}}{{end}}</h2>
-<div class="table-wrap"><table class="tight">
+<div class="table-wrap"><table class="tight stack">
   <thead><tr><th>Date</th><th>Ride</th><th>Posted by</th><th>Route</th><th>Joined</th></tr></thead>
   <tbody>
   {{range $h.Rides}}<tr>
     <td class="nowrap">{{.DateLabel}}{{if eq $h.Year "all"}}, {{slice .Date 0 4}}{{end}}<br><span class="muted small">{{timeLabel .Time}}</span></td>
-    <td><a href="{{.StravaURL}}" target="_blank" rel="noopener">{{.Title}}</a></td>
+    <td class="lead"><a href="{{.StravaURL}}" target="_blank" rel="noopener">{{.Title}}</a></td>
     <td>{{.Organizer}}</td>
     <td>{{.Route}}</td>
     <td>{{if .Going}}<details class="more"><summary>{{len .Going}}</summary><span class="small">{{range $i, $g := .Going}}{{if $i}}, {{end}}{{$g.Name}}{{end}}</span></details>{{else if .Checked}}<span class="muted">0</span>{{else}}<span class="muted">–</span>{{end}}</td>
@@ -2353,10 +2353,10 @@ form.addEventListener('submit',function(e){
 
 {{define "pages"}}{{template "head" .}}
 <div class="title-row"><h1>Pages</h1></div>
-<div class="table-wrap"><table>
+<div class="table-wrap"><table class="stack">
   <thead><tr><th>Page</th><th>Address</th><th>Status</th></tr></thead>
   <tbody>{{range .Pages}}<tr>
-    <td><a href="/admin/pages/{{.File}}">{{.Title}}</a>{{if .InMenu}} <span class="tag">In the Info menu</span>{{end}}</td><td><a href="{{.Path}}" target="_blank" rel="noopener">{{.Path}}</a></td>
+    <td class="lead"><a href="/admin/pages/{{.File}}">{{.Title}}</a>{{if .InMenu}} <span class="tag">In the Info menu</span>{{end}}</td><td><a href="{{.Path}}" target="_blank" rel="noopener">{{.Path}}</a></td>
     <td>{{if .New}}Added here{{with .Edit}} {{date .Edited}}{{with .EditedBy}} by {{.}}{{end}}{{end}}{{else}}{{with .Edit}}Edited here {{date .Edited}}{{with .EditedBy}} by {{.}}{{end}}{{else}}GitHub version{{end}}{{end}}</td>
   </tr>{{end}}</tbody>
 </table></div>
