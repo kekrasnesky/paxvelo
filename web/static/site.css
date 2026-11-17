@@ -398,6 +398,8 @@ strong{font-weight:500}
 .zwift-pick{margin-left:1.6rem}
 .zwift-pick .zwift-text{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
 form:not(:has(input[name=virtual]:checked)) .zwift-pick{display:none!important}
+.community-tag{display:inline-block;padding:0 .35rem;border-radius:3px;background:#5e7d3a;color:#fff;font-size:.68rem;font-weight:500;letter-spacing:.03em;vertical-align:.1em}
+.cal-ride.cancelled .community-tag{background:#999}
 .cal-kind{display:inline-block;padding:0 .35rem;border-radius:3px;background:#4f7186;color:#fff;font-size:.68rem;font-weight:500;letter-spacing:.03em;vertical-align:.1em}
 .cal-ride.cancelled .cal-kind{background:#999}
 .kind-icon{display:inline-block;width:1.1em;height:1.1em;margin-right:.3em;vertical-align:-.15em}
@@ -575,6 +577,7 @@ td:hover .cal-add,.cal-add:focus-visible{opacity:1}
 .ride-status-by{display:block;font-size:.85rem;opacity:.8}
 .ride-status.on{border-color:#2e7d4f;background:#e7f4ec;color:#1d4d31}
 .ride-status.off{border-color:#b3261e;background:#fbe9e7;color:#6e1712}
+.ride-status.community{border-color:#5e7d3a;background:#eef3e6;color:#33461f}
 .cal-on{display:inline-block;margin-right:.35rem;padding:0 .4rem;border-radius:4px;background:#2e7d4f;color:#fff;font-size:.72rem;font-weight:600;line-height:1.5;text-decoration:none}
 .cal-off-note{text-decoration:none}
 /* Who's going, and "I'm in" (imin.go) */

@@ -131,6 +131,19 @@ func (s *Store) LoanerBikes() []LoanerBike {
 	return out
 }
 
+// AnyLoanerReady says whether any bike can be borrowed, so the public pages
+// offer loaner bikes only when there's one to lend.
+func (s *Store) AnyLoanerReady() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, b := range s.d.Loaners.Bikes {
+		if b.Ready {
+			return true
+		}
+	}
+	return false
+}
+
 // bikeChoice is a ready bike on a ride's page, and whether it's taken.
 type bikeChoice struct {
 	LoanerBike
@@ -254,6 +267,26 @@ func (s *Store) SaveLoanerBike(b LoanerBike) error {
 
 var errBikeBooked = errors.New("that bike is held for a ride coming up")
 
+// BikeHeldAhead says whether a request holds a bike for a ride from today on.
+func (s *Store) BikeHeldAhead(id int, today string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, q := range s.d.Loaners.Requests {
+		if q.Bike == id && q.Holds() && q.RideDate >= today {
+			return true
+		}
+	}
+	return false
+}
+
+// loanersChanged redraws the content pages, whose First Ride box offers
+// loaner bikes only while one is available.
+func (a *App) loanersChanged() {
+	if err := a.rebuildContent(); err != nil {
+		log.Printf("redrawing the pages after a loaner bike change: %v", err)
+	}
+}
+
 // RemoveLoanerBike takes a bike off the list, unless a request holds it for
 // a ride from today on.
 func (s *Store) RemoveLoanerBike(id int, today string) error {
@@ -275,9 +308,11 @@ func (s *Store) RemoveLoanerBike(id int, today string) error {
 // ---- On the calendar ----
 
 // loanerOpen says whether a ride takes loaner requests: a group ride on the
-// road, on the calendar, not cancelled, until 8 pm the day before.
+// road, on the calendar, organized by the club (the loaner waiver and the
+// club's insurance don't cover a community ride), not cancelled, until 8 pm
+// the day before.
 func (a *App) loanerOpen(o RideOcc) bool {
-	if !o.IsRide() || o.Cancelled || o.Held || o.IsVirtual() {
+	if !o.IsRide() || o.Cancelled || o.Held || o.IsVirtual() || o.Unofficial {
 		return false
 	}
 	day, err := time.ParseInLocation(time.DateOnly, o.Date, a.cfg.Location)
@@ -477,7 +512,14 @@ func (a *App) saveLoanerBike(w http.ResponseWriter, r *http.Request) {
 		back(w, r, "/admin/loaners?err=save#bikes")
 		return
 	}
-	back(w, r, "/admin/loaners?ok=saved#bikes")
+	a.loanersChanged()
+	if !b.Ready && b.ID != 0 && a.store.BikeHeldAhead(b.ID, a.today().Format(time.DateOnly)) {
+		// Riders still have it for a ride coming up: their requests are on
+		// this page to cancel.
+		back(w, r, "/admin/loaners?err=bike-held-off")
+		return
+	}
+	back(w, r, "/admin/loaners?ok=bike-saved#bikes")
 }
 
 func (a *App) removeLoanerBike(w http.ResponseWriter, r *http.Request) {
@@ -486,5 +528,6 @@ func (a *App) removeLoanerBike(w http.ResponseWriter, r *http.Request) {
 		back(w, r, "/admin/loaners?err=bike-booked#bikes")
 		return
 	}
+	a.loanersChanged()
 	back(w, r, "/admin/loaners?ok=bike-removed#bikes")
 }

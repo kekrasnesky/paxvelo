@@ -10,6 +10,10 @@
     <fieldset class="kind-pick"><legend>What is it?</legend>
       {{$kind := .Form.Kind}}{{range eventKinds}}<label class="check-row"><input type="radio" name="kind" value="{{.Key}}"{{if eq .Key $kind}} checked{{end}}> {{.Name}}</label>{{end}}
     </fieldset>
+    <fieldset class="kind-pick official-pick"><legend>Is this a PaxVelo event?</legend>
+      <label class="check-row"><input type="radio" name="official" value="yes" required{{if eq .FormOfficial "yes"}} checked{{end}}> Yes</label>
+      <label class="check-row"><input type="radio" name="official" value="no"{{if eq .FormOfficial "no"}} checked{{end}}> No</label>
+    </fieldset>
     <label>Your name <input name="leader_name" value="{{.FormName}}" required maxlength="60" autocomplete="name"></label>
     <div class="pair">
       <label>Date <input type="date" name="date" value="{{.Form.Date}}" required></label>

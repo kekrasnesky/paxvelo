@@ -107,6 +107,7 @@ func main() {
 }
 
 func (a *App) routes() http.Handler {
+	a.site.loaners = a.store.AnyLoanerReady // the public pages offer loaner bikes only while one is available
 	mux := http.NewServeMux()
 
 	// Public pages, rendered once at startup and served from memory.

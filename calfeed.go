@@ -50,6 +50,9 @@ func (a *App) rideEvent(o RideOcc, feed bool) []string {
 	if d := strings.TrimSpace(o.Details); d != "" {
 		desc = d + "\n\n" + link
 	}
+	if o.Unofficial {
+		desc = "Community " + o.Noun() + ": not a PaxVelo event.\n\n" + desc
+	}
 	switch { // the day's word on it (ridestatus.go)
 	case o.Cancelled && o.StatusNote != "":
 		desc = "Cancelled: " + o.StatusNote + "\n\n" + desc

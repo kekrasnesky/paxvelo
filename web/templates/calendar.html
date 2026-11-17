@@ -13,7 +13,7 @@
       {{range .Upcoming}}<li><a class="cal-ride {{.Status}}" href="/calendar/ride/{{.Key}}">
         {{with .Route}}{{if and .Shown .Map}}<img class="cal-up-map" src="{{.Map}}" alt="" loading="lazy">{{end}}{{end}}
         <span class="cal-up-date">{{.ShortDate}}</span>
-        {{if .IsVirtual}}{{template "virtual-badge" .}} {{end}}<span class="cal-time">{{.TimeLabel}}</span> {{.Name}}{{if not .IsRide}} {{template "kind-badge" .}}{{end}}
+        {{if .IsVirtual}}{{template "virtual-badge" .}} {{end}}<span class="cal-time">{{.TimeLabel}}</span> {{.Name}}{{if not .IsRide}} {{template "kind-badge" .}}{{end}}{{if .Unofficial}} {{template "community-badge"}}{{end}}
         {{with .Place}}<span class="cal-place">{{.}}</span>{{end}}
         <span class="lvls">{{range .Levels}}<span class="lvl lvl-{{.Key}}">{{.Name}}</span>{{end}}</span>
         {{template "cal-lead" .}}
@@ -39,13 +39,14 @@
         <div class="cal-day"><span>{{.Day}}</span>{{if and .InMonth (not .Past)}}<a class="cal-add" href="/calendar/new?date={{.Date}}" aria-label="Add a ride on {{.Date}}">+</a>{{end}}</div>
         {{range .Rides}}<div class="cal-item">
           <a class="cal-ride {{.Status}}" href="/calendar/ride/{{.Key}}" aria-describedby="pop-{{.Key}}">
-            {{if .IsVirtual}}{{template "virtual-badge" .}} {{end}}<span class="cal-time">{{.TimeLabel}}</span> {{.Name}}{{if not .IsRide}} {{template "kind-badge" .}}{{end}}
+            {{if .IsVirtual}}{{template "virtual-badge" .}} {{end}}<span class="cal-time">{{.TimeLabel}}</span> {{.Name}}{{if not .IsRide}} {{template "kind-badge" .}}{{end}}{{if .Unofficial}} {{template "community-badge"}}{{end}}
             <span class="lvls">{{range .Levels}}<span class="lvl lvl-{{.Key}}">{{.Name}}</span>{{end}}</span>
             {{template "cal-lead" .}}
           </a>
           <div class="cal-pop" id="pop-{{.Key}}" role="tooltip">
             <strong class="cal-pop-name">{{.Name}}</strong>
             <span class="cal-pop-when">{{.ShortDate}} · {{.TimeLabel}}{{if .IsVirtual}} · {{if .OnZwift}}{{template "zwift"}} {{end}}Virtual{{end}}</span>
+            {{if .Unofficial}}<span class="cal-pop-where">Community {{.Noun}} · not PaxVelo</span>{{end}}
             {{with .Place}}<span class="cal-pop-where">{{.}}</span>{{end}}
             {{with .Levels}}<span class="cal-pop-lvls">{{range .}}<span><span class="lvl lvl-{{.Key}}">{{.Name}}</span> {{.MPH}}</span>{{end}}</span>{{end}}
             {{if .Cancelled}}<span class="cal-pop-off">This {{.Noun}} is cancelled.{{with .StatusNote}} {{.}}{{end}}</span>{{else if .RSVP}}{{template "cal-pop-rsvp" .RSVP}}{{else if not .IsRide}}<span class="cal-pop-off">{{.LeaderSummary}}</span>{{else}}<ul class="cal-pop-slots">{{range .Slots}}<li>{{with .Group}}<span class="cal-pop-group">{{.}}</span> {{end}}{{with .Leader}}{{.Name}}{{else}}<span class="cal-need">Needs a leader</span>{{end}}</li>{{end}}</ul>{{end}}
@@ -62,7 +63,7 @@
     {{range .Days}}<li>
       <h3>{{(index .Rides 0).DateLabel}}</h3>
       {{range .Rides}}<a class="cal-ride {{.Status}}" href="/calendar/ride/{{.Key}}">
-        {{if .IsVirtual}}{{template "virtual-badge" .}} {{end}}<span class="cal-time">{{.TimeLabel}}</span> {{.Name}}{{if not .IsRide}} {{template "kind-badge" .}}{{end}}
+        {{if .IsVirtual}}{{template "virtual-badge" .}} {{end}}<span class="cal-time">{{.TimeLabel}}</span> {{.Name}}{{if not .IsRide}} {{template "kind-badge" .}}{{end}}{{if .Unofficial}} {{template "community-badge"}}{{end}}
         {{with .Place}}<span class="cal-place">{{.}}</span>{{end}}
         <span class="lvls">{{range .Levels}}<span class="lvl lvl-{{.Key}}">{{.Name}}</span>{{end}}</span>
         {{template "cal-lead" .}}
