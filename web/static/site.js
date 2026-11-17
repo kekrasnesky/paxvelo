@@ -163,6 +163,33 @@
     d.addEventListener('keydown',function(e){if(e.key==='Escape')closePop()});
   }
 
+  // Ride calendar: the left and right arrow keys go to the month before or
+  // after, unless someone's typing.
+  var calNav=d.querySelectorAll('.cal-nav a');
+  if(calNav.length===2){
+    d.addEventListener('keydown',function(e){
+      if(e.altKey||e.ctrlKey||e.metaKey||e.shiftKey||e.defaultPrevented)return;
+      if(e.key!=='ArrowLeft'&&e.key!=='ArrowRight')return;
+      var t=e.target;if(t&&(t.isContentEditable||/^(INPUT|SELECT|TEXTAREA)$/.test(t.tagName)))return;
+      location.href=calNav[e.key==='ArrowLeft'?0:1].href;
+    });
+  }
+
+  // A page's contents list (computers, Our Rides): the section on screen is
+  // marked as you scroll.
+  var toc=d.querySelector('.toc');
+  if(toc&&'IntersectionObserver' in window){
+    var tocLinks={},seen={};
+    toc.querySelectorAll('a').forEach(function(a){tocLinks[a.getAttribute('href').slice(1)]=a});
+    var mark=function(){
+      var cur=null;
+      d.querySelectorAll('.page-body section.section').forEach(function(s){if(seen[s.id]&&!cur)cur=s.id});
+      for(var id in tocLinks){if(id===cur)tocLinks[id].setAttribute('aria-current','true');else tocLinks[id].removeAttribute('aria-current')}
+    };
+    var io=new IntersectionObserver(function(es){es.forEach(function(e){seen[e.target.id]=e.isIntersecting});mark()},{rootMargin:'-80px 0px -55% 0px'});
+    d.querySelectorAll('.page-body section.section').forEach(function(s){if(tocLinks[s.id])io.observe(s)});
+  }
+
   // A ride's Share button: the phone's share sheet, or else the link copied
   var rideShare=d.querySelector('.ride-share');
   if(rideShare&&(navigator.share||navigator.clipboard)){

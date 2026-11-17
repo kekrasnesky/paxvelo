@@ -34,7 +34,11 @@ type contentPage struct {
 	People     bool          // bullet lists starting with a bold name show as people cards
 	Intro      template.HTML // the # heading and everything before the first ##
 	Body       template.HTML // the ## sections
+	Sections   []pageSection // a folding page's ## sections, for its contents list on computers
 }
+
+// pageSection is one ## section in a page's contents list.
+type pageSection struct{ ID, Text string }
 
 var (
 	slugRE    = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
@@ -147,7 +151,7 @@ func parsePage(file, src string, r *mdRenderer) (*contentPage, error) {
 			return nil, fmt.Errorf("line %d: unknown setting %q (use title, description, menu, order, wide, people, or fold)", s.line, s.key)
 		}
 	}
-	heading, intro, rest, err := r.render(body, bodyLine, pageStyle{Home: p.Path == "/", People: p.People})
+	heading, intro, rest, err := r.render(body, bodyLine, pageStyle{Home: p.Path == "/", People: p.People, Sections: sectionsIf(p.Fold, &p.Sections)})
 	if err != nil {
 		return nil, err
 	}
@@ -235,6 +239,15 @@ type mdBlock struct {
 type pageStyle struct {
 	Home   bool // sections are full-width bands
 	People bool // bullet lists starting with a bold name become people cards
+	// Sections, when set, collects each ## section for a contents list.
+	Sections *[]pageSection
+}
+
+func sectionsIf(on bool, s *[]pageSection) *[]pageSection {
+	if on {
+		return s
+	}
+	return nil
 }
 
 // render turns a page body into HTML. It returns the text of the # heading,
@@ -348,12 +361,16 @@ func (r *mdRenderer) render(src string, firstLine int, style pageStyle) (string,
 			if err != nil {
 				return "", "", "", fail("%v", err)
 			}
+			id := uniqueID(ids, b.text)
 			if home {
 				// The label and heading stay together, so on computers they
 				// can sit beside the section's words (site.css).
-				fmt.Fprintf(out, "<section class=\"band\" id=\"%s\">\n<div class=\"band-head\">\n%s<h2>%s</h2>\n</div>\n", uniqueID(ids, b.text), label, h)
+				fmt.Fprintf(out, "<section class=\"band\" id=\"%s\">\n<div class=\"band-head\">\n%s<h2>%s</h2>\n</div>\n", id, label, h)
 			} else {
-				fmt.Fprintf(out, "<section class=\"%s\" id=\"%s\">\n%s<h2>%s</h2>\n", sectionClass, uniqueID(ids, b.text), label, h)
+				fmt.Fprintf(out, "<section class=\"%s\" id=\"%s\">\n%s<h2>%s</h2>\n", sectionClass, id, label, h)
+			}
+			if style.Sections != nil {
+				*style.Sections = append(*style.Sections, pageSection{ID: id, Text: plainText(b.text)})
 			}
 			label = ""
 		case "h3":

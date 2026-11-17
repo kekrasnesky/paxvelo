@@ -1141,3 +1141,53 @@ h1,h2{font-family:var(--display);font-weight:700;letter-spacing:-.01em;line-heig
   /* Ride With Us / Giving Back: wider, shorter photos */
   .band .cols img,.band .cols article>img{aspect-ratio:16/9}
 }
+
+/* ---------- Computers: page layouts. Phones keep the one column. ---------- */
+/* A ride or event: details on the left, Who's going (or the RSVP) beside them.
+   The second row is flexible so a tall side column never spreads the left one. */
+@media (min-width:1100px){
+  .ride-page{max-width:calc(1100px + 2 * var(--pad))}
+  .ride-cols:has(>.ride-side){display:grid;grid-template-columns:minmax(0,1fr) minmax(19rem,24rem);grid-template-rows:auto 1fr;column-gap:2.5rem;align-items:start}
+  .ride-cols>.ride-a{grid-column:1;grid-row:1}
+  .ride-cols>.ride-b{grid-column:1;grid-row:2}
+  .ride-cols>.ride-side{grid-column:2;grid-row:1/-1}
+  .ride-side>.cal-act:first-child{margin-top:1rem}
+  .ride-side .in-form{grid-template-columns:1fr}
+  .ride-side .in-form .btn{justify-self:stretch}
+}
+
+/* A folding page (Our Rides): its sections listed down the left, the one on
+   screen marked (site.js) */
+.toc{display:none}
+@media (min-width:1200px){
+  .page.has-toc{max-width:calc(840px + 14rem + 3.5rem + 2 * var(--pad));display:grid;grid-template-columns:14rem minmax(0,1fr);column-gap:3.5rem;align-items:start}
+  .toc{display:block;position:sticky;top:84px;margin-top:.5rem}
+  .toc-list{margin:0;padding:0;list-style:none;border-left:2px solid var(--line)}
+  .toc-list a{display:block;margin-left:-2px;padding:.4rem 0 .4rem 1rem;border-left:2px solid transparent;color:var(--label);font-size:.92rem;line-height:1.35;text-decoration:none}
+  .toc-list a[aria-current]{border-left-color:var(--red);color:var(--red);font-weight:500}
+  .has-toc .section{scroll-margin-top:84px}
+}
+@media (min-width:1200px) and (hover:hover){.toc-list a:hover{color:var(--red)}}
+
+/* The calendar: wider, with taller days and Coming up down the right */
+@media (min-width:1280px){
+  .page-cal{max-width:calc(1440px + 2 * var(--pad));display:grid;grid-template-columns:minmax(0,1fr) 17rem;grid-auto-flow:row dense;column-gap:2rem;align-items:start}
+  .page-cal>*{grid-column:1/-1}
+  .page-cal>.cal-main{grid-column:1}
+  .page-cal>.cal-up{grid-column:2;margin:0}
+  .page-cal>.cal-up h2{display:flex;align-items:center;min-height:40px;margin:0 0 .6rem;font-size:clamp(1.2rem,2vw,1.5rem)}
+  .page-cal .cal-up-list{grid-template-columns:1fr}
+  .page-cal .lvl-key{gap:.3rem .8rem}
+  .cal-grid td{height:8rem}
+}
+
+/* Join: the title and perks on the left, the form beside them */
+@media (min-width:1100px){
+  .join-page{max-width:calc(1100px + 2 * var(--pad));display:grid;grid-template-columns:minmax(0,1fr) minmax(0,36rem);grid-template-rows:repeat(4,auto) 1fr;column-gap:clamp(3rem,5vw,5rem);align-items:start}
+  .join-page>*{grid-column:1}
+  .join-page>form.join,.join-page>.joined{grid-column:2;grid-row:1/-1}
+  .join-page>h1{margin-top:0}
+}
+
+/* The gallery and albums: more photos across */
+@media (min-width:1280px){.page-gallery{max-width:calc(1400px + 2 * var(--pad))}}

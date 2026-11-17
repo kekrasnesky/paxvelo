@@ -1,10 +1,12 @@
 {{define "head"}}<meta name="robots" content="noindex">{{end}}
 {{define "content"}}{{with .Data}}{{$r := .Ride}}{{$d := .}}
-<article class="page">
+<article class="page ride-page">
   <p class="cal-back"><a href="/calendar?m={{slice $r.Date 0 7}}">← Club calendar</a></p>
   <h1>{{$r.Name}}</h1>
   <p class="lead">{{$r.DateLabel}}{{with $r.Time}} · {{timeLabel .}}{{end}}{{with $r.RouteStats}}<span class="ride-stats"> · {{.}}</span>{{end}}</p>
   {{template "rider-bar" .}}
+  <div class="ride-cols">
+  <div class="ride-a">
 
   {{if $r.Cancelled}}<p class="ride-status off" role="status">{{icon "ban"}}<span><strong>Cancelled</strong>{{with $r.StatusNote}} {{.}}{{end}}{{with $r.StatusBy}}<span class="ride-status-by">{{.}}{{with $r.StatusWhen}}, {{.}}{{end}}</span>{{end}}</span></p>
   {{else if and $r.IsOn (not .Past)}}<p class="ride-status on" role="status">{{icon "check"}}<span><strong>{{if $r.IsRide}}Ride is on{{else}}It’s on{{end}}</strong>{{with $r.StatusNote}} {{.}}{{end}}{{with $r.StatusBy}}<span class="ride-status-by">{{.}}{{with $r.StatusWhen}}, {{.}}{{end}}</span>{{end}}</span></p>{{end}}
@@ -26,13 +28,16 @@
     {{if $r.IsRide}}<div><dt>Ride type</dt><dd>{{if .Series}}Weekly club ride{{else}}One-off ride{{with $r.PublicAddedBy}}, added by {{.}}{{end}}{{end}}</dd></div>
     {{else}}<div><dt>What</dt><dd>{{template "kind-icon" $r}}{{$r.KindName}}{{if .Series}}, every week{{end}}</dd></div>{{end}}
   </dl>
-  {{if .RSVP}}{{if not .Past}}<p class="ride-tools rsvp-tools">{{with .Directions}}<a class="btn" href="{{.}}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 11 18-8-8 18-2-8z"/></svg>Directions</a>{{end}}<a class="btn btn-quiet" href="/calendar/ride/{{$r.Key}}/calendar.ics" rel="nofollow">{{icon "calendar"}}Add to calendar</a><button class="btn btn-quiet ride-share" type="button" hidden>{{icon "share"}}Share</button></p>{{end}}
+  {{if .RSVP}}{{if not .Past}}<p class="ride-tools rsvp-tools">{{with .Directions}}<a class="btn" href="{{.}}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 11 18-8-8 18-2-8z"/></svg>Directions</a>{{end}}<a class="btn btn-quiet" href="/calendar/ride/{{$r.Key}}/calendar.ics" rel="nofollow">{{icon "calendar"}}Add to calendar</a><button class="btn btn-quiet ride-share" type="button" hidden>{{icon "share"}}Share</button></p>{{end}}{{else if not .Past}}<p class="ride-tools"><a class="btn btn-quiet" href="/calendar/ride/{{$r.Key}}/calendar.ics" rel="nofollow">{{icon "calendar"}}Add to calendar</a><button class="btn btn-quiet ride-share" type="button" hidden>{{icon "share"}}Share</button>{{if $r.IsRide}}{{template "push-btn"}}<a class="btn btn-quiet" href="/qr/ride-waiver" title="For a new rider to scan">{{icon "qr"}}Waiver code</a>{{end}}</p>{{end}}
+  </div>
+  {{if or .RSVP (and $r.IsRide (or .CanJoin $r.Riders))}}<aside class="ride-side">
+  {{if .RSVP}}
   <section class="cal-act rsvp-cal" id="rsvp">
     <h2>RSVP{{with .RSVP.Event.ClosesLabel}}{{if and $d.RSVP.Open (not $d.RSVP.Private)}} <span class="rsvp-by">by {{.}}</span>{{end}}{{end}}</h2>
     {{template "rsvp-answer" .RSVP}}
     {{template "rsvp-guests" .RSVP}}
   </section>
-  {{else if not .Past}}<p class="ride-tools"><a class="btn btn-quiet" href="/calendar/ride/{{$r.Key}}/calendar.ics" rel="nofollow">{{icon "calendar"}}Add to calendar</a><button class="btn btn-quiet ride-share" type="button" hidden>{{icon "share"}}Share</button>{{if $r.IsRide}}{{template "push-btn"}}<a class="btn btn-quiet" href="/qr/ride-waiver" title="For a new rider to scan">{{icon "qr"}}Waiver code</a>{{end}}</p>{{end}}
+  {{end}}
   {{if and $r.IsRide (or .CanJoin $r.Riders)}}<section class="cal-act going-act" id="going">
     <h2>Who’s going{{with $r.Riders}} <span class="going-n">{{len .}}</span>{{end}}</h2>
     {{with $r.Riders}}<ul class="going-list">{{range .}}<li>{{.ShortName}}{{with .Group}} <span class="spot-group">{{.}}</span>{{end}}</li>{{end}}</ul>{{end}}
@@ -52,6 +57,8 @@
     </form>{{end}}{{end}}
   </section>{{end}}
 
+  </aside>{{end}}
+  <div class="ride-b">
   {{with $r.Route}}{{if and .Shown .Map}}<a class="ride-map" href="{{.URL}}" target="_blank" rel="noopener"><img src="{{.Map}}" alt="Map of the {{.Name}} route" loading="lazy"><span>Route on Strava</span></a>{{end}}{{end}}
 
   {{with .Loaners}}<section class="cal-act loaner-act" id="loaner">
@@ -108,5 +115,7 @@
       </form>
     </details>{{end}}
   </section>{{end}}
+  </div>
+  </div>
 </article>
 {{end}}{{end}}

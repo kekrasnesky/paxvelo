@@ -1,4 +1,9 @@
 {{define "content"}}
-<article class="page{{if .Data.Wide}} page-wide{{end}}{{if .Data.People}} page-people{{end}}{{if .Data.Fold}} page-fold{{end}}">
-{{.Data.Intro}}{{.Data.Body}}</article>
+<article class="page{{if .Data.Wide}} page-wide{{end}}{{if .Data.People}} page-people{{end}}{{if .Data.Fold}} page-fold{{end}}{{if gt (len .Data.Sections) 2}} has-toc{{end}}">
+{{if gt (len .Data.Sections) 2}}<nav class="toc" aria-label="On this page"><ul class="toc-list">
+{{range .Data.Sections}}<li><a href="#{{.ID}}">{{.Text}}</a></li>
+{{end}}</ul></nav>
+<div class="page-body">
+{{.Data.Intro}}{{.Data.Body}}</div>
+{{else}}{{.Data.Intro}}{{.Data.Body}}{{end}}</article>
 {{end}}
