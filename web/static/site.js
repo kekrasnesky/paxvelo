@@ -32,6 +32,7 @@
   d.addEventListener('keydown',function(e){
     if(e.key!=='Escape')return;
     if(root.classList.contains('menu-open')){setMenu(false);if(burger)burger.focus()}
+    if(dd&&dd.contains(d.activeElement)&&d.activeElement!==ddBtn)ddBtn.focus(); // back to Info, not lost
     setDD(false);
   });
   // A page set to fold (fold: yes, like Our Rides): on a phone each ## section

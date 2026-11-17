@@ -1191,3 +1191,27 @@ h1,h2{font-family:var(--display);font-weight:700;letter-spacing:-.01em;line-heig
 
 /* The gallery and albums: more photos across */
 @media (min-width:1280px){.page-gallery{max-width:calc(1400px + 2 * var(--pad))}}
+
+/* ---------- Computers: header, footer and hover ---------- */
+.ftr-links{display:none}
+@media (min-width:768px){
+  /* Footer: the site's pages in columns, between the sponsors and the bottom line */
+  .ftr{row-gap:1.4rem;padding-top:clamp(28px,3vw,44px)}
+  .ftr-links{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,13rem));justify-content:center;gap:1.5rem clamp(2rem,6vw,6rem);padding:1.4rem 0;border-block:1px solid rgba(245,242,236,.16)}
+  .ftr-head{margin:0 0 .6rem;font:600 .78rem/1 var(--display);letter-spacing:.16em;text-transform:uppercase;color:rgba(245,242,236,.7)}
+  .ftr-links ul{margin:0;padding:0;list-style:none}
+  .ftr-links li+li{margin-top:.35rem}
+  .ftr-links a{color:var(--paper);font-size:.9rem;text-decoration:none}
+  .ftr-end .ftr-member{display:none} /* in the columns now */
+}
+@media (min-width:768px) and (hover:hover){.ftr-links a:hover{text-decoration:underline}}
+
+/* Header: a little larger on big screens */
+@media (min-width:1440px){.nav{font-size:15.5px}.logo img{width:92px}}
+
+/* Ride cards lift a little under the pointer */
+@media (min-width:768px) and (hover:hover){
+  .next-rides .cal-ride,.cal-up .cal-ride{transition:transform .15s,box-shadow .15s,background .15s}
+  .next-rides .cal-ride:hover,.cal-up .cal-ride:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(45,45,45,.12)}
+}
+@media (prefers-reduced-motion:reduce){.next-rides .cal-ride:hover,.cal-up .cal-ride:hover{transform:none}}

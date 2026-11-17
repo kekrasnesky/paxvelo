@@ -81,6 +81,23 @@
       <li><img src="/static/img/sponsors/oldline.svg?v={{.V}}" alt="Old Line" width="433" height="328" loading="lazy"></li>
     </ul>
   </div>
+  <nav class="ftr-links" aria-label="Site">
+    <div><p class="ftr-head">Rides</p><ul>
+      <li><a href="/calendar">Club calendar</a></li>
+      <li><a href="/calendar/subscribe">Subscribe to the calendar</a></li>
+      <li><a href="/calendar/new">Add a ride or event</a></li>
+      <li><a href="/ride-waiver">Ride waiver</a></li>
+    </ul></div>
+    <div><p class="ftr-head">Club</p><ul>
+      {{range infoLinks}}<li><a href="{{.Path}}">{{.Label}}</a></li>
+      {{end}}</ul></div>
+    <div><p class="ftr-head">Members</p><ul>
+      <li><a href="/join">Join</a></li>
+      <li><a href="/membership">My Membership</a></li>
+      <li><a href="/newsletter">Newsletter</a></li>
+      <li><a href="/share-photos">Share photos</a></li>
+    </ul></div>
+  </nav>
   <p class="ftr-copy"><picture><source srcset="/static/img/rider-light-still.svg?v={{.V}}" media="(prefers-reduced-motion: reduce)"><img src="/static/img/rider-light.svg?v={{.V}}" alt="" width="44" height="42" loading="lazy"></picture>© PaxVelo, a 501(c)(3) nonprofit</p>
   {{template "social" .}}
   <div class="ftr-end"><a class="ftr-member" href="/membership">My Membership</a><a class="ftr-member" href="/ride-waiver">Ride Waiver</a><a class="ftr-mail" href="mailto:PaxVeloClub@gmail.com">PaxVeloClub@gmail.com</a></div>
