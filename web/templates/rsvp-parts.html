@@ -30,8 +30,8 @@
       <label>Bringing anyone? <select name="guests"><option value="0">Just me</option>{{range .GuestChoices}}<option value="{{.}}"{{if eq . $f.Guests}} selected{{end}}>Me + {{.}}</option>{{end}}</select></label>
       <label>Who’s coming with you? <input name="who" maxlength="200" value="{{$f.Who}}" placeholder="Their names (optional)"></label>
     </div>
-    {{if .Event.AskBringing}}<label class="rsvp-more rsvp-bring">What are you bringing? (optional) <input name="bringing" maxlength="200" value="{{$f.Bringing}}" placeholder="A dish, drinks, dessert…"></label>{{end}}
-    <label class="rsvp-more">Anything else? (optional) <input name="note" maxlength="300" value="{{$f.Note}}"></label>
+    {{if .Event.AskBringing}}<label class="rsvp-more rsvp-bring"><span>What are you bringing? <span class="opt">optional</span></span> <input name="bringing" maxlength="200" value="{{$f.Bringing}}" placeholder="A dish, drinks, dessert…"></label>{{end}}
+    <label class="rsvp-more"><span>Anything else? <span class="opt">optional</span></span> <input name="note" maxlength="300" value="{{$f.Note}}"></label>
     <button class="btn" type="submit">{{if .Reply}}Save my answer{{else}}Send my RSVP{{end}}</button>
   </form>
   {{if .Reply}}</details>{{end}}

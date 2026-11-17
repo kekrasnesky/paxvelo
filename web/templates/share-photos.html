@@ -11,13 +11,13 @@
     </label>
     <ul class="share-previews" hidden></ul>
     <label>Your name <input name="name" required maxlength="100" autocomplete="name" value="{{.Name}}"></label>
-    {{$album := .Album}}<label>Ride or event (optional) <select name="album" class="share-album">
+    {{$album := .Album}}<label><span>Ride or event <span class="opt">optional</span></span> <select name="album" class="share-album">
       <option value="">Not sure</option>
       {{range .Albums}}<option value="{{.ID}}"{{if eq (print .ID) $album}} selected{{end}}>{{.Title}}{{with .DateLabel}} ({{.}}){{end}}</option>{{end}}
       <option value="new"{{if eq $album "new"}} selected{{end}}>Something else…</option>
     </select></label>
     <label class="share-new">Name it <input name="album_name" maxlength="80" placeholder="Saturday ride to Point Lookout, Oct 25" value="{{.AlbumName}}"></label>
-    {{if .PINOn}}<label>Club PIN (optional) <input name="pin" maxlength="40" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+    {{if .PINOn}}<label><span>Club PIN <span class="opt">optional</span></span> <input name="pin" maxlength="40" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
     {{end}}<label class="check-row share-agree"><input type="checkbox" name="agree" value="yes" required{{if .Agree}} checked{{end}}> I took these or have permission to share them, and PaxVelo can use them online and in the newsletter.</label>
     <button class="btn" type="submit">Share photos</button>
     <div class="share-progress" hidden><span></span></div>

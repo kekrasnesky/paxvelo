@@ -4,6 +4,6 @@
   <p class="cal-back"><a href="/calendar">← Club calendar</a></p>
   <h1>Subscribe to the Calendar</h1>
   <p class="ride-tools">{{range $i, $a := .Apps}}<a class="btn{{if $i}} btn-quiet{{end}}" href="{{$a.URL}}"{{if $a.NewTab}} target="_blank" rel="noopener"{{end}}>{{if not $i}}{{icon "calendar"}}{{end}}{{$a.Label}}</a>{{end}}</p>
-  <label class="cal-sub-feed">Other apps <input readonly value="{{.Feed}}" aria-label="Calendar address"></label>
+  <label class="cal-sub-feed">Other apps <input readonly value="{{.Feed}}"></label>
 </article>
 {{end}}{{end}}{{end}}

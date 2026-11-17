@@ -41,7 +41,7 @@
         </div>
       </li>{{end}}
     </ul>
-    {{if .CanOrder}}<label class="kit-note-box">Anything we should know? (optional) <textarea name="note" rows="2" maxlength="300">{{with .Order}}{{.Note}}{{end}}</textarea></label>
+    {{if .CanOrder}}<label class="kit-note-box"><span>Anything we should know? <span class="opt">optional</span></span> <textarea name="note" rows="2" maxlength="300">{{with .Order}}{{.Note}}{{end}}</textarea></label>
       <p class="kit-live" aria-live="polite"></p>
       <button class="btn" type="submit">{{if .Order}}Save changes{{else}}Reserve my kit{{end}}</button>
     </form>{{end}}

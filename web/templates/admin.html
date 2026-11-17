@@ -22,7 +22,7 @@
   <div class="bar-end">{{with .Nav.Security}}<a class="corner" href="{{.Href}}"{{if .Current}} aria-current="page"{{end}} aria-label="{{.Label}}">{{icon "settings"}}<span>{{.Label}}</span></a>{{end}}<a href="/" target="_blank" rel="noopener">View site</a>
   <form method="post" action="/admin/logout">{{with .Me}}<span class="me">{{.}} · </span>{{end}}<button class="link light">{{icon "logout"}}Log out</button></form></div>
 </header>
-{{with .Nav.Sections}}<nav class="sub" aria-label="Section">{{range .}}<a href="{{.Href}}"{{if .Current}} aria-current="page"{{end}}>{{.Label}}{{with .Badge}} <span class="badge">{{.}}<span class="sr"> waiting</span></span>{{end}}</a>{{end}}</nav>{{end}}{{end}}
+{{with .Nav.Sections}}{{if gt (len .) 1}}<nav class="sub" aria-label="Section">{{range .}}<a href="{{.Href}}"{{if .Current}} aria-current="page"{{end}}>{{.Label}}{{with .Badge}} <span class="badge">{{.}}<span class="sr"> waiting</span></span>{{end}}</a>{{end}}</nav>{{end}}{{end}}{{end}}
 <main class="wrap">
 {{with .Flash}}<p class="flash">{{.}}</p>{{end}}
 {{with .Error}}<p class="flash err">{{.}}</p>{{end}}
@@ -31,6 +31,34 @@
 {{define "foot"}}</main>
 <script>{{.PhotoJS}}
 shrinkPicked();
+</script>
+<script>
+// The top bar slides away while scrolling down and comes back on the way up;
+// rows pinned under it follow (--bar-top). Keyboard focus in it keeps it.
+(function(){
+  // Inside the admin app the Home bar stands in for it (adminapp.go).
+  var bar=document.querySelector('.app-top'),root=document.documentElement;
+  if(!bar||!bar.offsetHeight)bar=document.querySelector('.bar');if(!bar)return;
+  var lastY=scrollY,ticking=false,hidden=false;
+  function place(){root.style.setProperty('--bar-top',hidden?'0px':bar.offsetHeight+'px')}
+  function onScroll(){
+    ticking=false;var y=scrollY;if(Math.abs(y-lastY)<6)return;
+    var hide=y>lastY&&y>bar.offsetHeight+40&&!bar.contains(document.activeElement);
+    if(hide!==hidden){hidden=hide;bar.classList.toggle('bar-hidden',hide);place()}
+    lastY=y;
+  }
+  addEventListener('scroll',function(){if(!ticking){ticking=true;requestAnimationFrame(onScroll)}},{passive:true});
+  addEventListener('resize',place);bar.addEventListener('focusin',function(){if(hidden){hidden=false;bar.classList.remove('bar-hidden');place()}});
+  place();
+})();
+// The menu rows scroll sideways on small screens: fade the edge that has more.
+(function(){
+  var rows=document.querySelectorAll('.bar nav,.sub');
+  function mark(n){var max=n.scrollWidth-n.clientWidth;n.classList.toggle('more-l',n.scrollLeft>2);n.classList.toggle('more-r',n.scrollLeft<max-2)}
+  function all(){rows.forEach(mark)}
+  rows.forEach(function(n){n.addEventListener('scroll',function(){mark(n)},{passive:true})});
+  addEventListener('resize',all);all();
+})();
 </script>
 <script>
 // Feedback on every page. The button pressed to send a form shows a spinner
@@ -137,12 +165,12 @@ function withFraming(u,v){u=u.replace(/#focus=.*$/,'');var f=parseFraming(v);ret
 function openFraming(src,value,shapes,done){
   var box=document.getElementById('frame-box');
   if(!box){box=document.createElement('dialog');box.id='frame-box';box.className='card frame-box';box.setAttribute('aria-labelledby','frame-title');
-    box.innerHTML='<div class="fb-top"><h2 id="frame-title">Frame this photo</h2><p class="muted small">Drag the photo to choose what shows. Zoom in with the slider, your mouse wheel, or two fingers. Arrow keys nudge it.</p></div>'+
-      '<div class="fb-main"><div class="fb-stage" tabindex="0" aria-label="The photo in its frame. Drag to move it, arrow keys nudge it, plus and minus zoom."><div class="fb-frame"><img class="fb-ghost" alt=""><img class="fb-pic" alt=""></div></div>'+
+    box.innerHTML='<div class="fb-top"><h2 id="frame-title">Frame this photo</h2></div>'+
+      '<div class="fb-main"><div class="fb-stage" tabindex="0" title="Drag to move, scroll to zoom" aria-label="The photo in its frame. Drag to move it, arrow keys nudge it, plus and minus zoom."><div class="fb-frame"><img class="fb-ghost" alt=""><img class="fb-pic" alt=""></div></div>'+
       '<div class="fb-side"><p class="fb-label">How it shows on the site</p><div class="fb-shapes"></div>'+
       '<label class="fb-zoom">Zoom <input type="range" min="1" max="4" step="0.01" value="1"><output>1×</output></label>'+
       '<button type="button" class="ghost fb-reset">Reset: whole photo, centered</button></div></div>'+
-      '<div class="send-row"><button type="button" class="fb-done">Done</button><button type="button" class="link fb-cancel">Cancel</button><span class="muted small">Saved with the rest of the page.</span></div>';
+      '<div class="send-row"><button type="button" class="fb-done">Done</button><button type="button" class="link fb-cancel">Cancel</button></div>';
     document.body.appendChild(box)}
   var stage=box.querySelector('.fb-stage'),frame=box.querySelector('.fb-frame'),pic=box.querySelector('.fb-pic'),ghost=box.querySelector('.fb-ghost'),
     list=box.querySelector('.fb-shapes'),zoom=box.querySelector('.fb-zoom input'),out=box.querySelector('.fb-zoom output'),
@@ -236,7 +264,7 @@ function pickFromGallery(max,done){
     fetch('/admin/gallery/pick',{credentials:'same-origin'}).then(function(r){return r.json()}).then(function(j){
       d.innerHTML=head('Choose from the gallery')+(j.albums.length?'<div class="gal-pick-grid">'+j.albums.map(function(a){
         return '<button type="button" class="gal-pick-album" data-id="'+a.id+'" data-title="'+esc(a.title)+'"><img src="'+esc(a.cover)+'" alt="" loading="lazy"><strong>'+esc(a.title)+'</strong><span class="muted small">'+esc(a.label)+'</span></button>'}).join('')+'</div>'
-        :'<p class="muted">The gallery has no photos yet. Approve photos members shared, or upload some in Website → Gallery.</p>')})
+        :'<p class="muted">No photos yet.</p>')})
     .catch(function(){d.querySelector('p.muted').textContent='Couldn’t load the gallery. Check your connection and try again.'})}
   function photos(id,title){d.innerHTML=head(title,true)+'<p class="muted small">Loading…</p>';
     fetch('/admin/gallery/pick?album='+encodeURIComponent(id),{credentials:'same-origin'}).then(function(r){return r.json()}).then(function(j){
@@ -691,15 +719,15 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
 </div>
 <nav class="filter" aria-label="Filter by membership">
   <a href="/admin/members?dues=paid{{with .Q}}&q={{.}}{{end}}"{{if eq .Dues "paid"}} aria-current="page"{{end}} title="Dues paid and not expired">Current members ({{.Paid}})</a>
-  <a href="/admin/members?dues=unpaid{{with .Q}}&q={{.}}{{end}}"{{if eq .Dues "unpaid"}} aria-current="page"{{end}} title="Dues expired, or joined on the website and not marked paid yet">Not paid yet ({{.Unpaid}})</a>
-  <a href="/admin/members?dues=list{{with .Q}}&q={{.}}{{end}}"{{if eq .Dues "list"}} aria-current="page"{{end}} title="Never paid dues: newsletter sign-ups and old Squarespace contacts">Email list only ({{.List}})</a>
+  <a href="/admin/members?dues=unpaid{{with .Q}}&q={{.}}{{end}}"{{if eq .Dues "unpaid"}} aria-current="page"{{end}} title="Expired, or joined online and unpaid">Not paid yet ({{.Unpaid}})</a>
+  <a href="/admin/members?dues=list{{with .Q}}&q={{.}}{{end}}"{{if eq .Dues "list"}} aria-current="page"{{end}} title="Never paid dues">Email list only ({{.List}})</a>
   <a href="/admin/members{{with .Q}}?q={{.}}{{end}}"{{if eq .Dues ""}} aria-current="page"{{end}}>Everyone ({{.Total}})</a>
 </nav>
 {{if .IsBoard}}<form id="bulk" class="bulk-bar" method="post" action="/admin/members/paid" hidden>
   <input type="hidden" name="return" value="/admin/members?q={{.Q}}&dues={{.Dues}}">
   <span class="bulk-n"></span>
   <button class="mini">{{icon "check"}}Mark them paid</button>
-  {{if .MovedOn}}<button class="mini ghost" formaction="/admin/members/moved" data-confirm-moved title="For members who paid on the old site: marks them paid and sends the site-move email instead of the welcome">{{icon "send"}}Mark paid &amp; send site-move email</button>{{end}}
+  {{if .MovedOn}}<button class="mini ghost" formaction="/admin/members/moved" data-confirm-moved title="Paid on the old site">{{icon "send"}}Mark paid &amp; send site-move email</button>{{end}}
   {{if .CanManage}}<button class="mini ghost danger" formaction="/admin/members/delete" data-confirm-delete>{{icon "trash"}}Delete them</button>{{end}}
   <button type="button" class="link small bulk-clear">Clear</button>
 </form>{{end}}
@@ -709,7 +737,7 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
   {{range .Members}}{{$paid := .Paid}}<tr id="m{{.ID}}" data-name="{{.Name}}" data-plan="{{.Plan}}" data-paid="{{if $paid}}1{{else}}0{{end}}" data-waiver="{{if index $.Signed .ID}}1{{else}}0{{end}}" data-joined="{{.Joined.Format "2006-01-02T15:04:05"}}" data-find="{{.Name}} {{.Email}} {{.Phone}}"{{if not .Active}} class="off"{{end}}>
     {{if $.IsBoard}}<td class="pick-col" data-label="Tick"><input type="checkbox" name="id" value="{{.ID}}" form="bulk" aria-label="Tick {{.Name}}"></td>{{end}}
     <td data-label="Name"><a class="member-link" href="/admin/members/{{.ID}}">{{.Name}}</a>{{with .Household}}<br><span class="muted small">With {{range $i, $h := .}}{{if $i}}, {{end}}{{$h.Name}}{{end}}</span>{{end}}</td>
-    <td class="email" data-label="Email"><a href="mailto:{{.Email}}">{{.Email}}</a>{{if not .Active}} <span class="tag">Unsubscribed</span>{{end}}{{if .Unconfirmed}} <span class="tag" title="Club emails reach them once they press the link we emailed">Email not confirmed</span>{{end}}{{if .RenewalWaiting}} <span class="tag" title="They filled in the join form again. Their waiver and details count once they press the link we emailed">Renewal not confirmed</span>{{end}}</td>
+    <td class="email" data-label="Email"><a href="mailto:{{.Email}}">{{.Email}}</a>{{if not .Active}} <span class="tag">Unsubscribed</span>{{end}}{{if .Unconfirmed}} <span class="tag" title="Email not confirmed yet">Email not confirmed</span>{{end}}{{if .RenewalWaiting}} <span class="tag" title="Rejoined, not confirmed yet">Renewal not confirmed</span>{{end}}</td>
     <td class="nowrap" data-label="Phone">{{with .Phone}}<a href="tel:{{.}}">{{.}}</a>{{else}}<span class="muted">—</span>{{end}}</td>
     <td data-label="Plan">{{.PlanName}}</td>
     <td data-label="Riding">{{with .LevelName}}{{.}}{{else}}<span class="muted">—</span>{{end}}{{with .RideNames}}<br><span class="muted small">{{.}}</span>{{end}}</td>
@@ -721,7 +749,7 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
     <td class="nowrap" data-label="{{$.Year}} waiver">{{if index $.Signed .ID}}<span class="paid">Signed</span>{{else}}<span class="muted">Not signed</span>{{end}}</td>
     <td class="nowrap" data-label="Joined">{{date .Joined}}</td>
   </tr>
-  {{else}}<tr><td colspan="9" class="empty">{{if $.Total}}Nobody matches that.{{else}}No members yet. Share the join page: <a href="{{$.SiteURL}}/join">{{$.SiteURL}}/join</a>{{end}}</td></tr>
+  {{else}}<tr><td colspan="9" class="empty">{{if $.Total}}Nobody matches that.{{else}}No members yet.{{end}}</td></tr>
   {{end}}
   <tr class="no-match" hidden><td colspan="9" class="empty">Nobody matches that.</td></tr>
   </tbody>
@@ -802,7 +830,7 @@ body.addEventListener('submit',function(e){var f=e.target;if(!f.classList.contai
 <p><a href="/admin/members">← All members</a></p>
 <div class="title-row">
   <h1>{{.Name}}</h1>
-  <p class="muted">{{.PlanName}} plan · joined {{date .Joined}}{{if not .Active}} <span class="tag">Unsubscribed</span>{{end}}{{if .Unconfirmed}} <span class="tag" title="Club emails reach them once they press the link we emailed">Email not confirmed</span>{{end}}{{if .RenewalWaiting}} <span class="tag" title="They filled in the join form again. Their waiver and details count once they press the link we emailed">Renewal not confirmed</span>{{end}}{{if .NoNewsletter}} <span class="tag">Newsletter off</span>{{end}}{{if .NoEvents}} <span class="tag">Event emails off</span>{{end}}</p>
+  <p class="muted">{{.PlanName}} plan · joined {{date .Joined}}{{if not .Active}} <span class="tag">Unsubscribed</span>{{end}}{{if .Unconfirmed}} <span class="tag" title="Email not confirmed yet">Email not confirmed</span>{{end}}{{if .RenewalWaiting}} <span class="tag" title="Rejoined, not confirmed yet">Renewal not confirmed</span>{{end}}{{if .NoNewsletter}} <span class="tag">Newsletter off</span>{{end}}{{if .NoEvents}} <span class="tag">Event emails off</span>{{end}}</p>
 </div>
 <div class="grid2 member-page">
   {{if not $.IsBoard}}<div class="card">
@@ -1034,7 +1062,7 @@ body.addEventListener('submit',function(e){var f=e.target;if(!f.classList.contai
 {{define "email"}}{{template "head" .}}
 {{if not .Live}}<p class="flash warn">Test mode: emails go to the server log.</p>{{end}}
 <div class="title-row"><h1>Send an email</h1>
-  {{if and .Live (gt .Allowance.Limit 0)}}{{with .Allowance}}<p class="allowance-pill" title="Counts every email the site sends since midnight UTC. A send to more people than are left pauses at the limit and picks up again with Resume after it starts over."><strong>{{.Left}} emails left today</strong> <span class="muted">· {{.Sent}} of {{.Limit}} sent, starts over {{.Resets}}</span> <span class="meter{{if ge .Percent 80}} high{{end}}" role="img" aria-label="{{.Sent}} of {{.Limit}} emails sent today"><span style="width:{{.Percent}}%"></span></span></p>{{end}}{{end}}
+  {{if and .Live (gt .Allowance.Limit 0)}}{{with .Allowance}}<p class="allowance-pill" title="Emails sent since midnight UTC"><strong>{{.Left}} emails left today</strong> <span class="muted">· {{.Sent}} of {{.Limit}} sent, starts over {{.Resets}}</span> <span class="meter{{if ge .Percent 80}} high{{end}}" role="img" aria-label="{{.Sent}} of {{.Limit}} emails sent today"><span style="width:{{.Percent}}%"></span></span></p>{{end}}{{end}}
 </div>
 <form class="card compose mail-form" method="post">
   <label>Subject <input name="subject" maxlength="200" value="{{.Draft.Subject}}" placeholder="What it’s about"></label>
@@ -2353,7 +2381,7 @@ t.addEventListener('input',function(){if(!own)a.value=t.value.toLowerCase().repl
 <form class="card page-editor" method="post" action="/admin/pages/{{.Page.File}}" id="page-form">
   <div class="mail-bar page-bar" role="toolbar" aria-label="Formatting" hidden>
     <span><button type="button" class="ghost" data-do="bold" title="Bold (Ctrl+B)"><strong>B</strong></button><button type="button" class="ghost" data-do="italic" title="Italics (Ctrl+I)"><em>I</em></button></span>
-    <span><button type="button" class="ghost" data-do="h2" title="Starts a new section of the page">Section heading</button><button type="button" class="ghost" data-do="h3" title="A smaller heading. Several in a row sit side by side as columns">Small heading</button></span>
+    <span><button type="button" class="ghost" data-do="h2" title="Starts a new section of the page">Section heading</button><button type="button" class="ghost" data-do="h3" title="Smaller heading; several make columns">Small heading</button></span>
     <span><button type="button" class="ghost" data-do="ul" title="Bulleted list">• List</button><button type="button" class="ghost" data-do="ol" title="Numbered list">1. List</button></span>
     <span><button type="button" class="ghost" data-do="link" title="Link (Ctrl+K)">Link</button><label class="ghost mail-photo" title="Upload a photo and put it where the cursor is">Photo<input type="file" id="page-photo" accept="image/jpeg,image/png,image/webp"></label>
       <select data-do="insert" aria-label="Insert" title="Ready-made pieces to fill in">
