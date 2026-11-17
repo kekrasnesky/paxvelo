@@ -6,8 +6,8 @@
   </div>
   {{template "rider-bar" .}}
 
-  <section class="cal-up" aria-label="Coming up">
-    <h2>Coming up</h2>
+  <section class="cal-up" aria-labelledby="cal-up-h">
+    <h2 id="cal-up-h">Coming up</h2>
     <p class="lvl-key">{{range rideLevels}}<span><span class="lvl lvl-{{.Key}}">{{.Name}}</span> {{.MPH}}</span>{{end}}</p>
     {{if .Upcoming}}<ul class="cal-up-list">
       {{range .Upcoming}}<li><a class="cal-ride {{.Status}}" href="/calendar/ride/{{.Key}}">

@@ -13,7 +13,7 @@
     <label>Name <input name="name" maxlength="80" value="{{$s.Name}}" placeholder="2027 club kit order"></label>
     <label>Last day to order <input type="date" name="closes" value="{{$s.Closes}}"></label>
   </div>
-  <label title="Members’ totals are added to a PayPal.me link, so PayPal fills in the amount">PayPal link for payments <input type="url" name="pay_url" value="{{$s.PayURL}}" placeholder="https://paypal.me/paxvelo"></label>
+  <label title="PayPal.me link: totals fill in">PayPal link for payments <input type="url" name="pay_url" value="{{$s.PayURL}}" placeholder="https://paypal.me/paxvelo"></label>
   <label class="check"><input type="checkbox" name="open" value="1"{{if $s.Open}} checked{{end}}> Taking orders</label>
   <div class="row-acts">
     <button>{{icon "save"}}Save</button>
@@ -22,7 +22,7 @@
 
 <div class="card">
   <div class="title-row"><h2>Email members</h2></div>
-  <form method="post" action="/admin/kit/email" class="inline"><button class="ghost" title="Writes the email on Email → Send an email, with each member’s own order link"{{if not $k.Open}} disabled{{end}}>{{icon "mail"}}Write the kit email</button></form>
+  <form method="post" action="/admin/kit/email" class="inline"><button class="ghost" title="Drafts it on Send an email"{{if not $k.Open}} disabled{{end}}>{{icon "mail"}}Write the kit email</button></form>
 </div>
 
 <section class="card" id="items">

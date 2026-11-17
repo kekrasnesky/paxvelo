@@ -19,7 +19,7 @@
   </ul>
   <p class="route-credit">Routes and maps from Strava.</p>
   {{else}}
-  <p class="cal-none">{{if .Connected}}The club’s routes are on their way from Strava. Check back in an hour or two.{{else}}Our routes will show here once the club’s Strava is connected. Until then, <a href="{{.ClubURL}}" target="_blank" rel="noopener">see them on Strava</a>.{{end}}</p>
+  <p class="empty">{{if .Connected}}The club’s routes are on their way from Strava. Check back in an hour or two.{{else}}Our routes will show here once the club’s Strava is connected. Until then, <a href="{{.ClubURL}}" target="_blank" rel="noopener">see them on Strava</a>.{{end}}</p>
   {{end}}
 </article>
 {{end}}{{end}}

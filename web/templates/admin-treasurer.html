@@ -133,7 +133,7 @@ document.querySelectorAll('.money-form select[name=category]').forEach(function(
   <h1>Budget</h1>
   {{template "money-year" .}}
   <form class="req-limit no-print" id="limit" method="post" action="/admin/treasurer/budget/one-ok">
-    <label class="inline-label" title="Spending requests up to this amount, within what’s left of their category’s budget, need only the treasurer’s OK. Blank: the treasurer and the president always both approve.">Treasurer alone approves up to <span class="money-in"><span aria-hidden="true">$</span><input name="limit" inputmode="decimal" value="{{if $m.OneLimit}}{{moneyInput $m.OneLimit}}{{end}}" autocomplete="off" placeholder="—" aria-label="Amount"></span></label>
+    <label class="inline-label" title="Blank: always two approvals">Treasurer alone approves up to <span class="money-in"><span aria-hidden="true">$</span><input name="limit" inputmode="decimal" value="{{if $m.OneLimit}}{{moneyInput $m.OneLimit}}{{end}}" autocomplete="off" placeholder="—" aria-label="Amount"></span></label>
     <button class="ghost mini">{{icon "save"}}Save</button>
   </form>
 </div>

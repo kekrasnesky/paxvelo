@@ -36,9 +36,9 @@
 <p class="muted">{{or $e.When "No date"}}{{with $e.Place}} · {{.}}{{end}}{{with $k.OnCal}} · <a href="/calendar/ride/{{.Key}}#rsvp" target="_blank" rel="noopener" title="Its event on the club calendar">{{icon "calendar"}}On the calendar</a>{{end}}</p>
 
 <div class="card rsvp-acts">
-  <form method="post" action="/admin/rsvp/{{$e.ID}}/email" class="inline"><button title="Writes the invitation on Email → Send an email, with each member’s own RSVP link"{{if not $k.Open}} disabled{{end}}>{{icon "mail"}}Write the invitation email</button></form>
+  <form method="post" action="/admin/rsvp/{{$e.ID}}/email" class="inline"><button title="Drafts it on Send an email"{{if not $k.Open}} disabled{{end}}>{{icon "mail"}}Write the invitation email</button></form>
   <form method="post" action="/admin/rsvp/{{$e.ID}}/close" class="inline">{{if $e.Closed}}<input type="hidden" name="closed" value="0"><button class="ghost">{{icon "undo"}}Take RSVPs again</button>{{else}}<input type="hidden" name="closed" value="1"><button class="ghost">{{icon "ban"}}Stop taking RSVPs</button>{{end}}</form>
-  <a class="btn ghost" href="/rsvp/{{$e.ID}}?t=test" target="_blank" rel="noopener" title="The page as members see it (answers aren’t saved)">{{icon "eye"}}See the page</a>
+  <a class="btn ghost" href="/rsvp/{{$e.ID}}?t=test" target="_blank" rel="noopener" title="As members see it">{{icon "eye"}}See the page</a>
   <form method="post" action="/admin/rsvp/{{$e.ID}}/remove" class="inline rsvp-remove"><button class="link danger" title="Remove this invitation and its answers">{{icon "trash"}}Remove</button></form>
 </div>
 {{with $k.Dropped}}<form class="flash warn undo-flash" id="dropped" method="post" action="/admin/rsvp/{{$e.ID}}/answers/restore">Removed {{if eq (len .Replies) 1}}{{(index .Replies 0).Name}}’s answer{{else}}{{len .Replies}} answers{{end}}. <button class="link">{{icon "undo"}}Undo</button></form>{{end}}
@@ -109,9 +109,9 @@
     <label class="check"><input type="checkbox" name="ask_bringing" value="1"{{if or .AskBringing (not .ID)}} checked{{end}}> Ask what they’re bringing</label>
   </div>
   <div class="pair">
-    <label class="check" title="On the RSVP page, from a member’s own link: names, guests and what they’re bringing"><input type="checkbox" name="show_guests" value="1"{{if not .HideGuests}} checked{{end}}> Members see who’s coming</label>
-    <label class="check" title="Emailed the day before to everyone who said I’ll be there or Maybe (Email → Automations → RSVP reminder)"><input type="checkbox" name="remind" value="1"{{if not .NoReminder}} checked{{end}}> Remind them the day before</label>
+    <label class="check" title="Members see who’s coming"><input type="checkbox" name="show_guests" value="1"{{if not .HideGuests}} checked{{end}}> Members see who’s coming</label>
+    <label class="check" title="Emailed the day before"><input type="checkbox" name="remind" value="1"{{if not .NoReminder}} checked{{end}}> Remind them the day before</label>
   </div>
-  <label title="The club calendar shows who’s coming on this event, and its page takes RSVPs">On the calendar <select name="ride"><option value="">Not on the calendar</option>{{range $fd.Events}}<option value="{{.Key}}"{{if eq .Key $fd.Ride}} selected{{end}}>{{.ShortDate}}{{with .TimeLabel}} · {{.}}{{end}} · {{.Name}}</option>{{end}}</select></label>
+  <label title="Head count on the calendar">On the calendar <select name="ride"><option value="">Not on the calendar</option>{{range $fd.Events}}<option value="{{.Key}}"{{if eq .Key $fd.Ride}} selected{{end}}>{{.ShortDate}}{{with .TimeLabel}} · {{.}}{{end}} · {{.Name}}</option>{{end}}</select></label>
   <div class="row-acts"><button>{{icon "save"}}Save</button></div>
 </form>{{end}}{{end}}

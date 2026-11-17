@@ -9,6 +9,6 @@
       {{with .Summary}}<p>{{.}}</p>{{end}}
       <p class="minutes-file"><a class="btn btn-quiet" href="{{.File}}" target="_blank" rel="noopener">{{if eq .Kind "Word"}}Download the minutes{{else}}Read the minutes{{end}}</a> <span class="muted-note">{{.Kind}}, {{.SizeLabel}}</span></p>
     </li>{{end}}
-  </ul>{{else}}<p>No minutes posted yet.</p>{{end}}
+  </ul>{{else}}<p class="empty">No minutes posted yet.</p>{{end}}
 </article>
 {{end}}{{end}}

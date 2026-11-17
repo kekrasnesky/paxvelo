@@ -43,7 +43,7 @@
     {{with .Me}}<div class="going-me">
       <p><strong>You’re in</strong>{{with .Group}} · {{.}}{{end}}</p>
       {{if .First}}<a class="btn" href="/ride-waiver">Sign the ride waiver</a>{{end}}
-      {{if $d.CanJoin}}<form method="post" action="/calendar/ride/{{$r.Key}}/out"><button class="link-button">Can’t make it</button></form>{{end}}
+      {{if $d.CanJoin}}<form method="post" action="/calendar/ride/{{$r.Key}}/out"><button type="submit" class="link-button">Can’t make it</button></form>{{end}}
     </div>
     {{else}}{{if .CanJoin}}<form class="in-form" method="post" action="/calendar/ride/{{$r.Key}}/in">
       <input type="hidden" name="ft" value="{{$d.Token}}">
@@ -52,7 +52,7 @@
       {{if gt (len $r.Groups) 1}}<label>Group <select name="group"><option value="">Not sure</option>{{range $r.Groups}}<option>{{.}}</option>{{end}}</select></label>{{end}}
       <label><span>Email <span class="opt">for changes</span></span> <input type="email" name="email" maxlength="254" autocomplete="email"></label>
       <label class="in-first"><input type="checkbox" name="first" value="1"> First club ride</label>
-      <button class="btn">{{icon "check"}}I’m in</button>
+      <button type="submit" class="btn">{{icon "check"}}I’m in</button>
     </form>{{end}}{{end}}
   </section>{{end}}
 
@@ -81,7 +81,7 @@
             <input type="hidden" name="ft" value="{{$d.Token}}"><input type="hidden" name="group" value="{{.Group}}">
             <span class="hp" aria-hidden="true"><input name="website" tabindex="-1" autocomplete="off"></span>
             <input name="leader_name" required maxlength="60" autocomplete="name" placeholder="Your name" aria-label="Your name{{with .Group}}, to lead {{.}}{{end}}">
-            <button class="btn">I’ll lead</button>
+            <button type="submit" class="btn">I’ll lead</button>
           </form>{{end}}
         </div>
       </li>{{end}}
@@ -97,19 +97,19 @@
         </div>
         <label><span>Note <span class="opt">optional</span></span> <input name="note" maxlength="120" value="{{$r.StatusNote}}" placeholder="Rain · Meet at the back lot"></label>
         <div class="ride-manage-acts">
-          {{if $r.Cancelled}}<button class="btn btn-quiet" name="status" value="open">{{icon "undo"}}Put it back on the calendar</button>
-          {{else}}<button class="btn" name="status" value="on">{{icon "check"}}Ride is on</button>
-          <button class="btn btn-quiet" name="status" value="cancel" data-confirm="Cancel {{$r.Name}} on {{$r.DateLabel}}? The club gets an email.">{{icon "ban"}}Cancel this ride</button>{{end}}
+          {{if $r.Cancelled}}<button type="submit" class="btn btn-quiet" name="status" value="open">{{icon "undo"}}Put it back on the calendar</button>
+          {{else}}<button type="submit" class="btn" name="status" value="on">{{icon "check"}}Ride is on</button>
+          <button type="submit" class="btn btn-quiet" name="status" value="cancel" data-confirm="Cancel {{$r.Name}} on {{$r.DateLabel}}? The club gets an email.">{{icon "ban"}}Cancel this ride</button>{{end}}
         </div>
         <label class="ride-manage-strava"><span>Strava route</span> <input name="route" value="{{$r.RouteURL}}" list="club-routes" inputmode="url" autocomplete="off" placeholder="https://www.strava.com/routes/…"></label>
         {{template "club-routes" $d.ClubRoutes}}
         <div class="ride-manage-acts">
-          <button class="btn btn-quiet" formaction="/calendar/ride/{{$r.Key}}/route">{{icon "save"}}Save route</button>
+          <button type="submit" class="btn btn-quiet" formaction="/calendar/ride/{{$r.Key}}/route">{{icon "save"}}Save route</button>
         </div>
         <label><span>Strava event link</span> <input type="url" name="strava_url" value="{{$r.StravaURL}}" placeholder="https://www.strava.com/clubs/10197/group_events/…"></label>
         <div class="ride-manage-acts">
-          <button class="btn btn-quiet" formaction="/calendar/ride/{{$r.Key}}/strava">{{icon "save"}}Save link</button>
-          {{if not $r.Cancelled}}<button class="link-button" formaction="/calendar/ride/{{$r.Key}}/stepdown" data-confirm="Step down? Someone else will need to lead.">Step down</button>{{end}}
+          <button type="submit" class="btn btn-quiet" formaction="/calendar/ride/{{$r.Key}}/strava">{{icon "save"}}Save link</button>
+          {{if not $r.Cancelled}}<button type="submit" class="link-button" formaction="/calendar/ride/{{$r.Key}}/stepdown" data-confirm="Step down? Someone else will need to lead.">Step down</button>{{end}}
         </div>
       </form>
     </details>{{end}}
