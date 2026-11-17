@@ -39,6 +39,8 @@ const (
 	mailRequest      = "Spending request"
 	mailLoaner       = "Loaner bike"
 	mailRider        = "Ride change"
+	mailAlert        = "Ride alert"
+	mailAlertConfirm = "Ride alert confirm"
 	mailRSVPReminder = "RSVP reminder"
 	mailRSVPLink     = "RSVP link"
 )

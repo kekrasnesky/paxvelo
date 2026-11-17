@@ -194,6 +194,12 @@ func (m *Mailer) SendDirect(kind, toName, toEmail, subject, body string) error {
 	return m.send(kind, 0, toName, toEmail, subject, body, memberLinks{})
 }
 
+// SendAlert sends a ride alert email (alertmail.go): its Stop link sits at
+// the foot as Unsubscribe, and Gmail's one-click button posts to it.
+func (m *Mailer) SendAlert(kind, toEmail, subject, body, stop string) error {
+	return m.send(kind, 0, "", toEmail, subject, body, memberLinks{Unsub: stop})
+}
+
 // SendMine sends one email to a member that isn't to the member list, like
 // the link to confirm their email: it has their My membership link at the
 // foot, but no unsubscribe link.

@@ -127,6 +127,7 @@ func (a *App) applyStatus(key, status, note, by string, check func(c *CalRide) e
 		return o, err
 	}
 	a.alertRide(o, status, was.Cancelled)  // phones with ride alerts on (push.go)
+	a.mailAlerts(o, status, was.Cancelled) // addresses with ride alerts on (alertmail.go)
 	a.mailRiders(o, status, was.Cancelled) // riders who said "I'm in" with an email (imin.go)
 	if status == statusCancel && !was.Cancelled {
 		body := fmt.Sprintf("%s cancelled %s on %s.", by, o.Name, rideWhen(o))

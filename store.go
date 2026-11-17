@@ -224,9 +224,10 @@ type storeData struct {
 	NextSubmitted   int               `json:"next_submitted_id,omitempty"`
 	SubmittedPhotos []*SubmittedPhoto `json:"submitted_photos,omitempty"`
 	// The public photo gallery (gallery.go), album by album.
-	ClubPIN     string          `json:"club_pin,omitempty"`  // lets members post without review (clubpin.go)
-	PushKey     string          `json:"push_key,omitempty"`  // the site's key for phone notifications (push.go)
-	PushSubs    []PushSub       `json:"push_subs,omitempty"` // phones with ride alerts on
+	ClubPIN     string          `json:"club_pin,omitempty"`     // lets members post without review (clubpin.go)
+	PushKey     string          `json:"push_key,omitempty"`     // the site's key for phone notifications (push.go)
+	PushSubs    []PushSub       `json:"push_subs,omitempty"`    // phones with ride alerts on
+	AlertEmails []AlertEmail    `json:"alert_emails,omitempty"` // addresses with ride alerts on (alertmail.go)
 	NextAlbum   int             `json:"next_album_id,omitempty"`
 	Albums      []*Album        `json:"albums,omitempty"`
 	NextGallery int             `json:"next_gallery_id,omitempty"`

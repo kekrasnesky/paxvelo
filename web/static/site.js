@@ -540,52 +540,75 @@
   // rider was after.
   if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(function(){});
 
-  // Ride alerts (push.go): the bell button turns phone notifications on for
-  // this browser in one tap. Once on, it opens a panel: Ride changes and
-  // Club news switches (/push/topics) and Turn off alerts. It only shows
-  // where the browser can do it (on an iPhone, once the site is on the home
-  // screen).
+  // Ride alerts (push.go, alertmail.go): the bell button opens a panel.
+  // Where the browser can do notifications (on an iPhone, once the site is
+  // on the home screen): Notify this phone, then once on, the Ride changes
+  // and Club news switches (/push/topics) and Turn off alerts. Everywhere:
+  // an email box for cancellations (/alerts/subscribe, confirmed by email).
   (function(){
     var btns=[].slice.call(d.querySelectorAll('.push-btn'));
-    if(!btns.length||!('serviceWorker' in navigator)||!('PushManager' in window)||!('Notification' in window))return;
-    var on=false;
+    if(!btns.length)return;
+    var can='serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window;
+    var on=false,reg=null;
+    function each(sel,f){[].slice.call(d.querySelectorAll(sel)).forEach(f)}
     function panel(b){return b.parentNode.querySelector('.push-panel')}
-    function boxes(){return [].slice.call(d.querySelectorAll('.push-panel input'))}
-    function label(t){btns.forEach(function(b){b.querySelector('span').textContent=t})}
-    function close(){btns.forEach(function(b){panel(b).hidden=true;if(on)b.setAttribute('aria-expanded','false')})}
-    function set(v){on=v;close();btns.forEach(function(b){b.hidden=false;b.setAttribute('aria-pressed',v?'true':'false');b.classList.toggle('is-on',v);if(v)b.setAttribute('aria-expanded','false');else b.removeAttribute('aria-expanded')});label(v?btns[0].dataset.on:btns[0].dataset.off)}
+    function boxes(){return [].slice.call(d.querySelectorAll('.push-topics input'))}
+    function close(){btns.forEach(function(b){panel(b).hidden=true;b.setAttribute('aria-expanded','false')})}
+    function set(v){
+      on=v;
+      btns.forEach(function(b){b.setAttribute('aria-pressed',v?'true':'false');b.classList.toggle('is-on',v);b.querySelector('span').textContent=v?b.dataset.on:b.dataset.off});
+      each('.push-topics',function(x){x.hidden=!v});
+      each('.push-on',function(x){x.hidden=v||!can||Notification.permission==='denied'});
+    }
     function show(t){boxes().forEach(function(x){x.checked=t.indexOf(x.value)>=0})}
     function key(s){s=s.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';var r=atob(s),a=new Uint8Array(r.length);for(var i=0;i<r.length;i++)a[i]=r.charCodeAt(i);return a}
     function post(path,body){return fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})}
-    function busy(v){btns.forEach(function(x){x.disabled=v});boxes().forEach(function(x){x.disabled=v})}
-    navigator.serviceWorker.ready.then(function(reg){
-      // The site no longer has this phone (a new key after a restore): turn
-      // alerts off here too, so the button says what's true.
-      function gone(s){return s.unsubscribe().catch(function(){}).then(function(){set(false)})}
-      function topics(s,t){
-        return post('/push/topics',t?{endpoint:s.endpoint,topics:t}:{endpoint:s.endpoint}).then(function(r){
-          if(r.status===404)return gone(s).then(function(){throw 404});
-          if(!r.ok)throw r.status;
-          return r.json().then(function(j){show(j.topics||[])});
-        });
+    function busy(v){btns.forEach(function(x){x.disabled=v});each('.push-panel button,.push-panel input',function(x){x.disabled=v})}
+    // The site no longer has this phone (a new key after a restore): turn
+    // alerts off here too, so the button says what's true.
+    function gone(s){return s.unsubscribe().catch(function(){}).then(function(){set(false)})}
+    function topics(s,t){
+      return post('/push/topics',t?{endpoint:s.endpoint,topics:t}:{endpoint:s.endpoint}).then(function(r){
+        if(r.status===404)return gone(s).then(function(){throw 404});
+        if(!r.ok)throw r.status;
+        return r.json().then(function(j){show(j.topics||[])});
+      });
+    }
+    set(false);
+    btns.forEach(function(b){b.hidden=false;b.addEventListener('click',function(){
+      var p=panel(b),open=p.hidden;close();
+      if(!open)return;
+      p.style.left='';p.style.right='';p.hidden=false;b.setAttribute('aria-expanded','true');
+      var box=p.getBoundingClientRect();
+      if(box.right>innerWidth-8){p.style.left='auto';p.style.right='0'}
+      if(on&&reg)reg.pushManager.getSubscription().then(function(s){if(!s)return set(false);return topics(s)}).catch(function(){});
+    })});
+    // Email: the same answer for any address; the email's Confirm turns it on.
+    each('.push-mail',function(m){
+      var input=m.querySelector('input[type=email]'),msg=m.querySelector('.push-mail-msg');
+      function send(){
+        if(!input.value||!input.checkValidity()){msg.textContent='Enter your email.';input.focus();return}
+        busy(true);msg.textContent='';
+        post('/alerts/subscribe',{email:input.value,website:m.querySelector('[name=website]').value}).then(function(r){
+          return r.ok?r.json().then(function(j){msg.textContent=j.ok;input.value=''}):r.text().then(function(t){msg.textContent=t.trim()});
+        }).catch(function(){msg.textContent='No connection. Try again.'}).then(function(){busy(false)});
       }
+      m.querySelector('.push-mail-send').addEventListener('click',send);
+      input.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();send()}});
+    });
+    d.addEventListener('click',function(e){if(!e.target.closest('.push-wrap'))close()});
+    d.addEventListener('keydown',function(e){if(e.key==='Escape')close()});
+    if(!can)return;
+    navigator.serviceWorker.ready.then(function(r){
+      reg=r;
       reg.pushManager.getSubscription().then(function(s){set(!!s&&Notification.permission==='granted')});
-      btns.forEach(function(b){b.addEventListener('click',function(){
-        if(on){
-          var p=panel(b),open=p.hidden;close();
-          if(!open)return;
-          p.style.left='';p.style.right='';p.hidden=false;b.setAttribute('aria-expanded','true');
-          if(p.getBoundingClientRect().right>innerWidth-8){p.style.left='auto';p.style.right='0'}
-          reg.pushManager.getSubscription().then(function(s){if(!s)return set(false);return topics(s)}).catch(function(){});
-          return;
-        }
+      each('.push-on',function(o){o.addEventListener('click',function(){
         busy(true);
         fetch('/push/key').then(function(r){return r.json()}).then(function(k){
           return reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:key(k.key)});
         }).then(function(s){
           return post('/push/subscribe',s.toJSON()).then(function(r){if(!r.ok){s.unsubscribe();throw r.status}show(['changes','news']);set(true)});
-        }).catch(function(){set(false);if(Notification.permission==='denied')label(btns[0].dataset.blocked)})
-          .then(function(){busy(false)});
+        }).catch(function(){set(false)}).then(function(){busy(false)});
       })});
       boxes().forEach(function(x){x.addEventListener('change',function(){
         var p=x.closest('.push-panel'),t=boxes().filter(function(y){return y.closest('.push-panel')===p&&y.checked}).map(function(y){return y.value});
@@ -593,15 +616,13 @@
         reg.pushManager.getSubscription().then(function(s){if(!s)return set(false);return topics(s,t)})
           .catch(function(){}).then(function(){busy(false)});
       })});
-      d.querySelectorAll('.push-off').forEach(function(o){o.addEventListener('click',function(){
+      each('.push-off',function(o){o.addEventListener('click',function(){
         busy(true);
         reg.pushManager.getSubscription().then(function(s){
           if(!s)return set(false);
           return s.unsubscribe().then(function(){post('/push/unsubscribe',{endpoint:s.endpoint});set(false)});
         }).catch(function(){}).then(function(){busy(false)});
       })});
-      d.addEventListener('click',function(e){if(!e.target.closest('.push-wrap'))close()});
-      d.addEventListener('keydown',function(e){if(e.key==='Escape')close()});
     });
   })();
   d.querySelectorAll('[data-reload]').forEach(function(a){a.addEventListener('click',function(e){e.preventDefault();location.reload()})});

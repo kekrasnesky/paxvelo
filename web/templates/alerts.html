@@ -1,0 +1,30 @@
+{{define "head"}}<meta name="robots" content="noindex">{{end}}
+{{define "content"}}{{with .Data}}
+<article class="page page-narrow alerts-page">
+{{if eq .State "confirm"}}
+  <h1>Ride alerts</h1>
+  <p class="lead">Cancellations by email to <strong>{{.Email}}</strong></p>
+  <form method="post" action="/alerts/email">
+    <input type="hidden" name="t" value="{{.Token}}">
+    <button class="btn" type="submit">{{icon "check"}}Confirm</button>
+  </form>
+{{else if eq .State "on"}}
+  <h1>Ride alerts are on</h1>
+  <p class="lead">Cancellations by email to <strong>{{.Email}}</strong></p>
+  <p><a class="btn btn-quiet" href="/calendar">{{icon "calendar"}}Club calendar</a></p>
+{{else if eq .State "stop"}}
+  <h1>Stop ride alerts</h1>
+  <p class="lead">Emails to <strong>{{.Email}}</strong></p>
+  <form method="post" action="/alerts/email">
+    <input type="hidden" name="t" value="{{.Token}}">
+    <button class="btn" type="submit" name="what" value="stop">{{icon "ban"}}Stop them</button>
+  </form>
+{{else if eq .State "off"}}
+  <h1>Ride alerts are off</h1>
+  <p class="lead">No more ride alert emails{{with .Email}} to <strong>{{.}}</strong>{{end}}.</p>
+{{else}}
+  <h1>Link not recognized</h1>
+  <p class="lead">This link has expired. Turn ride alerts on again from the <a href="/calendar">club calendar</a>.</p>
+{{end}}
+</article>
+{{end}}{{end}}

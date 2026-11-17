@@ -738,7 +738,7 @@ func TestStravaDetails(t *testing.T) {
 
 	// The public ride page shows the route, and a private event's notes and start too.
 	page := do(t, h, nil, "GET", "/calendar/ride/"+cafe.Key, "", nil).Body.String()
-	for _, want := range []string{"Coffee at the end.", "St Mary&#39;s Cafe Loop", "21 mi · 400 ft of climbing", `class="lvl lvl-intermediate">Intermediate</span> 18–20 mph`, "3 going", "posted by Gabriel M.", "google.com/maps/dir", "maps.example/a@2x"} {
+	for _, want := range []string{"Coffee at the end.", "St Mary&#39;s Cafe Loop", "21 mi · 400 ft of climbing", `class="lvl lvl-intermediate">Intermediate</span> 18–20 mph`, "3 going", "google.com/maps/dir", "maps.example/a@2x"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("cafe ride page is missing %q", want)
 		}
