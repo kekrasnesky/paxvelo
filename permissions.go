@@ -65,7 +65,7 @@ func levelName(l adminLevel) string {
 // boardTabs are the admin screens only the board (and president) can open.
 // Website admins don't see them in the menu.
 var boardTabs = map[string]bool{
-	"waivers": true, "auto": true, "newsletter": true, "sent-log": true,
+	"waivers": true, "auto": true, "alerts": true, "newsletter": true, "sent-log": true,
 	"pages": true, "home-photos": true, "board": true, "instagram": true,
 	"expenses": true, "income": true, "budget": true, "reports": true,
 	"security": true, "kit": true,
@@ -74,7 +74,7 @@ var boardTabs = map[string]bool{
 // boardHref reports whether an admin link leads to a board-only screen, so
 // Home can leave it out for website admins.
 func boardHref(href string) bool {
-	for _, p := range []string{"/admin/waivers", "/admin/ride-waivers", "/admin/email/auto", "/admin/email/log", "/admin/newsletter",
+	for _, p := range []string{"/admin/waivers", "/admin/ride-waivers", "/admin/email/auto", "/admin/email/log", "/admin/email/alerts", "/admin/newsletter",
 		"/admin/pages", "/admin/home-photos", "/admin/board", "/admin/instagram", "/admin/security", "/admin/backup", "/admin/kit"} {
 		if href == p || strings.HasPrefix(href, p+"/") || strings.HasPrefix(href, p+"?") || strings.HasPrefix(href, p+"#") {
 			return true

@@ -68,8 +68,9 @@ self.addEventListener('pushsubscriptionchange',function(e){
     var raw=atob(s),key=new Uint8Array(raw.length);for(var i=0;i<raw.length;i++)key[i]=raw.charCodeAt(i);
     return self.registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:key});
   }).then(function(sub){
-    if(e.oldSubscription)post('/push/unsubscribe',{endpoint:e.oldSubscription.endpoint});
-    return post('/push/subscribe',sub.toJSON());
+    // old: the site moves this phone's Ride changes / Club news choices over
+    var j=sub.toJSON();if(e.oldSubscription)j.old=e.oldSubscription.endpoint;
+    return post('/push/subscribe',j);
   }));
 });
 

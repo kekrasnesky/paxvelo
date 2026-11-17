@@ -129,6 +129,7 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("GET /push/key", a.pushKeyJSON) // push.go
 	mux.HandleFunc("POST /push/subscribe", a.pushSubscribe)
 	mux.HandleFunc("POST /push/unsubscribe", a.pushUnsubscribe)
+	mux.HandleFunc("POST /push/topics", a.pushTopicsJSON)
 	// iPhones also look for the home screen icon at these two addresses.
 	mux.HandleFunc("GET /apple-touch-icon.png", a.touchIcon)
 	mux.HandleFunc("GET /apple-touch-icon-precomposed.png", a.touchIcon)
@@ -326,6 +327,8 @@ func (a *App) routes() http.Handler {
 	mux.Handle("POST /admin/email/discard", a.auth(a.discardDraft))
 	mux.Handle("POST /admin/email/draft", a.auth(a.saveDraft))
 	mux.Handle("GET /admin/email/log", a.boardOnly(a.sentLogPage))
+	mux.Handle("GET /admin/email/alerts", a.boardOnly(a.alertsPage)) // pushalerts.go
+	mux.Handle("POST /admin/email/alerts", a.boardOnly(a.sendAlert))
 	mux.Handle("GET /admin/email/auto", a.boardOnly(a.autoPage))
 	mux.Handle("GET /admin/email/auto/{key}", a.boardOnly(a.autoEditPage))
 	mux.Handle("POST /admin/email/auto/{key}/save", a.boardOnly(a.autoSave))

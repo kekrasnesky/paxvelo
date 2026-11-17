@@ -131,8 +131,8 @@ func TestRideAlerts(t *testing.T) {
 	a, h, _ := rideApp(t)
 	a.store.SetClubPIN("8356")
 	phone, gone := newFakePhone(t, http.StatusCreated), newFakePhone(t, http.StatusGone)
-	a.store.AddPushSub(phone.sub())
-	a.store.AddPushSub(gone.sub())
+	a.store.AddPushSub(phone.sub(), nil, "")
+	a.store.AddPushSub(gone.sub(), nil, "")
 	o, _ := a.store.AddRide(CalRide{Date: a.today().AddDate(0, 0, 1).Format("2006-01-02"), Time: "08:00", Name: "Coffee Spin", Leaders: []Leader{{Name: "Jane Doe"}}})
 	status := func(st, note string) {
 		ct, body := form(url.Values{"leader_name": {"Jane Doe"}, "pin": {"8356"}, "status": {st}, "note": {note}})

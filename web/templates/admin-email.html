@@ -137,7 +137,7 @@ document.querySelectorAll('form.auto-pause').forEach(function(f){f.addEventListe
   if(sel){sel.addEventListener('change',when);when()}
   // Send test: what's in the editor now, without saving it.
   f.querySelector('.auto-test').addEventListener('click',function(){var st=f.querySelector('.auto-test-state'),fd=new URLSearchParams();
-    fd.set('subject',f.subject.value);fd.set('body',f.body.value);fd.set('test_to',f.test_to.value);st.textContent='Sending…';st.classList.remove('err-text');
+    fd.set('subject',f.subject.value);fd.set('body',el.body.value);fd.set('test_to',f.test_to.value);st.textContent='Sending…';st.classList.remove('err-text');
     fetch(f.dataset.test,{method:'POST',body:fd}).then(function(r){return r.json()}).then(function(j){st.textContent=j.message;st.classList.toggle('err-text',!j.ok)})
       .catch(function(){st.textContent='The test didn’t send. Check your connection.';st.classList.add('err-text')})});
   // Ask before leaving with changes that aren't saved.
@@ -381,3 +381,62 @@ form.cards={parse:parse,text:function(d){return d.map(blockText).filter(function
 }
 document.querySelectorAll('form.mail-form').forEach(mailCards);
 </script>{{end}}
+
+{{/* Email → Send an alert: a phone notification to every phone with Club news on (pushalerts.go). */}}
+{{define "alerts"}}{{template "head" .}}{{$v := .Alerts}}
+<div class="title-row"><h1>Send an alert</h1></div>
+<div class="alert-edit">
+<form class="card alert-form" method="post" action="/admin/email/alerts">
+  <label>Title <input name="title" required maxlength="60" value="{{$v.Title}}" placeholder="Saturday ride moved to 9:00"></label>
+  <label>Message <textarea name="body" rows="3" maxlength="180" placeholder="Meet at Leonardtown Square as usual.">{{$v.Body}}</textarea></label>
+  <label>Opens <select name="pick">
+    <option value="">Home page</option>
+    {{range $v.Choices}}<option value="{{.Key}}"{{if eq .Key $v.Pick}} selected{{end}}>{{.Label}}</option>{{end}}
+    <option value="other"{{if eq $v.Pick "other"}} selected{{end}}>Another page…</option>
+  </select></label>
+  <label class="alert-path"{{if ne $v.Pick "other"}} hidden{{end}}>Page <input name="path" maxlength="300" value="{{$v.Path}}" placeholder="/membership" pattern="/.*" title="A page on this site, starting with /"></label>
+  <p class="alert-send"><button{{if or (not $v.News) (not $v.Left)}} disabled{{end}}>{{icon "bell"}}Send to {{$v.News}} {{if eq $v.News 1}}phone{{else}}phones{{end}}</button>
+    <span class="muted small" title="Phones with alerts on: {{$v.Phones}}">{{$v.Today}} of {{$v.PerDay}} today</span></p>
+</form>
+<figure class="alert-preview" aria-label="Preview">
+  <div class="note-card">
+    <img src="/static/img/app-192.png" alt="" width="40" height="40">
+    <div><p class="note-app">PaxVelo <span>now</span></p>
+    <p class="note-title">{{or $v.Title "Title"}}</p>
+    <p class="note-body">{{$v.Body}}</p></div>
+  </div>
+</figure>
+</div>
+
+<section class="card">
+  <h2>Sent</h2>
+  <div class="table-wrap"><table class="tight cards">
+    <thead><tr><th>When</th><th>By</th><th>Alert</th><th>Phones</th></tr></thead>
+    <tbody>
+    {{range $v.Sent}}<tr>
+      <td class="nowrap" data-label="When">{{stamp .At}}</td>
+      <td data-label="By">{{.By}}</td>
+      <td data-label="Alert"><strong>{{.Title}}</strong>{{with .Body}}<br><span class="muted small">{{.}}</span>{{end}}{{with .URL}}<br><a class="small" href="{{.}}" target="_blank" rel="noopener">{{.}}</a>{{end}}</td>
+      <td data-label="Phones">{{if .Done}}<span title="Reached {{.Reached}} of {{.Phones}}">{{.Reached}} of {{.Phones}}</span>{{else}}<span class="muted">Sending…</span>{{end}}</td>
+    </tr>{{else}}<tr><td colspan="4" class="empty">No alerts sent yet.</td></tr>{{end}}
+    </tbody>
+  </table></div>
+</section>
+<script>
+(function(){
+  var f=document.querySelector('.alert-form');if(!f)return;
+  var pv=document.querySelector('.alert-preview'),el=f.elements;
+  function show(){
+    pv.querySelector('.note-title').textContent=el.title.value.trim()||'Title';
+    var b=el.body.value.trim().replace(/\s+/g,' ');pv.querySelector('.note-body').textContent=b;pv.querySelector('.note-body').hidden=!b;
+    f.querySelector('.alert-path').hidden=el.pick.value!=='other';
+    el.path.required=el.pick.value==='other';
+  }
+  f.addEventListener('input',show);f.addEventListener('change',show);show();
+  f.addEventListener('submit',function(e){
+    var n=f.querySelector('.alert-send button').textContent.trim();
+    if(!confirm(n+'?'))e.preventDefault();
+  });
+})();
+</script>
+{{template "foot" .}}{{end}}

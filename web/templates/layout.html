@@ -3,10 +3,10 @@
 {{/* How a virtual ride shows: the Zwift logo, or a plain "Virtual" label for one on another app */}}
 {{define "virtual-badge"}}{{if .IsVirtual}}{{if .OnZwift}}{{template "zwift"}}{{else}}<span class="virtual-tag" title="Virtual ride">Virtual</span>{{end}}{{end}}{{end}}
 {{/* An event's label on the calendar, like "Club meeting"; a meeting has a building beside it */}}
-{{/* The Ride alerts button (push.go, site.js): hidden until the browser can do phone notifications */}}
-{{define "push-btn"}}<button class="btn btn-quiet push-btn" type="button" hidden aria-pressed="false" data-on="Alerts on" data-off="Ride alerts" data-blocked="Alerts blocked">{{icon "bell"}}<span>Ride alerts</span></button>{{end}}
 {{/* The club's routes, for a Strava route box (rideroute.go) */}}
 {{define "club-routes"}}<datalist id="club-routes">{{range .}}<option value="{{.URL}}">{{.Name}} · {{.Miles}}</option>{{end}}</datalist>{{end}}
+{{/* The Ride alerts button (push.go, site.js): hidden until the browser can do phone notifications; once on, it opens the topic switches */}}
+{{define "push-btn"}}<span class="push-wrap"><button class="btn btn-quiet push-btn" type="button" hidden aria-pressed="false" data-on="Alerts on" data-off="Ride alerts" data-blocked="Alerts blocked">{{icon "bell"}}<span>Ride alerts</span></button><span class="push-panel" role="group" aria-label="Alerts" hidden><label class="switch" title="A ride cancelled or back on"><input type="checkbox" value="changes" checked><span class="switch-track" aria-hidden="true"></span><span>Ride changes</span></label><label class="switch" title="Messages from the club"><input type="checkbox" value="news" checked><span class="switch-track" aria-hidden="true"></span><span>Club news</span></label><button class="push-off" type="button">Turn off alerts</button></span></span>{{end}}
 {{define "kind-badge"}}<span class="cal-kind">{{template "kind-icon" .}}{{.KindName}}</span>{{end}}
 {{define "kind-icon"}}{{if eq .Kind "meeting"}}<svg class="kind-icon" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 .8 1 4.3V6h14V4.3zM2.3 7h1.6v5H2.3zm3.3 0h1.6v5H5.6zm3.2 0h1.6v5H8.8zm3.3 0h1.6v5h-1.6zM1 12.8h14V15H1z"/></svg>{{end}}{{end}}
 {{define "layout"}}<!doctype html>

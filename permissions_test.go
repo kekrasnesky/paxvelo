@@ -79,7 +79,7 @@ func TestPermissionLevels(t *testing.T) {
 	web, board, pres := adminLevels(t, a)
 
 	// Board-only screens: website admins go Home with an error; the board gets in.
-	for _, p := range []string{"/admin/waivers", "/admin/members.csv", "/admin/newsletter", "/admin/email/auto", "/admin/email/log",
+	for _, p := range []string{"/admin/waivers", "/admin/members.csv", "/admin/newsletter", "/admin/email/auto", "/admin/email/log", "/admin/email/alerts",
 		"/admin/pages", "/admin/home-photos", "/admin/board", "/admin/instagram", "/admin/security", "/admin/treasurer",
 		"/admin/treasurer/budget", "/admin/treasurer/reports"} {
 		if loc := do(t, h, web, "GET", p, "", nil).Header().Get("Location"); loc != "/admin?err=board-only" {
