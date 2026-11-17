@@ -337,7 +337,7 @@ type pushMsg struct {
 	Title string `json:"title"`
 	Body  string `json:"body,omitempty"`
 	URL   string `json:"url,omitempty"`
-	Tag   string `json:"tag,omitempty"` // a newer alert with the same tag replaces it
+	Tag   string `json:"tag,omitempty"`  // a newer alert with the same tag replaces it
 	Icon  string `json:"icon,omitempty"` // a picture on this site; empty = the club's app icon
 }
 
