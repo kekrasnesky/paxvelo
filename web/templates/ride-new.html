@@ -4,7 +4,7 @@
   <p class="cal-back"><a href="/calendar">← Club calendar</a></p>
   <h1>Add to the Calendar</h1>
   {{template "rider-bar" .}}
-  <form class="join" method="post" action="/calendar/new">
+  <form class="join" method="post" action="/calendar/new"{{with .Starts}} data-starts="{{.}}"{{end}}{{if .Fresh}} data-fresh{{end}}>
     <input type="hidden" name="ft" value="{{.Token}}">
     <div class="hp" aria-hidden="true"><label>Leave this empty <input name="website" tabindex="-1" autocomplete="off"></label></div>
     <fieldset class="kind-pick"><legend>What is it?</legend>

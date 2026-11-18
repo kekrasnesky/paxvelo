@@ -267,6 +267,8 @@ type storeData struct {
 	// BoardLinked: the Board page's people were tied to member records with
 	// the same name once, when that link was added (boardroles.go).
 	BoardLinked bool `json:"board_linked,omitempty"`
+	// Club inbox notices kept for the morning summary (summary.go).
+	Summary ClubSummary `json:"club_summary,omitzero"`
 }
 
 type Store struct {

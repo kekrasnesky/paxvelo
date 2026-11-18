@@ -35,7 +35,7 @@ func adminLevels(t *testing.T, a *App) (web, board, pres *http.Cookie) {
 // main.go registers with plain auth are open to website admins, so this list
 // is checked against main.go: a new admin route has to be placed here.
 var websiteAdminRoutes = map[string]bool{
-	"GET /admin": true, "GET /admin/app": true, "POST /admin/push/subscribe": true, "POST /admin/push/unsubscribe": true, "POST /admin/push/kinds": true, "GET /admin/guide": true, "POST /admin/intro": true, "GET /admin/stats": true,
+	"GET /admin": true, "GET /admin/app": true, "GET /admin/app/search": true, "POST /admin/push/subscribe": true, "POST /admin/push/unsubscribe": true, "POST /admin/push/kinds": true, "GET /admin/guide": true, "POST /admin/intro": true, "GET /admin/stats": true,
 	"GET /admin/admins": true, "POST /admin/admins/password": true, "POST /admin/admins/paypal": true, "POST /admin/admins/{id}/president": true, // checked inside: canNamePresident
 	"GET /admin/backup":  true, // checked inside: president
 	"GET /admin/members": true, "GET /admin/members/{id}": true,

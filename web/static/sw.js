@@ -39,24 +39,51 @@ function trim(c){
 }
 
 // Ride alerts (push.go) and admin alerts (adminpush.go): show the message, and open the ride when it's
-// tapped (or bring the app forward if it's already showing it).
+// tapped (or bring the app forward if it's already showing it). An admin
+// alert can have buttons (Approve / Look first); phones that don't show
+// them (iPhones) open the page on a tap.
+function adminPath(p){return typeof p==='string'&&/^\/admin\/[\w\/.-]+$/.test(p)}
 self.addEventListener('push',function(e){
   var m={};
   try{m=e.data?e.data.json():{}}catch(x){}
+  var acts=(m.actions||[]).filter(function(a){return a&&a.action&&a.title&&(!a.post||adminPath(a.post))}).slice(0,2);
   e.waitUntil(self.registration.showNotification(m.title||'PaxVelo',{
     body:m.body||'',icon:/^\/static\/img\/[\w-]+\.png$/.test(m.icon||'')?m.icon:'/static/img/app-192.png',badge:'/static/img/badge.png',
-    tag:m.tag||undefined,renotify:!!m.tag,data:{url:m.url||'/'}
+    tag:m.tag||undefined,renotify:!!m.tag,data:{url:m.url||'/',actions:acts},
+    actions:acts.map(function(a){return {action:a.action,title:a.title}})
   }));
 });
 
-self.addEventListener('notificationclick',function(e){
-  e.notification.close();
-  var url=new URL((e.notification.data&&e.notification.data.url)||'/',location.origin);
+function openPage(href){
+  var url=new URL(href||'/',location.origin);
   if(url.origin!==location.origin)url=new URL('/',location.origin);
-  e.waitUntil(self.clients.matchAll({type:'window',includeUncontrolled:true}).then(function(ws){
+  return self.clients.matchAll({type:'window',includeUncontrolled:true}).then(function(ws){
     for(var i=0;i<ws.length;i++)if(ws[i].url===url.href&&'focus' in ws[i])return ws[i].focus();
     return self.clients.openWindow(url.href);
-  }));
+  });
+}
+
+// An alert's button: post to the admin route with this admin's login
+// cookie, as the Needs you button does. The site answers where it would
+// have gone (admin.go back): ok= shows Done; anything else (logged out,
+// already answered, not theirs, no signal) opens the page instead.
+function doAction(a,n){
+  return fetch(a.post,{method:'POST',credentials:'same-origin',
+    headers:{'Content-Type':'application/x-www-form-urlencoded','X-Alert-Action':'1'},body:'return=%2Fadmin%2Fapp'})
+  .then(function(r){if(!r.ok)throw r;return r.json()})
+  .then(function(j){
+    var to=new URL(j.to||'/admin/app',location.origin);
+    if(!to.searchParams.has('ok'))return openPage(to.pathname+to.search+to.hash);
+    return self.registration.showNotification(a.done||'Done',{icon:n.icon,badge:'/static/img/badge.png',tag:n.tag||undefined,data:{url:'/admin/app'}});
+  })
+  .catch(function(){return openPage(n.data&&n.data.url)});
+}
+
+self.addEventListener('notificationclick',function(e){
+  e.notification.close();
+  var d=e.notification.data||{},a=(d.actions||[]).filter(function(x){return x.action===e.action})[0];
+  if(a&&a.post&&adminPath(a.post)){e.waitUntil(doAction(a,e.notification));return}
+  e.waitUntil(openPage(d.url));
 });
 
 // The push service changed this phone's address: subscribe again and tell

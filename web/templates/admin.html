@@ -384,6 +384,28 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
   <img src="/static/img/logo-light.svg" alt="PaxVelo" width="88" height="47">
   <span class="app-hi">{{with $v.First}}Hi, {{.}}{{else}}Admin{{end}}</span>
 </header>
+<form class="app-search" role="search" method="get" action="/admin/app">
+  {{icon "search"}}<input type="search" name="q" value="{{with $v.Search}}{{.Q}}{{end}}" placeholder="Members, rides, RSVPs" aria-label="Search" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" maxlength="100">
+</form>
+<div id="app-results" aria-live="polite">{{with $v.Search}}{{template "app-results" .}}{{end}}</div>
+<script>
+// Search as it's typed (appsearch.go): the results take the place of the
+// rest of the page while there's something in the box.
+(function(){
+  var f=document.querySelector('.app-search'),q=f.q,out=document.getElementById('app-results'),t,n=0;
+  function show(on){document.body.classList.toggle('app-searching',on)}
+  show(q.value.trim().length>1);
+  q.addEventListener('input',function(){
+    clearTimeout(t);var v=q.value.trim();
+    if(v.length<2){out.innerHTML='';show(false);return}
+    t=setTimeout(function(){var k=++n;
+      fetch('/admin/app/search?q='+encodeURIComponent(v),{headers:{Accept:'text/html'}}).then(function(r){if(!r.ok)throw r;return r.text()})
+      .then(function(h){if(k!==n)return;out.innerHTML=h;show(true)}).catch(function(){});
+    },200);
+  });
+  f.addEventListener('submit',function(e){e.preventDefault();q.blur()});
+})();
+</script>
 {{range $v.Groups}}<section class="app-group g-{{.Key}}" aria-label="{{.Label}}">
   <h2>{{.Label}}</h2>
   <div class="app-tiles">{{range .Tiles}}<a class="app-tile" href="{{.Href}}"><span class="app-ic">{{icon .Icon}}</span><span>{{.Label}}</span>{{with .Badge}}<span class="badge">{{.}}</span>{{end}}</a>{{end}}</div>
@@ -461,6 +483,13 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
   <form method="post" action="/admin/logout"><button class="link">{{icon "logout"}}Log out</button></form>
 </nav>
 {{template "foot" .}}{{end}}
+
+{{/* The admin app's search results (appsearch.go). */}}
+{{define "app-results"}}{{if .Empty}}<p class="app-none">No matches</p>{{else}}
+{{with .Members}}<section class="app-found" aria-label="Members"><h2>Members</h2><ul>{{range .}}<li><a href="{{.Href}}"><span class="app-hit"><strong>{{.Title}}</strong><small>{{.Sub}}</small></span>{{icon "chevron"}}</a></li>{{end}}</ul></section>{{end}}
+{{with .Rides}}<section class="app-found" aria-label="Rides"><h2>Rides</h2><ul>{{range .}}<li><a href="{{.Href}}"><span class="app-hit"><strong>{{.Title}}</strong><small>{{.Sub}}</small></span>{{icon "chevron"}}</a></li>{{end}}</ul></section>{{end}}
+{{with .Invite}}<section class="app-found" aria-label="RSVPs"><h2>RSVPs</h2><ul>{{range .}}<li><a href="{{.Href}}"><span class="app-hit"><strong>{{.Title}}</strong><small>{{.Sub}}</small></span>{{icon "chevron"}}</a></li>{{end}}</ul></section>{{end}}
+{{end}}{{end}}
 
 {{define "login"}}{{template "head" .}}
 <form class="card login" method="post" action="/admin/login">
@@ -2117,7 +2146,7 @@ document.querySelectorAll('.copy-link').forEach(function(b){b.addEventListener('
   {{if not $f.New}}<p>{{if $f.Cancelled}}<span class="tag">Cancelled</span> {{else if $f.IsOn}}<span class="tag tag-on">On</span> {{end}}{{with $f.StatusLine}}<span class="muted small">{{.}}</span> · {{end}}{{if $f.Custom}}One-off{{else}}Weekly · <a href="/admin/weekly/{{$f.SeriesID}}">change every week</a>{{end}} · <a href="/calendar/ride/{{$f.Key}}" target="_blank" rel="noopener">Public page</a></p>{{end}}
 </div>
 {{if $f.Past}}<p class="flash warn">This {{$f.Noun}} has already happened.</p>{{end}}
-<form class="card new-issue ride-form" method="post" action="{{if $f.New}}/admin/rides/new{{else}}/admin/rides/{{$f.Key}}{{end}}" data-kinds>
+<form class="card new-issue ride-form" method="post" action="{{if $f.New}}/admin/rides/new{{else}}/admin/rides/{{$f.Key}}{{end}}" data-kinds{{with $f.Starts}} data-starts="{{.}}"{{end}}{{if $f.Fresh}} data-fresh{{end}}>
   {{template "kind-pick" $f.Kind}}
   <div class="ride-cols"><div class="ride-col">
   <label>Name <input name="name" value="{{$f.Name}}" required maxlength="80" placeholder="Saturday Coffee Ride"></label>
@@ -3179,7 +3208,7 @@ document.querySelectorAll('[data-board]').forEach(function(box){
           <text class="t" x="674" y="427">That member</text>
         </svg>
       </div>
-      <figcaption>Every email goes through Brevo. Member emails carry an unsubscribe link and the member's own membership link. Ride notices and password links don't, because they aren't to the member list. Admins can test any club email on themselves first.</figcaption>
+      <figcaption>Every email goes through Brevo. Member emails carry an unsubscribe link and the member's own membership link. Ride notices and password links don't, because they aren't to the member list. Admins can test any club email on themselves first. The club inbox gets ride cancellations and changes at once; first-timers, rides waiting for approval, loaner requests and new rides come together in one Morning summary from 9 am (at once when the ride is today or tomorrow). Turn it off on Email → Automations to get each one straight away.</figcaption>
     </figure>
     <h3 id="g-rsvp">Invitations and RSVPs</h3>
     <p>For a meeting, party or anything else members should answer: make it on <a href="/admin/rsvp">Email → RSVPs</a> (name, day, place, last day to answer, and whether to ask what people are bringing), then press Write the invitation email. The email’s RSVP button opens each member’s own page, with their name filled in: they say whether they can come, who they’re bringing and, if asked, what they’re bringing, and can change it until RSVPs close. The place shows only from a member’s own link, so a home address stays off the public site. Members also see who’s coming, with guests and what they’re bringing (untick Members see who’s coming to keep that to admins), and get a Directions button (Apple Maps on iPhones, Google Maps on other phones, plus Waze) and Add to calendar, on the page and in the invitation email. Maps get the street address: a name before it (“Karl’s house, 12 Spoke Lane…”) is left out. The RSVPs page adds up who’s coming (with guests), lists who’s bringing what and which current members haven’t answered, and has a spreadsheet. Take answers off with a row’s Remove, or tick several and press Remove them in the bar that appears (like Members); Remove at the top deletes the whole invitation. Both have Undo. Pick its event under On the calendar and the club calendar shows the head count on it, who’s coming and what they’re bringing when you hover it (first name and last initial), and its page takes RSVPs with Directions, Add to calendar and Share; members who open it without their link can have it emailed. The day before, everyone who said I’ll be there or Maybe gets a reminder email with their answer, the place, a Directions button and their link to change it (Email → Automations → RSVP reminder, where you can change its words or switch it off; untick Remind them the day before to skip it for one invitation). Any email can carry an open invitation’s button: “RSVP: …” under Insert for each member, or a button’s Goes to list.</p>
@@ -3282,7 +3311,7 @@ document.querySelectorAll('[data-board]').forEach(function(box){
     <li>Every club email has their private membership link: dues status, a PayPal button, this year’s waiver to sign, their details, and emails on or off.</li>
     <li>The insurance waiver is signed once a year, and parents or guardians sign for each rider under 18 there too. Other adults on a Family membership each get an emailed link to sign their own, once the dues are marked paid. The <a href="/admin/waivers">Waivers</a> tab keeps every signed copy and shows who hasn’t signed.</li>
     <li>First-time riders sign at <a href="/ride-waiver" target="_blank" rel="noopener">/ride-waiver</a> (or <a href="/loaner" target="_blank" rel="noopener">/loaner</a>, with the club bike already picked): name, email, loaner or own bike, and a signature. A loaner bike adds the club’s loaner agreement to the League waiver. They’re under Waivers → First rides, and on the member’s page once someone with that email joins.</li>
-    <li>Every group ride’s page lists the loaner bikes marked Available on <a href="/admin/loaners">Rides → Loaner bikes</a>. A rider picks one and signs the loaner waiver, until 8 pm the day before. The bike is held for that ride, {{.Guide.RidesEmail}} gets an email and Home shows it; Confirm or Decline it there and the rider is emailed. Cancel frees the bike.</li>
+    <li>Every group ride’s page lists the loaner bikes marked Available on <a href="/admin/loaners">Rides → Loaner bikes</a>. A rider picks one and signs the loaner waiver, until 8 pm the day before. The bike is held for that ride, it's in the next morning's summary to {{.Guide.RidesEmail}} (at once if the ride is today or tomorrow), admins with alerts on get a Confirm button on their phone, and Home shows it; Confirm or Decline it there and the rider is emailed. Cancel frees the bike.</li>
     <li>Every member email has an unsubscribe link.</li>
     <li>With the club PIN, their photos and the rides they add go up right away.</li></ul></div>
   <div class="card"><h3>Riders and ride leaders</h3><ul>

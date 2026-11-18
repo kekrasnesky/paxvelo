@@ -319,21 +319,31 @@ func (a *App) alertAdmins(kind string, m pushMsg, ttl time.Duration, who func(Ad
 	}()
 }
 
+// alertActions are an alert's two buttons: do it (posting to the same
+// route as the Needs you button, so the same level and answer checks apply)
+// or look first (open URL).
+func alertActions(label, post, done string) []pushAction {
+	return []pushAction{{Action: "do", Title: label, Post: post, Done: done}, {Action: "open", Title: "Look first"}}
+}
+
 // alertHeldRide: a ride added on the website without the club PIN.
 func (a *App) alertHeldRide(o RideOcc, by string) {
 	a.alertAdmins("rides", pushMsg{
 		Title: "Waiting for approval: " + o.Name,
 		Body:  fmt.Sprintf("%s · added by %s", o.ShortDate(), or(by, "someone")),
-		URL:   "/admin/calendar", Tag: "held-" + o.Key,
+		URL:   "/admin/rides/" + o.Key, Tag: "held-" + o.Key,
+		Actions: alertActions("Approve", "/admin/rides/"+o.Key+"/approve", "Approved: "+o.Name),
 	}, 48*time.Hour, nil)
 }
 
 // alertLoaner: someone asked for a loaner bike.
 func (a *App) alertLoaner(q LoanerRequest) {
+	id := strconv.Itoa(q.ID)
 	a.alertAdmins("rides", pushMsg{
 		Title: "Loaner bike request",
 		Body:  fmt.Sprintf("%s · %s, %s · %s", or(q.Rider, q.Name), q.RideName, shortDate(q.RideDate), q.BikeLabel),
-		URL:   "/admin/loaners", Tag: "loaner-" + strconv.Itoa(q.ID),
+		URL:   "/admin/loaners#q" + id, Tag: "loaner-" + id,
+		Actions: alertActions("Confirm", "/admin/loaners/"+id+"/confirm", "Confirmed: "+q.BikeLabel+" for "+q.RiderName()),
 	}, 48*time.Hour, nil)
 }
 
@@ -356,6 +366,7 @@ func (a *App) alertRequestSent(q SpendRequest) {
 		Title: "Needs your OK: " + money(q.Cents),
 		Body:  fmt.Sprintf("%s · %s", q.By, q.What),
 		URL:   fmt.Sprintf("%s#r%d", requestsPath, q.ID), Tag: "req-" + strconv.Itoa(q.ID),
+		Actions: alertActions("Approve", fmt.Sprintf("%s/%d/approve", requestsPath, q.ID), "Approved: "+q.What),
 	}, 72*time.Hour, func(u AdminUser) bool { return a.wantsAnswer(q, u) })
 }
 

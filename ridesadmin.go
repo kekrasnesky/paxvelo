@@ -59,6 +59,10 @@ type rideForm struct {
 	// "Repeat every week" on the Add a ride page, and its last date.
 	Weekly bool
 	Until  string
+	// Starting values by weekday for a new one (ridestarts.go); Fresh = not
+	// typed in yet (not shown again after a problem).
+	Starts string
+	Fresh  bool
 }
 
 type leaderBox struct {
@@ -68,6 +72,9 @@ type leaderBox struct {
 
 func (a *App) rideFormFor(o RideOcc, isNew bool) rideForm {
 	f := rideForm{RideOcc: o, New: isNew, Past: o.Date < a.today().Format("2006-01-02"), Pace: paceOf(o.Groups)}
+	if isNew {
+		f.Starts = a.rideStarts()
+	}
 	groups := append([]string{""}, paceGroups...)
 	for _, g := range o.Groups {
 		if !slices.Contains(groups, g) {
@@ -136,6 +143,7 @@ func (a *App) newRideAdminPage(w http.ResponseWriter, r *http.Request) {
 		date = a.today().Format("2006-01-02")
 	}
 	v := adminView{Title: "Add a ride", Tab: "calendar", RideForm: a.rideFormFor(RideOcc{CalRide: CalRide{Date: date, Time: "08:00"}}, true)}
+	v.RideForm.Fresh = true
 	v.Flash, v.Error = flashFrom(r)
 	a.renderAdmin(w, r, http.StatusOK, "ride", v)
 }
@@ -264,7 +272,7 @@ func (a *App) saveRideAdmin(w http.ResponseWriter, r *http.Request) {
 	a.readRouteSoon(o.RouteID)
 	if moved := rideMoved(before, o); moved != "" {
 		a.notifyRide(fmt.Sprintf("%s on %s has changed", o.Name, shortDate(o.Date)),
-			fmt.Sprintf("%s changed %s: %s. It’s now on %s.", me, before.Name, moved, rideWhen(o)), o, "")
+			fmt.Sprintf("%s changed %s: %s. It’s now on %s.", me, before.Name, moved, rideWhen(o)), o, "", true)
 	}
 	back(w, r, "/admin/rides/"+url.PathEscape(o.Key)+"?ok=ride-saved")
 }
@@ -328,7 +336,7 @@ func (a *App) addRideAdmin(w http.ResponseWriter, r *http.Request) {
 	if st := o.Status(); st == "open" || st == "partial" {
 		body += " It still needs leaders: sign up on the ride page."
 	}
-	a.notifyRide(fmt.Sprintf("New on the calendar: %s on %s", o.Name, shortDate(o.Date)), body, o, "")
+	a.notifyRide(fmt.Sprintf("New on the calendar: %s on %s", o.Name, shortDate(o.Date)), body, o, "", false)
 	back(w, r, "/admin/rides/"+url.PathEscape(o.Key)+"?ok=ride-added")
 }
 
@@ -354,7 +362,7 @@ func (a *App) addWeeklyFromRide(w http.ResponseWriter, r *http.Request, c CalRid
 		when += " to " + shortDate(until)
 	}
 	a.notifyRide(fmt.Sprintf("New on the calendar: %s, every %s", c.Name, d.Weekday()),
-		fmt.Sprintf("%s added %s to the calendar, %s at %s.", me, c.Name, when, timeLabel(c.Time)), o, "")
+		fmt.Sprintf("%s added %s to the calendar, %s at %s.", me, c.Name, when, timeLabel(c.Time)), o, "", false)
 	back(w, r, "/admin/rides/"+url.PathEscape(key)+"?ok=weekly-added")
 }
 

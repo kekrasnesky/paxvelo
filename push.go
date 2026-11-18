@@ -339,6 +339,19 @@ type pushMsg struct {
 	URL   string `json:"url,omitempty"`
 	Tag   string `json:"tag,omitempty"`  // a newer alert with the same tag replaces it
 	Icon  string `json:"icon,omitempty"` // a picture on this site; empty = the club's app icon
+	// Actions are buttons under an admin alert (adminpush.go). iPhones
+	// don't show them, so URL alone must still lead to the right screen.
+	Actions []pushAction `json:"actions,omitempty"`
+}
+
+// pushAction is a button on an admin alert. With Post, sw.js posts to that
+// admin route with the admin's login cookie, as the Needs you button does,
+// and shows Done when it worked; without, or when it didn't, it opens URL.
+type pushAction struct {
+	Action string `json:"action"`
+	Title  string `json:"title"`
+	Post   string `json:"post,omitempty"`
+	Done   string `json:"done,omitempty"`
 }
 
 // pushSender sends alerts. Client is for tests; nil is a client with a

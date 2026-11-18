@@ -151,6 +151,11 @@ func newSite(cfg Config) (*Site, error) {
 	if err != nil {
 		return nil, err
 	}
+	startsJS, err := read("ridestarts.js") // starting values on the Add a ride forms (ridestarts.go)
+	if err != nil {
+		return nil, err
+	}
+	photoJS += "\n" + startsJS
 	js = photoJS + "\n" + js
 	s.photoJS = template.JS(photoJS)
 	adminCSS, err := read("admin.css")

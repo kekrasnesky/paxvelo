@@ -182,7 +182,7 @@ func (a *App) imIn(w http.ResponseWriter, r *http.Request) {
 		if email != "" {
 			body += "\n- **Email:** " + email
 		}
-		a.notifyRide("First ride: "+name+" on "+o.Name+", "+shortDate(o.Date), body, o, "")
+		a.notifyRide("First ride: "+name+" on "+o.Name+", "+shortDate(o.Date), body, o, "", false)
 	}
 	if first {
 		rideBack(w, r, key, "ok=infirst#going")

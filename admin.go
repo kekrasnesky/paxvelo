@@ -40,7 +40,7 @@ type adminView struct {
 	RSVP                              *rsvpAdminView // Email → RSVPs (rsvpadmin.go)
 	EmailPieces                       []autoPiece    // Send an email: the {pieces} filled in for each member
 	CSS                               template.CSS
-	PhotoJS                           template.JS // photos.js: photos shrink before they upload
+	PhotoJS                           template.JS // photos.js (photos shrink before they upload) and ridestarts.js
 	Year                              int
 	// Members tab
 	Q, Dues       string // search text; standing filter: "", "paid", "unpaid", "list" (memberstanding.go)
@@ -548,8 +548,19 @@ func plural(n int, one, many string) string {
 }
 
 func back(w http.ResponseWriter, r *http.Request, to string) {
+	if r.Header.Get(alertActionHeader) == "1" {
+		// A button on an admin alert (sw.js): where it would have gone, so
+		// the phone can tell it worked (ok=) or open the page (err=).
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Cache-Control", "no-store")
+		json.NewEncoder(w).Encode(map[string]string{"to": to})
+		return
+	}
 	http.Redirect(w, r, to, http.StatusSeeOther)
 }
+
+// alertActionHeader marks a post from a button on an admin alert.
+const alertActionHeader = "X-Alert-Action"
 
 // ---- Members ----
 

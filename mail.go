@@ -177,7 +177,9 @@ func (m *Mailer) SendTest(to, subject, body string) error {
 }
 
 // Notify emails a notice to the club (RIDES_EMAIL) in the background.
-func (m *Mailer) Notify(subject, body string) {
+func (m *Mailer) Notify(subject, body string) { m.notify(mailClub, subject, body) }
+
+func (m *Mailer) notify(kind, subject, body string) {
 	to := m.cfg.RidesEmail
 	if m.onNotify != nil {
 		m.onNotify(to, subject, body)
@@ -185,7 +187,7 @@ func (m *Mailer) Notify(subject, body string) {
 	if to == "" {
 		return
 	}
-	m.Go(func() { m.send(mailClub, 0, m.cfg.FromName, to, subject, body, memberLinks{}) })
+	m.Go(func() { m.send(kind, 0, m.cfg.FromName, to, subject, body, memberLinks{}) })
 }
 
 // SendDirect sends one email that isn't to the member list, like an admin's

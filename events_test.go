@@ -40,8 +40,8 @@ func TestAddEventOnCalendar(t *testing.T) {
 	if len(held) != 1 || held[0].Kind != "social" || len(held[0].Groups) != 0 || held[0].leaderFor("") == nil {
 		t.Fatalf("event %+v", held)
 	}
-	if len(*sent) != 1 || !strings.HasPrefix((*sent)[0].subject, "Event waiting for approval") {
-		t.Errorf("notice %+v", *sent)
+	if n := clubNotices(a, sent); len(n) != 1 || !strings.HasPrefix(n[0].subject, "Event waiting for approval") {
+		t.Errorf("notice %+v", n)
 	}
 }
 

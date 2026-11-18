@@ -134,7 +134,7 @@ func (a *App) applyStatus(key, status, note, by string, check func(c *CalRide) e
 		if o.StatusNote != "" {
 			body += "\n\nNote: " + o.StatusNote
 		}
-		a.notifyRide(fmt.Sprintf("%s on %s is cancelled", o.Name, shortDate(o.Date)), body, o, "")
+		a.notifyRide(fmt.Sprintf("%s on %s is cancelled", o.Name, shortDate(o.Date)), body, o, "", true)
 	}
 	return o, nil
 }

@@ -41,6 +41,7 @@ type adminAppView struct {
 	// the site's push key. No Kinds = logged in with the setup password.
 	Kinds   []struct{ Key, Label string }
 	PushKey string
+	Search  *appHits // ?q= without scripts (appsearch.go)
 }
 
 // appTiles are the buttons, in groups, for this admin's level. Board-only
@@ -124,6 +125,7 @@ func (a *App) adminAppPage(w http.ResponseWriter, r *http.Request) {
 	name, _ := a.adminName(r)
 	v := adminView{Title: "Home", Tab: "app", App: &adminAppView{
 		Items: items, Rides: rides, Groups: a.appTiles(r, requests), First: firstName(name),
+		Search: a.appSearch(r.URL.Query().Get("q")),
 	}}
 	if u, ok := a.currentAdmin(r); ok && u.ID != 0 {
 		v.App.Kinds, v.App.PushKey = a.alertKinds(r), a.store.PushPublicKey()

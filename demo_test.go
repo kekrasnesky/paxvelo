@@ -120,7 +120,14 @@ func TestDemoClubAdminPages(t *testing.T) {
 		"/admin/newsletter", "/admin/gallery", "/admin/submitted", "/admin/pages", "/admin/home-photos", "/admin/board",
 		"/admin/kit", "/admin/minutes", "/admin/stats", "/admin/treasurer", "/admin/treasurer/income",
 		"/admin/treasurer/requests", "/admin/treasurer/budget", "/admin/treasurer/reports", "/admin/admins", "/admin/security",
-		"/admin/signs", "/admin/guide", "/calendar", "/calendar/ride/" + rideKey}
+		"/admin/signs", "/admin/guide", "/calendar", "/calendar/ride/" + rideKey,
+		"/admin/app?q=ride", "/admin/app/search?q=example", "/admin/email/auto/morning-summary/preview", "/calendar/new"}
+	if p := do(t, h, admin, "GET", "/admin/rides/new", "", nil).Body.String(); !strings.Contains(p, "data-starts=") || !strings.Contains(p, "18:00") {
+		t.Error("Add a ride should start from the weekly rides")
+	}
+	if p := do(t, h, admin, "GET", "/admin/app/search?q=tuesday", "", nil).Body.String(); !strings.Contains(p, "Tuesday Night Ride") {
+		t.Error("the admin app's search should find the demo's rides")
+	}
 	for _, p := range pages {
 		if w := do(t, h, admin, "GET", p, "", nil); w.Code != http.StatusOK {
 			t.Errorf("%s: %d", p, w.Code)

@@ -197,6 +197,7 @@ func (a *App) automationLoop(ctx context.Context) {
 		a.runAutomations(time.Now())
 		a.runRequestReminders(time.Now()) // requestreminders.go
 		a.runRSVPReminders(time.Now())    // rsvpreminder.go
+		a.runMorningSummary(time.Now())   // summary.go
 		select {
 		case <-t.C:
 		case <-ctx.Done():
@@ -524,7 +525,7 @@ var builtinAutos = []autoRow{
 	{Key: "signup-alert", Name: "New member alert", When: "Right away when someone joins on the website", Who: "Every admin", About: "Their plan, email, phone and riding answer, and a link to find them on Members so the treasurer can press Mark paid."},
 	{Key: "my-link", Name: "Membership link", When: "When someone asks for it on the website", Who: "The member who asked", About: "A link to their own membership page. Someone who hasn’t confirmed their email gets the Confirm your email email instead."},
 	{Key: "family-waiver", Name: "Family waiver link", When: "When a Family plan is marked paid", Who: "Each other adult on the plan", About: "A private link to sign their own waiver."},
-	{Key: "ride-notice", Name: "Ride notices", When: "When a ride is added, changed or needs a leader", Who: "The club’s rides inbox", About: "So whoever watches the rides inbox knows what changed on the calendar."},
+	{Key: "ride-notice", Name: "Ride notices", When: "Right away when a ride is cancelled or moved, or for today or tomorrow; the rest in the Morning summary", Who: "The club’s rides inbox", About: "So whoever watches the rides inbox knows what changed on the calendar."},
 	{Key: "request-ask", Name: "Spending request", When: "Right away when someone sends a spending request", Who: "The treasurer, and the president when their OK is needed", About: "The receipt, amount and what for, with Approve and Reject buttons that work without logging in."},
 	{Key: "request-nudge", Name: "Request reminder", When: "3 days after a spending request is sent, if still waiting", Who: "Whoever hasn’t answered", About: "Once, with the same Approve and Reject buttons."},
 	{Key: "request-paylist", Name: "To pay back", When: "Mondays, when approved requests aren’t paid back yet", Who: "The treasurer", About: "Who to pay, how much and how they want it."},
@@ -601,6 +602,8 @@ func (a *App) autoRows(canRemove bool) (autos, manual []autoRow) {
 		{Key: "rsvp-reminder", Name: "RSVP reminder", When: "The day before an invitation’s day, from 9 am", Who: "Members who answered I’ll be there or Maybe",
 			Subject: rr.Subject, Paused: !a.store.RSVPReminderOn(), CanPause: true, CanEdit: true, Sent: n[mailRSVPReminder], Last: last[mailRSVPReminder],
 			About: "With their answer, the place, a Directions button and their link to change it. Once per answer. An invitation can skip it: untick Remind them the day before on Email → RSVPs."},
+		{Key: summaryKey, Name: "Morning summary", When: "Every morning from 9 am, when notices came in", Who: "The club’s rides inbox",
+			Subject: "Since yesterday: 2 notices", Paused: !a.store.SummaryOn(), CanPause: true, Sent: n[mailSummary], Last: last[mailSummary]},
 	}
 	for _, au := range a.store.Automations() {
 		r := autoRow{Key: strconv.Itoa(au.ID), Name: au.Name, When: au.When(), Who: "Members who reach that point",
@@ -818,6 +821,8 @@ func (a *App) autoPause(w http.ResponseWriter, r *http.Request) {
 		a.store.SetConfirmOn(!paused)
 	case "rsvp-reminder":
 		a.store.SetRSVPReminderOn(!paused)
+	case summaryKey:
+		a.store.SetSummaryOn(!paused)
 	default:
 		id, _ := strconv.Atoi(key)
 		a.store.PauseAutomation(id, paused)
@@ -887,7 +892,9 @@ func (a *App) autoPreview(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 256<<10)
 	key := r.PathValue("key")
 	var d EmailDraft
-	if r.Method == http.MethodPost {
+	if key == summaryKey {
+		d.Subject, d.Body = a.sampleSummary()
+	} else if r.Method == http.MethodPost {
 		d = draftFrom(r)
 	} else if f, ok := a.autoFormFor(key); ok {
 		d = EmailDraft{Subject: f.Subject, Body: f.Body}

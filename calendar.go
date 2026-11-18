@@ -49,6 +49,8 @@ type calView struct {
 	Me         *RideRider   // this browser's "I'm in", if any
 	RiderName  string       // the name it used last time, for the form
 	ClubRoutes []Route      // the Route box's list (rideroute.go)
+	Starts     string       // Add to the Calendar's starting values by weekday (ridestarts.go)
+	Fresh      bool         // that form not typed in yet
 	Forecast   *Forecast    // the weather at the start (weather.go)
 
 	Sub *subView // the Subscribe page (calfeed.go)
@@ -531,6 +533,7 @@ func (a *App) newRidePage(w http.ResponseWriter, r *http.Request) {
 		v.Form.Date = a.today().Format("2006-01-02")
 	}
 	v.ClubRoutes = a.store.ClubRoutes()
+	v.Starts, v.Fresh = a.rideStarts(), true
 	a.renderCal(w, http.StatusOK, "ride-new", "/calendar", "Add to the Calendar", v)
 }
 
@@ -565,7 +568,7 @@ func (a *App) addRide(w http.ResponseWriter, r *http.Request) {
 	c.RouteID = route
 	v := a.calBase(r)
 	v.Form, v.FormName, v.FormOfficial = c, r.FormValue("leader_name"), r.FormValue("official")
-	v.ClubRoutes = a.store.ClubRoutes()
+	v.ClubRoutes, v.Starts = a.store.ClubRoutes(), a.rideStarts()
 	var pinProblem string
 	if code == "" {
 		var viaPIN bool
@@ -609,9 +612,9 @@ func (a *App) addRide(w http.ResponseWriter, r *http.Request) {
 	}
 	if o.Held {
 		a.alertHeldRide(o, name) // adminpush.go
-		a.mailer.Notify(fmt.Sprintf("%s waiting for approval: %s on %s", strings.ToUpper(o.Noun()[:1])+o.Noun()[1:], o.Name, shortDate(o.Date)),
-			fmt.Sprintf("%s added %s on %s without the club PIN.%s It isn't on the calendar until an admin approves it: %s/admin/calendar\n\nTo delete it instead, open it there.",
-				name, o.Name, rideWhen(o), heldNote(o), a.cfg.SiteURL))
+		a.clubNotice(fmt.Sprintf("%s waiting for approval: %s on %s", strings.ToUpper(o.Noun()[:1])+o.Noun()[1:], o.Name, shortDate(o.Date)),
+			fmt.Sprintf("%s added %s on %s without the club PIN.%s It isn't on the calendar until an admin approves it: %s/admin/rides/%s\n\nTo delete it instead, open it there.",
+				name, o.Name, rideWhen(o), heldNote(o), a.cfg.SiteURL, o.Key), a.soon(o.Date)) // summary.go
 		http.Redirect(w, r, "/calendar?ok=held", http.StatusSeeOther)
 		return
 	}
@@ -634,7 +637,7 @@ func (a *App) addRide(w http.ResponseWriter, r *http.Request) {
 	if st := o.Status(); st == "open" || st == "partial" {
 		body += " It still needs leaders: sign up on the ride page."
 	}
-	a.notifyRide(fmt.Sprintf("New %s: %s on %s", o.Noun(), o.Name, shortDate(o.Date)), body, o, c.groupNames()[0])
+	a.notifyRide(fmt.Sprintf("New %s: %s on %s", o.Noun(), o.Name, shortDate(o.Date)), body, o, c.groupNames()[0], false)
 	rideBack(w, r, o.Key, "ok=added")
 }
 
@@ -696,9 +699,11 @@ func rideWhen(o RideOcc) string {
 	return s
 }
 
-// notifyRide emails the club about a change to a ride. When the leader just
-// added (in group) can't post events on Strava, it says so and how to fix it.
-func (a *App) notifyRide(subject, body string, o RideOcc, group string) {
+// notifyRide emails the club about a change to a ride, now when urgent or
+// the ride is today or tomorrow, else in the morning summary (summary.go).
+// When the leader just added (in group) can't post events on Strava, it says
+// so and how to fix it.
+func (a *App) notifyRide(subject, body string, o RideOcc, group string, urgent bool) {
 	body += "\n\nRide page: " + a.cfg.SiteURL + "/calendar/ride/" + o.Key
 	if o.StravaURL != "" {
 		body += "\nStrava event: " + o.StravaURL
@@ -719,7 +724,7 @@ func (a *App) notifyRide(subject, body string, o RideOcc, group string) {
 	if l := o.leaderFor(group); l != nil && l.StravaID == 0 && l.SetBy == "" && o.StravaURL == "" {
 		body += fmt.Sprintf("\n\n%s signed up on the website. If riders should RSVP on Strava, make sure the ride is posted there (%s).", l.Name, a.cfg.StravaURL)
 	}
-	a.mailer.Notify(subject, body)
+	a.clubNotice(subject, body, urgent || a.soon(o.Date))
 }
 
 // icsText escapes words for a calendar file.

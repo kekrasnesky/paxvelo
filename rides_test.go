@@ -103,6 +103,16 @@ func fakeStrava(t *testing.T) *httptest.Server {
 
 type notice struct{ to, subject, body string }
 
+// clubNotices are the notices emailed at once and those kept for the
+// morning summary (summary.go), which depends on how soon the ride is.
+func clubNotices(a *App, sent *[]notice) []notice {
+	out := append([]notice(nil), *sent...)
+	for _, n := range a.store.WaitingNotices() {
+		out = append(out, notice{a.cfg.RidesEmail, n.Subject, n.Body})
+	}
+	return out
+}
+
 func rideApp(t *testing.T) (*App, http.Handler, *[]notice) {
 	t.Helper()
 	cfg := testConfig()
@@ -287,8 +297,8 @@ func TestAddRideAndCalendar(t *testing.T) {
 	if !strings.Contains(w.Header().Get("Location"), "ok=added") {
 		t.Fatalf("add ride: %d %s", w.Code, w.Body.String())
 	}
-	if len(*sent) != 1 || !strings.Contains((*sent)[0].subject, "New ride: Coffee Ride") {
-		t.Errorf("notice: %+v", *sent)
+	if n := clubNotices(a, sent); len(n) != 1 || !strings.Contains(n[0].subject, "New ride: Coffee Ride") {
+		t.Errorf("notice: %+v", n)
 	}
 	page := do(t, h, nil, "GET", "/calendar?m="+date[:7], "", nil).Body.String()
 	for _, want := range []string{"Coffee Ride", "8:30 AM", "Jane D.", "Tuesday Night Ride", "Needs a leader"} {
@@ -481,8 +491,8 @@ func TestRidesAddedByNameAreHeld(t *testing.T) {
 	if w := do(t, h, nil, "GET", "/calendar/ride/"+key, "", nil); w.Code != http.StatusNotFound {
 		t.Errorf("the public can open a held ride: %d", w.Code)
 	}
-	if len(*sent) != 1 || !strings.Contains((*sent)[0].subject, "waiting for approval") || !strings.Contains((*sent)[0].body, "/admin/calendar") {
-		t.Errorf("notice: %+v", *sent)
+	if n := clubNotices(a, sent); len(n) != 1 || !strings.Contains(n[0].subject, "waiting for approval") || !strings.Contains(n[0].body, "/admin/rides/"+key) {
+		t.Errorf("notice: %+v", n)
 	}
 	ct, body = form(url.Values{"group": {""}, "leader_name": {"Sam"}, "ft": {oldToken(a)}})
 	do(t, h, nil, "POST", "/calendar/ride/"+key+"/lead", ct, body)

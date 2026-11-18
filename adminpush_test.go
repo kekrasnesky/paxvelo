@@ -108,7 +108,7 @@ func TestAdminAlerts(t *testing.T) {
 	if got := titles(beaPhone); !slices.Equal(got, []string{"Waiting for approval: Hilly Loop", "New member: New Rider"}) {
 		t.Errorf("board member got %q", got)
 	}
-	if m := beaPhone.messages()[0]; m.URL != "/admin/calendar" || m.Icon != "/static/img/admin-192.png" {
+	if m := beaPhone.messages()[0]; m.URL != "/admin/rides/"+o.Key || m.Icon != "/static/img/admin-192.png" {
 		t.Errorf("alert = %+v", m)
 	}
 

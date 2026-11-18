@@ -63,8 +63,8 @@ func TestImIn(t *testing.T) {
 	if d := got.Riders[0].Device; d == "" || d == sam.Value {
 		t.Error("the data file should keep a hash of the cookie, not the cookie")
 	}
-	if len(*notices) != 1 || !strings.Contains((*notices)[0].subject, "First ride: Sam Rider") {
-		t.Errorf("first-ride notice: %+v", *notices)
+	if n := clubNotices(a, notices); len(n) != 1 || !strings.Contains(n[0].subject, "First ride: Sam Rider") {
+		t.Errorf("first-ride notice: %+v", n)
 	}
 	mine := page(sam)
 	for _, want := range []string{"You’re in", "Can’t make it", `href="/ride-waiver"`, "Sam R."} {
@@ -83,8 +83,8 @@ func TestImIn(t *testing.T) {
 		t.Errorf("update: %+v", got.Riders)
 	}
 	in(sam, url.Values{"rider_name": {"Sam Rider"}, "email": {"sam@example.com"}})
-	if len(*notices) != 1 {
-		t.Errorf("notices after updating: %d", len(*notices))
+	if n := clubNotices(a, notices); len(n) != 1 {
+		t.Errorf("notices after updating: %d", len(n))
 	}
 	// The form remembers the name on this phone for the next ride.
 	o2, _ := a.store.AddRide(CalRide{Date: day(4), Name: "Hills"})

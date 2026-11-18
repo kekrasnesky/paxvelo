@@ -424,8 +424,8 @@ func (a *App) notifyLoaner(q LoanerRequest) {
 		b.WriteString("- **Parent or guardian:** " + q.Name + "\n")
 	}
 	b.WriteString("- **Email:** " + q.Email + "\n")
-	fmt.Fprintf(&b, "\n[Confirm or decline](%s/admin/loaners)", a.cfg.SiteURL)
-	a.mailer.Notify("Loaner bike request: "+q.RideName+", "+q.RideLabel(), b.String())
+	fmt.Fprintf(&b, "\n[Confirm or decline](%s/admin/loaners#q%d)", a.cfg.SiteURL, q.ID)
+	a.clubNotice("Loaner bike request: "+q.RideName+", "+q.RideLabel(), b.String(), a.soon(q.RideDate)) // summary.go
 }
 
 // mailLoanerAnswer tells the rider what happened to their request.

@@ -1430,6 +1430,18 @@ body.app-home{--app-card:rgba(34,30,28,.78);--app-card-press:rgba(52,46,43,.9);-
 .app-home .flash{margin-top:1rem}
 /* The Alerts switches at the foot of the app home (adminpush.go) */
 .app-head .app-hi{margin-left:auto}
+/* Search (appsearch.go): while it has results, they replace the rest. */
+.app-search{position:relative;margin-top:.9rem}
+.app-search .ic{position:absolute;left:.95rem;top:50%;width:1.15rem;height:1.15rem;margin:0;transform:translateY(-50%);color:var(--app-dim);pointer-events:none;z-index:1}
+.app-home .app-search input{width:100%;min-height:3rem;margin:0;padding:.6rem 1rem .6rem 2.7rem;border:1px solid var(--app-line);border-radius:14px;background:var(--app-card);color:var(--paper);font-size:1rem;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.app-home .app-search input::placeholder{color:var(--app-dim)}
+.app-home .app-search input:focus{outline:none;box-shadow:var(--ring)}
+.app-searching .app-group,.app-searching .app-needs,.app-searching .app-next,.app-searching .app-alerts,.app-searching .app-foot{display:none}
+.app-hit{display:grid;min-width:0}
+.app-hit strong,.app-hit small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.app-hit strong{font-weight:500}
+.app-home .app-hit small{font-weight:300;font-size:.8rem;color:var(--app-dim)}
+.app-none{margin:1.4rem .25rem 0;color:var(--app-dim)}
 .app-alerts li{display:flex;align-items:center;min-height:3.2rem;padding:.6rem 1rem;font-size:.92rem}
 .app-alerts .al-home,.app-alerts .al-blocked{color:#d9b56a}
 .app-switch{display:flex;flex:1;align-items:center;justify-content:space-between;gap:1rem;font-weight:300;font-size:.92rem}

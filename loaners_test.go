@@ -78,6 +78,9 @@ func TestLoanerRequest(t *testing.T) {
 		t.Errorf("the loaner waiver is signed with the request: %+v", ws)
 	}
 	mu.Lock()
+	for _, n := range a.store.WaitingNotices() { // 3 days ahead: in the morning summary
+		notices = append(notices, n.Subject+"\n"+n.Body)
+	}
 	if len(notices) != 1 || !strings.Contains(notices[0], "Loaner bike request: Coffee Ride") || !strings.Contains(notices[0], "/admin/loaners") {
 		t.Errorf("the club is emailed: %v", notices)
 	}

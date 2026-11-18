@@ -38,8 +38,8 @@ func TestAddEventThatIsntARide(t *testing.T) {
 	if o.LeaderSummary() != "Club meeting · Sam P." {
 		t.Errorf("summary: %q", o.LeaderSummary())
 	}
-	if len(*sent) != 1 || !strings.Contains((*sent)[0].body, "added club meeting to the calendar") || strings.Contains((*sent)[0].body, "needs leaders") {
-		t.Errorf("notice: %+v", *sent)
+	if n := clubNotices(a, sent); len(n) != 1 || !strings.Contains(n[0].body, "added club meeting to the calendar") || strings.Contains(n[0].body, "needs leaders") {
+		t.Errorf("notice: %+v", n)
 	}
 	// Nobody signs up to lead it, and it never needs a leader.
 	page := do(t, h, nil, "GET", "/calendar/ride/"+key, "", nil).Body.String()
@@ -108,8 +108,8 @@ func TestAddRideRepeatingWeekly(t *testing.T) {
 	if len(dates) != 3 || dates[0] != wed || dates[2] != until {
 		t.Errorf("weekly dates: %v", dates)
 	}
-	if len(*sent) != 1 || !strings.Contains((*sent)[0].subject, "every Wednesday") {
-		t.Errorf("notice: %+v", *sent)
+	if n := clubNotices(a, sent); len(n) != 1 || !strings.Contains(n[0].subject, "every Wednesday") {
+		t.Errorf("notice: %+v", n)
 	}
 }
 

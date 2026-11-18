@@ -262,7 +262,8 @@ func (a *App) routes() http.Handler {
 	mux.Handle("GET /admin/security", a.boardOnly(a.securityPage))
 	mux.Handle("POST /admin/security", a.boardOnly(a.securityAction))
 	mux.Handle("GET /admin", a.auth(a.attentionPage))
-	mux.Handle("GET /admin/app", a.auth(a.adminAppPage)) // adminapp.go: the admin phone app
+	mux.Handle("GET /admin/app", a.auth(a.adminAppPage))         // adminapp.go: the admin phone app
+	mux.Handle("GET /admin/app/search", a.auth(a.appSearchPart)) // appsearch.go: its search box
 	mux.HandleFunc("GET /admin-app.webmanifest", a.adminManifest)
 	mux.HandleFunc("GET /admin/sw.js", a.adminServiceWorker) // adminpush.go: the admin app's own service worker
 	mux.Handle("POST /admin/push/subscribe", a.auth(a.adminPushSubscribe))
