@@ -1444,11 +1444,11 @@ body.app-home{--app-card:rgba(34,30,28,.78);--app-card-press:rgba(52,46,43,.9);-
 .app-none{margin:1.4rem .25rem 0;color:var(--app-dim)}
 .app-alerts li{display:flex;align-items:center;min-height:3.2rem;padding:.6rem 1rem;font-size:.92rem}
 .app-alerts .al-home,.app-alerts .al-blocked{color:#d9b56a}
-.app-switch{display:flex;flex:1;align-items:center;justify-content:space-between;gap:1rem;font-weight:300;font-size:.92rem}
-.app-switch input{appearance:none;-webkit-appearance:none;position:relative;flex:none;width:3.1rem;height:1.9rem;margin:0;padding:0;border:0;border-radius:1rem;background:#4a4440;cursor:pointer;transition:background .15s;box-shadow:none}
-.app-switch input::after{content:"";position:absolute;top:2px;left:2px;width:calc(1.9rem - 4px);height:calc(1.9rem - 4px);border-radius:50%;background:var(--paper);transition:transform .15s}
-.app-switch input:checked{background:var(--sage)}
-.app-switch input:checked::after{transform:translateX(1.2rem)}
+.app-switch{display:flex;flex:1;min-width:0;align-items:center;justify-content:space-between;gap:1rem;font-weight:300;font-size:.92rem}
+.app-switch input[type=checkbox]{appearance:none;-webkit-appearance:none;position:relative;flex:none;width:3.1rem;height:1.9rem;margin:0;padding:0;border:0;border-radius:1rem;background:#4a4440;cursor:pointer;transition:background .15s;box-shadow:none}
+.app-switch input[type=checkbox]::after{content:"";position:absolute;top:2px;left:2px;width:calc(1.9rem - 4px);height:calc(1.9rem - 4px);border-radius:50%;background:var(--paper);transition:transform .15s}
+.app-switch input[type=checkbox]:checked{background:var(--sage)}
+.app-switch input[type=checkbox]:checked::after{transform:translateX(1.2rem)}
 .app-home .app-go{display:inline-flex;align-items:center;justify-content:center;width:100%;padding:.8rem;border:0;border-radius:12px;background:var(--ochre);color:var(--paper);font-weight:500;box-shadow:none}
 .app-home .app-go:hover{background:#b58b45;box-shadow:none}
 .app-home .app-stop{padding:0;border:0;background:none;color:var(--alert-text);font:inherit;box-shadow:none}
