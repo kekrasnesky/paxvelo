@@ -192,7 +192,7 @@ func (s *Store) SetSeenGuide(id int) {
 func (a *App) attentionPage(w http.ResponseWriter, r *http.Request) {
 	u, _ := a.currentAdmin(r)
 	d := dashboardView{
-		Items: a.attentionItems(r), SetupLogin: u.ID == 0, Intro: a.showIntro(r),
+		Items: withReturn(a.attentionItems(r), "/admin"), SetupLogin: u.ID == 0, Intro: a.showIntro(r),
 		Members: a.memberSnapshot(), Nudges: a.nudgesFor(r),
 	}
 	d.Rides, d.Off = a.weekRides()

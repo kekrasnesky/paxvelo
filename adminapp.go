@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -106,6 +107,16 @@ func (a *App) appTiles(r *http.Request, requests int) []appTileGroup {
 // adminAppPage is the app's home: what needs you, the next rides, buttons.
 func (a *App) adminAppPage(w http.ResponseWriter, r *http.Request) {
 	items, requests := a.attentionFor(r)
+	if a.isBoard(r) { // the computer Home lists these in its Members card
+		for _, m := range a.memberSnapshot().Signups {
+			items = append(items, attentionItem{
+				Text: fmt.Sprintf("%s joined on the website, not marked paid yet.", m.Name),
+				Href: fmt.Sprintf("/admin/members/%d", m.ID), Link: "Open",
+				Acts: []attentionAct{{Label: "Mark paid", Icon: "check", Action: fmt.Sprintf("/admin/members/%d/paid", m.ID), Fields: map[string]string{"paid": "1"}, Board: true}},
+			})
+		}
+	}
+	items = withReturn(items, adminAppPath)
 	rides, _ := a.weekRides()
 	if len(rides) > 3 {
 		rides = rides[:3]

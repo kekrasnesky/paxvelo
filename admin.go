@@ -449,7 +449,7 @@ var errorText = map[string]string{
 	"route":             routeProblem,
 	"connect":           "Connecting to Strava didn’t work. Try again.",
 	"sync":              "Reading the club’s events from Strava didn’t work. See the error below.",
-	"nostrava":          "Add the Strava API settings to paxvelo.conf first (CLAUDE.md, “Strava import”).",
+	"nostrava":          "Add the Strava API settings to paxvelo.conf first (docs/rides.md, “Strava import”).",
 	"igfeed":            "That isn’t a Behold feed link. Copy it from the feed in Behold; it starts with https://feeds.behold.so/.",
 	"igconnect":         "Reading that feed didn’t work. Check the link in Behold and try again.",
 	"igsync":            "Reading the Instagram posts didn’t work. See the error below.",
@@ -617,8 +617,8 @@ func (a *App) markPaid(w http.ResponseWriter, r *http.Request) {
 	}
 	to := "/admin/members?ok=" + code
 	// Back to Home or the member's page, or keep the admin's search and filter in place.
-	if ret := r.FormValue("return"); ret == "/admin" {
-		to = "/admin?ok=" + code
+	if ret := r.FormValue("return"); ret == "/admin" || ret == adminAppPath {
+		to = ret + "?ok=" + code
 	} else if ret == "/admin/members/"+strconv.Itoa(id) {
 		to = ret + "?ok=" + code
 	} else if ret != "" {

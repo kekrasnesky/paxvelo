@@ -381,10 +381,10 @@ func (a *App) approveRide(w http.ResponseWriter, r *http.Request) {
 		to = "/admin/rides"
 	}
 	if _, err := a.store.UpdateRide(r.PathValue("key"), func(c *CalRide) error { c.Held = false; return nil }); err != nil {
-		back(w, r, to+"?err=noride")
+		back(w, r, homeReturn(r, to+"?err=noride"))
 		return
 	}
-	back(w, r, to+"?ok=ride-approved")
+	back(w, r, homeReturn(r, to+"?ok=ride-approved"))
 }
 
 func (a *App) deleteRideAdmin(w http.ResponseWriter, r *http.Request) {

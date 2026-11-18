@@ -491,12 +491,12 @@ func (a *App) answerLoaner(status string) http.HandlerFunc {
 		by, _ := a.adminName(r)
 		q, err := a.store.AnswerLoaner(id, status, or(by, "an admin"), cleanTitle(r.FormValue("reason"), 300))
 		if err != nil {
-			back(w, r, "/admin/loaners?err=loaner-answered")
+			back(w, r, homeReturn(r, "/admin/loaners?err=loaner-answered"))
 			return
 		}
 		log.Printf("loaner request %d (%s, %s) %s by %s", q.ID, q.RiderName(), q.RideDate, status, by)
 		a.mailLoanerAnswer(q)
-		back(w, r, fmt.Sprintf("/admin/loaners?ok=loaner-%s#q%d", status, q.ID))
+		back(w, r, homeReturn(r, fmt.Sprintf("/admin/loaners?ok=loaner-%s#q%d", status, q.ID)))
 	}
 }
 

@@ -631,7 +631,7 @@ func (a *App) addRide(w http.ResponseWriter, r *http.Request) {
 			body += fmt.Sprintf(" %s is leading it.", name)
 		}
 	}
-	if o.IsRide() && o.Status() != "led" {
+	if st := o.Status(); st == "open" || st == "partial" {
 		body += " It still needs leaders: sign up on the ride page."
 	}
 	a.notifyRide(fmt.Sprintf("New %s: %s on %s", o.Noun(), o.Name, shortDate(o.Date)), body, o, c.groupNames()[0])

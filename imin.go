@@ -139,8 +139,8 @@ func (a *App) imIn(w http.ResponseWriter, r *http.Request) {
 	}
 	device := a.ensureRiderCookie(w, r)
 	group, first := strings.TrimSpace(r.FormValue("group")), r.FormValue("first") == "1"
-	if o, ok := a.store.Ride(key); ok && o.Unofficial {
-		first = false // no club waiver to sign for a community ride
+	if o, ok := a.store.Ride(key); ok && !o.AsksWaiver() {
+		first = false // no club waiver to sign for a virtual or community ride
 	}
 	isNew := false
 	o, err := a.store.UpdateRide(key, func(c *CalRide) error {

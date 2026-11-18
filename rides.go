@@ -284,6 +284,11 @@ func isVirtual(setting string, texts ...string) bool {
 // IsVirtual reports whether it's ridden on Zwift or an indoor trainer.
 func (c CalRide) IsVirtual() bool { return isVirtual(c.Virtual, c.texts()...) }
 
+// AsksWaiver reports whether the ride page asks new riders for the club
+// waiver: not for a virtual ride (no one is on the road) or a community one
+// (the club waiver doesn't cover it).
+func (c CalRide) AsksWaiver() bool { return !c.Unofficial && !c.IsVirtual() }
+
 // texts are the words it's guessed from.
 func (c CalRide) texts() []string {
 	texts := []string{c.Name, c.Place, c.Details}
@@ -491,6 +496,8 @@ func (o RideOcc) Status() string {
 		return "cancelled"
 	case !o.IsRide():
 		return "event"
+	case o.Unofficial: // not the club's to lead, so never flagged as needing a leader
+		return "community"
 	case led == len(o.groupNames()):
 		return "led"
 	case led > 0:
@@ -530,6 +537,9 @@ func (o RideOcc) LeaderSummary() string {
 		} else {
 			names = append(names, s.Leader.Name)
 		}
+	}
+	if o.Unofficial { // a community ride (its Community tag says so): whoever leads it, never "Needs a leader"
+		return strings.Join(names, ", ")
 	}
 	switch {
 	case missing == 0:

@@ -85,7 +85,7 @@ func TestLoanerRequest(t *testing.T) {
 	if !strings.Contains(do(t, h, nil, "GET", "/calendar/ride/"+ride.Key, "", nil).Body.String(), "Reserved") {
 		t.Error("a held bike shows as Reserved")
 	}
-	if !needsAttention(a, "loaner bike request") {
+	if !needsAttention(a, "Loaner bike for") {
 		t.Error("admin Home shows the waiting request")
 	}
 

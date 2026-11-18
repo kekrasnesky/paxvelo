@@ -100,3 +100,23 @@ func TestLoanerNotAvailable(t *testing.T) {
 		t.Error("none ready")
 	}
 }
+
+// A community ride is never flagged as needing a leader: its line names
+// whoever leads it, or is blank (its Community tag says the rest), never red.
+func TestCommunityRideLeaderLine(t *testing.T) {
+	o := RideOcc{Key: "r1", CalRide: CalRide{Name: "Trail Day", Date: "2026-12-05", Unofficial: true, Groups: []string{"Fast", "Social"}}}
+	if got := o.LeaderSummary(); got != "" {
+		t.Errorf("no leaders: %q", got)
+	}
+	if o.Status() != "community" {
+		t.Errorf("status %q should not be open or partial", o.Status())
+	}
+	o.Leaders = []Leader{{Group: "Fast", Name: "Sam R."}}
+	if got := o.LeaderSummary(); got != "Sam R." {
+		t.Errorf("with a leader: %q", got)
+	}
+	o.Unofficial = false
+	if got := o.LeaderSummary(); got != "Needs 1 more leader" {
+		t.Errorf("a club ride still asks for leaders: %q", got)
+	}
+}

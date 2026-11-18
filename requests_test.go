@@ -84,7 +84,7 @@ func TestSpendRequests(t *testing.T) {
 	}
 
 	// Home and the Requests badge show it to them, not to Allie.
-	if home := do(t, h, as(gabe), "GET", "/admin", "", nil).Body.String(); !strings.Contains(home, "1 spending request is waiting for your OK.") {
+	if home := do(t, h, as(gabe), "GET", "/admin", "", nil).Body.String(); !strings.Contains(home, "Pizza for the kickoff ride") || !strings.Contains(home, "/requests/1/approve") {
 		t.Error("Home should ask the treasurer for an answer")
 	}
 	page := do(t, h, as(karl), "GET", "/admin/treasurer/requests", "", nil).Body.String()

@@ -425,24 +425,24 @@ func (a *App) decideRequest(ok bool) http.HandlerFunc {
 		}
 		to := fmt.Sprintf("%s?%%s#r%d", requestsPath, q.ID)
 		if !a.wantsAnswer(q, u) {
-			back(w, r, fmt.Sprintf(to, "err=request-not-yours"))
+			back(w, r, homeReturn(r, fmt.Sprintf(to, "err=request-not-yours")))
 			return
 		}
 		reason := strings.TrimSpace(r.FormValue("reason"))
 		if !ok && reason == "" {
-			back(w, r, fmt.Sprintf(to, "err=request-reason"))
+			back(w, r, homeReturn(r, fmt.Sprintf(to, "err=request-reason")))
 			return
 		}
 		_, settled, err := a.decide(q, u, ok, reason)
 		if err != nil {
-			back(w, r, fmt.Sprintf(to, "err=request-not-yours"))
+			back(w, r, homeReturn(r, fmt.Sprintf(to, "err=request-not-yours")))
 			return
 		}
 		flash := "request-ok"
 		if settled {
 			flash = map[bool]string{true: "request-approved", false: "request-rejected"}[ok]
 		}
-		back(w, r, fmt.Sprintf(to, "ok="+flash))
+		back(w, r, homeReturn(r, fmt.Sprintf(to, "ok="+flash)))
 	}
 }
 
@@ -699,17 +699,16 @@ func (a *App) requestAttention(u AdminUser) (items []attentionItem, answer int) 
 		switch {
 		case a.wantsAnswer(q, u):
 			answer++
+			items = append(items, attentionItem{
+				Text: fmt.Sprintf("%s: %s for %s.", q.By, money(q.Cents), q.What),
+				Href: fmt.Sprintf("%s#r%d", requestsPath, q.ID), Link: "Review",
+				Acts: []attentionAct{{Label: "Approve", Icon: "check", Action: fmt.Sprintf("%s/%d/approve", requestsPath, q.ID), Board: true}},
+			})
 		case q.Status == reqApproved && q.Kind == reqReport && q.PaidBack == nil && a.isTreasurer(u):
 			payBack++
 		case q.Status == reqApproved && q.Kind == reqPurchase && q.Bought == "" && ownRequest(q, u):
 			receipts = append(receipts, q.What)
 		}
-	}
-	if answer > 0 {
-		items = append(items, attentionItem{
-			Text: fmt.Sprintf("%d spending %s waiting for your OK.", answer, plural(answer, "request is", "requests are")),
-			Href: requestsPath, Link: "Review",
-		})
 	}
 	if payBack > 0 {
 		items = append(items, attentionItem{
@@ -737,6 +736,9 @@ func (a *App) attentionFor(r *http.Request) (items []attentionItem, requests int
 	}
 	if !a.isBoard(r) {
 		items = slices.DeleteFunc(items, func(it attentionItem) bool { return boardHref(it.Href) })
+		for i := range items {
+			items[i].Acts = slices.DeleteFunc(items[i].Acts, func(x attentionAct) bool { return x.Board })
+		}
 	}
 	return items, requests
 }

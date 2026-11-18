@@ -377,6 +377,8 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
 </body>
 </html>{{end}}
 
+{{/* Buttons on a Needs you line that do the job right there (attentionAct). */}}
+{{define "needs-acts"}}{{range .Acts}}<form method="post" action="{{.Action}}">{{range $k, $v := .Fields}}<input type="hidden" name="{{$k}}" value="{{$v}}">{{end}}<input type="hidden" name="return" value="{{.Return}}"><button{{if .Quiet}} class="ghost"{{end}}>{{with .Icon}}{{icon .}}{{end}}{{.Label}}</button></form>{{end}}{{end}}
 {{define "admin-app"}}{{template "head" .}}{{$v := .App}}
 <header class="app-head">
   <img src="/static/img/logo-light.svg" alt="PaxVelo" width="88" height="47">
@@ -388,7 +390,7 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
 </section>{{end}}
 {{with $v.Items}}<section class="app-needs" aria-label="Needs you">
   <h2>Needs you <span class="badge">{{len .}}</span></h2>
-  <ul>{{range .}}<li><a href="{{.Href}}"><span>{{.Text}}</span>{{icon "chevron"}}</a></li>{{end}}</ul>
+  <ul>{{range .}}<li><a href="{{.Href}}"><span>{{.Text}}</span>{{icon "chevron"}}</a>{{if .Acts}}<div class="app-acts">{{template "needs-acts" .}}</div>{{end}}</li>{{end}}</ul>
 </section>{{end}}
 {{with $v.Rides}}<section class="app-next" aria-label="Next rides">
   <h2>Next rides</h2>
@@ -600,7 +602,7 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
 </section>{{end}}
 
 <h2 class="glance-h">Needs attention</h2>
-{{if .Items}}<ul class="todo">{{range .Items}}<li><span>{{.Text}}</span><a class="btn ghost" href="{{.Href}}">{{.Link}}</a></li>{{end}}</ul>
+{{if .Items}}<ul class="todo">{{range .Items}}<li><span>{{.Text}}</span><span class="todo-acts">{{template "needs-acts" .}}<a class="btn ghost" href="{{.Href}}">{{.Link}}</a></span></li>{{end}}</ul>
 {{else}}<p class="all-clear">{{icon "check"}}Nothing needs you right now.</p>{{end}}
 {{with .Nudges}}<h2 class="glance-h">Security</h2>
 <ul class="todo nudge">{{range .}}<li><span>{{.Text}}</span><a class="btn ghost" href="{{.Href}}">{{.Link}}</a></li>{{end}}</ul>{{end}}

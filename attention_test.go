@@ -28,7 +28,7 @@ func TestNeedsAttention(t *testing.T) {
 
 	page = do(t, h, admin, "GET", "/admin", "", nil).Body.String()
 	for _, want := range []string{
-		"1 ride added on the website is waiting for approval",
+		"Sunday Spin, ", "is waiting for approval.", "/approve\"><input type=\"hidden\" name=\"return\" value=\"/admin\">",
 		"Coffee Ride", "needs a leader for the B group",
 		"newsletter is a draft, not published yet",
 	} {
@@ -36,8 +36,14 @@ func TestNeedsAttention(t *testing.T) {
 			t.Errorf("Needs attention should say %q", want)
 		}
 	}
-	if strings.Contains(page, "Sunday Spin,") {
-		t.Error("a ride waiting for approval isn't on the calendar yet, so it shouldn't ask for a leader")
+	a.store.AddRide(CalRide{Name: "Trail Day", Date: day, Time: "10:00", Unofficial: true})
+	for _, it := range a.attention() {
+		if strings.HasPrefix(it.Text, "Trail Day") {
+			t.Error("a community ride isn't the club's to lead, so it shouldn't ask for a leader")
+		}
+		if strings.HasPrefix(it.Text, "Sunday Spin") && strings.Contains(it.Text, "needs a leader") {
+			t.Error("a ride waiting for approval isn't on the calendar yet, so it shouldn't ask for a leader")
+		}
 	}
 	if !strings.Contains(page, `<span class="badge">`) {
 		t.Error("Home should show how many things need attention")
@@ -121,5 +127,29 @@ func TestAttentionGroupWording(t *testing.T) {
 	}
 	if page := do(t, h, admin, "GET", "/admin", "", nil).Body.String(); !strings.Contains(page, "needs a leader for the Fast and Tempo groups.") {
 		t.Error("group names without the word should get it")
+	}
+}
+
+// Needs you buttons do the job in place and come back to the list they were
+// pressed on, with the action's message; anywhere else is ignored.
+func TestNeedsYouActsReturn(t *testing.T) {
+	a, h, admin := testApp(t)
+	day := a.today().AddDate(0, 0, 2).Format("2006-01-02")
+	o, _ := a.store.AddRide(CalRide{Name: "Sunday Spin", Date: day, Time: "08:00", Held: true})
+	app := do(t, h, admin, "GET", "/admin/app", "", nil).Body.String()
+	if !strings.Contains(app, `action="/admin/rides/`+o.Key+`/approve"><input type="hidden" name="return" value="/admin/app">`) {
+		t.Fatal("the app's Needs you should have an Approve button for the waiting ride")
+	}
+	ct, body := form(url.Values{"return": {"/admin/app"}})
+	if loc := do(t, h, admin, "POST", "/admin/rides/"+o.Key+"/approve", ct, body).Header().Get("Location"); loc != "/admin/app?ok=ride-approved" {
+		t.Errorf("approve from the app went to %q", loc)
+	}
+	if got, _ := a.store.Ride(o.Key); got.Held {
+		t.Error("the ride should be approved")
+	}
+	o2, _ := a.store.AddRide(CalRide{Name: "Monday Spin", Date: day, Time: "08:00", Held: true})
+	ct, body = form(url.Values{"return": {"https://elsewhere.example/"}})
+	if loc := do(t, h, admin, "POST", "/admin/rides/"+o2.Key+"/approve", ct, body).Header().Get("Location"); loc != "/admin/calendar?ok=ride-approved" {
+		t.Errorf("a return outside the Needs you lists should be ignored: %q", loc)
 	}
 }

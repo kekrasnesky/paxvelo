@@ -180,3 +180,33 @@ func TestTidyRiders(t *testing.T) {
 		t.Error("a recent ride keeps its riders' emails")
 	}
 }
+
+// A virtual ride asks for no waiver: no First club ride tick, no Waiver
+// code button, and a "first" sent anyway is dropped (no club notice).
+func TestVirtualRideNoWaiver(t *testing.T) {
+	a, h, notices := rideApp(t)
+	day := a.today().AddDate(0, 0, 2).Format("2006-01-02")
+	o, err := a.store.AddRide(CalRide{Date: day, Time: "18:00", Name: "Zwift Group Ride"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := do(t, h, nil, "GET", "/calendar/ride/"+o.Key, "", nil).Body.String()
+	if !strings.Contains(p, `/in"`) {
+		t.Fatal("a virtual ride still takes I'm in")
+	}
+	if strings.Contains(p, `name="first"`) || strings.Contains(p, "/qr/ride-waiver") {
+		t.Error("a virtual ride shouldn't ask about the waiver")
+	}
+	v := url.Values{"rider_name": {"Sam Rider"}, "first": {"1"}, "ft": {oldToken(a)}}
+	ct, body := form(v)
+	w := do(t, h, nil, "POST", "/calendar/ride/"+o.Key+"/in", ct, body)
+	if loc := w.Header().Get("Location"); !strings.Contains(loc, "ok=in#") {
+		t.Errorf("I'm in: %q", loc)
+	}
+	if got, _ := a.store.Ride(o.Key); len(got.Riders) != 1 || got.Riders[0].First {
+		t.Errorf("riders: %+v", got.Riders)
+	}
+	if len(*notices) != 0 {
+		t.Errorf("no first-ride notice for a virtual ride: %+v", *notices)
+	}
+}

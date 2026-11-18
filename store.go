@@ -183,6 +183,7 @@ type WelcomeEmail struct {
 
 type storeData struct {
 	Secret         string         `json:"secret"`
+	Demo           bool           `json:"demo,omitempty"` // a made-up club from `go run . -demo` (demo.go)
 	NextMember     int            `json:"next_member_id"`
 	NextCampaign   int            `json:"next_campaign_id"`
 	Members        []*Member      `json:"members"`

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -122,9 +123,46 @@ func (a *App) guidePage(w http.ResponseWriter, r *http.Request) {
 
 // ---- Needs attention ----
 
-// attentionItem is one thing an admin should look at, linking to where it's done.
+// attentionItem is one thing an admin should look at, linking to where it's
+// done. Acts are buttons that do it right there on the list.
 type attentionItem struct {
 	Text, Href, Link string
+	Acts             []attentionAct
+}
+
+// attentionAct is a button on a Needs you line that does the job without
+// opening its page: a POST to Action with Fields, which comes back to the
+// list it was pressed on (Return, see homeReturn).
+type attentionAct struct {
+	Label, Action, Icon string
+	Fields              map[string]string
+	Quiet               bool   // the second choice, like Decline
+	Board               bool   // board members only
+	Return              string // /admin or /admin/app, set by withReturn
+}
+
+// withReturn sends each button back to the list it's on.
+func withReturn(items []attentionItem, path string) []attentionItem {
+	for i := range items {
+		for j := range items[i].Acts {
+			items[i].Acts[j].Return = path
+		}
+	}
+	return items
+}
+
+// homeReturn is where an action pressed on a Needs you list goes back to:
+// that list, with the action's ok= or err= message, instead of the page the
+// action usually returns to.
+func homeReturn(r *http.Request, to string) string {
+	ret := r.FormValue("return")
+	if ret != "/admin" && ret != adminAppPath {
+		return to
+	}
+	if u, err := url.Parse(to); err == nil && u.RawQuery != "" {
+		return ret + "?" + u.RawQuery
+	}
+	return ret
 }
 
 // attention lists what needs an admin: rides waiting for approval, rides this
@@ -132,17 +170,24 @@ type attentionItem struct {
 // newsletter drafts for this month or later.
 func (a *App) attention() []attentionItem {
 	var out []attentionItem
-	if held := a.store.HeldRides(); len(held) > 0 {
+	for _, o := range a.store.HeldRides() {
 		out = append(out, attentionItem{
-			Text: fmt.Sprintf("%d %s added on the website %s waiting for approval.", len(held), plural(len(held), "ride", "rides"), plural(len(held), "is", "are")),
-			Href: "/admin/calendar", Link: "Review",
+			Text: fmt.Sprintf("%s, %s, is waiting for approval.", o.Name, o.DateLabel()),
+			Href: "/admin/rides/" + o.Key, Link: "Open",
+			Acts: []attentionAct{{Label: "Approve", Icon: "check", Action: "/admin/rides/" + o.Key + "/approve"}},
 		})
 	}
 
-	if n := a.store.WaitingLoaners(a.today().Format(time.DateOnly)); n > 0 {
+	today := a.today()
+	for _, q := range a.store.LoanerRequests() {
+		if q.Status != loanWaiting || q.RideDate < today.Format(time.DateOnly) {
+			continue
+		}
+		act := fmt.Sprintf("/admin/loaners/%d/", q.ID)
 		out = append(out, attentionItem{
-			Text: fmt.Sprintf("%d loaner bike %s waiting for an answer.", n, plural(n, "request is", "requests are")),
-			Href: "/admin/loaners", Link: "Answer",
+			Text: fmt.Sprintf("Loaner bike for %s, %s: %s (%s).", q.RideName, q.RideLabel(), q.RiderName(), q.BikeLabel),
+			Href: fmt.Sprintf("/admin/loaners#q%d", q.ID), Link: "Open",
+			Acts: []attentionAct{{Label: "Confirm", Icon: "check", Action: act + "confirm"}, {Label: "Decline", Icon: "x", Action: act + "decline", Quiet: true}},
 		})
 	}
 
@@ -169,9 +214,8 @@ func (a *App) attention() []attentionItem {
 		})
 	}
 
-	today := a.today()
 	for _, o := range a.store.Rides(today, today.AddDate(0, 0, 6)) {
-		if o.Cancelled || !o.IsRide() {
+		if o.Cancelled || !o.IsRide() || o.Unofficial { // a community ride isn't the club's to lead
 			continue
 		}
 		var open []string

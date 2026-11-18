@@ -43,4 +43,4 @@ The **Needs attention** notice tells you when something is waiting: new photos, 
 
 ## Who to ask
 
-Anything the admin portal can't do (changing dues amounts or PayPal links, email setup, the server, backups, the Strava or Instagram connection) is handled by whoever looks after the website's technical side. Give them this repository. [CLAUDE.md](CLAUDE.md) has the technical details, and [content/README.md](content/README.md) explains page formatting.
+Anything the admin portal can't do (changing dues amounts or PayPal links, email setup, the server, backups, the Strava or Instagram connection) is handled by whoever looks after the website's technical side. Give them this repository. [CLAUDE.md](CLAUDE.md) and the [docs](docs) folder have the technical details, and [content/README.md](content/README.md) explains page formatting.

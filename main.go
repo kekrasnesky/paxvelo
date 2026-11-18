@@ -10,6 +10,7 @@ import (
 	"context"
 	"embed"
 	"errors"
+	"flag"
 	"log"
 	"net/http"
 	"os"
@@ -39,13 +40,26 @@ type App struct {
 }
 
 func main() {
+	demo := flag.Bool("demo", false, "fill an empty DATA_DIR with a made-up club to try the site (demo.go)")
+	flag.Parse()
 	cfg, err := loadConfig()
 	if err != nil {
 		log.Fatal(err)
 	}
+	if *demo {
+		if err := demoCheck(cfg); err != nil {
+			log.Fatal(err)
+		}
+	}
 	store, err := openStore(cfg.DataDir)
 	if err != nil {
 		log.Fatal(err)
+	}
+	if *demo {
+		if err := seedDemo(store, cfg.Location); err != nil {
+			log.Fatal(err)
+		}
+		log.Printf("demo club in %s", cfg.DataDir)
 	}
 	site, err := newSite(cfg)
 	if err != nil {
