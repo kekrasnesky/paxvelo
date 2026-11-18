@@ -15,13 +15,13 @@
 <style>{{.CSS}}</style>
 </head>
 <body{{if eq .Tab "app"}} class="app-home"{{end}}>
-{{if and .Tab (ne .Tab "app")}}<a class="app-top" href="/admin/app">{{icon "home"}}<span>Home</span><b>{{.Title}}</b></a>
+{{if and .Tab (ne .Tab "app")}}{{if .InApp}}<a class="app-top" href="/admin/app">{{icon "home"}}<span>Home</span><b>{{.Title}}</b></a>{{else}}
 <header class="bar">
   <a class="brand" href="/admin">PaxVelo Admin</a>
   <nav class="groups" aria-label="Admin">{{range .Nav.Groups}}<a href="{{.Href}}"{{if .Current}} aria-current="page"{{end}}>{{.Label}}{{with .Badge}} <span class="badge">{{.}}<span class="sr"> need attention</span></span>{{end}}</a>{{end}}</nav>
   <div class="bar-end">{{with .Nav.Security}}<a class="corner" href="{{.Href}}"{{if .Current}} aria-current="page"{{end}} aria-label="{{.Label}}">{{icon "settings"}}<span>{{.Label}}</span></a>{{end}}<a href="/" target="_blank" rel="noopener">View site</a>
   <form method="post" action="/admin/logout">{{with .Me}}<span class="me">{{.}} · </span>{{end}}<button class="link light">{{icon "logout"}}Log out</button></form></div>
-</header>
+</header>{{end}}
 {{with .Nav.Sections}}{{if gt (len .) 1}}<nav class="sub" aria-label="Section">{{range .}}<a href="{{.Href}}"{{if .Current}} aria-current="page"{{end}}>{{.Label}}{{with .Badge}} <span class="badge">{{.}}<span class="sr"> waiting</span></span>{{end}}</a>{{end}}</nav>{{end}}{{end}}{{end}}
 <main class="wrap">
 {{with .Flash}}<p class="flash">{{.}}</p>{{end}}
@@ -36,9 +36,8 @@ shrinkPicked();
 // The top bar slides away while scrolling down and comes back on the way up;
 // rows pinned under it follow (--bar-top). Keyboard focus in it keeps it.
 (function(){
-  // Inside the admin app the Home bar stands in for it (adminapp.go).
-  var bar=document.querySelector('.app-top'),root=document.documentElement;
-  if(!bar||!bar.offsetHeight)bar=document.querySelector('.bar');if(!bar)return;
+  // Inside the admin app the Home bar stands in for it (appframe.go).
+  var bar=document.querySelector('.bar,.app-top'),root=document.documentElement;if(!bar)return;
   var lastY=scrollY,ticking=false,hidden=false;
   function place(){root.style.setProperty('--bar-top',hidden?'0px':bar.offsetHeight+'px')}
   function onScroll(){
@@ -170,7 +169,7 @@ function openFraming(src,value,shapes,done){
       '<div class="fb-side"><p class="fb-label">How it shows on the site</p><div class="fb-shapes"></div>'+
       '<label class="fb-zoom">Zoom <input type="range" min="1" max="4" step="0.01" value="1"><output>1×</output></label>'+
       '<button type="button" class="ghost fb-reset">Reset: whole photo, centered</button></div></div>'+
-      '<div class="send-row"><button type="button" class="fb-done">Done</button><button type="button" class="link fb-cancel">Cancel</button></div>';
+      '<div class="wrap-row"><button type="button" class="fb-done">Done</button><button type="button" class="link fb-cancel">Cancel</button></div>';
     document.body.appendChild(box)}
   var stage=box.querySelector('.fb-stage'),frame=box.querySelector('.fb-frame'),pic=box.querySelector('.fb-pic'),ghost=box.querySelector('.fb-ghost'),
     list=box.querySelector('.fb-shapes'),zoom=box.querySelector('.fb-zoom input'),out=box.querySelector('.fb-zoom output'),
@@ -412,7 +411,7 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
 </section>{{end}}
 {{with $v.Items}}<section class="app-needs" aria-label="Needs you">
   <h2>Needs you <span class="badge">{{len .}}</span></h2>
-  <ul>{{range .}}<li><a href="{{.Href}}"><span>{{.Text}}</span>{{icon "chevron"}}</a>{{if .Acts}}<div class="app-acts">{{template "needs-acts" .}}</div>{{end}}</li>{{end}}</ul>
+  <ul>{{range .}}<li><a href="{{.Href}}"><span>{{.Text}}</span>{{icon "chevron"}}</a>{{if .Acts}}<div class="act-row app-acts">{{template "needs-acts" .}}</div>{{end}}</li>{{end}}</ul>
 </section>{{end}}
 {{with $v.Rides}}<section class="app-next" aria-label="Next rides">
   <h2>Next rides</h2>
@@ -480,6 +479,7 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
 <nav class="app-foot" aria-label="More">
   <a href="/" target="_blank" rel="noopener">{{icon "external"}}View site</a>
   <a href="/admin/admins">{{icon "settings"}}Security</a>
+  <a href="/admin?app=0">{{icon "home"}}Full menu</a>
   <form method="post" action="/admin/logout"><button class="link">{{icon "logout"}}Log out</button></form>
 </nav>
 {{template "foot" .}}{{end}}
@@ -611,7 +611,7 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
 </div>
 {{template "foot" .}}{{end}}
 
-{{define "attention"}}{{template "head" .}}<script>if(matchMedia('(display-mode: standalone)').matches)location.replace('/admin/app')</script>{{with .Dashboard}}
+{{define "attention"}}{{template "head" .}}{{with .Dashboard}}
 {{if .SetupLogin}}<div class="setup-warn" role="alert">
   <p><strong>You’re still using the setup password.</strong></p>
   <a class="btn" href="/admin/admins">Go to Admins</a>
@@ -631,10 +631,10 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
 </section>{{end}}
 
 <h2 class="glance-h">Needs attention</h2>
-{{if .Items}}<ul class="todo">{{range .Items}}<li><span>{{.Text}}</span><span class="todo-acts">{{template "needs-acts" .}}<a class="btn ghost" href="{{.Href}}">{{.Link}}</a></span></li>{{end}}</ul>
+{{if .Items}}<ul class="rows todo">{{range .Items}}<li><span>{{.Text}}</span><span class="act-row">{{template "needs-acts" .}}<a class="btn ghost" href="{{.Href}}">{{.Link}}</a></span></li>{{end}}</ul>
 {{else}}<p class="all-clear">{{icon "check"}}Nothing needs you right now.</p>{{end}}
 {{with .Nudges}}<h2 class="glance-h">Security</h2>
-<ul class="todo nudge">{{range .}}<li><span>{{.Text}}</span><a class="btn ghost" href="{{.Href}}">{{.Link}}</a></li>{{end}}</ul>{{end}}
+<ul class="rows todo nudge">{{range .}}<li><span>{{.Text}}</span><a class="btn ghost" href="{{.Href}}">{{.Link}}</a></li>{{end}}</ul>{{end}}
 
 <div class="dash">
 {{with .Members}}<section class="card dash-card">
@@ -1040,7 +1040,7 @@ body.addEventListener('submit',function(e){var f=e.target;if(!f.classList.contai
 {{define "waiver"}}{{template "head" .}}{{with .Waiver}}
 <p class="no-print"><a href="/admin/waivers?year={{.Year}}">← All {{.Year}} waivers</a></p>
 <h1>Insurance waiver, {{.Year}}</h1>
-<dl class="waiver-meta">
+<dl class="facts box waiver-meta">
   {{if .Minor}}<dt>Rider</dt><dd>{{.Rider}}, age {{.RiderAge}} (under 18)</dd>
   <dt>Parent or guardian</dt><dd>{{.Name}}, {{.Email}}, {{.GuardianPhone}}</dd>
   {{else if .Household}}<dt>Rider</dt><dd>{{.Rider}}, {{.RiderEmail}}</dd>
@@ -1055,8 +1055,8 @@ body.addEventListener('submit',function(e){var f=e.target;if(!f.classList.contai
 </dl>
 {{if .Minor}}<p>As the rider’s parent or legal guardian, they ticked “I’m this rider’s parent or legal guardian. I have read and agree to the waiver and to the release for parents and guardians, for them.” and {{if .Drawing}}signed{{else}}typed their name to sign{{end}} this text:</p>
 {{else}}<p>They ticked “I have read and agree to the waiver” and {{if .Drawing}}signed{{else}}typed their name to sign{{end}} this text:</p>{{end}}
-<div class="waiver-copy">{{$.WaiverHTML}}</div>
-<div class="sig-block">
+<div class="box waiver-copy">{{$.WaiverHTML}}</div>
+<div class="box sig-block">
   <div><span class="sig-line">{{if .Drawing}}<img src="/admin/waivers/{{.ID}}/signature.png" alt="Signature drawn by {{.Signature}}">{{else}}<span class="sig-typed-name">{{.Signature}}</span>{{end}}</span><span class="muted small">{{if .Minor}}Parent or guardian’s signature{{else}}Participant’s signature{{end}}</span></div>
   <div><span class="sig-line">{{.Signature}}</span><span class="muted small">Printed name</span></div>
   <div><span class="sig-line">{{date .Signed}}</span><span class="muted small">Date</span></div>
@@ -1067,7 +1067,7 @@ body.addEventListener('submit',function(e){var f=e.target;if(!f.classList.contai
 {{define "ride-waiver"}}{{template "head" .}}{{with .RideWaiver}}
 <p class="no-print"><a href="/admin/waivers?year={{.Year}}&show=rides">← All first-ride waivers</a></p>
 <h1>Ride waiver{{if .Loaner}}, club loaner bike{{end}}</h1>
-<dl class="waiver-meta">
+<dl class="facts box waiver-meta">
   {{if .Minor}}<dt>Rider</dt><dd>{{.Rider}}, age {{.RiderAge}} (under 18)</dd>
   <dt>Parent or guardian</dt><dd>{{.Name}}, {{.Email}}</dd>
   {{else}}<dt>Rider</dt><dd>{{.Name}}, {{.Email}}</dd>{{end}}
@@ -1081,8 +1081,8 @@ body.addEventListener('submit',function(e){var f=e.target;if(!f.classList.contai
 </dl>
 {{if .Minor}}<p>As the rider’s parent or legal guardian, they ticked “I have read and agree to the waiver” and “I’m this rider’s parent or legal guardian. I have read and agree to the waiver and to the release for parents and guardians, for them.” and {{if .Drawing}}signed{{else}}typed their name to sign{{end}} this text:</p>
 {{else}}<p>They ticked “I have read and agree to the waiver” and {{if .Drawing}}signed{{else}}typed their name to sign{{end}} this text:</p>{{end}}
-<div class="waiver-copy">{{$.WaiverHTML}}</div>
-<div class="sig-block">
+<div class="box waiver-copy">{{$.WaiverHTML}}</div>
+<div class="box sig-block">
   <div><span class="sig-line">{{if .Drawing}}<img src="/admin/ride-waivers/{{.ID}}/signature.png" alt="Signature drawn by {{.Signature}}">{{else}}<span class="sig-typed-name">{{.Signature}}</span>{{end}}</span><span class="muted small">{{if .Minor}}Parent or guardian’s signature{{else}}Participant’s signature{{end}}</span></div>
   <div><span class="sig-line">{{.Signature}}</span><span class="muted small">Printed name</span></div>
   <div><span class="sig-line">{{date .Signed}}</span><span class="muted small">Date</span></div>
@@ -1107,12 +1107,12 @@ body.addEventListener('submit',function(e){var f=e.target;if(!f.classList.contai
     </div>
     {{template "mail-preview"}}
   </div>
-  <div class="send-row mail-actions">
+  <div class="wrap-row mail-actions">
     <span class="test-to"><input type="email" name="test_to" value="{{.TestTo}}" aria-label="Send test to"><button class="ghost" formaction="/admin/email/test">{{icon "mail"}}Send test</button></span>
     <button class="link danger draft-discard" formaction="/admin/email/discard" onclick="return confirm('Discard this draft?')"{{if not (or .Draft.Subject .Draft.Body)}} hidden{{end}}>{{icon "trash"}}Discard draft</button>
     <span class="draft-status muted small" role="status"></span>
   </div>
-  <div class="send-row mail-actions">
+  <div class="wrap-row mail-actions">
     <label class="inline-label">About
       <select name="topic" class="email-topic">{{if .IsBoard}}<option value="">Club news and notices</option>{{end}}<option value="events">Rides and events</option></select>
     </label>
@@ -1235,7 +1235,7 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
     <label class="check"><input type="radio" name="kind" value="web"> Another website or an email address</label>
     <input name="url" inputmode="url" autocomplete="off" placeholder="https://www.example.com" aria-label="Web address">
     <label class="check"><input type="checkbox" name="big"> Show it as a big button</label>
-    <div class="send-row"><button value="ok">{{icon "check"}}Add link</button><button value="" class="link">Cancel</button></div>
+    <div class="wrap-row"><button value="ok">{{icon "check"}}Add link</button><button value="" class="link">Cancel</button></div>
   </form>
 </dialog>
 {{template "mail-cards"}}
@@ -1263,9 +1263,9 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
 <div class="title-row"><h1>Gallery</h1><a class="btn ghost" href="/gallery" target="_blank" rel="noopener">View the gallery</a></div>
 <details class="card album-new"{{if not .AlbumList.Cards}} open{{end}}>
   <summary>{{icon "plus"}}Start an album</summary>
-  <form method="post" action="/admin/gallery" class="gal-tools">
-    <label>Name <input name="title" required maxlength="80" placeholder="Halloween ride 2026"></label>
-    <label>Date (optional) <input type="date" name="date"></label>
+  <form method="post" action="/admin/gallery" class="field-row gal-tools">
+    <label class="field">Name <input name="title" required maxlength="80" placeholder="Halloween ride 2026"></label>
+    <label class="field">Date (optional) <input type="date" name="date"></label>
     <div><button>{{icon "plus"}}Start album</button></div>
   </form>
 </details>
@@ -1343,9 +1343,9 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
 <p class="crumb"><a href="/admin/gallery">← All albums</a></p>
 <div class="title-row"><h1>{{$al.Title}}</h1>{{if and $al.Photos (not $al.Hidden)}}<a class="btn ghost" href="{{$al.Href}}" target="_blank" rel="noopener">View on the website</a>{{end}}</div>
 <div class="card album-settings{{if $al.Featured}} is-featured{{end}}{{if $al.Hidden}} is-hidden{{end}}">
-  <form method="post" action="/admin/gallery/{{$al.ID}}" class="gal-tools">
-    <label>Name <input name="title" required maxlength="80" value="{{$al.Title}}"></label>
-    <label>Date (optional) <input type="date" name="date" value="{{$al.Date}}"></label>
+  <form method="post" action="/admin/gallery/{{$al.ID}}" class="field-row gal-tools">
+    <label class="field">Name <input name="title" required maxlength="80" value="{{$al.Title}}"></label>
+    <label class="field">Date (optional) <input type="date" name="date" value="{{$al.Date}}"></label>
     <div><button name="do" value="rename">{{icon "check"}}Save</button></div>
   </form>
   <form method="post" action="/admin/gallery/{{$al.ID}}" class="album-switches">
@@ -1361,9 +1361,9 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
 </div>
 <form method="post" action="/admin/gallery/upload?album={{$al.ID}}" enctype="multipart/form-data" class="card gal-upload">
   <h2>Upload photos</h2>
-  <div class="gal-tools">
-    <label>Photos <input type="file" name="photos" accept="image/*" multiple required></label>
-    <label>Photos by <input name="by" required maxlength="100" placeholder="Who took them"></label>
+  <div class="field-row gal-tools">
+    <label class="field">Photos <input type="file" name="photos" accept="image/*" multiple required></label>
+    <label class="field">Photos by <input name="by" required maxlength="100" placeholder="Who took them"></label>
     <div><button type="submit">{{icon "upload"}}Upload</button></div>
   </div>
   <p class="gal-up-msg small" role="status" aria-live="polite"></p>
@@ -1382,11 +1382,11 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
     <div class="gal-tools-go ticked-acts">
       <button class="ghost" name="do" value="first">Move to start</button>
       <button class="ghost" name="do" value="last">Move to end</button>
-      {{if $.Albums}}<span class="send-row"><select name="to" aria-label="Album to move them to">{{range $.Albums}}<option value="{{.ID}}">{{.Title}}</option>{{end}}</select><button class="ghost" name="do" value="move">Move to album</button></span>{{end}}
-      <span class="send-row"><input name="by" maxlength="100" placeholder="Photographer’s name" aria-label="Photographer’s name"><button class="ghost" name="do" value="credit">Set credit</button></span>
+      {{if $.Albums}}<span class="wrap-row"><select name="to" aria-label="Album to move them to">{{range $.Albums}}<option value="{{.ID}}">{{.Title}}</option>{{end}}</select><button class="ghost" name="do" value="move">Move to album</button></span>{{end}}
+      <span class="wrap-row"><input name="by" maxlength="100" placeholder="Photographer’s name" aria-label="Photographer’s name"><button class="ghost" name="do" value="credit">Set credit</button></span>
       <button class="ghost danger" name="do" value="remove" onclick="return confirm('Take the ticked photos out of the gallery? Photos members shared can be approved again from Photos to review.')">{{icon "trash"}}Take out</button>
     </div>
-    <div class="gal-tools-go ticked-acts" id="to-newsletter">{{if $.Issues}}<span class="send-row"><select name="issue" aria-label="Newsletter issue">{{range $.Issues}}<option value="{{.ID}}">{{.Label}}{{if not .IsPublished}} (draft){{end}}</option>{{end}}</select><button class="ghost" name="do" value="newsletter">{{icon "plus"}}Add to newsletter</button></span>
+    <div class="gal-tools-go ticked-acts" id="to-newsletter">{{if $.Issues}}<span class="wrap-row"><select name="issue" aria-label="Newsletter issue">{{range $.Issues}}<option value="{{.ID}}">{{.Label}}{{if not .IsPublished}} (draft){{end}}</option>{{end}}</select><button class="ghost" name="do" value="newsletter">{{icon "plus"}}Add to newsletter</button></span>
       {{else}}<a class="small" href="/admin/newsletter">Start a newsletter issue</a>{{end}}</div>
   </div>
   <div class="sent-grid album-grid">{{range $al.Photos}}<div class="sent-photo{{if $al.Ticked .ID}} on{{end}}" draggable="true" data-id="{{.ID}}" data-framed>
@@ -1399,8 +1399,8 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
 </form>{{else}}<p class="empty">No photos yet.</p>{{end}}
 <details class="card album-delete">
   <summary>{{icon "trash"}}Delete this album</summary>
-  <form method="post" action="/admin/gallery/{{$al.ID}}" class="gal-tools" onsubmit="return confirm('Delete this album? This can’t be undone.')">
-    <label>Its photos <select name="move_to" required>{{if $al.Photos}}<option value="">Choose…</option>{{range $.Albums}}<option value="{{.ID}}">Move them to “{{.Title}}”</option>{{end}}<option value="0">Delete them too</option>{{else}}<option value="0">(none)</option>{{end}}</select></label>
+  <form method="post" action="/admin/gallery/{{$al.ID}}" class="field-row gal-tools" onsubmit="return confirm('Delete this album? This can’t be undone.')">
+    <label class="field">Its photos <select name="move_to" required>{{if $al.Photos}}<option value="">Choose…</option>{{range $.Albums}}<option value="{{.ID}}">Move them to “{{.Title}}”</option>{{end}}<option value="0">Delete them too</option>{{else}}<option value="0">(none)</option>{{end}}</select></label>
     <div><button class="ghost danger" name="do" value="delete">{{icon "trash"}}Delete album</button></div>
   </form>
 </details>
@@ -1542,15 +1542,15 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
   {{with .Note}}<p class="sent-done" role="status">{{icon "check"}}<span>{{.Text}}{{if .Undo}} <button class="link" name="undo" value="{{.Undo}}" formnovalidate>Undo</button>{{end}}{{range .Links}} · <a href="{{.Href}}">{{.Label}}</a>{{end}}</span></p>{{end}}
   <p class="sent-who"><strong>{{$b.Name}}</strong>{{with $b.Email}} · <a href="mailto:{{.}}">{{.}}</a>{{end}} · <span class="muted">{{datetime $b.Submitted}}</span>{{if $b.New}} <span class="tag">New</span>{{end}}{{if $b.ViaPIN}} <span class="tag">Posted with the PIN</span>{{end}}</p>
   {{with $b.Note}}<p class="sent-note">{{.}}</p>{{end}}
-  {{if $b.Waiting}}<div class="sent-tags">
-    <div class="sent-album">
-      <label>Album <select name="album-{{$b.Batch}}">
+  {{if $b.Waiting}}<div class="field-row">
+    <div class="field-row sent-album">
+      <label class="field">Album <select name="album-{{$b.Batch}}">
         <option value="new"{{if not $b.Album}} selected{{end}}>New album…</option>
         {{range .Albums}}<option value="{{.ID}}"{{if eq .ID $b.Album}} selected{{end}}>{{.Title}}</option>{{end}}
       </select></label>
-      <label class="sent-album-name">New album’s name <input name="name-{{$b.Batch}}" maxlength="80" value="{{$b.AlbumName}}" placeholder="Like Halloween Ride"></label>
+      <label class="field sent-album-name">New album’s name <input name="name-{{$b.Batch}}" maxlength="80" value="{{$b.AlbumName}}" placeholder="Like Halloween Ride"></label>
     </div>
-    <label>Photos by <input name="by-{{$b.Batch}}" value="{{$b.Name}}" maxlength="100"></label>
+    <label class="field">Photos by <input name="by-{{$b.Batch}}" value="{{$b.Name}}" maxlength="100"></label>
   </div>{{end}}
   <div class="sent-grid">{{range $b.Photos}}<div class="sent-photo{{if not .Status}} on{{end}}">
     {{if .Status}}<img src="/admin/submitted/{{.ID}}/photo" alt="Photo shared by {{.Name}}" loading="lazy">
@@ -1589,7 +1589,7 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
 </table></div>
 <form class="card new-issue" method="post" action="/admin/newsletter">
   <h2>Start a new draft</h2>
-  <div class="send-row">
+  <div class="wrap-row">
     <label class="inline-label">Month <select name="month">{{range .Months}}<option value="{{.N}}"{{if eq .N $.NewMonth}} selected{{end}}>{{.Name}}</option>{{end}}</select></label>
     <label class="inline-label">Year <input type="number" name="year" value="{{.NewYear}}" min="2000" max="2100" class="year"></label>
     <button>{{icon "plus"}}Start draft</button>
@@ -1617,7 +1617,7 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
 <form class="issue" method="post" action="/admin/newsletter/{{$is.ID}}" enctype="multipart/form-data">
   <section class="card">
     <h2>Cover</h2>
-    <div class="send-row">
+    <div class="wrap-row">
       <label class="inline-label">Month <select name="month">{{range .Months}}<option value="{{.N}}"{{if eq .N $is.Month}} selected{{end}}>{{.Name}}</option>{{end}}</select></label>
       <label class="inline-label">Year <input type="number" name="year" value="{{$is.Year}}" min="2000" max="2100" class="year"></label>
     </div>
@@ -1632,7 +1632,7 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
 
   <section class="card add-block">
     <h2>Add a block</h2>
-    <div class="send-row">
+    <div class="wrap-row">
       <select id="add-kind" aria-label="Kind of block">{{range blockKinds}}<option value="{{.Kind}}">{{.Name}}</option>{{end}}</select>
       <button type="button" class="ghost" id="add-block">{{icon "plus"}}Add</button>
     </div>
@@ -1676,12 +1676,12 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   {{if not .Live}}<p class="flash warn">Test mode: emails go to the server log.</p>{{end}}
   <form class="issue-email-form" method="post" action="/admin/newsletter/{{$is.ID}}/email-send">
     <label>Subject <input name="subject" maxlength="200" value="{{issueSubject $is}}"></label>
-    <div class="send-row">
+    <div class="wrap-row">
       <input type="email" name="test_to" value="{{.TestTo}}" aria-label="Send the test to">
       <button class="ghost" formaction="/admin/newsletter/{{$is.ID}}/email-test">{{icon "mail"}}Send a test</button>
       <button type="button" class="link issue-email-preview">{{icon "eye"}}Preview</button>
     </div>
-    <div class="send-row">
+    <div class="wrap-row">
       {{if $is.IsPublished}}<label class="inline-label">Send to <select name="audience">{{range .Audiences}}<option value="{{.Value}}">{{.Label}}</option>{{end}}</select></label>
       <button onclick="return confirm('Email the {{$is.Label}} newsletter to: '+this.form.audience.selectedOptions[0].text+'?{{with .IssueSends}} It was already emailed {{len .}} time{{if gt (len .) 1}}s{{end}}.{{end}}')">{{icon "send"}}Send to members</button>
       {{end}}
@@ -1900,7 +1900,7 @@ document.querySelectorAll('.copy-link').forEach(function(b){b.addEventListener('
   <p>Connected{{with .Username}} to <strong>@{{.}}</strong>{{end}} through Behold.</p>
   <p class="small">{{with .LastSync}}Last checked {{datetime .}}.{{end}} {{with .LastResult}}{{.}}.{{end}} Feed: <span class="muted">{{.Feed}}</span></p>
   {{with .LastError}}<p class="flash err">The last check didn’t work: {{.}}</p>{{end}}
-  <div class="send-row">
+  <div class="wrap-row">
     <form method="post" action="/admin/instagram/sync"><button>Check now</button></form>
     <form method="post" action="/admin/instagram/disconnect" onsubmit="return confirm('Remove the Instagram feed? The home page goes back to Instagram’s embed for picked posts.')"><button class="link danger">Remove feed</button></form>
   </div>
@@ -1944,7 +1944,7 @@ document.querySelectorAll('.copy-link').forEach(function(b){b.addEventListener('
   <p>Connected as <strong>{{.Athlete}}</strong>.</p>
   <p class="small">{{with .LastSync}}Last checked {{datetime .}}.{{end}} {{with .LastResult}}{{.}}.{{end}}</p>
   {{with .LastError}}<p class="flash err">The last import didn’t work: {{.}}</p>{{end}}
-  <div class="send-row">
+  <div class="wrap-row">
     <form method="post" action="/admin/strava/sync"><button>Import now</button></form>
     <form method="post" action="/admin/strava/disconnect" onsubmit="return confirm('Stop importing Strava events? Events already on the calendar stay.')"><button class="link danger">Disconnect</button></form>
   </div>
@@ -2178,7 +2178,7 @@ document.querySelectorAll('.copy-link').forEach(function(b){b.addEventListener('
   </div></div>
   <button>{{if $f.New}}{{icon "plus"}}Add to the calendar{{else}}{{icon "save"}}Save changes{{end}}</button>
 </form>
-{{if and (not $f.New) (not $f.IsRide)}}<form method="post" action="/admin/rides/{{$f.Key}}/newsletter" class="card send-row event-news">
+{{if and (not $f.New) (not $f.IsRide)}}<form method="post" action="/admin/rides/{{$f.Key}}/newsletter" class="card wrap-row event-news">
   <strong>In the newsletter</strong>
   {{if $.Issues}}<select name="issue" aria-label="Newsletter issue">{{range $.Issues}}<option value="{{.ID}}">{{.Label}}{{if not .IsPublished}} (draft){{end}}</option>{{end}}</select>
   <button class="ghost">{{icon "plus"}}Add to newsletter</button>
@@ -2191,7 +2191,7 @@ document.querySelectorAll('.copy-link').forEach(function(b){b.addEventListener('
     <td class="right row-acts"><form method="post" action="/admin/rides/{{$f.Key}}/riders/{{.ID}}/remove" class="inline"><button class="link danger">{{icon "x"}}Remove</button></form></td></tr>{{end}}
   </tbody></table>
 </section>{{end}}{{end}}
-{{if not $f.New}}<div class="send-row footnote">
+{{if not $f.New}}<div class="wrap-row footnote">
   <form method="post" action="/admin/rides/{{$f.Key}}/cancel" class="inline ride-status-form"><input name="note" maxlength="120" value="{{$f.StatusNote}}" placeholder="Note" aria-label="Note" title="Shown with On or Cancelled">{{if $f.Cancelled}}<button class="ghost" name="status" value="open">{{icon "undo"}}Put it back on the calendar</button>{{else}}<button class="ghost" name="status" value="on">{{icon "check"}}{{if $f.On}}On{{else}}Mark as on{{end}}</button><button class="ghost" name="status" value="cancel" onclick="return confirm('Cancel {{$f.Name}} on {{$f.DateLabel}}? The club will be emailed.')">{{icon "ban"}}Cancel this {{$f.Noun}}</button>{{end}}</form>
   {{if $f.Custom}}<form method="post" action="/admin/rides/{{$f.Key}}/delete" class="inline" onsubmit="return confirm('Delete {{$f.Name}} for good? To keep it on the calendar as cancelled, use Cancel instead.')"><button class="link danger">{{icon "trash"}}Delete this {{$f.Noun}}</button></form>{{end}}
 </div>{{end}}
@@ -2444,7 +2444,7 @@ t.addEventListener('input',function(){if(!own)a.value=t.value.toLowerCase().repl
       <div class="preview-box"><iframe id="preview" title="Preview of the page" sandbox="allow-same-origin"></iframe></div>
     </div>
   </div>
-  <div class="send-row"><button>{{icon "save"}}Save</button><span class="muted small" id="save-state" role="status"></span></div>
+  <div class="wrap-row"><button>{{icon "save"}}Save</button><span class="muted small" id="save-state" role="status"></span></div>
 </form>
 <dialog id="link-box" class="card">
   <form method="dialog">
@@ -2456,7 +2456,7 @@ t.addEventListener('input',function(){if(!own)a.value=t.value.toLowerCase().repl
     <label class="check"><input type="radio" name="link-kind" value="web"> Another website or an email address</label>
     <input id="link-url" inputmode="url" autocomplete="off" placeholder="https://www.example.com" aria-label="Web address">
     <label class="check" id="link-button-row"><input type="checkbox" id="link-button"> Show it as a big button</label>
-    <div class="send-row"><button value="ok">{{icon "check"}}Add link</button><button value="" class="link">Cancel</button></div>
+    <div class="wrap-row"><button value="ok">{{icon "check"}}Add link</button><button value="" class="link">Cancel</button></div>
   </form>
 </dialog>
 {{if .Page.New}}<form class="footnote" method="post" action="/admin/pages/{{.Page.File}}/delete" onsubmit="return confirm('Delete the {{.Page.Title}} page? It comes off the website, and this can’t be undone.')"><button class="link danger">{{icon "trash"}}Delete this page</button></form>

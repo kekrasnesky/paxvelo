@@ -190,6 +190,14 @@ func (s *Store) SetSeenGuide(id int) {
 }
 
 func (a *App) attentionPage(w http.ResponseWriter, r *http.Request) {
+	if inApp(r) { // the app's home is its own (adminapp.go); ok=/err= go along
+		to := adminAppPath
+		if r.URL.RawQuery != "" {
+			to += "?" + r.URL.RawQuery
+		}
+		http.Redirect(w, r, to, http.StatusSeeOther)
+		return
+	}
 	u, _ := a.currentAdmin(r)
 	d := dashboardView{
 		Items: withReturn(a.attentionItems(r), "/admin"), SetupLogin: u.ID == 0, Intro: a.showIntro(r),

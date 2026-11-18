@@ -460,7 +460,7 @@ func (a *App) routes() http.Handler {
 	mux.Handle("POST /admin/newsletter/{id}/email", a.boardOnly(a.emailIssue))
 
 	mux.HandleFunc("/", a.site.serveAny)
-	return secureHeaders(mux, a.site.csp)
+	return secureHeaders(a.appFrame(mux), a.site.csp)
 }
 
 // slowUpload is how long a request that carries files may take.

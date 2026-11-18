@@ -80,10 +80,10 @@ document.querySelectorAll('form.auto-pause').forEach(function(f){f.addEventListe
       <span class="pick-name">{{.Name}} <span class="muted small">{{.Email}}</span></span>
       {{if .Sent}}<span class="tag" title="Already sent">{{icon "check"}}Sent</span>{{end}}{{if not .Paid}}<span class="tag tag-warn">Not paid</span>{{end}}</label></li>
     {{else}}<li class="muted">No members yet.</li>{{end}}</ul>
-    <div class="send-row"><button class="pick-go" disabled>{{icon "send"}}Send to&nbsp;<span class="pick-n">0</span></button><button type="button" class="link" data-close>Cancel</button></div>
+    <div class="wrap-row"><button class="pick-go" disabled>{{icon "send"}}Send to&nbsp;<span class="pick-n">0</span></button><button type="button" class="link" data-close>Cancel</button></div>
   </form>{{end}}
   {{if not .Fixed}}<div class="auto-body" hidden>
-    <dl class="auto-facts">
+    <dl class="facts">
       <div><dt>When</dt><dd>{{.When}}</dd></div>
       <div><dt>Goes to</dt><dd>{{.Who}}</dd></div>
       <div><dt>Subject</dt><dd>{{.Subject}}</dd></div>
@@ -100,7 +100,7 @@ document.querySelectorAll('form.auto-pause').forEach(function(f){f.addEventListe
   {{if $f.Custom}}<div class="auto-setup">
     <label>Name <input name="name" required maxlength="80" value="{{$f.Name}}" placeholder="Dues reminder"></label>
     <fieldset class="auto-when"><legend>When it goes</legend>
-      <div class="when-row">
+      <div class="wrap-row">
         <input type="number" name="days" min="0" max="365" value="{{$f.Days}}" aria-label="Days" class="when-days">
         <span class="when-word">days after</span>
         <select name="trigger" aria-label="What happens">{{range $.Auto.Triggers}}<option value="{{.Key}}" data-before="{{.Before}}" data-help="{{.Help}}"{{if eq .Key $f.Trigger}} selected{{end}}>{{.Label}}</option>{{end}}</select>
@@ -123,7 +123,7 @@ document.querySelectorAll('form.auto-pause').forEach(function(f){f.addEventListe
       {{range riderLevels}}<label>{{.Label}} <textarea name="tips_{{.Value}}" rows="5">{{$.Welcome.Tip .Value}}</textarea></label>
       {{end}}
     </fieldset></details>{{end}}
-  <div class="send-row mail-save">
+  <div class="wrap-row mail-save">
     <button>{{icon "save"}}Save</button>
     <span class="test-to"><input type="email" name="test_to" value="{{.TestTo}}" aria-label="Send test to"><button type="button" class="ghost auto-test">{{icon "mail"}}Send test</button></span>
     <span class="muted small auto-test-state" role="status"></span>

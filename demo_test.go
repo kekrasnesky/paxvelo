@@ -116,7 +116,7 @@ func TestDemoClubAdminPages(t *testing.T) {
 			rideKey = occOf(c).Key
 		}
 	}
-	pages := []string{"/admin", "/admin/app", "/admin/members", "/admin/members/1", "/admin/members/2", "/admin/waivers",
+	pages := []string{"/admin", "/admin/app", "/admin/members", "/admin/members/1", "/admin/members/2", "/admin/waivers", "/admin/waivers/1",
 		"/admin/rides", "/admin/calendar", "/admin/rides/new", "/admin/rides/" + rideKey, "/admin/weekly/1", "/admin/loaners",
 		"/admin/rsvp", "/admin/rsvp/1", "/admin/email", "/admin/email/auto", "/admin/email/log", "/admin/email/alerts",
 		"/admin/newsletter", "/admin/gallery", "/admin/submitted", "/admin/pages", "/admin/home-photos", "/admin/board",
@@ -127,12 +127,44 @@ func TestDemoClubAdminPages(t *testing.T) {
 	if p := do(t, h, admin, "GET", "/admin/rides/new", "", nil).Body.String(); !strings.Contains(p, "data-starts=") || !strings.Contains(p, "18:00") {
 		t.Error("Add a ride should start from the weekly rides")
 	}
+	if p := do(t, h, admin, "GET", "/admin/submitted", "", nil).Body.String(); !strings.Contains(p, "Rest stop at mile 50") || !strings.Contains(p, `class="field-row sent-album"`) {
+		t.Error("the demo's shared photos should wait on the review page")
+	}
+	if w := do(t, h, admin, "GET", "/admin/submitted/1/photo", "", nil); w.Code != http.StatusOK || !strings.HasPrefix(w.Header().Get("Content-Type"), "image/jpeg") {
+		t.Errorf("demo shared photo: %d %s", w.Code, w.Header().Get("Content-Type"))
+	}
 	if p := do(t, h, admin, "GET", "/admin/app/search?q=tuesday", "", nil).Body.String(); !strings.Contains(p, "Tuesday Night Ride") {
 		t.Error("the admin app's search should find the demo's rides")
 	}
 	for _, p := range pages {
 		if w := do(t, h, admin, "GET", p, "", nil); w.Code != http.StatusOK {
 			t.Errorf("%s: %d", p, w.Code)
+		}
+	}
+
+	// Every screen again inside the admin app (appframe.go): the server
+	// draws the app's Home bar in place of the menu bar, and Home is the
+	// app's own.
+	app := &http.Cookie{Name: appCookie, Value: "1"}
+	for _, p := range pages {
+		desk := do(t, h, admin, "GET", p, "", nil).Body.String()
+		w := doCookies(t, h, "GET", p, admin, app)
+		if p == "/admin" {
+			if loc := w.Header().Get("Location"); w.Code != http.StatusSeeOther || loc != adminAppPath {
+				t.Errorf("app opening /admin: %d %q, want the app home", w.Code, loc)
+			}
+			continue
+		}
+		if w.Code != http.StatusOK {
+			t.Errorf("app opening %s: %d", p, w.Code)
+			continue
+		}
+		page := w.Body.String()
+		if strings.Contains(page, `<header class="bar"`) {
+			t.Errorf("app opening %s: still draws the menu bar", p)
+		}
+		if strings.Contains(desk, `<header class="bar"`) && !strings.Contains(page, `class="app-top" href="/admin/app"`) {
+			t.Errorf("app opening %s: no Home bar", p)
 		}
 	}
 
@@ -177,6 +209,18 @@ func TestDemoClubAdminPages(t *testing.T) {
 			}
 		}
 	}
+}
+
+// doCookies is do with several cookies and no body.
+func doCookies(t *testing.T, h http.Handler, method, path string, cs ...*http.Cookie) *httptest.ResponseRecorder {
+	t.Helper()
+	r := httptest.NewRequest(method, path, nil)
+	for _, c := range cs {
+		r.AddCookie(c)
+	}
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, r)
+	return w
 }
 
 // routeLevels reads main.go and returns, for a method and path, the wrapper

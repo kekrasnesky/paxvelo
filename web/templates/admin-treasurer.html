@@ -100,7 +100,7 @@
     {{if not $f.ID}}<button class="money-go">{{icon "plus"}}Add</button>{{end}}
   </div>
   {{if $f.Receipt}}<div class="money-has-receipt">{{template "money-receipt" $f}}<label class="check"><input type="checkbox" name="drop_receipt"> Remove this receipt</label></div>{{end}}
-  {{if $f.ID}}<div class="send-row"><button>{{icon "save"}}Save</button><a class="btn ghost" href="/admin/treasurer{{if $in}}/income{{end}}?year={{$m.Year}}">Cancel</a></div>{{end}}
+  {{if $f.ID}}<div class="wrap-row"><button>{{icon "save"}}Save</button><a class="btn ghost" href="/admin/treasurer{{if $in}}/income{{end}}?year={{$m.Year}}">Cancel</a></div>{{end}}
 </form>{{if not $f.ID}}</details>{{end}}{{end}}
 
 {{define "money-form-js"}}<script>
@@ -204,9 +204,9 @@ document.querySelectorAll('.money-form select[name=category]').forEach(function(
   </div>
 </div>
 {{with $m.RemovedR}}<form class="flash warn undo-flash" method="post" action="/admin/treasurer/reports/{{.}}/restore">Removed. <button class="link">{{icon "undo"}}Undo</button></form>{{end}}
-{{with $m.SavedOne}}<p class="saved-note no-print">{{icon "calendar"}}<span>Meeting of {{.MeetingLabel}}{{with .SavedBy}} · saved by {{.}}{{end}}</span> <a href="/admin/treasurer/reports">Today’s numbers</a></p>{{end}}
+{{with $m.SavedOne}}<p class="box wrap-row saved-note no-print">{{icon "calendar"}}<span>Meeting of {{.MeetingLabel}}{{with .SavedBy}} · saved by {{.}}{{end}}</span> <a href="/admin/treasurer/reports">Today’s numbers</a></p>{{end}}
 {{template "money-report-table" $m.Report}}
-{{if not $m.SavedOne}}<form class="save-meeting no-print" method="post" action="/admin/treasurer/reports">
+{{if not $m.SavedOne}}<form class="wrap-row save-meeting no-print" method="post" action="/admin/treasurer/reports">
   <input type="hidden" name="through" value="{{$m.Through}}">
   <label class="inline-label">Meeting <input type="date" name="meeting" value="{{$m.Meeting}}" required></label>
   <button class="ghost">{{icon "save"}}Save for the meeting</button>

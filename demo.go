@@ -3,8 +3,8 @@ package main
 // A made-up club for trying the site on a computer: `go run . -demo` fills an
 // empty DATA_DIR with members in every state, rides (weekly, one-off,
 // waiting, virtual, community, an event), riders, an invitation with
-// answers, a loaner request, treasurer lines and a spending request, so
-// every admin screen has something on it. Names are invented and every
+// answers, a loaner request, treasurer lines, a spending request and two shared
+// photos, so every admin screen has something on it. Names are invented and every
 // address is at example.com, which can't receive mail.
 //
 // It refuses to touch a data folder that holds anything but a demo club, to
@@ -12,8 +12,13 @@ package main
 // so it can't reach real members or send real email.
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"image"
+	"image/color"
+	"image/draw"
+	"image/jpeg"
 	"os"
 	"path/filepath"
 	"time"
@@ -115,6 +120,14 @@ func seedDemo(s *Store, loc *time.Location) error {
 		}
 	}
 
+	// A signed waiver with a long name and email, for the signed copy's page.
+	if theo, ok := s.MemberByEmail(mail("theodora.montgomery-fitzwilliam.cycling")); ok {
+		text := waiverText{HTML: "<p>Made-up waiver text for the demo club.</p>", Version: "demo"}
+		if _, _, err := s.SignWaiver(Waiver{MemberID: theo.ID, Year: year, Signature: theo.Name, Where: "Join form", IP: "127.0.0.1"}, text); err != nil {
+			return err
+		}
+	}
+
 	// Rides: two weekly ones, then a fortnight of one-offs in every state.
 	if _, err := s.AddSeries(RideSeries{Name: "Tuesday Night Ride", Weekday: 2, Time: "18:00", Place: "Leonardtown Square", Groups: []string{"A group", "B group"}, Details: "Two pace groups, regroup at the church."}); err != nil {
 		return err
@@ -195,7 +208,31 @@ func seedDemo(s *Store, loc *time.Location) error {
 	if _, err := s.AddSpendRequest(SpendRequest{Kind: reqReport, Date: day(-1), Cents: 4599, Category: "Club Rides & Promotional Items", What: "Snacks for the first-timer welcome ride", By: "Sam Ritter", ByEmail: mail("sam"), Status: reqWaiting}); err != nil {
 		return err
 	}
-	if _, err := s.AddAlbum("Fall Century 2026", day(-40)); err != nil {
+	album, err := s.AddAlbum("Fall Century 2026", day(-40))
+	if err != nil {
+		return err
+	}
+
+	// Two photos sent in for that album, waiting to be looked at.
+	dir := filepath.Join(filepath.Dir(s.path), "submitted")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	var shared []SubmittedPhoto
+	for i, c := range []color.RGBA{{0x4a, 0x7a, 0x5c, 0xff}, {0xc8, 0x8a, 0x3a, 0xff}} {
+		img := image.NewRGBA(image.Rect(0, 0, 640, 480))
+		draw.Draw(img, img.Bounds(), &image.Uniform{c}, image.Point{}, draw.Src)
+		var b bytes.Buffer
+		if err := jpeg.Encode(&b, img, nil); err != nil {
+			return err
+		}
+		name := fmt.Sprintf("demo-%d.jpg", i+1)
+		if err := os.WriteFile(filepath.Join(dir, name), b.Bytes(), 0o644); err != nil {
+			return err
+		}
+		shared = append(shared, SubmittedPhoto{File: name, Caption: []string{"Rest stop at mile 50", ""}[i]})
+	}
+	if _, err := s.AddSubmitted(shared, SubmittedPhoto{Name: "Priya Natarajan", Email: mail("priya"), Note: "From the century", Album: album.ID, Date: day(-40)}); err != nil {
 		return err
 	}
 	return nil

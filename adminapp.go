@@ -12,9 +12,9 @@ import (
 // admin page, it gets its own name and a black icon (so it isn't mixed up
 // with the club's app) and opens on /admin/app: big buttons for the screens
 // used most, each with a count of what's waiting there, under a list of what
-// needs this admin. Inside the app (display-mode: standalone) every admin
-// screen swaps the website's menu bar for a Home button back to the buttons;
-// in a browser nothing changes.
+// needs this admin. Its start URL sets the app cookie (appframe.go), so every
+// admin screen it opens draws a Home bar back to the buttons in place of the
+// website's menu bar; in a browser nothing changes.
 
 const adminAppPath = "/admin/app"
 
@@ -160,14 +160,14 @@ func (a *App) adminManifest(w http.ResponseWriter, r *http.Request) {
 		Shortcuts  []shortcut `json:"shortcuts"`
 	}{
 		ID: adminAppPath, Name: siteName + " Admin", ShortName: "PV Admin",
-		StartURL: adminAppPath, Scope: "/admin", Display: "standalone", Background: "#f5f2ec", Theme: "#2d2d2d",
+		StartURL: adminAppPath + "?app=1", Scope: "/admin", Display: "standalone", Background: "#f5f2ec", Theme: "#2d2d2d",
 		Icons: []icon{
 			{"/static/img/admin-192.png", "192x192", "image/png", "any"},
 			{"/static/img/admin-512.png", "512x512", "image/png", "any"},
 			{"/static/img/admin-192.png", "192x192", "image/png", "maskable"},
 			{"/static/img/admin-512.png", "512x512", "image/png", "maskable"},
 		},
-		Shortcuts: []shortcut{{"Calendar", "/admin/calendar"}, {"Members", "/admin/members"}, {"Requests", requestsPath}},
+		Shortcuts: []shortcut{{"Calendar", "/admin/calendar?app=1"}, {"Members", "/admin/members?app=1"}, {"Requests", requestsPath + "?app=1"}},
 	}
 	w.Header().Set("Content-Type", "application/manifest+json")
 	w.Header().Set("Cache-Control", "public, max-age=86400")

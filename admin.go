@@ -30,6 +30,7 @@ type adminView struct {
 	IsBoard                           bool   // on the board or president (permissions.go)
 	IsPresident                       bool   // the president or the setup password
 	Nav                               adminNav
+	InApp                             bool           // the admin app's frame: its Home bar, not the menu bar (appframe.go)
 	Dashboard                         *dashboardView // Home
 	App                               *adminAppView  // the admin phone app's home (adminapp.go)
 	Guide                             *guideView     // the How the site works page
@@ -239,6 +240,7 @@ func (a *App) renderAdmin(w http.ResponseWriter, r *http.Request, status int, na
 	v.Me, _ = a.adminName(r)
 	v.IsBoard, v.IsPresident = a.isBoard(r), a.level(r) == levelPresident
 	v.MovedOn = !a.store.BuiltinRemoved("moved")
+	v.InApp = inApp(r)
 	if name == "ride" || name == "series" || name == "rides" {
 		v.ClubRoutes = a.store.ClubRoutes() // the Route box's list (rideroute.go)
 	}

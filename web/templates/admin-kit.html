@@ -97,7 +97,7 @@
     <label>Member price <span class="money-in"><span aria-hidden="true">$</span><input name="member_price" inputmode="decimal" autocomplete="off" value="{{if .MemberPrice}}{{moneyInput .MemberPrice}}{{end}}"></span></label>
     <label>Regular price <span class="money-in"><span aria-hidden="true">$</span><input name="price" inputmode="decimal" autocomplete="off" value="{{if .Price}}{{moneyInput .Price}}{{end}}"></span></label>
   </div>
-  <div class="kit-photo-row">
+  <div class="wrap-row kit-photo-row">
     {{with .Photo}}<img src="{{.}}" alt="" width="80" height="80"><label class="check"><input type="checkbox" name="photo_remove" value="1"> Remove photo</label>{{end}}
     <label>{{if .Photo}}New photo{{else}}Photo{{end}} <input type="file" name="photo" accept="image/*"></label>
   </div>
