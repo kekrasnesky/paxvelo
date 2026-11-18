@@ -205,7 +205,6 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("GET /calendar", a.calendarPage)
 	mux.HandleFunc("GET /calendar/feed.ics", a.calendarFeed)
 	mux.HandleFunc("GET /calendar/subscribe", a.subscribePage)
-	mux.HandleFunc("GET /routes", a.routesPage)
 	mux.HandleFunc("GET /calendar/new", a.newRidePage)
 	mux.HandleFunc("POST /calendar/new", a.addRide)
 	mux.HandleFunc("GET /calendar/ride/{key}", a.ridePage)

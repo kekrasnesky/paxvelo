@@ -46,7 +46,7 @@ func TestCommunityRide(t *testing.T) {
 		t.Error("loaner bikes are for club rides only")
 	}
 	page := do(t, h, nil, "GET", "/calendar/ride/"+mtb.Key, "", nil).Body.String()
-	for _, bad := range []string{"Borrow a club bike", "/qr/ride-waiver", "First club ride"} {
+	for _, bad := range []string{"Borrow a club bike", "/qr/ride-waiver", "First club ride", "<h2>Ride leader", "/lead\""} {
 		if strings.Contains(page, bad) {
 			t.Errorf("community ride page has %q", bad)
 		}

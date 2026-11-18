@@ -571,7 +571,7 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
   <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Last login</th><th>Added</th><th><span class="sr">Actions</span></th></tr></thead>
   <tbody>
   {{range .Admins}}<tr>
-    <td data-label="Name">{{.Name}}{{if .President}} <span class="tag tag-pres">President</span>{{end}}{{with index $.AdminRoles .ID}} <a class="tag" href="/admin/board" title="Website → Board">{{.}}</a>{{else}}{{if not .President}} <span class="tag" title="Rides, ride emails, photos, minutes, own expenses">Website admin</span>{{end}}{{end}}{{if eq .ID $.Account.ID}} <span class="tag">You</span>{{end}}</td>
+    <td data-label="Name">{{.Name}}{{if .President}} <span class="tag tag-pres">President</span>{{end}}{{with index $.AdminRoles .ID}} {{if $.IsBoard}}<a class="tag" href="/admin/board" title="Website → Board">{{.}}</a>{{else}}<span class="tag">{{.}}</span>{{end}}{{else}}{{if not .President}} <span class="tag" title="Rides, ride emails, photos, minutes, own expenses">Website admin</span>{{end}}{{end}}{{if eq .ID $.Account.ID}} <span class="tag">You</span>{{end}}</td>
     <td class="email" data-label="Email"><a href="mailto:{{.Email}}">{{.Email}}</a>{{with .PayPal}}<br><span class="muted small">PayPal {{.}}</span>{{end}}</td>
     <td data-label="Status">{{if .HasPassword}}<span class="paid">Active</span>{{else}}Invited, no password yet{{end}}</td>
     <td data-label="Last login">{{with .LastLogin}}<span class="nowrap">{{date .}}</span><br><span class="muted small">{{clock .}}</span>{{else}}<span class="muted">Never</span>{{end}}</td>
@@ -653,7 +653,7 @@ document.querySelectorAll('[data-strava-preview]').forEach(function(inp){
   <h3>Signed up, not marked paid yet</h3>
   {{if .Signups}}<ul class="signups">{{range .Signups}}<li>
     <span><strong>{{.Name}}</strong><br><span class="muted small">{{.PlanName}} · joined {{date .Joined}}{{if .Unconfirmed}} · email not confirmed{{end}}</span></span>
-    <form method="post" action="/admin/members/{{.ID}}/paid"><input type="hidden" name="paid" value="1"><input type="hidden" name="return" value="/admin"><button class="mini">{{icon "check"}}Mark paid</button></form>
+    {{if $.IsBoard}}<form method="post" action="/admin/members/{{.ID}}/paid"><input type="hidden" name="paid" value="1"><input type="hidden" name="return" value="/admin"><button class="mini">{{icon "check"}}Mark paid</button></form>{{end}}
   </li>{{end}}</ul>
   {{with .MoreSignups}}<p class="small"><a href="/admin/members?dues=unpaid">{{.}} more on the unpaid list</a></p>{{end}}
   {{else}}<p class="muted small">Nobody.</p>{{end}}
@@ -1871,7 +1871,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   {{end}}
   </tbody>
 </table></div>
-<form class="card new-issue" method="post" action="/admin/minutes" enctype="multipart/form-data">
+{{if .IsBoard}}<form class="card new-issue" method="post" action="/admin/minutes" enctype="multipart/form-data">
   <h2>Upload minutes</h2>
   <div class="pair">
     <label>Meeting title <input name="title" maxlength="100" placeholder="Monthly club meeting"></label>
@@ -1880,7 +1880,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
   <label>Short summary (optional) <textarea name="summary" rows="3" maxlength="600" placeholder="Approved the 2027 ride calendar and the new kit order."></textarea></label>
   <label>Minutes file <input type="file" name="file" accept=".pdf,.docx,application/pdf" required></label>
   <button>{{icon "upload"}}Upload</button>
-</form>
+</form>{{end}}
 <script>
 // Copy link: the meeting's place on the public Minutes page, ready to paste into an email.
 document.querySelectorAll('.copy-link').forEach(function(b){b.addEventListener('click',function(){var u=b.dataset.copy,label=b.lastChild;
@@ -2968,7 +2968,7 @@ try{if(localStorage.getItem('pagePreview')==='0')showPreview(false)}catch(e){}
 
 {{define "board"}}{{template "head" .}}
 <div class="title-row"><h1>Board members</h1></div>
-<form class="issue" method="post" action="/admin/board" enctype="multipart/form-data">
+{{if .IsPresident}}<form class="issue" method="post" action="/admin/board" enctype="multipart/form-data">{{else}}<div class="issue"><fieldset disabled>{{end}}
   <input type="hidden" name="count" value="{{len .Board}}">
   {{range $i, $m := .Board}}<section class="card">
     <h2>{{if $m.Name}}{{$m.Name}}{{else}}Add a board member{{end}}</h2>
@@ -2985,8 +2985,8 @@ try{if(localStorage.getItem('pagePreview')==='0')showPreview(false)}catch(e){}
       </div>
     </div>
   </section>{{end}}
-  {{if .IsPresident}}<div class="save-bar"><button>{{icon "save"}}Save</button></div>{{end}}
-</form>
+  {{if .IsPresident}}<div class="save-bar"><button>{{icon "save"}}Save</button></div>
+</form>{{else}}</fieldset></div>{{end}}
 <datalist id="board-roles"><option value="President"><option value="Vice President"><option value="Treasurer"><option value="Secretary"><option value="Member at Large"></datalist>
 <script>
 // Picking a member fills in the name shown on the page, when it's empty.
@@ -3216,7 +3216,7 @@ document.querySelectorAll('[data-board]').forEach(function(box){
 <h2 class="section" id="g-rides">Where the rides come from</h2>
 <figure class="board">
       <div class="surface">
-        <svg viewBox="0 0 960 400" role="img" aria-label="Rides reach the calendar three ways: Strava club events imported hourly, weekly Tuesday and Thursday rides set up by admins, and rides riders add on the website, which wait for approval unless the rider typed the club PIN. The calendar feeds the calendar page, the newsletter and the Club Routes page.">
+        <svg viewBox="0 0 960 400" role="img" aria-label="Rides reach the calendar three ways: Strava club events imported hourly, weekly Tuesday and Thursday rides set up by admins, and rides riders add on the website, which wait for approval unless the rider typed the club PIN. The calendar feeds the calendar page and the newsletter.">
           <defs>
             <filter id="wC" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="2" seed="2"/><feDisplacementMap in="SourceGraphic" scale="2.6"/></filter>
             <marker id="hC" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M1,1 L9,5 L1,9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></marker>
@@ -3232,7 +3232,6 @@ document.querySelectorAll('[data-board]').forEach(function(box){
             <rect class="note" x="570" y="186" width="120" height="30" rx="3"/>
             <rect class="bx" x="790" y="20" width="160" height="60" rx="8"/>
             <rect class="bx" x="790" y="100" width="160" height="60" rx="8"/>
-            <rect class="bx" x="790" y="180" width="160" height="60" rx="8"/>
             <rect class="bx" x="790" y="290" width="160" height="60" rx="8"/>
             <polyline class="ln" points="260,60 630,60 630,124" marker-end="url(#hC)"/>
             <line class="ln" x1="260" y1="180" x2="534" y2="180" marker-end="url(#hC)"/>
@@ -3243,7 +3242,6 @@ document.querySelectorAll('[data-board]').forEach(function(box){
             <line class="ln r" x1="720" y1="320" x2="784" y2="320" marker-end="url(#hCr)"/>
             <polyline class="ln" points="720,170 754,170 754,50 784,50" marker-end="url(#hC)"/>
             <polyline class="ln" points="754,130 784,130" marker-end="url(#hC)"/>
-            <polyline class="ln" points="754,170 754,210 784,210" marker-end="url(#hC)"/>
           </g>
           <text class="t" x="140" y="56" text-anchor="middle">Strava club events</text>
           <text class="t s mt" x="140" y="76" text-anchor="middle">riders RSVP here</text>
@@ -3265,13 +3263,11 @@ document.querySelectorAll('[data-board]').forEach(function(box){
           <text class="t s mt" x="870" y="66" text-anchor="middle">see, lead, step down</text>
           <text class="t" x="870" y="126" text-anchor="middle">Newsletter</text>
           <text class="t s mt" x="870" y="146" text-anchor="middle">rides block, live</text>
-          <text class="t" x="870" y="206" text-anchor="middle">Club Routes</text>
-          <text class="t s mt" x="870" y="226" text-anchor="middle">maps from Strava</text>
           <text class="t" x="870" y="316" text-anchor="middle">Club inbox</text>
           <text class="t s mt" x="870" y="336" text-anchor="middle">“ride waiting”</text>
         </svg>
       </div>
-      <figcaption>Strava is where riders RSVP. The website is where rides get leaders. Three things feed the one calendar, and everything public reads from it: the calendar page, the newsletter's rides block, and Club Routes. Taking, changing or giving up a leader spot also emails the club inbox. A rider skips the wait by typing the club PIN.</figcaption>
+      <figcaption>Strava is where riders RSVP. The website is where rides get leaders. Three things feed the one calendar, and everything public reads from it: the calendar page and the newsletter's rides block. Taking, changing or giving up a leader spot also emails the club inbox. A rider skips the wait by typing the club PIN.</figcaption>
     </figure>
 
 <h2 class="section" id="g-photos">Photos</h2>
@@ -3290,7 +3286,7 @@ document.querySelectorAll('[data-board]').forEach(function(box){
     <li>Or start from the album: tick photos on its admin page and <b>Add to newsletter</b>. Right after approving, the card on Photos to review links straight there.</li>
     <li>The newsletter keeps its own copy, so taking a photo out of the gallery later doesn’t change an issue already sent. Uploading a photo just for one issue still works; it doesn’t go in the gallery.</li></ul></div>
   <div class="card"><h3>The club PIN</h3><ul>
-    <li>Set it on <a href="/admin/security">Security → Club PIN &amp; access</a> (the gear in the corner) and share it with members, in the newsletter or a club email. When it’s empty it’s off.</li>
+    <li>Set it on {{if .IsBoard}}<a href="/admin/security">Security → Club PIN &amp; access</a>{{else}}Security → Club PIN &amp; access{{end}} (the gear in the corner) and share it with members, in the newsletter or a club email. When it’s empty it’s off.</li>
     <li>It lets members post photos and add rides without waiting for an admin, and lets ride leaders step down or cancel. Ten tries an hour, so it can’t be guessed.</li>
     <li>If it gets around, change it there and tell members the new one.</li></ul></div>
 </div>
@@ -3309,7 +3305,7 @@ document.querySelectorAll('[data-board]').forEach(function(box){
     <p class="muted small">Members you add yourself or import never get the welcome email, and renewals don’t get it again.</p></div>
   <div class="card"><h3>Members</h3><ul>
     <li>Every club email has their private membership link: dues status, a PayPal button, this year’s waiver to sign, their details, and emails on or off.</li>
-    <li>The insurance waiver is signed once a year, and parents or guardians sign for each rider under 18 there too. Other adults on a Family membership each get an emailed link to sign their own, once the dues are marked paid. The <a href="/admin/waivers">Waivers</a> tab keeps every signed copy and shows who hasn’t signed.</li>
+    <li>The insurance waiver is signed once a year, and parents or guardians sign for each rider under 18 there too. Other adults on a Family membership each get an emailed link to sign their own, once the dues are marked paid. The {{if .IsBoard}}<a href="/admin/waivers">Waivers</a>{{else}}Waivers{{end}} tab keeps every signed copy and shows who hasn’t signed.</li>
     <li>First-time riders sign at <a href="/ride-waiver" target="_blank" rel="noopener">/ride-waiver</a> (or <a href="/loaner" target="_blank" rel="noopener">/loaner</a>, with the club bike already picked): name, email, loaner or own bike, and a signature. A loaner bike adds the club’s loaner agreement to the League waiver. They’re under Waivers → First rides, and on the member’s page once someone with that email joins.</li>
     <li>Every group ride’s page lists the loaner bikes marked Available on <a href="/admin/loaners">Rides → Loaner bikes</a>. A rider picks one and signs the loaner waiver, until 8 pm the day before. The bike is held for that ride, it's in the next morning's summary to {{.Guide.RidesEmail}} (at once if the ride is today or tomorrow), admins with alerts on get a Confirm button on their phone, and Home shows it; Confirm or Decline it there and the rider is emailed. Cancel frees the bike.</li>
     <li>Every member email has an unsubscribe link.</li>
@@ -3329,7 +3325,7 @@ document.querySelectorAll('[data-board]').forEach(function(box){
     <li>Any admin asks for club money on <a href="/admin/treasurer/requests">Treasurer → Requests</a>: <b>I already bought it</b>, or <b>I want to buy something</b>. Press <b>Take a photo</b> to snap the receipt with the phone’s camera (on a computer, the webcam), or upload a photo or PDF; then type the amount and what it was for, and pick the ride or event if there was one.</li>
     <li>Nobody picks a category: the site guesses one from the words (pizza goes under Food &amp; Drink) and from where the treasurer filed similar requests before. The treasurer can change it on the request before approving. Board members see what’s left of that category’s budget as they type; going over only warns.</li>
     <li>The treasurer and the president get an email with the receipt and <b>Approve</b> and <b>Reject</b> buttons. The buttons open a page with the request and one button to press; nothing is decided by opening the email or the link, so email scanners can’t approve anything. The links work for 7 days and only once.</li>
-    <li>Small amounts need only the treasurer’s OK: up to the <b>Treasurer alone approves up to</b> amount at the top of <a href="/admin/treasurer/budget">Budget</a> ($50 to start; blank means always two), as long as it fits in what’s left of the category’s budget. When the treasurer sent it, the president’s OK is the one needed. Anything bigger needs both.</li>
+    <li>Small amounts need only the treasurer’s OK: up to the <b>Treasurer alone approves up to</b> amount at the top of {{if .IsBoard}}<a href="/admin/treasurer/budget">Budget</a>{{else}}Budget{{end}} ($50 to start; blank means always two), as long as it fits in what’s left of the category’s budget. When the treasurer sent it, the president’s OK is the one needed. Anything bigger needs both.</li>
     <li>Once approved it’s on Expenses by itself and the sender is emailed. Senders follow each request on <b>My requests</b>: Sent → Approved → Reimbursed (or Receipt added, for a purchase).</li>
     <li>Reimbursements are by PayPal only: no PayPal account, no reimbursement. They go to the email the admin logs in with, unless they type a different one under <b>PayPal for reimbursements</b> on <a href="/admin/admins#paypal">Admins</a> (the form’s <b>Change</b> link goes there). The treasurer’s <b>To reimburse</b> list says who to pay, like “Pay Allie $45.00 — PayPal allie@…”. Send it in PayPal and press <b>Paid</b>; no money goes through the website. Pressing <b>Paid</b> emails a reimbursement receipt to PaxVeloClub@gmail.com for the club’s records, and to nobody else.</li>
     <li>Reminders go by themselves: one to whoever hasn’t answered after 3 days, a Monday list of who still needs reimbursing to the treasurer, and one to anyone whose approved purchase has no receipt after 10 days.</li></ol></div>
@@ -3337,7 +3333,7 @@ document.querySelectorAll('[data-board]').forEach(function(box){
     <li><a href="/admin">Needs attention</a> lists rides waiting for approval, rides this week with no leader, stuck email sends, unpublished newsletter drafts, and new photos members shared.</li>
     <li><a href="/admin/submitted">Photos to review</a> (under Website) is the queue for photos shared without the club PIN. Each person’s photos are one card, all ticked: untick the ones you don’t want and <b>Approve</b> the rest into the album, or <b>Reject</b> them. Every action has an <b>Undo</b>. Photos stay private until approved. Photos posted with the PIN show there too, marked as such.</li>
     <li><a href="/admin/gallery">Gallery</a>: start, rename, reorder and delete albums; upload photos straight into one; caption them, drag them into order, pick the cover, or move them to another album.</li>
-    <li><a href="/admin/security">Security</a> (the gear in the corner): admins and passwords, the club PIN, every other way into the site, and the full backup.</li>
+    <li>{{if .IsBoard}}<a href="/admin/security">Security</a>{{else}}Security{{end}} (the gear in the corner): admins and passwords, the club PIN, every other way into the site, and the full backup.</li>
     <li><a href="/admin/email">Email</a>: club emails, and the welcome email with its four riding-advice boxes.</li>
     <li>Newsletter, Rides, Pages, Home photos, Board, Instagram and Minutes go live as soon as you save.</li>
     <li>The video at the top of the home page comes from Home photos → Top video: one finished video for computers (wide, best at 1920×1080) and one for phones (tall, best at 1080×1920), both exported as AV1 in an MP4 at about 3,000 kb/s. The site doesn’t compress them again: it only takes out the sound and the camera’s details (like its location), so they’re live as soon as they’re uploaded. Make the end match the start, since it plays on a loop. Phones and computers that can’t play AV1 (older iPhones and Macs) see the video’s first frame instead. With no phone video, phones play the computer one, cut to fit. The switch turns the video off, and the top photo shows instead. People who turn motion off on their phone always see the photo.</li>

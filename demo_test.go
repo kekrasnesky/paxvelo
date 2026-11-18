@@ -1,10 +1,12 @@
 package main
 
 import (
+	"html"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -133,4 +135,119 @@ func TestDemoClubAdminPages(t *testing.T) {
 			t.Errorf("%s: %d", p, w.Code)
 		}
 	}
+
+	// Every screen again as a website admin, a board member and the
+	// president: each opens or refuses as main.go wraps its route
+	// (permissions.go), and no screen offers a link or form the admin's
+	// level would refuse.
+	levelOf := routeLevels(t)
+	web, board, pres := adminLevels(t, a)
+	logins := []struct {
+		name   string
+		c      *http.Cookie
+		refuse map[string]bool // wrappers this login is refused by
+	}{
+		{"website admin", web, map[string]bool{"boardOnly": true, "president": true, "treasurerOnly": true}},
+		{"board member", board, map[string]bool{"president": true, "treasurerOnly": true}}, // Bea is Secretary
+		{"president", pres, map[string]bool{}},
+	}
+	for _, l := range logins {
+		for _, p := range pages {
+			lvl := levelOf("GET", p)
+			w := do(t, h, l.c, "GET", p, "", nil)
+			if lvl == "boardOnly" && l.refuse[lvl] {
+				if loc := w.Header().Get("Location"); w.Code != http.StatusSeeOther || loc != "/admin?err=board-only" {
+					t.Errorf("%s opening %s: %d %q, want Home with err=board-only", l.name, p, w.Code, loc)
+				}
+				continue
+			}
+			if w.Code != http.StatusOK {
+				t.Errorf("%s opening %s: %d %s", l.name, p, w.Code, w.Header().Get("Location"))
+				continue
+			}
+			for _, act := range pageActions(w.Body.String()) {
+				if got := levelOf(act[0], act[1]); l.refuse[got] {
+					t.Errorf("%s sees %s %s on %s, which is %s", l.name, act[0], act[1], p, got)
+				}
+				// Home and the app hide board-only links by boardHref: it
+				// must agree with main.go.
+				if lvl := levelOf("GET", act[1]); act[0] == "GET" && strings.HasPrefix(act[1], "/admin") && boardHref(act[1]) != (lvl == "boardOnly" || lvl == "president") {
+					t.Errorf("boardHref(%q) = %v, but main.go wraps it in %q", act[1], boardHref(act[1]), lvl)
+				}
+			}
+		}
+	}
+}
+
+// routeLevels reads main.go and returns, for a method and path, the wrapper
+// its route is registered with (auth, boardOnly, president, treasurerOnly),
+// "" for a public route or "none" when nothing matches.
+func routeLevels(t *testing.T) func(method, path string) string {
+	t.Helper()
+	src, err := os.ReadFile("main.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mux := http.NewServeMux()
+	wrap := map[string]string{}
+	re := regexp.MustCompile(`mux\.Handle(?:Func)?\("((?:GET|POST|PUT|DELETE) /[^"]*)",\s*(?:a\.(auth|boardOnly|president|treasurerOnly)\()?`)
+	for _, m := range re.FindAllStringSubmatch(string(src), -1) {
+		wrap[m[1]] = m[2]
+		mux.Handle(m[1], http.NotFoundHandler())
+	}
+	return func(method, path string) string {
+		_, pattern := mux.Handler(httptest.NewRequest(method, path, nil))
+		if pattern == "" {
+			return "none"
+		}
+		if pattern == "GET /admin/backup" {
+			return "president" // plain auth in main.go, checked inside
+		}
+		return wrap[pattern]
+	}
+}
+
+var (
+	formTag   = regexp.MustCompile(`(?is)<form\b[^>]*>`)
+	attrRe    = regexp.MustCompile(`(?is)\s(action|method|formaction|href)="([^"]*)"`)
+	buttonTag = regexp.MustCompile(`(?is)<button\b[^>]*\sformaction="[^"]*"[^>]*>`)
+	linkTag   = regexp.MustCompile(`(?is)<a\b[^>]*\shref="([^"]*)"`)
+)
+
+// pageActions lists the site's own links and form targets on a page as
+// {method, path} pairs (query and fragment dropped).
+func pageActions(page string) [][2]string {
+	var out [][2]string
+	add := func(method, target string) {
+		target = html.UnescapeString(target)
+		if i := strings.IndexAny(target, "?#"); i >= 0 {
+			target = target[:i]
+		}
+		if strings.HasPrefix(target, "/") && !strings.HasPrefix(target, "//") {
+			out = append(out, [2]string{method, target})
+		}
+	}
+	for _, tag := range formTag.FindAllString(page, -1) {
+		method, action := "GET", ""
+		for _, m := range attrRe.FindAllStringSubmatch(tag, -1) {
+			switch strings.ToLower(m[1]) {
+			case "method":
+				method = strings.ToUpper(m[2])
+			case "action":
+				action = m[2]
+			}
+		}
+		add(method, action)
+	}
+	for _, tag := range buttonTag.FindAllString(page, -1) {
+		for _, m := range attrRe.FindAllStringSubmatch(tag, -1) {
+			if strings.EqualFold(m[1], "formaction") {
+				add("POST", m[2])
+			}
+		}
+	}
+	for _, m := range linkTag.FindAllStringSubmatch(page, -1) {
+		add("GET", m[1])
+	}
+	return out
 }

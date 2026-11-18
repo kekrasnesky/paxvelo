@@ -433,11 +433,7 @@ func (a *App) sitemap(w http.ResponseWriter, r *http.Request) {
 	for _, p := range *a.site.pageList.Load() {
 		urls = append(urls, loc{a.cfg.SiteURL + p.Path})
 	}
-	paths := []string{"/calendar", "/join", "/newsletter", "/gallery"}
-	if showRoutes {
-		paths = append(paths, "/routes")
-	}
-	for _, path := range paths {
+	for _, path := range []string{"/calendar", "/join", "/newsletter", "/gallery"} {
 		urls = append(urls, loc{a.cfg.SiteURL + path})
 	}
 	for _, is := range a.store.Issues() {

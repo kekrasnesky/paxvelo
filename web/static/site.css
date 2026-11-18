@@ -524,20 +524,6 @@ td:hover .cal-add,.cal-add:focus-visible{opacity:1}
 .ride-map{display:block;position:relative;margin:1rem 0 0;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
 .ride-map img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;background:var(--tint-2)}
 .ride-map span{position:absolute;right:.5rem;bottom:.5rem;padding:.2rem .55rem;border-radius:var(--r-sm);background:rgba(255,255,255,.9);color:var(--red);font-size:.85rem;font-weight:500}
-.routes{display:grid;grid-template-columns:repeat(auto-fill,minmax(17rem,1fr));gap:16px;margin:1.4rem 0 0;padding:0;list-style:none}
-.route{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--radius);background:var(--card);overflow:hidden}
-.route-map img{display:block;width:100%;aspect-ratio:16/10;object-fit:cover;background:var(--tint-2)}
-.route-body{padding:.8rem 1rem 1rem}
-.route h2{font-size:1.05rem}
-.route h2 a{color:var(--ink);text-decoration:none}
-@media (hover:hover){.route h2 a:hover{color:var(--red)}}
-.route p{margin:.3rem 0 0;font-size:.92rem}
-.route-stats{font-weight:500}
-.route-use{color:var(--muted)}
-.route-vars{margin:.4rem 0 0;color:var(--muted);font-size:.85rem}
-.route-vars summary{cursor:pointer}
-.route-vars ul{margin:.35rem 0 0;padding-left:1.1rem}
-.route-vars li{margin:.15rem 0}
 /* Meeting minutes (/minutes) */
 .page .minutes{margin:1.2rem 0 0;padding:0;list-style:none}
 .minutes li{padding:1rem 0;border-top:1px solid var(--rule);scroll-margin-top:4.5rem}
@@ -545,7 +531,6 @@ td:hover .cal-add,.cal-add:focus-visible{opacity:1}
 .minutes h2{font-size:1.2rem}
 .page .minutes-date{margin:.1rem 0 .5rem;color:var(--muted);font-size:.92rem}
 .page .minutes-file{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem .8rem;margin:.6rem 0 0}
-.route-credit{margin-top:1.4rem!important;color:var(--muted);font-size:.85rem}
 .cal-back{margin-bottom:.6rem!important;font-size:.95rem}
 .cal-back a{text-decoration:none}
 .cal-note{padding:.6rem .9rem;border-radius:0 var(--r-md) var(--r-md) 0;border-left:4px solid var(--warn);background:var(--warn-bg);color:var(--ink)}

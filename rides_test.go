@@ -739,7 +739,7 @@ func TestStravaDetails(t *testing.T) {
 	if cafe.LeaderSummary() != "Gabriel M." {
 		t.Errorf("the organizer should lead: %q", cafe.LeaderSummary())
 	}
-	if cafe.Meta() != "21 mi · 3 going" {
+	if cafe.Meta() != "21 mi · 3 going on Strava" {
 		t.Errorf("meta: %q", cafe.Meta())
 	}
 	if home.Route.Shown() || home.Place == "" || home.Directions() == "" || home.Notes() == "" {
@@ -748,7 +748,7 @@ func TestStravaDetails(t *testing.T) {
 
 	// The public ride page shows the route, and a private event's notes and start too.
 	page := do(t, h, nil, "GET", "/calendar/ride/"+cafe.Key, "", nil).Body.String()
-	for _, want := range []string{"Coffee at the end.", "St Mary&#39;s Cafe Loop", "21 mi · 400 ft of climbing", `class="lvl lvl-intermediate">Intermediate</span> 18–20 mph`, "3 going", "google.com/maps/dir", "maps.example/a@2x"} {
+	for _, want := range []string{"Coffee at the end.", "St Mary&#39;s Cafe Loop", "21 mi · 400 ft of climbing", `class="lvl lvl-intermediate">Intermediate</span> 18–20 mph`, "3 going on Strava", "google.com/maps/dir", "maps.example/a@2x"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("cafe ride page is missing %q", want)
 		}
@@ -763,31 +763,18 @@ func TestStravaDetails(t *testing.T) {
 		t.Error("a private route stays private, and nothing says the notes are for members")
 	}
 
-	// The Routes page lists the club's public routes, with the next ride on each.
-	page = do(t, h, nil, "GET", "/routes", "", nil).Body.String()
-	if !strings.Contains(page, "St Mary&#39;s Cafe Loop") || !strings.Contains(page, "Ridden 2 times") || !strings.Contains(page, "148 riders") ||
-		!strings.Contains(page, "/calendar/ride/"+cafe.Key) || strings.Contains(page, "Secret Loop") {
-		t.Errorf("routes page:\n%s", page)
-	}
 	// The calendar's upcoming rides show the route's map, but not a private one.
 	page = do(t, h, nil, "GET", "/calendar", "", nil).Body.String()
 	if !strings.Contains(page, `class="cal-up-map" src="https://maps.example/a@2x"`) || strings.Count(page, `class="cal-up-map"`) != 1 {
 		t.Errorf("calendar route maps:\n%s", page)
 	}
-	// A route ridden only once stays off it.
-	a.store.saveRoute(Route{ID: "99", Name: "One-Off Loop", Distance: 1000, Checked: time.Now()})
-	a.store.SetRouteHistory(map[string]routeHistory{"3550943418851772710": {Rides: 2}, "99": {Rides: 1}})
-	if page = do(t, h, nil, "GET", "/routes", "", nil).Body.String(); strings.Contains(page, "One-Off Loop") || !strings.Contains(page, "St Mary&#39;s Cafe Loop") {
-		t.Errorf("a one-ride route is on the routes page:\n%s", page)
+	// The ride forms' Route box suggests the club's public routes ridden
+	// at least once, not a private one.
+	if rs := a.store.ClubRoutes(); len(rs) != 1 || rs[0].Name != "St Mary's Cafe Loop" {
+		t.Errorf("club routes: %+v", rs)
 	}
-	// The same ride posted as another route shares its card, and its rides count.
-	a.store.saveRoute(Route{ID: "98", Name: "St Mary's Cafe Ride v2", Distance: 34000, Elevation: 120, Checked: time.Now()})
-	a.store.SetRouteHistory(map[string]routeHistory{"3550943418851772710": {Rides: 2}, "98": {Rides: 1}})
-	page = do(t, h, nil, "GET", "/routes", "", nil).Body.String()
-	for _, want := range []string{"Ridden 3 times", "Also posted as 1 other route", "St Mary&#39;s Cafe Ride v2</a> · 21 mi, ridden once", "strava.com/routes/98"} {
-		if !strings.Contains(page, want) {
-			t.Errorf("routes page is missing %q:\n%s", want, page)
-		}
+	if w := do(t, h, nil, "GET", "/routes", "", nil); w.Code != http.StatusNotFound {
+		t.Errorf("/routes is gone: %d", w.Code)
 	}
 	// So does the API, with the start (the club's events are private only to keep bots out).
 	if body := do(t, h, nil, "GET", "/api/rides?from="+sun+"&to="+sun, "", nil).Body.String(); !strings.Contains(body, "Tulagi") {

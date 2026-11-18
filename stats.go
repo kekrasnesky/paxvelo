@@ -625,7 +625,7 @@ func (a *App) statsView(week string, now time.Time) statsView {
 
 // statsLabels names the pages that aren't in content/.
 var statsLabels = map[string]string{
-	"/": "Home", "/newsletter": "Newsletter", "/calendar": "Calendar", "/calendar/ride": "Ride pages on the calendar", "/routes": "Routes",
+	"/": "Home", "/newsletter": "Newsletter", "/calendar": "Calendar", "/calendar/ride": "Ride pages on the calendar",
 	"/join": "Join", "/membership": "My membership", "/unsubscribe": "Unsubscribe",
 	"/share-photos": "Share your photos", "/gallery": "Photo gallery",
 }

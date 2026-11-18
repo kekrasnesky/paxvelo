@@ -16,7 +16,7 @@ import (
 // What the calendar learns from the club's Strava events beyond the date and
 // title: the route (with its map, distance and climbing), the pace, who
 // posted it, how many riders have joined, the start's map pin, and the
-// ride notes. The club's past events also build the Routes page.
+// ride notes.
 //
 // Most PaxVelo events are private to the Strava club, and some start at a
 // member's house. For those the public site leaves out the ride notes, a
@@ -49,12 +49,6 @@ type Route struct {
 	Rides      int       `json:"rides,omitempty"`   // club events that used it
 	Usual      string    `json:"usual,omitempty"`   // the event name that uses it most
 	Checked    time.Time `json:"checked"`
-}
-
-// StravaClub is the club's own Strava page.
-type StravaClub struct {
-	Members int       `json:"members"`
-	Checked time.Time `json:"checked"`
 }
 
 var paceNames = map[int]string{1: "Casual", 2: "Tempo", 4: "Hammerfest"}
@@ -138,7 +132,7 @@ func (o RideOcc) Meta() string {
 	case len(o.Riders) > 0:
 		parts = append(parts, fmt.Sprintf("%d going", len(o.Riders)))
 	case o.Strava != nil && o.Strava.Going > 0:
-		parts = append(parts, fmt.Sprintf("%d going", o.Strava.Going))
+		parts = append(parts, fmt.Sprintf("%d going on Strava", o.Strava.Going))
 	}
 	return strings.Join(parts, " · ")
 }
@@ -239,8 +233,8 @@ func (s *Store) routeHistoryDue() bool {
 	return s.d.RoutesChecked == nil || time.Since(*s.d.RoutesChecked) > 24*time.Hour || s.d.History == nil
 }
 
-// ClubRoutes returns the routes the club rides that anyone can see.
-// groupRoutes makes them into the Routes page's cards.
+// ClubRoutes returns the routes the club rides that anyone can see: the
+// Route box's list on ride forms.
 func (s *Store) ClubRoutes() []Route {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -251,22 +245,6 @@ func (s *Store) ClubRoutes() []Route {
 		}
 	}
 	return out
-}
-
-func (s *Store) StravaClub() StravaClub {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.d.StravaClub == nil {
-		return StravaClub{}
-	}
-	return *s.d.StravaClub
-}
-
-func (s *Store) SetStravaClub(c StravaClub) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.d.StravaClub = &c
-	s.saveOrLog()
 }
 
 // ---- Reading from Strava ----
@@ -477,17 +455,11 @@ func (s *Store) route(id string) *Route {
 	return nil
 }
 
-// readHistory reads every club event Strava still has, to count how often
-// each route is ridden, along with the club's member count. Once a day.
+// readHistory reads every club event Strava still has, for Ride history and
+// to count how often each route is ridden. Once a day.
 func (a *App) readHistory(get func(string, any) error) error {
 	if !a.store.routeHistoryDue() {
 		return nil
-	}
-	var club struct {
-		MemberCount int `json:"member_count"`
-	}
-	if err := get("/clubs/"+a.cfg.StravaClubID, &club); err == nil && club.MemberCount > 0 {
-		a.store.SetStravaClub(StravaClub{Members: club.MemberCount, Checked: time.Now().UTC()})
 	}
 	type pastEvent struct {
 		ID      json.Number `json:"id"`
@@ -556,54 +528,4 @@ func (a *App) readHistory(get func(string, any) error) error {
 	a.store.SaveHistory(past)
 	a.importPastRides()
 	return nil
-}
-
-// ---- The Routes page ----
-
-type routesView struct {
-	Routes    []routeCard
-	Members   int
-	ClubURL   string
-	Connected bool
-}
-
-// routeCard is one ride on the Routes page: its most ridden route, with the
-// rides of all its routes added up.
-type routeCard struct {
-	Route
-	Family   int      // which of routeFamilies it is, or -1
-	Variants []Route  // its other routes, most ridden first
-	Next     *RideOcc // the next ride on the calendar that uses it
-}
-
-// showRoutes puts Club Routes in the Info menu, the sitemap and the page
-// editor's links. Off for now: /routes still opens for anyone with the
-// link, unlisted (noindex).
-const showRoutes = false
-
-func (a *App) routesPage(w http.ResponseWriter, r *http.Request) {
-	if !showRoutes {
-		w.Header().Set("X-Robots-Tag", "noindex")
-	}
-	_, connected := a.store.StravaLink()
-	v := routesView{Members: a.store.StravaClub().Members, ClubURL: a.cfg.StravaURL, Connected: connected}
-	today := a.today()
-	rides := a.store.Rides(today, today.AddDate(0, 0, 60))
-	for _, c := range groupRoutes(a.store.ClubRoutes()) {
-		ids := map[string]bool{c.ID: true}
-		for _, r := range c.Variants {
-			ids[r.ID] = true
-		}
-		for _, o := range rides {
-			if o.Cancelled {
-				continue
-			}
-			if (o.Strava != nil && ids[o.Strava.RouteID]) || (c.Family >= 0 && routeFamilies[c.Family].re.MatchString(o.Name)) {
-				c.Next = &o
-				break
-			}
-		}
-		v.Routes = append(v.Routes, c)
-	}
-	a.site.render(w, http.StatusOK, "routes", "/routes", "Club Routes — "+siteName, v)
 }

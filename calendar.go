@@ -440,7 +440,7 @@ func (a *App) leadRide(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case c.Date < a.today().Format("2006-01-02"):
 			return errPastRide
-		case c.Cancelled || c.Held || !c.IsRide() || !c.hasGroup(group):
+		case c.Cancelled || c.Held || !c.IsRide() || c.Unofficial || !c.hasGroup(group):
 			return errNoRide
 		case current != nil && sameLeader(*current, name):
 			return nil

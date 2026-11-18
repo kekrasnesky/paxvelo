@@ -287,7 +287,7 @@ func newSite(cfg Config) (*Site, error) {
 	if err := s.renderContent(contentData{}); err != nil {
 		return nil, err
 	}
-	for _, name := range []string{"join", "unsubscribe", "membership", "notfound", "newsletter", "calendar", "subscribe", "offline", "qr", "ride", "ride-new", "routes", "share-photos", "gallery", "album", "photo", "minutes", "kit", "ride-waiver", "rsvp", "alerts"} {
+	for _, name := range []string{"join", "unsubscribe", "membership", "notfound", "newsletter", "calendar", "subscribe", "offline", "qr", "ride", "ride-new", "share-photos", "gallery", "album", "photo", "minutes", "kit", "ride-waiver", "rsvp", "alerts"} {
 		if s.dynamic[name], err = parse(name + ".html"); err != nil {
 			return nil, err
 		}
@@ -352,9 +352,6 @@ func (s *Site) renderContent(d contentData) error {
 		default:
 			links = append(links, navLink{p.Path, p.Menu})
 		}
-	}
-	if showRoutes {
-		links = append(links, navLink{"/routes", "Club Routes"})
 	}
 	links = append(links, navLink{"/gallery", "Photo Gallery"}, navLink{"/kit", "Club Kit"}) // Share Photos has its own place in the menu
 	links = append(links, last...)

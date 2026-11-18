@@ -231,7 +231,7 @@ document.querySelectorAll('.money-form select[name=category]').forEach(function(
 {{define "money-requests"}}{{template "head" .}}{{$q := .Money.Requests}}{{$f := $q.Form}}
 <div class="req-page">
 <div class="money-top"><h1>Requests</h1></div>
-{{if $q.NoTreasurer}}<p class="flash warn">No admin holds the Treasurer role. <a href="/admin/board">Website → Board</a></p>{{end}}
+{{if $q.NoTreasurer}}<p class="flash warn">No admin holds the Treasurer role. {{if .IsBoard}}<a href="/admin/board">Website → Board</a>{{else}}Website → Board{{end}}</p>{{end}}
 {{if and $q.NoPresident $q.Board}}<p class="flash warn">No admin is marked president. <a href="/admin/admins">Admins</a></p>{{end}}
 {{with $q.Withdrawn}}<form class="flash warn undo-flash" method="post" action="/admin/treasurer/requests/{{.}}/restore">Withdrawn. <button class="link">{{icon "undo"}}Undo</button></form>{{end}}
 

@@ -31,7 +31,7 @@
 <div class="title-row">
   <h1>{{$e.Title}}</h1>
   <p>{{if $k.Open}}<span class="tag tag-ok">Taking RSVPs{{with $e.ClosesLabel}} until {{.}}{{end}}</span>{{else}}<span class="tag">Closed</span>{{end}}
-    {{if $e.Reminded}}<span class="tag" title="The day-before reminder">Reminder sent to {{$e.Reminded}}</span>{{else if and $k.ReminderOn $e.ReminderLabel (not ($e.Past $k.Now))}}<a class="tag" href="/admin/email/auto#a-rsvp-reminder" title="Emailed to everyone who said I’ll be there or Maybe">Reminder {{$e.ReminderLabel}}</a>{{end}}</p>
+    {{if $e.Reminded}}<span class="tag" title="The day-before reminder">Reminder sent to {{$e.Reminded}}</span>{{else if and $k.ReminderOn $e.ReminderLabel (not ($e.Past $k.Now))}}{{if $.IsBoard}}<a class="tag" href="/admin/email/auto#a-rsvp-reminder" title="Emailed to everyone who said I’ll be there or Maybe">Reminder {{$e.ReminderLabel}}</a>{{else}}<span class="tag" title="Emailed to everyone who said I’ll be there or Maybe">Reminder {{$e.ReminderLabel}}</span>{{end}}{{end}}</p>
 </div>
 <p class="muted">{{or $e.When "No date"}}{{with $e.Place}} · {{.}}{{end}}{{with $k.OnCal}} · <a href="/calendar/ride/{{.Key}}#rsvp" target="_blank" rel="noopener" title="Its event on the club calendar">{{icon "calendar"}}On the calendar</a>{{end}}</p>
 

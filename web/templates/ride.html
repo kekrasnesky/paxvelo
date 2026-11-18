@@ -26,7 +26,7 @@
     {{with $r.RouteOnStrava}}<div><dt>Route</dt><dd><a href="{{.}}" target="_blank" rel="noopener">On Strava</a></dd></div>{{end}}
     {{with $r.Levels}}<div{{if gt (len .) 1}} class="lvl-row"{{end}}><dt>{{if gt (len .) 1}}Levels{{else}}Level{{end}}</dt><dd>{{if gt (len .) 1}}<ul class="lvl-list">{{range .}}<li><span class="lvl lvl-{{.Key}}">{{.Name}}</span> {{.MPH}}</li>{{end}}</ul>{{else}}{{range .}}<span class="lvl lvl-{{.Key}}">{{.Name}}</span> {{.MPH}}{{end}}{{end}}</dd></div>{{end}}
     {{if not $r.IsRide}}{{with $r.Leaders}}<div><dt>{{$r.HostLabel}}</dt><dd>{{(index . 0).Name}}</dd></div>{{end}}{{end}}
-    {{with $r.StravaURL}}<div><dt>Strava</dt><dd><a href="{{.}}" target="_blank" rel="noopener">See the event</a>{{with $r.Strava}}{{if .Going}} · {{.Going}} going{{end}}{{end}}</dd></div>{{end}}
+    {{with $r.StravaURL}}<div><dt>Strava</dt><dd><a href="{{.}}" target="_blank" rel="noopener">See the event</a>{{with $r.Strava}}{{if .Going}} · {{.Going}} going on Strava{{end}}{{end}}</dd></div>{{end}}
     {{if not $r.IsRide}}<div><dt>What</dt><dd>{{template "kind-icon" $r}}{{$r.KindName}}{{if .Series}}, every week{{end}}</dd></div>{{end}}
   </dl>
   {{if .RSVP}}{{if not .Past}}<p class="ride-tools rsvp-tools">{{with .Directions}}<a class="btn" href="{{.}}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 11 18-8-8 18-2-8z"/></svg>Directions</a>{{end}}<a class="btn btn-quiet" href="/calendar/ride/{{$r.Key}}/calendar.ics" rel="nofollow">{{icon "calendar"}}Add to calendar</a><button class="btn btn-quiet ride-share" type="button" hidden>{{icon "share"}}Share</button></p>{{end}}{{else if not .Past}}<p class="ride-tools"><a class="btn btn-quiet" href="/calendar/ride/{{$r.Key}}/calendar.ics" rel="nofollow">{{icon "calendar"}}Add to calendar</a><button class="btn btn-quiet ride-share" type="button" hidden>{{icon "share"}}Share</button>{{if $r.IsRide}}{{template "push-btn"}}{{if $r.AsksWaiver}}<a class="btn btn-quiet" href="/qr/ride-waiver" title="For a new rider to scan">{{icon "qr"}}Waiver code</a>{{end}}{{end}}</p>{{end}}
@@ -70,8 +70,8 @@
     </li>{{end}}</ul>
   </section>{{end}}
 
-  {{if $r.IsRide}}<section class="cal-act lead-act">
-    <h2>{{if gt (len .Spots) 1}}Ride leaders{{else}}Ride leader{{end}}</h2>
+  {{if and $r.IsRide (or (not $r.Unofficial) .Past (and .CanManage .PINOn))}}<section class="cal-act lead-act">
+    {{if not $r.Unofficial}}<h2>{{if gt (len .Spots) 1}}Ride leaders{{else}}Ride leader{{end}}</h2>
     <ul class="spots">
       {{range .Spots}}<li class="spot {{if .Leader}}led{{else}}open{{end}}">
         <div class="spot-who">
@@ -87,7 +87,7 @@
           </form>{{end}}
         </div>
       </li>{{end}}
-    </ul>
+    </ul>{{end}}
     {{if .Past}}<p class="cal-note">This ride has already happened.</p>{{end}}
 
     {{if and .CanManage .PINOn}}<details class="ride-manage">

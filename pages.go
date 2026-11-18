@@ -334,9 +334,6 @@ func (a *App) editorLinks() []editorLink {
 		out = append(out, editorLink{p.Path, p.Title})
 	}
 	out = append(out, editorLink{"/calendar", "Ride Calendar"})
-	if showRoutes {
-		out = append(out, editorLink{"/routes", "Club Routes"})
-	}
 	return append(out, editorLink{"/gallery", "Photo Gallery"},
 		editorLink{"/share-photos", "Share Your Photos"}, editorLink{"/membership", "Join / Membership"}, editorLink{"/newsletter", "Newsletter"})
 }
