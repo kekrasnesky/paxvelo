@@ -209,6 +209,7 @@ type storeData struct {
 	RemovedAuto    *Automation    `json:"removed_automation,omitempty"` // the one removed last, for Undo
 	RemovedBuiltin []string       `json:"removed_builtin,omitempty"`    // built-in automations the president deleted (automations.go)
 	RenewalSeeded  bool           `json:"renewal_seeded,omitempty"`     // the Renewal reminder was added once (seedRenewal)
+	PayNudgeSeeded bool           `json:"pay_nudge_seeded,omitempty"`   // the Pay reminder was added once (seedPayNudge)
 	Draft          EmailDraft     `json:"draft"`
 	NextIssue      int            `json:"next_issue_id,omitempty"`
 	Issues         []*Issue       `json:"newsletter,omitempty"`
@@ -404,6 +405,7 @@ func openStore(dir string) (*Store, error) {
 	s.seedKit()
 	s.seedLoaners()
 	s.seedRenewal()
+	s.seedPayNudge()
 	s.tidyRiders(time.Now()) // imin.go
 	s.linkBoard()
 	return s, s.save()
@@ -576,6 +578,7 @@ func (s *Store) ConfirmEmail(token string) (Member, *PendingJoin, bool, error) {
 	}
 	if p != nil {
 		m.fill(p.details())
+		m.Plan = p.planFor(*m, time.Now())
 	}
 	return *m, p, true, s.save()
 }

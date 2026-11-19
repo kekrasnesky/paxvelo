@@ -15,7 +15,8 @@ import "time"
 // waiting for the member to confirm it was them.
 type PendingJoin struct {
 	At             time.Time        `json:"at"`
-	Year           int              `json:"year"` // the dues year the waiver is for
+	Year           int              `json:"year"`           // the dues year the waiver is for
+	Plan           string           `json:"plan,omitempty"` // the plan they picked (planFor)
 	Phone          string           `json:"phone,omitempty"`
 	EmergencyName  string           `json:"emergency_name,omitempty"`
 	EmergencyPhone string           `json:"emergency_phone,omitempty"`
@@ -31,6 +32,28 @@ type PendingJoin struct {
 type PendingRider struct {
 	Name string `json:"name"`
 	Age  int    `json:"age"`
+}
+
+// planWindow is how close to running out a paid member's dues must be for a
+// renewal to change their plan: renewing early on Family switches them, but
+// a member paid up for months can't become Family without paying for it.
+const planWindow = 60 * 24 * time.Hour
+
+// planFor is the plan a confirmed renewal leaves a member on. Someone on the
+// email list only takes the plan they picked; Individual becomes Family
+// when their dues are unpaid or about to run out. Family never drops to
+// Individual here, since that would leave the household's riders without
+// cover: an admin does that.
+func (p PendingJoin) planFor(m Member, now time.Time) string {
+	switch {
+	case p.Plan == "" || m.FamilyOf != 0:
+		return m.Plan
+	case m.Plan == "":
+		return p.Plan
+	case p.Plan == "family" && m.Plan == "individual" && (!m.PaidAt(now) || m.DuesExpire().Sub(now) < planWindow):
+		return "family"
+	}
+	return m.Plan
 }
 
 // pendingJoinDays is how long a renewal waits for the member to confirm it.

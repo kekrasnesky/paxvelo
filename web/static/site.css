@@ -349,6 +349,15 @@ strong{font-weight:500}
 .nl-share .nl-body{max-width:36rem;margin:0 auto}
 .nl-share p:last-child{margin:.8rem 0 0}
 
+/* Get it by email (newssignup.go): name, email, button, Join */
+.nl-get{margin:clamp(22px,2.6vw,34px) 0 0;padding-top:1.2rem;border-top:1px solid var(--line)}
+.nl-get h2{margin:0 0 .8rem;font-size:.72rem;font-weight:500;letter-spacing:.2em;text-transform:uppercase;text-align:center}
+.nl-signup{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,13rem),1fr));gap:.8rem;align-items:end;max-width:40rem;margin:1rem auto 0}
+.nl-get .nl-signup{margin-top:0}
+.nl-signup label{display:grid;gap:.25rem;font-size:.9rem;font-weight:500}
+.nl-signup .msg{grid-column:1/-1}
+.nl-signup .btn{justify-content:center}
+
 /* The end: who publishes it */
 .nl-close{margin-top:clamp(22px,2.6vw,34px);padding:1.2rem 0 0;border-top:4px double #1f1a18;text-align:center}
 .nl-colophon{margin:0!important;font-size:.74rem;letter-spacing:.14em;text-transform:uppercase;color:#625955}

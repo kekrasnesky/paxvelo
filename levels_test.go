@@ -1,6 +1,7 @@
 package main
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -54,5 +55,28 @@ func TestLevelTagsOnPages(t *testing.T) {
 	}
 	if strings.Contains(page, "{level-") {
 		t.Error("a level tag wasn't filled in")
+	}
+}
+
+// The join form's answers name the calendar level they match, with its pace,
+// and suggest rides at that level.
+func TestJoinAnswersMatchLevels(t *testing.T) {
+	for _, c := range riderLevels {
+		key, ok := answerLevel[c.Value]
+		if !ok {
+			continue
+		}
+		var lvl rideLevel
+		for _, l := range rideLevels {
+			if l.Key == key {
+				lvl = l
+			}
+		}
+		if lvl.Key == "" || !strings.Contains(c.Label, lvl.Name+", "+lvl.MPH) {
+			t.Errorf("%s: label %q should name %s", c.Value, c.Label, key)
+		}
+		if !slices.Contains(rideLevelsFor[c.Value], key) {
+			t.Errorf("%s: suggested rides %v leave out %s", c.Value, rideLevelsFor[c.Value], key)
+		}
 	}
 }

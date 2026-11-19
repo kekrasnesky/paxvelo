@@ -150,8 +150,8 @@ func TestJoinFillsBlanksOnly(t *testing.T) {
 	ct, cbody := form(url.Values{"t": {m.Token}})
 	do(t, h, nil, "POST", "/membership/confirm", ct, cbody)
 	m = a.store.Members()[0]
-	if m.Name != "Old Timer" || m.Phone != "301-555-0123" || m.EmergencyName != "Sam Rider" || m.Plan != "individual" || m.RenewalWaiting() {
-		t.Errorf("only the blank details should be filled in: %+v", m)
+	if m.Name != "Old Timer" || m.Phone != "301-555-0123" || m.EmergencyName != "Sam Rider" || m.Plan != "family" || m.RenewalWaiting() {
+		t.Errorf("only the blank details should be filled in, and the plan they picked taken (unpaid, planFor): %+v", m)
 	}
 	if got, _, _ := a.store.Join(memberDetails{Name: "Old Timer", Email: "old@example.com", Plan: "family", Phone: "202-555-0100"}, 2026); got.Phone != "202-555-0100" || got.Plan != "family" {
 		t.Errorf("an admin should be able to change details: %+v", got)

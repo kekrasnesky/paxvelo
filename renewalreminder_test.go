@@ -9,12 +9,16 @@ import (
 	"time"
 )
 
-// The renewal reminder is there from the start, switched on, and added once.
+// The renewal and pay reminders are there from the start, switched on, and
+// added once.
 func TestRenewalReminderSeeded(t *testing.T) {
 	a, h, admin := testApp(t)
 	autos := a.store.Automations()
-	if len(autos) != 1 || autos[0].Name != "Renewal reminder" || autos[0].Trigger != "expiring" || autos[0].Days != 30 || autos[0].Paused {
+	if len(autos) != 2 || autos[0].Name != "Renewal reminder" || autos[0].Trigger != "expiring" || autos[0].Days != 30 || autos[0].Paused {
 		t.Fatalf("seeded: %+v", autos)
+	}
+	if p := autos[1]; p.Name != "Pay reminder" || p.Paused || p.When() != "5 days after someone joins on the website, if they haven’t paid yet" {
+		t.Fatalf("pay reminder: %+v", p)
 	}
 	if w := autos[0].When(); w != "30 days before a member’s dues run out" {
 		t.Errorf("when: %q", w)
@@ -40,7 +44,7 @@ func TestRenewalReminderSeeded(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if n := len(again.Automations()); n != 1 {
+	if n := len(again.Automations()); n != 2 {
 		t.Fatalf("reopening the store should not add another: %d", n)
 	}
 }
@@ -112,6 +116,7 @@ func TestRenewalReminderSends(t *testing.T) {
 // A deleted renewal reminder stays deleted when the site restarts.
 func TestRenewalReminderStaysDeleted(t *testing.T) {
 	a, h, admin := testApp(t)
+	a.store.d.Automations = a.store.d.Automations[:1] // just the renewal reminder
 	id := a.store.Automations()[0].ID
 	do(t, h, admin, "POST", "/admin/email/auto/"+strconv.Itoa(id)+"/remove", "", nil)
 	if n := len(a.store.Automations()); n != 0 {

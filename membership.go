@@ -29,6 +29,7 @@ type membershipData struct {
 	KitOrder    *KitOrder
 	Year        int
 	Paid        bool
+	NewsOnly    bool      // on the email list only, not a member: no dues, waiver or details, just Join
 	PaidOn      time.Time // when the club marked this year paid; zero if not known
 	DuesExpire  time.Time // when their dues run out (moved.go)
 	LevelName   string    // their riding answer, briefly
@@ -76,7 +77,7 @@ func (c Config) membershipURL(token string) string {
 
 func (a *App) membershipView(m Member, token string) membershipData {
 	year := a.cfg.ThisYear()
-	d := membershipData{State: "page", Token: token, Member: m, Year: year, Paid: m.Paid(), PlanName: strings.ToLower(m.PlanName()),
+	d := membershipData{State: "page", Token: token, Member: m, Year: year, Paid: m.Paid(), NewsOnly: m.Plan == "" && m.FamilyOf == 0 && len(m.PaidYears) == 0, PlanName: strings.ToLower(m.PlanName()),
 		Form: memberDetails{Level: m.Level}, PhoneOnFile: phoneTail(m.Phone)}
 	d.PaidOn = m.PaidOn[m.LastPaid()]
 	d.DuesExpire = m.DuesExpire()
@@ -387,6 +388,10 @@ func (a *App) sendConfirm(m Member) error {
 		if renewing {
 			intro += " It also " + a.renewalDoes(m) + " on the join form."
 		}
+	case m.newsOnly() && !renewing:
+		subject, button = "Confirm your PaxVelo newsletter", "Confirm my email"
+		unexpected = "If you didn’t sign up, no action is needed: this address won’t get club emails unless it’s confirmed."
+		intro = "Thanks for signing up! Press the button to get the PaxVelo newsletter and club news by email."
 	case renewing && !m.Unconfirmed:
 		subject, button = "Finish renewing your PaxVelo membership", "Confirm it’s me"
 		unexpected = "If you weren’t expecting this email, no action is needed: nothing on your membership changes unless you confirm."
@@ -404,13 +409,17 @@ func (a *App) sendConfirm(m Member) error {
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "Hi %s,\n\n%s\n\n[[%s](%s&confirm=1#confirm)]", or(m.FirstName(), "there"), intro, button, a.cfg.membershipURL(m.Token))
-	if pay := a.cfg.PayLink(m.Plan); pay != "" && !m.Paid() {
+	if pay := a.cfg.PayLink(m.Plan); pay != "" && !m.Paid() && !m.newsOnly() {
 		fmt.Fprintf(&b, "\n\nHaven’t paid yet? [Pay your $%d %s dues for %d](%s).", a.cfg.Dues(m.Plan), strings.ToLower(m.PlanName()), year, pay)
+	}
+	pageDoes := "check your dues and update your details"
+	if m.newsOnly() {
+		pageDoes = "choose which club emails you get"
 	}
 	if list := rideList(a.ridesFor(m.Level, 3), a.cfg.SiteURL); list != "" {
 		b.WriteString("\n\n" + list)
 	}
-	fmt.Fprintf(&b, "\n\nEvery club ride is on the calendar: %s/calendar\n\nBefore your first ride, take a couple of minutes to read Bike Safety 101: %s/bike-safety\n\nThe button also opens your membership page, where you can check your dues and update your details any time. Keep this email: the link is just for you.\n\n%s", a.cfg.SiteURL, a.cfg.SiteURL, unexpected)
+	fmt.Fprintf(&b, "\n\nEvery club ride is on the calendar: %s/calendar\n\nBefore your first ride, take a couple of minutes to read Bike Safety 101: %s/bike-safety\n\nThe button also opens your membership page, where you can %s any time. Keep this email: the link is just for you.\n\n%s", a.cfg.SiteURL, a.cfg.SiteURL, pageDoes, unexpected)
 	return a.mailer.SendMine(mailConfirm, m, subject, b.String())
 }
 

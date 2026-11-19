@@ -303,7 +303,7 @@ func (a *App) join(w http.ResponseWriter, r *http.Request) {
 // typing someone's address shows nothing about them.
 func (a *App) renewal(r *http.Request, reply func(int, joinData), m Member, details memberDetails,
 	riders []joinRider, adults []HouseholdAdult, year int) {
-	p := PendingJoin{Year: year, Phone: details.Phone, EmergencyName: details.EmergencyName, EmergencyPhone: details.EmergencyPhone,
+	p := PendingJoin{Year: year, Plan: details.Plan, Phone: details.Phone, EmergencyName: details.EmergencyName, EmergencyPhone: details.EmergencyPhone,
 		Level: details.Level, Terms: details.Terms, Signature: details.Signature, Drawing: details.Drawing, IP: clientIP(r), Adults: adults}
 	for _, k := range riders {
 		p.Riders = append(p.Riders, PendingRider{k.Name, k.Age})

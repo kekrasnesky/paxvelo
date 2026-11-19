@@ -262,3 +262,48 @@ func TestConfirmEmailFooter(t *testing.T) {
 		t.Error("the footer should have My membership and no Unsubscribe")
 	}
 }
+
+// Renewing on Family moves an Individual member to Family once they confirm,
+// with the adult they listed, when their dues are unpaid or about to run out.
+func TestRenewSwitchesToFamily(t *testing.T) {
+	a, h, _ := testApp(t)
+	newMailbox(a)
+	year := a.cfg.ThisYear()
+	kim, _, _ := a.store.Join(memberDetails{Name: "Kim Solo", Email: "kim@example.com", Plan: "individual"}, year)
+	joinJSON(t, a, h, url.Values{"plan": {"family"}, "first": {"Kim"}, "last": {"Solo"}, "email": {"kim@example.com"}, "phone": {"240-555-0100"},
+		"level": {"some"}, "emergency_name": {"Ray Solo"}, "emergency_phone": {"240-555-0199"}, "adult_name": {"Ray Solo"}, "adult_email": {"ray@example.com"}})
+	if m, _ := a.store.MemberByEmail("kim@example.com"); m.Plan != "individual" {
+		t.Fatal("nothing changes before they confirm")
+	}
+	ct, body := form(url.Values{"t": {kim.Token}})
+	do(t, h, nil, "POST", "/membership/confirm", ct, body)
+	m, _ := a.store.MemberByEmail("kim@example.com")
+	if m.Plan != "family" || len(m.Household) != 1 || m.Household[0].Email != "ray@example.com" {
+		t.Errorf("after confirming: plan %q, household %+v", m.Plan, m.Household)
+	}
+}
+
+func TestPlanFor(t *testing.T) {
+	now := time.Now()
+	joined := now.AddDate(-1, 0, 20) // dues run out in about 20 days
+	soon := Member{Plan: "individual", Joined: joined, PaidYears: []int{joined.Year()}}
+	long := Member{Plan: "individual", Joined: now.AddDate(0, -1, 0), PaidYears: []int{now.AddDate(0, -1, 0).Year()}}
+	for _, c := range []struct {
+		name string
+		m    Member
+		pick string
+		want string
+	}{
+		{"email list only", Member{}, "individual", "individual"},
+		{"unpaid individual", Member{Plan: "individual"}, "family", "family"},
+		{"paid, dues soon", soon, "family", "family"},
+		{"paid for months", long, "family", "individual"},
+		{"family stays", Member{Plan: "family"}, "individual", "family"},
+		{"family rider", Member{Plan: "family", FamilyOf: 3}, "individual", "family"},
+		{"no pick", Member{Plan: "individual"}, "", "individual"},
+	} {
+		if got := (PendingJoin{Plan: c.pick}).planFor(c.m, now); got != c.want {
+			t.Errorf("%s: %q, want %q", c.name, got, c.want)
+		}
+	}
+}

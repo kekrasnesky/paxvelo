@@ -2,11 +2,22 @@
 
 {{define "content"}}{{with .Data}}
 {{if .Preview}}<p class="nl-preview">Preview{{if not .Published}}: not published yet{{end}}. <a href="/admin/newsletter/{{.ID}}">Back to editing</a></p>{{end}}
-{{if .Empty}}
+{{if or .Signup .SignupError}}
+<article class="page page-narrow">
+{{if .Signup}}
+  <h1>Check your email</h1>
+  <p class="lead">Press Confirm in the email we sent{{with .SignupEmail}} to <strong>{{.}}</strong>{{end}}.</p>
+  <p><a class="btn btn-quiet" href="/newsletter">Back to the newsletter</a></p>
+{{else}}
+  <h1>Get the newsletter</h1>
+  {{template "nl-signup" .}}
+{{end}}
+</article>
+{{else if .Empty}}
 <article class="page">
   <h1>Newsletter</h1>
   <p class="lead">PaxVelo’s monthly newsletter is on its way: stories from the road, upcoming rides, and club news.</p>
-  <p><a class="btn" href="/join">Join to get it by email</a></p>
+  {{template "nl-signup" .}}
 </article>
 {{else}}
 <article class="nl">
@@ -109,6 +120,11 @@
 </div>
 {{end}}{{end}}
 
+{{if not .Preview}}<section class="nl-get" aria-labelledby="nl-get-h">
+  <h2 id="nl-get-h">Get it by email</h2>
+  {{template "nl-signup" .}}
+</section>{{end}}
+
 <section class="nl-close">
   <p class="nl-colophon">Published by PaxVelo · <a href="mailto:PaxVeloClub@gmail.com">PaxVeloClub@gmail.com</a></p>
 </section>
@@ -127,5 +143,16 @@
 </a>{{else}}<img src="{{.Photo}}" alt="" loading="lazy" decoding="async"{{with .PhotoFocus}} style="{{focusStyle .}}"{{end}}>{{end}}{{else}}<p class="nl-more"><a href="{{.VideoURL}}" target="_blank" rel="noopener">Watch the video{{with .VideoLength}} ({{.}}){{end}}</a></p>{{end}}
   {{with .Caption}}<figcaption>{{.}}</figcaption>{{end}}
 </figure>{{end}}{{end}}
+
+{{/* Name and email for the newsletter (newssignup.go), with a way to join the club instead */}}
+{{define "nl-signup"}}<form class="nl-signup" id="signup" method="post" action="/newsletter/subscribe">
+  {{with .SignupError}}<p class="msg err" role="alert">{{.}}</p>{{end}}
+  <input type="hidden" name="ft" value="{{.Token}}">
+  <div class="hp" aria-hidden="true"><label>Leave this empty <input name="website" tabindex="-1" autocomplete="off"></label></div>
+  <label>Name <input name="name" maxlength="80" autocomplete="name" required value="{{.SignupName}}"></label>
+  <label>Email <input type="email" name="email" maxlength="254" autocomplete="email" required value="{{.SignupEmail}}"></label>
+  <button class="btn" type="submit">{{icon "mail"}}Get the newsletter</button>
+  <a class="btn btn-quiet" href="/join">Join the club</a>
+</form>{{end}}
 
 {{define "nl-link"}}{{with .Link}}<p class="nl-more"><a href="{{.}}"{{if external .}} target="_blank" rel="noopener"{{end}}>{{or $.LinkLabel "Read more"}}</a></p>{{end}}{{end}}

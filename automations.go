@@ -389,6 +389,44 @@ func (s *Store) seedRenewal() {
 	s.d.RenewalSeeded = true
 }
 
+// ---- The pay reminder ----
+
+// Like the renewal reminder, the pay reminder is an ordinary automation added
+// once: five days after someone joins on the website, if they haven't been
+// marked paid. It only counts joiners from the day it was added
+// (runAutomations skips days before Created), so old signups never get it.
+
+const (
+	payNudgeDays    = 5
+	payNudgeSubject = "Still want to ride, {first_name}?"
+	payNudgeBody    = `Hi {first_name},
+
+Thanks for joining PaxVelo! Your membership starts once your {dues} dues are in:
+
+[[Pay my dues]({pay_link})]
+
+{rides_for_you}
+
+Every club ride is on the calendar: {site}/calendar
+
+Already paid? Thanks! Reply to this email and we’ll mark it.
+
+See you on the road!
+PaxVelo`
+)
+
+func (s *Store) seedPayNudge() {
+	if s.d.PayNudgeSeeded {
+		return
+	}
+	s.d.NextAuto++
+	s.d.Automations = append(s.d.Automations, &Automation{
+		ID: s.d.NextAuto, Name: "Pay reminder", Trigger: "unpaid", Days: payNudgeDays,
+		Subject: payNudgeSubject, Body: payNudgeBody, Created: time.Now().UTC(),
+	})
+	s.d.PayNudgeSeeded = true
+}
+
 // MarkAutoSent records that an automation is going to a member for a day,
 // and reports false if it already went (or the automation is gone or paused).
 func (s *Store) MarkAutoSent(id, member int, occ string) bool {
@@ -508,6 +546,7 @@ var (
 		{"my_link", "My membership link", "Their own membership page"},
 		{"kit_link", "Kit order link", "Their own link to reserve club kit"},
 		{"calendar_link", "Subscribe to the calendar", "Puts every ride in their phone’s calendar"},
+		{"rides_for_you", "Rides for them", "The next rides that suit their answer on the join form"},
 		{"year", "Year", "This year"},
 		{"site", "Website address", ""},
 		{"strava", "Club on Strava", ""},
@@ -515,8 +554,7 @@ var (
 	piecesWelcome = append([]autoPiece{{"ride_tips", "Where to start riding", "The advice for their answer on the join form, with rides that suit them"}}, piecesMember...)
 	piecesConfirm = append([]autoPiece{
 		{"confirm_button", "Confirm button", "The button that confirms their email (it opens their membership page)"},
-		{"pay_line", "Pay line", "A line with their PayPal link, while they haven’t paid"},
-		{"rides_for_you", "Rides for them", "The next rides that suit their answer on the join form"}}, piecesMember...)
+		{"pay_line", "Pay line", "A line with their PayPal link, while they haven’t paid"}}, piecesMember...)
 )
 
 // builtinAutos are the emails the site sends by itself that admins can't
@@ -882,8 +920,7 @@ func (a *App) fillConfirm(body string, m Member) string {
 	if p := a.cfg.PayLink(m.Plan); p != "" && !m.Paid() {
 		pay = "Haven’t paid yet? [Pay your $" + strconv.Itoa(a.cfg.Dues(m.Plan)) + " " + strings.ToLower(m.PlanName()) + " dues for " + strconv.Itoa(a.cfg.ThisYear()) + "](" + p + ")."
 	}
-	rides := rideList(a.ridesFor(m.Level, 3), a.cfg.SiteURL)
-	return strings.NewReplacer("{confirm_button}", button, "{pay_line}", pay, "{rides_for_you}", rides).Replace(body)
+	return strings.NewReplacer("{confirm_button}", button, "{pay_line}", pay).Replace(body)
 }
 
 // autoPreview draws an email for the sample member Pat: the confirm email's

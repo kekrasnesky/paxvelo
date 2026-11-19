@@ -188,6 +188,7 @@ func (a *App) routes() http.Handler {
 	// The newsletter, and photos uploaded for it in the admin.
 	mux.HandleFunc("GET /newsletter", a.newsletterPage)
 	mux.HandleFunc("GET /newsletter/{slug}", a.newsletterPage)
+	mux.HandleFunc("POST /newsletter/subscribe", a.newsSignup) // newssignup.go
 	mux.Handle("GET /media/", a.site.staticFiles("/media/", os.DirFS(a.mediaDir())))
 	mux.Handle("GET /instagram/", a.site.staticFiles("/instagram/", os.DirFS(a.instaDir())))
 

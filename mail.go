@@ -113,6 +113,10 @@ func (m *Mailer) personalize(s string, mem Member) string {
 	if strings.Contains(s, "{ride_tips}") { // the rides coming up take a look at the calendar
 		tips = rideTips(m.store.Welcome(), mem, m.cfg.SiteURL, ridesFor(m.store, m.cfg.Location, mem.Level, 3))
 	}
+	rides := ""
+	if strings.Contains(s, "{rides_for_you}") {
+		rides = rideList(ridesFor(m.store, m.cfg.Location, mem.Level, 3), m.cfg.SiteURL)
+	}
 	pay := m.cfg.PayLink(mem.Plan)
 	if pay == "" {
 		pay = m.cfg.SiteURL + "/join"
@@ -126,13 +130,14 @@ func (m *Mailer) personalize(s string, mem Member) string {
 		"{dues}", "$"+strconv.Itoa(m.cfg.Dues(mem.Plan)),
 		"{year}", strconv.Itoa(m.cfg.ThisYear()),
 		"{ride_tips}", tips,
+		"{rides_for_you}", rides,
 		"{my_link}", m.cfg.membershipURL(mem.Token),
 		"{kit_link}", m.cfg.SiteURL+"/kit?t="+url.QueryEscape(mem.Token),
 		"{dues_expire}", duesExpireText(mem),
 		"{calendar_link}", m.cfg.SiteURL+"/calendar/subscribe",
 	).Replace(s)
 	s = rsvpLinks(s, m.cfg.SiteURL, mem.Token)
-	return extraBlankLines.ReplaceAllString(s, "\n\n") // where {ride_tips} came out empty
+	return extraBlankLines.ReplaceAllString(s, "\n\n") // where {ride_tips} or {rides_for_you} came out empty
 }
 
 var extraBlankLines = regexp.MustCompile(`\n{3,}`)

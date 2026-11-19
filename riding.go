@@ -1,21 +1,37 @@
 package main
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 )
 
 // What new members tell us about their riding on the join form: one answer,
-// which picks the welcome email's ride advice. The paces match
-// content/rides.md; change both together.
+// which picks the welcome email's ride advice and the rides the confirm
+// email suggests (rideLevelsFor). Each answer but racing names the calendar
+// level it matches, with that level's pace from levels.go, so the join form
+// and the ride tags always agree.
 
 type choice struct{ Value, Label, Short string }
 
 var riderLevels = []choice{
 	{"new", "New to group rides", "New"},
-	{"some", "I’ve done some group rides (around 19–21 mph)", "Some group rides"},
-	{"experienced", "Experienced on fast group rides (22+ mph)", "Experienced"},
+	{"some", "I’ve done some group rides", "Some group rides"},
+	{"experienced", "Experienced on fast group rides", "Experienced"},
 	{"racer", "I race", "Racer"},
+}
+
+// answerLevel is the calendar level each join form answer matches.
+var answerLevel = map[string]string{"new": "social", "some": "intermediate", "experienced": "elite"}
+
+func init() {
+	for i, c := range riderLevels {
+		for _, l := range rideLevels {
+			if l.Key == answerLevel[c.Value] {
+				riderLevels[i].Label = fmt.Sprintf("%s (%s, %s)", c.Label, l.Name, l.MPH)
+			}
+		}
+	}
 }
 
 // clubRides were checkboxes on the old join form. They're no longer asked,

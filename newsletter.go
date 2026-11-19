@@ -539,6 +539,9 @@ type newsView struct {
 	Parts          []newsPart
 	Archive        []Issue
 	Current        string // path of the issue being shown, to mark it in the archive
+	// The "Get it by email" form (newssignup.go): its form token, and after
+	// sending it, "sent" or what to fix, with what was typed.
+	Token, Signup, SignupError, SignupName, SignupEmail string
 }
 
 // newsView lays out an issue for its page. rides is what its rides block shows.
@@ -664,6 +667,7 @@ func (a *App) refreshNewsletter() {
 	}
 	for i, is := range published {
 		v, err := a.issueView(is, published)
+		v.Token = a.formToken()
 		var b []byte
 		if err == nil {
 			b, err = a.site.renderNews(v, is.Path(), "Newsletter, "+is.Label()+" — "+siteName)
@@ -687,7 +691,7 @@ func (a *App) refreshNewsletter() {
 	if pages["/newsletter"] == nil {
 		if p := old["/newsletter"]; p != nil && len(published) > 0 {
 			pages["/newsletter"] = p
-		} else if b, err := a.site.renderNews(newsView{Empty: true}, "/newsletter", "Newsletter — "+siteName); err == nil {
+		} else if b, err := a.site.renderNews(newsView{Empty: true, Token: a.formToken()}, "/newsletter", "Newsletter — "+siteName); err == nil {
 			pages["/newsletter"] = page("/newsletter", b)
 		}
 	}

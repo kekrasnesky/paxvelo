@@ -320,3 +320,44 @@ func TestPresidentDeletesBuiltinAutomations(t *testing.T) {
 		t.Error("Put back should bring it back on")
 	}
 }
+
+// The built-in pay reminder goes five days after someone joins on the
+// website, to joiners who haven't paid, with the pay link and rides for them.
+func TestPayReminderSends(t *testing.T) {
+	a, _, _ := testApp(t)
+	var mu sync.Mutex
+	var got []string
+	a.mailer.onSend = func(to, subject, body string) { mu.Lock(); got = append(got, to+"|"+subject+"|"+body); mu.Unlock() }
+	loc := a.cfg.Location
+	now := time.Now().In(loc)
+	nine := time.Date(now.Year(), now.Month(), now.Day(), 9, 30, 0, 0, loc)
+	a.store.mu.Lock()
+	for _, au := range a.store.d.Automations {
+		au.Created = nine.AddDate(0, 0, -30) // as if the site had it a month ago
+	}
+	a.store.mu.Unlock()
+	join := func(name, email string, daysAgo int) Member {
+		m, _, err := a.store.Join(memberDetails{Name: name, Email: email, Plan: "individual", Terms: true, Level: "new"}, a.cfg.ThisYear())
+		if err != nil {
+			t.Fatal(err)
+		}
+		a.store.mu.Lock()
+		p := a.store.byID(m.ID)
+		p.Joined, p.Unconfirmed = nine.AddDate(0, 0, -daysAgo), false
+		*p.TermsAgreed = p.Joined
+		m = *p
+		a.store.mu.Unlock()
+		return m
+	}
+	join("Una Unpaid", "una@example.com", 5)
+	join("Fay Four", "fay@example.com", 4)
+	paid := join("Pia Paid", "pia@example.com", 5)
+	a.store.Pay(paid.ID, false)
+	a.runAutomations(nine)
+	a.mailer.bg.Wait()
+	mu.Lock()
+	defer mu.Unlock()
+	if len(got) != 1 || !strings.HasPrefix(got[0], "una@example.com|Still want to ride, Una?|") || !strings.Contains(got[0], "[[Pay my dues](") || strings.Contains(got[0], "{") {
+		t.Fatalf("sent: %q", got)
+	}
+}

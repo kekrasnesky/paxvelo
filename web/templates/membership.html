@@ -46,7 +46,8 @@ adult on their Family plan. */}}
     <button class="btn" type="submit">{{icon "check"}}Confirm it’s me</button>
   </form>{{else if or .Confirmed .Renewed}}<p class="cal-msg" id="confirm" role="status">{{if .Confirmed}}Your email is confirmed.{{else}}You’re renewed.{{end}}{{if .Renewed}} Your waiver is signed and your details are saved.{{end}}</p>{{end}}
 
-  <ul class="status-list">
+  {{if .NewsOnly}}<p><a class="btn" href="/join">{{icon "bike"}}Join the club</a></p>
+  {{else}}<ul class="status-list">
     <li class="status {{if .Paid}}done{{else}}todo{{end}}">
       {{template "status-mark" .Paid}}
       <div class="status-body">
@@ -152,6 +153,7 @@ adult on their Family plan. */}}
     <p class="msg{{if .Message}} err{{end}}" role="status">{{.Message}}</p>
   </form>
   </details>
+  {{end}}
 
   <h2 class="my-h" id="emails">Club emails</h2>
   {{if $m.Active}}{{if .EmailsBack}}<p class="cal-msg" role="status">Club emails are back on.</p>{{else if .TopicsSaved}}<p class="cal-msg" role="status">Saved.</p>{{end}}
