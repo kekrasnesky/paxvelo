@@ -379,7 +379,7 @@ func (a *App) cancelRideAdmin(w http.ResponseWriter, r *http.Request) {
 	if r.FormValue("return") == "rides" {
 		to = "/admin/rides?ok=" + code
 	}
-	back(w, r, to)
+	back(w, r, homeReturn(r, to))
 }
 
 // approveRide puts a ride someone added on the website onto the calendar.

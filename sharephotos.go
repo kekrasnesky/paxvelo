@@ -52,9 +52,6 @@ type SubmittedPhoto struct {
 	Caption   string    `json:"caption,omitempty"`    // what they wrote about this one
 	Album     int       `json:"album,omitempty"`      // the album they picked
 	AlbumName string    `json:"album_name,omitempty"` // or a new one they named
-	Ride      string    `json:"ride,omitempty"`       // from before albums (galleryRides)
-	Date      string    `json:"date,omitempty"`
-	Tags      []string  `json:"tags,omitempty"`
 	Submitted time.Time `json:"submitted"`
 	IP        string    `json:"ip,omitempty"`
 	Seen      bool      `json:"seen,omitempty"`    // an admin has opened Photos to review since it came in

@@ -1,0 +1,35 @@
+/* Colours, corners, shadows and the focus ring, shared by the public site and
+   the admin: site.go puts this file in front of both site.css and admin.css,
+   so a token is set once here. admin.css still sets a few to its own value
+   (adminOwnTokens in tokens_test.go); TestTokensShared fails on any other
+   token set outside this file. Never a --r token: focus.go sets --r on
+   rounded photos. */
+:root{
+  --ink:#2d2d2d;      /* header, footer, headings, the admin bar */
+  --paper:#f5f2ec;    /* page background, light text */
+  --card:#fff;
+  --red:#9a2b29;      /* links, buttons, page titles */
+  --red-dark:#7e211f; /* a pressed red button */
+  --text:#2f2a28;     /* body text: dark, so long paragraphs are easy to read */
+  --rule:rgba(154,43,41,.22);
+  --line:#e2dacf;     /* thin dividers and card edges */
+  --muted:#6b625c;    /* secondary text: dates, places, hints */
+  --field:#cdbfb5;    /* form field edges */
+  --tint:#faf7f2;     /* a quiet fill inside cards */
+  --tint-2:#f1ece5;   /* a little deeper: days outside the month, map placeholders */
+  --band:#ede7de;     /* every other home section, chips */
+  --ph:#e9e2d8;       /* photo placeholders while they load */
+  /* What things say: done/on (green), wrong/cancelled (red), needs attention (amber) */
+  --ok:#2e6b34;--ok-ink:#1d4521;--ok-bg:#e8f3e8;
+  --err:#b3261e;--err-ink:#6e1712;--err-bg:#fbe9e7;--err-line:#e3b4b2;
+  --warn:#c98a1b;--warn-ink:#8a5a00;--warn-bg:#fff6df;--warn-line:#ecd3a6;
+  --info-ink:#24384d;--info-bg:#eef3f8;
+  /* Corners: small for chips, medium for fields and buttons, large for cards. */
+  --r-sm:6px;--r-md:8px;--radius:10px;--radius-lg:10px;--pill:999px;
+  /* Elevation: resting cards, cards under the pointer, menus and pop-ups, bars along the bottom */
+  --shadow-1:0 1px 3px rgba(45,45,45,.08);
+  --shadow-2:0 6px 16px rgba(45,45,45,.12);
+  --shadow-pop:0 8px 24px rgba(45,45,45,.16);
+  --shadow-up:0 -6px 18px rgba(0,0,0,.08);
+  --ring:0 0 0 3px rgba(154,43,41,.22); /* keyboard focus on fields */
+}

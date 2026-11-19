@@ -33,6 +33,7 @@ type adminView struct {
 	InApp                             bool           // the admin app's frame: its Home bar, not the menu bar (appframe.go)
 	Dashboard                         *dashboardView // Home
 	App                               *adminAppView  // the admin phone app's home (adminapp.go)
+	Jobs                              *appJobsView   // the app's phone jobs: Rides today, Approvals, Mark paid (appjobs.go)
 	Guide                             *guideView     // the How the site works page
 	Stats                             *statsView     // the Stats page
 	Money                             *moneyView     // the Treasurer tab (treasureradmin.go)
@@ -630,7 +631,7 @@ func (a *App) markPaid(w http.ResponseWriter, r *http.Request) {
 	}
 	to := "/admin/members?ok=" + code
 	// Back to Home or the member's page, or keep the admin's search and filter in place.
-	if ret := r.FormValue("return"); ret == "/admin" || ret == adminAppPath {
+	if ret := r.FormValue("return"); listReturns[ret] {
 		to = ret + "?ok=" + code
 	} else if ret == "/admin/members/"+strconv.Itoa(id) {
 		to = ret + "?ok=" + code
@@ -683,7 +684,7 @@ func (a *App) exportCSV(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	w.Header().Set("Content-Disposition", `attachment; filename="paxvelo-members-`+time.Now().In(a.cfg.Location).Format("2006-01-02")+`.csv"`)
 	cw := csv.NewWriter(w)
-	cw.Write([]string{"Name", "Email", "Phone", "Emergency contact", "Emergency phone", "Plan", "Riding", "Rides", "Dues paid up", "Years paid", "Joined", "Status"})
+	cw.Write([]string{"Name", "Email", "Phone", "Emergency contact", "Emergency phone", "Plan", "Riding", "Dues paid up", "Years paid", "Joined", "Status"})
 	for _, m := range a.store.Members() {
 		status := "Active"
 		if !m.Active() {
@@ -697,7 +698,7 @@ func (a *App) exportCSV(w http.ResponseWriter, r *http.Request) {
 		for i, y := range m.PaidYears {
 			years[i] = strconv.Itoa(y)
 		}
-		cw.Write([]string{m.Name, m.Email, m.Phone, m.EmergencyName, m.EmergencyPhone, m.PlanName(), m.LevelName(), m.RideNames(), paid, strings.Join(years, " "),
+		cw.Write([]string{m.Name, m.Email, m.Phone, m.EmergencyName, m.EmergencyPhone, m.PlanName(), m.LevelName(), paid, strings.Join(years, " "),
 			m.Joined.In(a.cfg.Location).Format("2006-01-02"), status})
 	}
 	cw.Flush()

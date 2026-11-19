@@ -138,7 +138,7 @@ type attentionAct struct {
 	Fields              map[string]string
 	Quiet               bool   // the second choice, like Decline
 	Board               bool   // board members only
-	Return              string // /admin or /admin/app, set by withReturn
+	Return              string // the list it's on (listReturns), set by withReturn
 }
 
 // withReturn sends each button back to the list it's on.
@@ -156,7 +156,7 @@ func withReturn(items []attentionItem, path string) []attentionItem {
 // action usually returns to.
 func homeReturn(r *http.Request, to string) string {
 	ret := r.FormValue("return")
-	if ret != "/admin" && ret != adminAppPath {
+	if !listReturns[ret] {
 		return to
 	}
 	if u, err := url.Parse(to); err == nil && u.RawQuery != "" {

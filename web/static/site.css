@@ -6,42 +6,17 @@
 
 /* Colors and spacing: the club's red, charcoal, and cream */
 :root{
-  --ink:#2d2d2d;      /* header, footer, headings */
-  --paper:#f5f2ec;    /* page background, light text */
-  --red:#9a2b29;      /* links, buttons, page titles */
-  --text:#2f2a28;     /* body text: dark, so long paragraphs are easy to read */
-  --rule:rgba(154,43,41,.22);
-  --line:#e2dacf;     /* thin dividers and card edges */
-  --card:#fff;
-  --radius:10px;
+  /* Colours, corners, shadows and the focus ring are in tokens.css (shared with the admin). */
   --max:1200px;       /* widest the content gets; on bigger screens the sides grow instead */
   --pad:clamp(16px,3.2vw,40px);  /* page side margin */
   --side:max(var(--pad),calc((100% - var(--max))/2));
   --font:Poppins,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
   --display:"Barlow Semi Condensed","Arial Narrow",var(--font);  /* headings */
-  --muted:#6b625c;    /* secondary text: dates, places, hints */
   --label:var(--muted); /* the small uppercase labels over headings */
-  --field:#cdbfb5;    /* form field edges */
-  --tint:#faf7f2;     /* a quiet fill inside cards */
-  --tint-2:#f1ece5;   /* a little deeper: days outside the month, map placeholders */
-  --band:#ede7de;     /* every other home section, chips */
-  --ph:#e9e2d8;       /* photo placeholders while they load */
-  /* What things say: done/on (green), wrong/cancelled (red), needs attention (amber) */
-  --ok:#2e6b34;--ok-ink:#1d4521;--ok-bg:#e8f3e8;
-  --err:#b3261e;--err-ink:#6e1712;--err-bg:#fbe9e7;
-  --warn:#c98a1b;--warn-ink:#8a5a00;--warn-bg:#fff6df;
-  --info-ink:#24384d;--info-bg:#eef3f8;
-  /* Corners: small for chips, medium for fields and buttons, large for cards.
-     (--r is taken: focus.go sets it on rounded photos.) */
-  --r-sm:6px;--r-md:8px;--pill:999px;
-  /* Elevation: resting cards, cards under the pointer, menus and pop-ups */
-  --shadow-1:0 1px 3px rgba(45,45,45,.08);
-  --shadow-2:0 6px 16px rgba(45,45,45,.12);
-  --shadow-pop:0 8px 24px rgba(45,45,45,.16);
-  --ring:0 0 0 3px rgba(154,43,41,.22); /* keyboard focus on fields */
   /* Spacing steps: use these rather than one-off sizes */
   --space-xs:.5rem;--space-sm:1rem;--space-md:1.5rem;--space-lg:2.5rem;--space-xl:4rem;--space-2xl:6rem;--space-3xl:8rem;
 }
+
 *,*::before,*::after{box-sizing:border-box}
 [hidden]{display:none!important}
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%}

@@ -75,7 +75,7 @@ var boardTabs = map[string]bool{
 // Home can leave it out for website admins.
 func boardHref(href string) bool {
 	for _, p := range []string{"/admin/waivers", "/admin/ride-waivers", "/admin/members.csv", "/admin/email/auto", "/admin/email/log", "/admin/email/alerts", "/admin/newsletter",
-		"/admin/pages", "/admin/home-photos", "/admin/board", "/admin/instagram", "/admin/security", "/admin/backup", "/admin/kit"} {
+		"/admin/pages", "/admin/home-photos", "/admin/board", "/admin/instagram", "/admin/security", "/admin/backup", "/admin/kit", appPaidPath} {
 		if href == p || strings.HasPrefix(href, p+"/") || strings.HasPrefix(href, p+"?") || strings.HasPrefix(href, p+"#") || strings.HasPrefix(href, p+".csv") {
 			return true
 		}

@@ -108,6 +108,12 @@ func (a *App) appTiles(r *http.Request, requests int) []appTileGroup {
 // adminAppPage is the app's home: what needs you, the next rides, buttons.
 func (a *App) adminAppPage(w http.ResponseWriter, r *http.Request) {
 	items, requests := a.attentionFor(r)
+	approvals := 0
+	for _, it := range items {
+		if len(it.Acts) > 0 {
+			approvals++
+		}
+	}
 	if a.isBoard(r) { // the computer Home lists these in its Members card
 		for _, m := range a.memberSnapshot().Signups {
 			items = append(items, attentionItem{
@@ -124,7 +130,7 @@ func (a *App) adminAppPage(w http.ResponseWriter, r *http.Request) {
 	}
 	name, _ := a.adminName(r)
 	v := adminView{Title: "Home", Tab: "app", App: &adminAppView{
-		Items: items, Rides: rides, Groups: a.appTiles(r, requests), First: firstName(name),
+		Items: items, Rides: rides, Groups: append([]appTileGroup{a.appJobTiles(r, approvals)}, a.appTiles(r, requests)...), First: firstName(name),
 		Search: a.appSearch(r.URL.Query().Get("q")),
 	}}
 	if u, ok := a.currentAdmin(r); ok && u.ID != 0 {

@@ -1,0 +1,325 @@
+{{/* Members → Members, a member's page, Waivers (memberadmin.go, waivers.go, ridewaivers.go). */}}
+
+{{define "members"}}{{template "head" .}}
+<div class="title-row">
+  <h1>Members</h1>
+</div>
+<div class="tools">
+  <form class="search" method="get" action="/admin/members">
+    {{with .Dues}}<input type="hidden" name="dues" value="{{.}}">{{end}}
+    <input type="search" name="q" value="{{.Q}}" placeholder="Search name, email, or phone" aria-label="Search members">
+    <button class="ghost">{{icon "search"}}Search</button>
+    {{if .Q}}<a href="/admin/members{{with .Dues}}?dues={{.}}{{end}}">Clear</a>{{end}}
+  </form>
+  {{if .IsBoard}}<a class="btn ghost" href="/admin/members.csv">Export CSV</a>{{end}}
+</div>
+<nav class="filter" aria-label="Filter by membership">
+  <a href="/admin/members?dues=paid{{with .Q}}&q={{.}}{{end}}"{{if eq .Dues "paid"}} aria-current="page"{{end}} title="Dues paid and not expired">Current members ({{.Paid}})</a>
+  <a href="/admin/members?dues=unpaid{{with .Q}}&q={{.}}{{end}}"{{if eq .Dues "unpaid"}} aria-current="page"{{end}} title="Expired, or joined online and unpaid">Not paid yet ({{.Unpaid}})</a>
+  <a href="/admin/members?dues=list{{with .Q}}&q={{.}}{{end}}"{{if eq .Dues "list"}} aria-current="page"{{end}} title="Never paid dues">Email list only ({{.List}})</a>
+  <a href="/admin/members{{with .Q}}?q={{.}}{{end}}"{{if eq .Dues ""}} aria-current="page"{{end}}>Everyone ({{.Total}})</a>
+</nav>
+{{if .IsBoard}}<form id="bulk" class="bulk-bar" method="post" action="/admin/members/paid" hidden>
+  <input type="hidden" name="return" value="/admin/members?q={{.Q}}&dues={{.Dues}}">
+  <span class="bulk-n"></span>
+  <button class="mini">{{icon "check"}}Mark them paid</button>
+  {{if .MovedOn}}<button class="mini ghost" formaction="/admin/members/moved" data-confirm-moved title="Paid on the old site">{{icon "send"}}Mark paid &amp; send site-move email</button>{{end}}
+  {{if .CanManage}}<button class="mini ghost danger" formaction="/admin/members/delete" data-confirm-delete>{{icon "trash"}}Delete them</button>{{end}}
+  <button type="button" class="link small bulk-clear">Clear</button>
+</form>{{end}}
+<div class="table-wrap"><table class="tight cards members">
+  <thead><tr>{{if .IsBoard}}<th class="pick-col"><input type="checkbox" class="pick-all" aria-label="Tick everyone shown"></th>{{end}}<th><button type="button" class="sort" data-sort="name">Name</button></th><th>Email</th><th>Phone</th><th><button type="button" class="sort" data-sort="plan">Plan</button></th><th>Riding</th><th><button type="button" class="sort" data-sort="paid">Dues</button></th><th><button type="button" class="sort" data-sort="waiver">{{.Year}} waiver</button></th><th><button type="button" class="sort" data-sort="joined">Joined</button></th></tr></thead>
+  <tbody>
+  {{range .Members}}{{$paid := .Paid}}<tr id="m{{.ID}}" data-name="{{.Name}}" data-plan="{{.Plan}}" data-paid="{{if $paid}}1{{else}}0{{end}}" data-waiver="{{if index $.Signed .ID}}1{{else}}0{{end}}" data-joined="{{.Joined.Format "2006-01-02T15:04:05"}}" data-find="{{.Name}} {{.Email}} {{.Phone}}"{{if not .Active}} class="off"{{end}}>
+    {{if $.IsBoard}}<td class="pick-col" data-label="Tick"><input type="checkbox" name="id" value="{{.ID}}" form="bulk" aria-label="Tick {{.Name}}"></td>{{end}}
+    <td data-label="Name"><a class="member-link" href="/admin/members/{{.ID}}">{{.Name}}</a>{{with .Household}}<br><span class="muted small">With {{range $i, $h := .}}{{if $i}}, {{end}}{{$h.Name}}{{end}}</span>{{end}}</td>
+    <td class="email" data-label="Email"><a href="mailto:{{.Email}}">{{.Email}}</a>{{if not .Active}} <span class="tag">Unsubscribed</span>{{end}}{{if .Unconfirmed}} <span class="tag" title="Email not confirmed yet">Email not confirmed</span>{{end}}{{if .RenewalWaiting}} <span class="tag" title="Rejoined, not confirmed yet">Renewal not confirmed</span>{{end}}</td>
+    <td class="nowrap" data-label="Phone">{{with .Phone}}<a href="tel:{{.}}">{{.}}</a>{{else}}<span class="muted">—</span>{{end}}</td>
+    <td data-label="Plan">{{.PlanName}}</td>
+    <td data-label="Riding">{{with .LevelName}}{{.}}{{else}}<span class="muted">—</span>{{end}}</td>
+    <td class="nowrap" data-label="Dues">{{if not $.IsBoard}}{{if $paid}}<span class="paid">Paid</span>{{with .DuesExpire}}{{if not .IsZero}}<span class="muted small welcome-note">Until {{date .}}</span>{{end}}{{end}}{{else}}<span class="muted">Not paid</span>{{end}}{{else}}<form method="post" action="/admin/members/{{.ID}}/paid" class="inline paid-form">
+      <input type="hidden" name="return" value="/admin/members?q={{$.Q}}&dues={{$.Dues}}">
+      {{if $paid}}<span class="paid">Paid</span> <input type="hidden" name="paid" value="0"><button class="link small">{{icon "undo"}}Undo</button>{{with .DuesExpire}}{{if not .IsZero}}<span class="muted small welcome-note">Until {{date .}}</span>{{end}}{{end}}{{if .MovedSent}}<span class="muted small welcome-note">Site-move email sent</span>{{end}}
+      {{else}}<input type="hidden" name="paid" value="1"><button class="mini ghost">{{icon "check"}}Mark paid</button>{{with .LastPaid}}<span class="muted small welcome-note">Last paid {{.}}</span>{{end}}{{if .WelcomePending}}<span class="muted small welcome-note">{{if .Unconfirmed}}Their welcome email goes once they confirm their email{{else}}Sends their welcome email{{end}}</span>{{end}}{{end}}
+    </form>{{end}}</td>
+    <td class="nowrap" data-label="{{$.Year}} waiver">{{if index $.Signed .ID}}<span class="paid">Signed</span>{{else}}<span class="muted">Not signed</span>{{end}}</td>
+    <td class="nowrap" data-label="Joined">{{date .Joined}}</td>
+  </tr>
+  {{else}}<tr><td colspan="9" class="empty">{{if $.Total}}Nobody matches that.{{else}}No members yet.{{end}}</td></tr>
+  {{end}}
+  <tr class="no-match" hidden><td colspan="9" class="empty">Nobody matches that.</td></tr>
+  </tbody>
+</table></div>
+{{if .IsBoard}}<div class="grid2">
+  <form class="card" id="add" method="post" action="/admin/members">
+    <h2>Add a member</h2>
+    <label>Full name <input name="name" required maxlength="100"></label>
+    <label>Email <input type="email" name="email" required maxlength="254"></label>
+    <label><span>Phone <span class="opt">(optional)</span></span><input type="tel" name="phone" maxlength="30"></label>
+    <label><span>Emergency contact <span class="opt">(optional)</span></span><input name="emergency_name" maxlength="100"></label>
+    <label><span>Emergency contact’s phone <span class="opt">(optional)</span></span><input type="tel" name="emergency_phone" maxlength="30"></label>
+    <label>Plan <select name="plan"><option value="individual">Individual</option><option value="family">Family</option></select></label>
+    <label class="check"><input type="checkbox" name="paid"> Paid (a year from today)</label>
+    <button>{{icon "plus"}}Add member</button>
+  </form>
+  <form class="card" method="post" action="/admin/import" enctype="multipart/form-data">
+    <h2>Import from a spreadsheet</h2>
+    <input type="file" name="file" accept=".csv,text/csv" required aria-label="CSV file">
+    <label>Who to import
+      <select name="who">
+        <option value="all">Everyone in the file</option>
+        <option value="members">Current and past members only</option>
+        <option value="current">Current members only</option>
+      </select>
+    </label>
+    <button>{{icon "upload"}}Import</button>
+  </form>
+</div>{{end}}
+<script>
+(function(){
+var table=document.querySelector('table.members'),body=table.tBodies[0],none=body.querySelector('.no-match');
+function rows(){return [].slice.call(body.querySelectorAll('tr[id^=m]'))}
+// The search box narrows the list as you type (Search still asks the server).
+var box=document.querySelector('.search input[name=q]');
+box.addEventListener('input',function(){var q=box.value.trim().toLowerCase(),digits=q.replace(/\D/g,''),shown=0;
+  rows().forEach(function(tr){var f=tr.dataset.find.toLowerCase(),hit=!q||f.indexOf(q)>=0||(digits.length>=3&&f.replace(/\D/g,'').indexOf(digits)>=0);tr.hidden=!hit;if(hit)shown++});
+  none.hidden=shown>0||!rows().length;count()});
+// Column headings sort the list; pressing one again reverses it.
+var sorted=null,dir=1;
+table.querySelectorAll('button.sort').forEach(function(b){b.addEventListener('click',function(){var k=b.dataset.sort;dir=sorted===k?-dir:(k==='joined'?-1:1);sorted=k;
+  table.querySelectorAll('th[aria-sort]').forEach(function(th){th.removeAttribute('aria-sort')});
+  b.closest('th').setAttribute('aria-sort',dir>0?'ascending':'descending');
+  rows().sort(function(x,y){return dir*x.dataset[k].localeCompare(y.dataset[k],undefined,{sensitivity:'base'})}).forEach(function(tr){body.insertBefore(tr,none)})})});
+// Ticking members shows a bar to mark them all paid at once.
+var bulk=document.getElementById('bulk'),all=table.querySelector('.pick-all');
+function picks(){return [].slice.call(body.querySelectorAll('input[name=id]')).filter(function(c){return !c.closest('tr').hidden})}
+function count(){if(!bulk)return;var n=picks().filter(function(c){return c.checked}).length;bulk.hidden=!n;bulk.querySelector('.bulk-n').textContent=n+(n===1?' member ticked':' members ticked');
+  all.checked=n>0&&n===picks().length}
+if(!bulk)return; // website admins only look members up
+body.addEventListener('change',function(e){if(e.target.name==='id')count()});
+all.addEventListener('change',function(){picks().forEach(function(c){c.checked=all.checked});count()});
+bulk.querySelector('.bulk-clear').addEventListener('click',function(){picks().forEach(function(c){c.checked=false});count()});
+bulk.addEventListener('submit',function(e){
+  body.querySelectorAll('input[name=id]').forEach(function(c){if(c.closest('tr').hidden)c.checked=false}); // only the ones you can see
+  var n=picks().filter(function(c){return c.checked}).length;
+  var del=e.submitter&&e.submitter.hasAttribute('data-confirm-delete'),moved=e.submitter&&e.submitter.hasAttribute('data-confirm-moved');
+  if(moved){if(!confirm('Send the site-move email to '+n+(n===1?' member':' members')+'? Anyone not paid up is marked paid, with no welcome email.'))e.preventDefault();return}
+  if(!confirm(del?'Delete '+n+(n===1?' person':' people')+' from the list for good? Their details, years paid and signed waivers go too. This can’t be undone.':'Mark '+n+(n===1?' member':' members')+' as paid? Anyone who joined on the website gets their welcome email.'))e.preventDefault()});
+// Mark paid and Undo work in place, so a long list keeps your spot: the
+// server sends the page back and only that row, the counts and the message change.
+body.addEventListener('submit',function(e){var f=e.target;if(!f.classList.contains('paid-form')||!window.fetch||!window.DOMParser)return;
+  e.preventDefault();var tr=f.closest('tr');f.querySelector('button').disabled=true;
+  fetch(f.action,{method:'POST',body:new URLSearchParams(new FormData(f))}).then(function(r){if(!r.ok)throw r;return r.text()}).then(function(t){
+    var doc=new DOMParser().parseFromString(t,'text/html'),nr=doc.getElementById(tr.id);
+    if(nr){nr.hidden=tr.hidden;tr.replaceWith(nr)}else tr.remove();
+    var main=document.querySelector('main');
+    main.querySelectorAll(':scope > .flash:not(.warn)').forEach(function(x){x.remove()});
+    [].slice.call(doc.querySelectorAll('main > .flash:not(.warn)')).reverse().forEach(function(x){main.prepend(x)});
+    ['.title-row .muted','nav.filter'].forEach(function(sel){var a=document.querySelector(sel),b=doc.querySelector(sel);if(a&&b)a.replaceWith(b)});
+    count();
+  }).catch(function(){f.submit()})});
+})();
+</script>
+{{template "foot" .}}{{end}}
+
+{{define "member"}}{{template "head" .}}{{with .MemberPage}}{{$m := .}}{{$paid := .Paid}}
+<p><a href="/admin/members">← All members</a></p>
+<div class="title-row">
+  <h1>{{.Name}}</h1>
+  <p class="muted">{{.PlanName}} plan · joined {{date .Joined}}{{if not .Active}} <span class="tag">Unsubscribed</span>{{end}}{{if .Unconfirmed}} <span class="tag" title="Email not confirmed yet">Email not confirmed</span>{{end}}{{if .RenewalWaiting}} <span class="tag" title="Rejoined, not confirmed yet">Renewal not confirmed</span>{{end}}{{if .NoNewsletter}} <span class="tag">Newsletter off</span>{{end}}{{if .NoEvents}} <span class="tag">Event emails off</span>{{end}}</p>
+</div>
+<div class="grid2 member-page">
+  {{if not $.IsBoard}}<div class="card">
+    <h2>Details</h2>
+    <dl class="facts">
+      <dt>Email</dt><dd><a href="mailto:{{.Email}}">{{.Email}}</a></dd>
+      <dt>Phone</dt><dd>{{with .Phone}}<a href="tel:{{.}}">{{.}}</a>{{else}}<span class="muted">—</span>{{end}}</dd>
+      <dt>Emergency contact</dt><dd>{{with .EmergencyName}}{{.}}{{else}}<span class="muted">—</span>{{end}}{{with .EmergencyPhone}} · <a href="tel:{{.}}">{{.}}</a>{{end}}</dd>
+      <dt>Riding</dt><dd>{{with .LevelName}}{{.}}{{else}}<span class="muted">Not given</span>{{end}}</dd>
+      <dt>Dues</dt><dd>{{if $paid}}<span class="paid">Paid</span>{{with .DuesExpire}}{{if not .IsZero}} through {{date .}}{{end}}{{end}}{{else}}<span class="muted">Not paid</span>{{end}}</dd>
+    </dl>
+  {{else}}<form class="card" method="post" action="/admin/members/{{.ID}}">
+    <h2>Details</h2>
+    <label>Full name <input name="name" required maxlength="100" value="{{.Name}}"></label>
+    <label>Email <input type="email" name="email" required maxlength="254" value="{{.Email}}"></label>
+    <label><span>Phone <span class="opt">(optional)</span></span><input type="tel" name="phone" maxlength="30" value="{{.Phone}}"></label>
+    <label><span>Emergency contact <span class="opt">(optional)</span></span><input name="emergency_name" maxlength="100" value="{{.EmergencyName}}"></label>
+    <label><span>Emergency contact’s phone <span class="opt">(optional)</span></span><input type="tel" name="emergency_phone" maxlength="30" value="{{.EmergencyPhone}}"></label>
+    <label>Plan <select name="plan"><option value="individual">Individual</option><option value="family"{{if eq .Plan "family"}} selected{{end}}>Family</option></select></label>
+    <label>Riding <select name="level"><option value="">Not given</option>{{range riderLevels}}<option value="{{.Value}}"{{if eq .Value $m.Level}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>
+    <button>{{icon "save"}}Save</button>
+  </form>
+  <div class="card">
+    <h2>Dues</h2>
+    <form method="post" action="/admin/members/{{.ID}}/paid" class="inline">
+      <input type="hidden" name="return" value="/admin/members/{{.ID}}">
+      {{if $paid}}<span class="paid">Paid</span> <input type="hidden" name="paid" value="0"><button class="link small">{{icon "undo"}}Undo</button>
+      {{else}}<span class="muted">{{if .DuesExpire.IsZero}}Not paid{{else}}Expired {{date .DuesExpire}}{{end}}</span> <input type="hidden" name="paid" value="1"><button class="mini">{{icon "check"}}Mark paid</button>{{end}}
+    </form>
+    {{with .DuesExpire}}{{if not .IsZero}}<p class="small">Dues good through <strong>{{date .}}</strong></p>{{end}}{{end}}
+    {{if $paid}}<form method="post" action="/admin/members/{{.ID}}/paid" class="inline" onsubmit="return confirm('Record an early renewal for {{.FirstName}}? Their dues then run a year past {{date .DuesExpire}}.')">
+      <input type="hidden" name="return" value="/admin/members/{{.ID}}"><input type="hidden" name="paid" value="renew">
+      <button class="link small">{{icon "plus"}}Renew early (adds a year)</button>
+    </form>{{end}}
+    {{if .WelcomePending}}{{end}}
+    {{if $.MovedOn}}<form method="post" action="/admin/members/moved" class="inline" onsubmit="return confirm('Send {{.FirstName}} the site-move email{{if not $paid}} and mark them paid{{end}}?')">
+      <input type="hidden" name="id" value="{{.ID}}"><input type="hidden" name="return" value="/admin/members/{{.ID}}">
+      <button class="mini ghost">{{icon "send"}}{{if $paid}}Send{{else}}Mark paid &amp; send{{end}} site-move email</button>
+      {{with .MovedSent}}<span class="muted small">Sent {{date .}}</span>{{end}}
+    </form>{{end}}
+    {{if $.CanManage}}<form class="record" method="post" action="/admin/members/{{.ID}}/record">
+      <label>Years paid <input name="years" value="{{.YearsPaidText}}" placeholder="e.g. 2024, 2025"></label>
+      <label>Joined <input type="date" name="joined" value="{{.Joined.Format "2006-01-02"}}"></label>
+      <label class="check"><input type="checkbox" name="emails" value="on"{{if .Active}} checked{{end}}> Club emails go to them</label>
+      <button class="mini ghost">{{icon "save"}}Save record</button>
+    </form>
+    {{else}}<p class="small">Years paid: {{range $i, $y := .PaidYears}}{{if $i}}, {{end}}{{$y}}{{else}}<span class="muted">none yet</span>{{end}}</p>{{end}}
+    {{end}}
+    <h2 class="member-h">Waivers</h2>
+    {{if .Waivers}}<ul class="member-list">{{range .Waivers}}<li>{{if $.IsBoard}}<a href="/admin/waivers/{{.ID}}">{{.Year}}</a>{{else}}{{.Year}}{{end}} · {{if .Minor}}for {{.Rider}}, age {{.RiderAge}}{{else if .Household}}{{.Rider}}, on this family plan{{else}}their own{{end}} <span class="muted small">signed {{date .Signed}}</span></li>{{end}}</ul>
+    {{else}}<p class="muted small">No waivers signed yet.</p>{{end}}
+    {{with .RideWaivers}}<h2 class="member-h">Ride waivers</h2>
+    <ul class="member-list">{{range .}}<li>{{if $.IsBoard}}<a href="/admin/ride-waivers/{{.ID}}">{{date .Signed}}</a>{{else}}{{date .Signed}}{{end}} · {{.BikeLabel}}{{if .Minor}} · for {{.Rider}}, age {{.RiderAge}}{{end}}</li>{{end}}</ul>{{end}}
+    {{with .Primary}}<h2 class="member-h">Family plan</h2>
+    <p class="small">On <a href="/admin/members/{{.ID}}">{{.Name}}</a>’s family membership.</p>{{end}}
+    {{if or .Household (eq .Plan "family")}}{{$pid := .ID}}<h2 class="member-h">Family plan adults</h2>
+    {{if .Household}}<ul class="member-list">{{range .Household}}<li>
+      {{if $.CanManage}}<form class="record" method="post" action="/admin/members/{{$pid}}/family">
+        <input type="hidden" name="do" value="edit"><input type="hidden" name="old_email" value="{{.Email}}">
+        <label>Name <input name="adult_name" value="{{.Name}}" required></label>
+        <label>Email <input type="email" name="adult_email" value="{{.Email}}" required></label>
+        <button class="mini ghost">{{icon "save"}}Save</button>
+      </form>
+      <form method="post" action="/admin/members/{{$pid}}/family"><input type="hidden" name="do" value="remove"><input type="hidden" name="old_email" value="{{.Email}}"><button class="link danger">{{icon "trash"}}Remove</button></form>
+      {{else}}{{.Name}} · <a href="mailto:{{.Email}}">{{.Email}}</a>{{end}}
+      {{if not .LinkSent}}<span class="muted small">Waiver link not sent yet</span>{{end}}
+    </li>{{end}}</ul>{{else}}<p class="muted small">No other adults yet.</p>{{end}}
+    {{if and $.CanManage (eq .Plan "family")}}<form class="record" method="post" action="/admin/members/{{$pid}}/family">
+      <input type="hidden" name="do" value="add">
+      <label>Adult’s name <input name="adult_name" required></label>
+      <label>Adult’s email <input type="email" name="adult_email" required></label>
+      <button class="mini ghost">{{icon "plus"}}Add adult</button>
+    </form>{{end}}{{end}}
+    <h2 class="member-h">Contact</h2>
+    <p class="small"><a href="mailto:{{.Email}}">Email {{.FirstName}}</a>{{with .Phone}} · <a href="tel:{{.}}">Call {{.}}</a>{{end}}{{with .EmergencyPhone}} · Emergency: <a href="tel:{{.}}">{{.}}</a>{{with $m.EmergencyName}} ({{.}}){{end}}{{end}}</p>
+    {{with .TermsAgreed}}<p class="muted small">Agreed to the club terms {{date .}}.</p>{{end}}
+  </div>
+</div>
+{{if $.CanManage}}<form class="footnote" method="post" action="/admin/members/{{.ID}}/delete" onsubmit="return confirm('Delete {{.Email}}? This can’t be undone.')"><button class="link danger">{{icon "trash"}}Delete this member</button></form>
+{{end}}
+{{end}}{{template "foot" .}}{{end}}
+
+
+{{define "waivers"}}{{template "head" .}}
+<div class="title-row">
+  <h1>Waivers</h1>
+</div>
+<div class="tools">
+  <nav class="filter year-pick" aria-label="Year">{{range .WaiverYears}}<a href="/admin/waivers?year={{.}}{{with $.Show}}&show={{.}}{{end}}"{{if eq . $.Year}} aria-current="page"{{end}}>{{.}}</a>{{end}}</nav>
+  <a class="btn ghost" href="/admin/{{if eq .Show "rides"}}ride-{{end}}waivers.csv?year={{.Year}}">Export CSV</a>
+</div>
+<nav class="filter" aria-label="Show">
+  <a href="/admin/waivers?year={{.Year}}"{{if and (ne .Show "unsigned") (ne .Show "rides")}} aria-current="page"{{end}}>Signed ({{len .Waivers}})</a>
+  <a href="/admin/waivers?year={{.Year}}&show=unsigned"{{if eq .Show "unsigned"}} aria-current="page"{{end}}>Not signed ({{len .Unsigned}})</a>
+  <a href="/admin/waivers?year={{.Year}}&show=rides"{{if eq .Show "rides"}} aria-current="page"{{end}}>First rides ({{len .RideWaivers}})</a>
+</nav>
+{{if eq .Show "rides"}}<div class="table-wrap"><table class="tight cards">
+  <thead><tr><th>Rider</th><th>Email</th><th>Bike</th><th>Signed as</th><th>Signed</th><th>Member</th><th><span class="sr">Signed copy</span></th></tr></thead>
+  <tbody>
+  {{range .RideWaivers}}<tr>
+    <td data-label="Rider">{{.RiderName}}{{if .Minor}} <span class="tag">Under 18, age {{.RiderAge}}</span><br><span class="muted small">Signed by {{.Name}}, parent or guardian</span>{{end}}</td>
+    <td class="email" data-label="Email"><a href="mailto:{{.Email}}">{{.Email}}</a></td>
+    <td data-label="Bike">{{if .Loaner}}<span class="tag">Loaner</span>{{else}}Own{{end}}</td>
+    <td data-label="Signed as">{{if .Drawing}}<img class="sig-thumb" src="/admin/ride-waivers/{{.ID}}/signature.png" alt="Signature drawn by {{.Signature}}" loading="lazy"><br>{{end}}{{.Signature}}{{if not .Drawing}} <span class="muted small">(typed)</span>{{end}}</td>
+    <td class="nowrap" data-label="Signed">{{datetime .Signed}}</td>
+    <td data-label="Member">{{if .MemberID}}<a href="/admin/members/{{.MemberID}}">Member</a>{{else}}<span class="muted">—</span>{{end}}</td>
+    <td class="right cell-act"><a href="/admin/ride-waivers/{{.ID}}">View signed copy</a></td>
+  </tr>
+  {{else}}<tr><td colspan="7" class="empty">No ride waivers in {{.Year}}.</td></tr>
+  {{end}}
+  </tbody>
+</table></div>
+{{else if eq .Show "unsigned"}}<div class="table-wrap"><table class="tight cards">
+  <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Dues</th><th>Joined</th></tr></thead>
+  <tbody>
+  {{range .Unsigned}}<tr>
+    <td data-label="Name">{{.Name}}{{if .Household}}<br><span class="muted small">On {{.Member.Name}}’s family membership</span>{{end}}</td>
+    <td class="email" data-label="Email"><a href="mailto:{{.Email}}">{{.Email}}</a></td>
+    <td class="nowrap" data-label="Phone">{{if .Household}}<span class="muted">—</span>{{else}}{{with .Member.Phone}}<a href="tel:{{.}}">{{.}}</a>{{else}}<span class="muted">—</span>{{end}}{{end}}</td>
+    <td data-label="Dues">{{if .Member.Paid}}<span class="paid">Paid</span>{{else}}<span class="muted">Not paid</span>{{end}}</td>
+    <td class="nowrap" data-label="Joined">{{date .Member.Joined}}</td>
+  </tr>
+  {{else}}<tr><td colspan="5" class="empty">Every active member, and every adult on their family plans, has signed a {{.Year}} waiver.</td></tr>
+  {{end}}
+  </tbody>
+</table></div>
+{{else}}<div class="table-wrap"><table class="tight cards">
+  <thead><tr><th>Rider</th><th>Email</th><th>Signed as</th><th>Signed</th><th>Where</th><th><span class="sr">Signed copy</span></th></tr></thead>
+  <tbody>
+  {{range .Waivers}}<tr>
+    <td data-label="Rider">{{.RiderName}}{{if .Minor}} <span class="tag">Under 18, age {{.RiderAge}}</span><br><span class="muted small">Signed by {{.Name}}, parent or guardian</span>{{else if .Household}}<br><span class="muted small">On {{.Name}}’s family membership</span>{{end}}</td>
+    <td class="email" data-label="Email">{{$e := .Email}}{{if .Household}}{{$e = .RiderEmail}}{{end}}<a href="mailto:{{$e}}">{{$e}}</a></td>
+    <td data-label="Signed as">{{if .Drawing}}<img class="sig-thumb" src="/admin/waivers/{{.ID}}/signature.png" alt="Signature drawn by {{.Signature}}" loading="lazy"><br>{{end}}{{.Signature}}{{if not .Drawing}} <span class="muted small">(typed)</span>{{end}}</td>
+    <td class="nowrap" data-label="Signed">{{datetime .Signed}}</td>
+    <td data-label="Where">{{.Where}}</td>
+    <td class="right cell-act"><a href="/admin/waivers/{{.ID}}">View signed copy</a></td>
+  </tr>
+  {{else}}<tr><td colspan="6" class="empty">Nobody has signed a {{.Year}} waiver yet.</td></tr>
+  {{end}}
+  </tbody>
+</table></div>{{end}}
+{{template "foot" .}}{{end}}
+
+{{define "waiver"}}{{template "head" .}}{{with .Waiver}}
+<p class="no-print"><a href="/admin/waivers?year={{.Year}}">← All {{.Year}} waivers</a></p>
+<h1>Insurance waiver, {{.Year}}</h1>
+<dl class="facts box waiver-meta">
+  {{if .Minor}}<dt>Rider</dt><dd>{{.Rider}}, age {{.RiderAge}} (under 18)</dd>
+  <dt>Parent or guardian</dt><dd>{{.Name}}, {{.Email}}, {{.GuardianPhone}}</dd>
+  {{else if .Household}}<dt>Rider</dt><dd>{{.Rider}}, {{.RiderEmail}}</dd>
+  <dt>Family membership of</dt><dd>{{.Name}}, {{.Email}}</dd>
+  {{else}}<dt>Member</dt><dd>{{.Name}}, {{.Email}}</dd>{{end}}
+  <dt>Printed name</dt><dd>{{.Signature}}</dd>
+  <dt>Signature</dt><dd>{{if .Drawing}}Drawn with a finger, stylus or mouse (below){{else}}Typed name only{{end}}</dd>
+  <dt>Signed</dt><dd>{{datetime .Signed}}</dd>
+  <dt>Where</dt><dd>{{.Where}}, {{$.SiteURL}}{{with .IP}}, from IP address {{.}}{{end}}</dd>
+  <dt>Covers</dt><dd>January 1 to December 31, {{.Year}}</dd>
+  <dt>Waiver version</dt><dd>{{.Version}}</dd>
+</dl>
+{{if .Minor}}<p>As the rider’s parent or legal guardian, they ticked “I’m this rider’s parent or legal guardian. I have read and agree to the waiver and to the release for parents and guardians, for them.” and {{if .Drawing}}signed{{else}}typed their name to sign{{end}} this text:</p>
+{{else}}<p>They ticked “I have read and agree to the waiver” and {{if .Drawing}}signed{{else}}typed their name to sign{{end}} this text:</p>{{end}}
+<div class="box waiver-copy">{{$.WaiverHTML}}</div>
+<div class="box sig-block">
+  <div><span class="sig-line">{{if .Drawing}}<img src="/admin/waivers/{{.ID}}/signature.png" alt="Signature drawn by {{.Signature}}">{{else}}<span class="sig-typed-name">{{.Signature}}</span>{{end}}</span><span class="muted small">{{if .Minor}}Parent or guardian’s signature{{else}}Participant’s signature{{end}}</span></div>
+  <div><span class="sig-line">{{.Signature}}</span><span class="muted small">Printed name</span></div>
+  <div><span class="sig-line">{{date .Signed}}</span><span class="muted small">Date</span></div>
+</div>
+{{if $.CanManage}}<form class="footnote no-print" method="post" action="/admin/waivers/{{.ID}}/delete" onsubmit="return confirm('Delete this waiver? Only do this for a fake or junk signing: real waivers are the club’s insurance record. This can’t be undone.')"><button class="link danger">{{icon "trash"}}Delete this waiver</button></form>{{end}}
+{{end}}{{template "foot" .}}{{end}}
+
+{{define "ride-waiver"}}{{template "head" .}}{{with .RideWaiver}}
+<p class="no-print"><a href="/admin/waivers?year={{.Year}}&show=rides">← All first-ride waivers</a></p>
+<h1>Ride waiver{{if .Loaner}}, club loaner bike{{end}}</h1>
+<dl class="facts box waiver-meta">
+  {{if .Minor}}<dt>Rider</dt><dd>{{.Rider}}, age {{.RiderAge}} (under 18)</dd>
+  <dt>Parent or guardian</dt><dd>{{.Name}}, {{.Email}}</dd>
+  {{else}}<dt>Rider</dt><dd>{{.Name}}, {{.Email}}</dd>{{end}}
+  <dt>Bike</dt><dd>{{.BikeLabel}}</dd>
+  <dt>Member</dt><dd>{{with $.RideMember}}<a href="/admin/members/{{.ID}}">{{.Name}}</a>{{else}}<span class="muted">Not on the list</span>{{end}}</dd>
+  <dt>Printed name</dt><dd>{{.Signature}}</dd>
+  <dt>Signature</dt><dd>{{if .Drawing}}Drawn with a finger, stylus or mouse (below){{else}}Typed name only{{end}}</dd>
+  <dt>Signed</dt><dd>{{datetime .Signed}}</dd>
+  <dt>Where</dt><dd>{{$.SiteURL}}/ride-waiver{{with .IP}}, from IP address {{.}}{{end}}</dd>
+  <dt>Waiver version</dt><dd>{{.Version}}</dd>
+</dl>
+{{if .Minor}}<p>As the rider’s parent or legal guardian, they ticked “I have read and agree to the waiver” and “I’m this rider’s parent or legal guardian. I have read and agree to the waiver and to the release for parents and guardians, for them.” and {{if .Drawing}}signed{{else}}typed their name to sign{{end}} this text:</p>
+{{else}}<p>They ticked “I have read and agree to the waiver” and {{if .Drawing}}signed{{else}}typed their name to sign{{end}} this text:</p>{{end}}
+<div class="box waiver-copy">{{$.WaiverHTML}}</div>
+<div class="box sig-block">
+  <div><span class="sig-line">{{if .Drawing}}<img src="/admin/ride-waivers/{{.ID}}/signature.png" alt="Signature drawn by {{.Signature}}">{{else}}<span class="sig-typed-name">{{.Signature}}</span>{{end}}</span><span class="muted small">{{if .Minor}}Parent or guardian’s signature{{else}}Participant’s signature{{end}}</span></div>
+  <div><span class="sig-line">{{.Signature}}</span><span class="muted small">Printed name</span></div>
+  <div><span class="sig-line">{{date .Signed}}</span><span class="muted small">Date</span></div>
+</div>
+{{if $.CanManage}}<form class="footnote no-print" method="post" action="/admin/ride-waivers/{{.ID}}/delete" onsubmit="return confirm('Delete this waiver? Only do this for a fake or junk signing: real waivers are the club’s insurance record. This can’t be undone.')"><button class="link danger">{{icon "trash"}}Delete this waiver</button></form>{{end}}
+{{end}}{{template "foot" .}}{{end}}
+

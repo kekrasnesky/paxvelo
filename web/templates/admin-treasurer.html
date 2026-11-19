@@ -132,7 +132,7 @@ document.querySelectorAll('.money-form select[name=category]').forEach(function(
 <div class="money-top">
   <h1>Budget</h1>
   {{template "money-year" .}}
-  <form class="req-limit no-print" id="limit" method="post" action="/admin/treasurer/budget/one-ok">
+  <form class="wrap-row req-limit no-print" id="limit" method="post" action="/admin/treasurer/budget/one-ok">
     <label class="inline-label" title="Blank: always two approvals">Treasurer alone approves up to <span class="money-in"><span aria-hidden="true">$</span><input name="limit" inputmode="decimal" value="{{if $m.OneLimit}}{{moneyInput $m.OneLimit}}{{end}}" autocomplete="off" placeholder="—" aria-label="Amount"></span></label>
     <button class="ghost mini">{{icon "save"}}Save</button>
   </form>
@@ -260,7 +260,7 @@ document.querySelectorAll('.money-form select[name=category]').forEach(function(
   {{if and .PayTo (eq .Status "approved") (not .PaidBack)}}<p class="muted small">{{.PayTo}}</p>{{end}}
   {{if or .Receipt .Withdraw .AddBought}}<div class="req-foot">
     {{if .Receipt}}{{template "money-receipt" .SpendRequest}}{{end}}
-    <div class="req-acts">
+    <div class="wrap-row req-acts">
       {{if .Withdraw}}<form method="post" action="/admin/treasurer/requests/{{.ID}}/withdraw"><button class="link danger">{{icon "trash"}}Withdraw</button></form>{{end}}
       {{if .AddBought}}{{template "req-bought" .}}{{end}}
     </div>
@@ -405,7 +405,7 @@ document.querySelectorAll('.req-reject,.req-bought').forEach(function(d){d.addEv
   <div class="req-foot">
     {{if .Receipt}}{{template "money-receipt" .SpendRequest}}{{end}}
     <ul class="req-steps">{{range .Steps}}{{template "req-step" .}}{{end}}</ul>
-    <div class="req-acts">
+    <div class="wrap-row req-acts">
       {{if .Decide}}<form method="post" action="/admin/treasurer/requests/{{.ID}}/approve"><button>{{icon "check"}}Approve</button></form>
       <details class="req-reject"><summary class="btn ghost danger">{{icon "x"}}Reject</summary>
         <form method="post" action="/admin/treasurer/requests/{{.ID}}/reject"><input name="reason" required placeholder="Why" aria-label="Why" maxlength="300"><button class="ghost danger">Reject</button></form>

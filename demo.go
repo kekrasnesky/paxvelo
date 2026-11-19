@@ -232,7 +232,7 @@ func seedDemo(s *Store, loc *time.Location) error {
 		}
 		shared = append(shared, SubmittedPhoto{File: name, Caption: []string{"Rest stop at mile 50", ""}[i]})
 	}
-	if _, err := s.AddSubmitted(shared, SubmittedPhoto{Name: "Priya Natarajan", Email: mail("priya"), Note: "From the century", Album: album.ID, Date: day(-40)}); err != nil {
+	if _, err := s.AddSubmitted(shared, SubmittedPhoto{Name: "Priya Natarajan", Email: mail("priya"), Note: "From the century", Album: album.ID}); err != nil {
 		return err
 	}
 	return nil

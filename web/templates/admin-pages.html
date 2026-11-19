@@ -1,0 +1,586 @@
+{{/* Website → Pages and the page editor (pages.go). */}}
+
+{{define "pages"}}{{template "head" .}}
+<div class="title-row"><h1>Pages</h1></div>
+<div class="table-wrap"><table class="stack">
+  <thead><tr><th>Page</th><th>Address</th><th>Status</th></tr></thead>
+  <tbody>{{range .Pages}}<tr>
+    <td class="lead"><a href="/admin/pages/{{.File}}">{{.Title}}</a>{{if .InMenu}} <span class="tag">In the Info menu</span>{{end}}</td><td><a href="{{.Path}}" target="_blank" rel="noopener">{{.Path}}</a></td>
+    <td>{{if .New}}Added here{{with .Edit}} {{date .Edited}}{{with .EditedBy}} by {{.}}{{end}}{{end}}{{else}}{{with .Edit}}Edited here {{date .Edited}}{{with .EditedBy}} by {{.}}{{end}}{{else}}GitHub version{{end}}{{end}}</td>
+  </tr>{{end}}</tbody>
+</table></div>
+<form class="card new-issue" method="post" action="/admin/pages">
+  <h2>Add a page</h2>
+  <label>Page title <input name="title" id="new-title" required maxlength="80" placeholder="Group Ride Etiquette"></label>
+  <label>Address <span class="addr"><span class="muted">{{.SiteURL}}/</span><input name="address" id="new-address" maxlength="60" placeholder="group-ride-etiquette" pattern="[a-z0-9]+(-[a-z0-9]+)*"></span></label>
+  <label class="check"><input type="checkbox" name="menu" checked> Add it to the Info menu</label>
+  <button>{{icon "plus"}}Add page</button>
+</form>
+<script>
+// Suggest an address from the title, until someone types their own.
+(function(){var t=document.getElementById('new-title'),a=document.getElementById('new-address'),own=false;
+a.addEventListener('input',function(){own=a.value!==''});
+t.addEventListener('input',function(){if(!own)a.value=t.value.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60).replace(/-+$/,'')})})();
+</script>
+{{template "foot" .}}{{end}}
+
+{{define "page-edit"}}{{template "head" .}}
+<p class="crumb"><a href="/admin/pages">← All pages</a></p>
+<div class="title-row"><h1>{{.Page.Title}}</h1><p><a href="{{.Page.Path}}" target="_blank" rel="noopener">View page</a></p></div>
+<form class="card page-editor" method="post" action="/admin/pages/{{.Page.File}}" id="page-form">
+  <div class="mail-bar page-bar" role="toolbar" aria-label="Formatting" hidden>
+    <span><button type="button" class="ghost" data-do="bold" title="Bold (Ctrl+B)"><strong>B</strong></button><button type="button" class="ghost" data-do="italic" title="Italics (Ctrl+I)"><em>I</em></button></span>
+    <span><button type="button" class="ghost" data-do="h2" title="Starts a new section of the page">Section heading</button><button type="button" class="ghost" data-do="h3" title="Smaller heading; several make columns">Small heading</button></span>
+    <span><button type="button" class="ghost" data-do="ul" title="Bulleted list">• List</button><button type="button" class="ghost" data-do="ol" title="Numbered list">1. List</button></span>
+    <span><button type="button" class="ghost" data-do="link" title="Link (Ctrl+K)">Link</button><label class="ghost mail-photo" title="Upload a photo and put it where the cursor is">Photo<input type="file" id="page-photo" accept="image/jpeg,image/png,image/webp"></label>
+      <select data-do="insert" aria-label="Insert" title="Ready-made pieces to fill in">
+        <option value="">Insert…</option>
+        <option value="columns">Two columns side by side</option>
+        <option value="facts">Ride details (Pace, Start…)</option>
+        <option value="button">A big button</option>
+        <option value="join">Join boxes with prices</option>
+        <option value="social">Social media icons</option>
+        <option value="instagram">Instagram posts</option>
+        <option value="note">A note only editors see</option>
+      </select></span>
+    <span><button type="button" class="ghost" data-do="undo" title="Undo (Ctrl+Z)">{{icon "undo"}}Undo</button><button type="button" class="ghost" data-do="redo" title="Redo (Ctrl+Y)">Redo</button></span>
+    <span><button type="button" class="ghost" id="preview-toggle" aria-pressed="true" hidden>{{icon "eye"}}Preview</button></span>
+  </div>
+  <div class="mail-edit">
+    <div class="mail-write">
+      <div class="ed-mode" hidden><span class="seg" role="group" aria-label="How to edit"><button type="button" class="ghost" data-mode="cards" aria-pressed="true">Easy editor</button><button type="button" class="ghost" data-mode="text" aria-pressed="false">Edit as text</button></span>
+        <span class="muted small" id="ed-hint"></span></div>
+      <div class="ed-cards" id="cards" hidden></div>
+      <div class="text-ed">
+      <label>Page text <textarea name="text" rows="26" id="page-text">{{.PageText}}</textarea></label>
+      </div>
+    </div>
+    <div class="mail-preview page-preview" hidden>
+      <div class="mail-preview-top"><strong>Preview</strong>
+        <span class="seg" role="group" aria-label="Preview size"><button type="button" class="ghost" data-size="desktop" aria-pressed="true">Computer</button><button type="button" class="ghost" data-size="phone" aria-pressed="false">Phone</button></span></div>
+      <p class="flash err" id="preview-err" hidden></p>
+      <div class="preview-box"><iframe id="preview" title="Preview of the page" sandbox="allow-same-origin"></iframe></div>
+    </div>
+  </div>
+  <div class="wrap-row"><button>{{icon "save"}}Save</button><span class="muted small" id="save-state" role="status"></span></div>
+</form>
+<dialog id="link-box" class="card">
+  <form method="dialog">
+    <h2>Add a link</h2>
+    <label>Words to click <input id="link-words" placeholder="Find a ride"></label>
+    <label class="check"><input type="radio" name="link-kind" value="page" checked> A page on this site</label>
+    <select id="link-page" aria-label="Page"><optgroup label="Pages on this site">{{range .Links}}<option value="{{.Path}}">{{.Title}}</option>{{end}}</optgroup>
+      <optgroup label="Club links"><option value="{strava}">The club’s Strava page</option><option value="{kit}">The team kit store</option><option value="{donate}">The donation link (left out until one is set up)</option></optgroup></select>
+    <label class="check"><input type="radio" name="link-kind" value="web"> Another website or an email address</label>
+    <input id="link-url" inputmode="url" autocomplete="off" placeholder="https://www.example.com" aria-label="Web address">
+    <label class="check" id="link-button-row"><input type="checkbox" id="link-button"> Show it as a big button</label>
+    <div class="wrap-row"><button value="ok">{{icon "check"}}Add link</button><button value="" class="link">Cancel</button></div>
+  </form>
+</dialog>
+{{if .Page.New}}<form class="footnote" method="post" action="/admin/pages/{{.Page.File}}/delete" onsubmit="return confirm('Delete the {{.Page.Title}} page? It comes off the website, and this can’t be undone.')"><button class="link danger">{{icon "trash"}}Delete this page</button></form>
+{{else if .Page.Edit}}<form class="footnote" method="post" action="/admin/pages/{{.Page.File}}/reset" onsubmit="return confirm('Undo all edits made here and go back to the GitHub version?')"><button class="link danger">{{icon "undo"}}Go back to the GitHub version</button></form>{{end}}
+<script>
+// The page editor: a toolbar that types the formatting marks for you, a link
+// box, and a live preview drawn by the site itself (nothing is saved until Save).
+(function(){
+var form=document.getElementById('page-form'),t=document.getElementById('page-text'),tools=form.querySelector('.page-bar'),
+  state=document.getElementById('save-state'),saved=t.value,saving=false;
+tools.hidden=false;
+
+// Typing through execCommand keeps the browser's own undo (Ctrl+Z) working.
+function put(text,selFrom,selTo){t.focus();var s=t.selectionStart;
+  if(!document.execCommand||!document.execCommand('insertText',false,text))t.setRangeText(text,t.selectionStart,t.selectionEnd,'end');
+  if(selFrom!=null)t.setSelectionRange(s+selFrom,s+(selTo==null?selFrom:selTo));changed()}
+function sel(){return t.value.slice(t.selectionStart,t.selectionEnd)}
+// wrap puts marks around the selected words (or a sample to type over), or
+// takes them off again if they're already there.
+function wrap(mark,sample){var a=t.selectionStart,b=t.selectionEnd,v=t.value,m=mark.length;
+  if(a>=m&&v.slice(a-m,a)===mark&&v.slice(b,b+m)===mark&&(mark!=='*'||v.slice(a-2,a)!=='**')){t.setSelectionRange(a-m,b+m);put(v.slice(a,b),0,b-a);return}
+  var w=sel()||sample,lead=w.match(/^\s*/)[0],trail=w.match(/\s*$/)[0];w=w.trim();
+  put(lead+mark+w+mark+trail,lead.length+m,lead.length+m+w.length)}
+// wholeLines widens the selection to whole lines.
+function wholeLines(){var v=t.value,a=v.lastIndexOf('\n',t.selectionStart-1)+1,b=v.indexOf('\n',t.selectionEnd-(t.selectionEnd>t.selectionStart&&v[t.selectionEnd-1]==='\n'?1:0));
+  if(b<0)b=v.length;t.setSelectionRange(a,b);return v.slice(a,b)}
+function lines(fn){var out=wholeLines().split('\n').map(fn).join('\n');put(out,out.length)}
+function heading(hashes,sample){var text=wholeLines().replace(/^#+\s*/,'').trim()||sample;
+  var before=t.value.slice(0,t.selectionStart),gap=before===''||/\n\n$/.test(before)?'':/\n$/.test(before)?'\n':'\n\n';
+  put(gap+hashes+' '+text,gap.length+hashes.length+1,gap.length+hashes.length+1+text.length)}
+// block puts a ready-made piece on its own lines after the cursor's line.
+function block(text,pick){var v=t.value,e=v.indexOf('\n',t.selectionEnd);if(e<0)e=v.length;t.setSelectionRange(e,e);
+  var before=v.slice(0,e),gap=before===''?'':/\n\n$/.test(before)?'':/\n$/.test(before)?'\n':'\n\n',
+    after=/^\n\n/.test(v.slice(e))||e===v.length?'':v[e]==='\n'?'\n':'\n\n',i=pick?text.indexOf(pick):-1;
+  put(gap+text+after,i<0?gap.length+text.length:gap.length+i,i<0?null:gap.length+i+pick.length)}
+
+var inserts={
+  columns:'### First column\n\nWrite the first column here.\n\n### Second column\n\nWrite the second column here.',
+  facts:'- **Pace:** 18–20 mph\n- **Start:** Leonardtown Square\n- **Distance:** 30 miles',
+  join:'{membership-plans}',social:'{social-links}',instagram:'{instagram}',note:'<'+'!-- A note for other editors. It doesn’t show on the page. -->'};
+var acts={
+  bold:function(){wrap('**','bold words')},italic:function(){wrap('*','words in italics')},
+  h2:function(){heading('##','Section heading')},h3:function(){heading('###','Small heading')},
+  ul:function(){lines(function(l,i,all){return !l.trim()&&all.length>1?l:/^- /.test(l)?l.slice(2):'- '+l.replace(/^\d+\.\s+/,'')})},
+  ol:function(){var n=0;lines(function(l,i,all){return !l.trim()&&all.length>1?l:/^\d+\.\s/.test(l)?l.replace(/^\d+\.\s+/,''):(++n)+'. '+l.replace(/^- /,'')})},
+  link:openLink,
+  undo:function(){t.focus();document.execCommand('undo');changed()},redo:function(){t.focus();document.execCommand('redo');changed()}};
+tools.addEventListener('click',function(e){var b=e.target.closest('button[data-do]');if(b)acts[b.dataset.do]()});
+tools.querySelector('select[data-do=insert]').addEventListener('change',function(){var k=this.value;this.value='';if(!k)return;
+  if(k==='button'){openLink(true);return}
+  block(inserts[k],{columns:'First column',facts:'18–20 mph',note:'Note for editors'}[k])});
+t.addEventListener('keydown',function(e){if(!(e.ctrlKey||e.metaKey)||e.altKey)return;var k=e.key.toLowerCase();
+  if(k==='b'){e.preventDefault();acts.bold()}else if(k==='i'){e.preventDefault();acts.italic()}else if(k==='k'){e.preventDefault();openLink()}});
+document.addEventListener('keydown',function(e){if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();form.requestSubmit?form.requestSubmit():form.submit()}});
+
+// The link box.
+var box=document.getElementById('link-box'),words=document.getElementById('link-words'),page=document.getElementById('link-page'),
+  url=document.getElementById('link-url'),asButton=document.getElementById('link-button'),kinds=box.querySelectorAll('input[name=link-kind]'),range,linkDone=null;
+function kind(){return box.querySelector('input[name=link-kind]:checked').value}
+url.addEventListener('focus',function(){kinds[1].checked=true});page.addEventListener('focus',function(){kinds[0].checked=true});
+function openLink(button){range=[t.selectionStart,t.selectionEnd];words.value=sel().trim();url.value='';asButton.checked=button===true;kinds[0].checked=true;
+  linkDone=null;document.getElementById('link-button-row').hidden=false;
+  if(!box.showModal){var w=prompt('Web address for the link','https://');if(w){words.value=words.value||w;url.value=w;kinds[1].checked=true;addLink()}return}
+  box.returnValue='';box.showModal();words.focus()}
+// linkFor opens the same box for the cards: done gets the words and address.
+function linkFor(label,href,done){words.value=label;url.value='';kinds[0].checked=true;linkDone=done;document.getElementById('link-button-row').hidden=true;
+  if(href){var o=[].filter.call(page.options,function(o){return o.value===pagePath(href)})[0];if(o)page.value=o.value;else{url.value=href;kinds[1].checked=true}}
+  if(!box.showModal){var w=prompt('Web address for the link',href||'https://');linkDone=null;if(w)done(label||w,webAddress(w));return}
+  box.returnValue='';box.showModal();words.focus()}
+function webAddress(href){return /^[a-z]+:/i.test(href)||/^[\/#{]/.test(href)?href:(href.indexOf('@')>0?'mailto:':'https://')+href}
+function addLink(){var href=kind()==='page'?page.value:url.value.trim(),label=words.value.trim();if(!href)return;
+  if(kind()==='web')href=webAddress(href);
+  if(!label)label=kind()==='page'?page.options[page.selectedIndex].text:href.replace(/^(https?:\/\/|mailto:)(www\.)?/,'').replace(/\/$/,'');
+  if(linkDone){var d=linkDone;linkDone=null;d(label,href);return}
+  t.focus();t.setSelectionRange(range[0],range[1]);var md='['+label+']('+href+')';
+  if(asButton.checked)block(md);else put(md,md.length)}
+box.addEventListener('close',function(){if(box.returnValue==='ok')addLink();else if(linkDone){linkDone=null}else t.focus()});
+// pagePath turns a link to a page by its file name (rides.md) into its address (/rides).
+function pagePath(href){var m=/^([a-z0-9-]+)\.md(#.*)?$/.exec(href);return m?(m[1]==='home'?'/':'/'+m[1])+(m[2]||''):href}
+
+// Photos upload right away and go in where the cursor is.
+document.getElementById('page-photo').addEventListener('change',function(){var f=this.files[0],input=this;if(!f)return;var fd=new FormData();fd.append('photo',f);
+  state.textContent='Uploading the photo…';
+  fetch('/admin/pages/photo',{method:'POST',body:fd}).then(function(r){return r.json()}).then(function(j){input.value='';if(j.error){state.textContent='';alert(j.error);return}
+    block(j.markdown,'Describe the photo');state.textContent='Photo added.'})
+  .catch(function(){input.value='';state.textContent='The photo didn’t upload. Check your connection and try again.'})});
+
+// Unsaved changes: say so, and warn before leaving the page.
+// Blank lines and spaces at line ends don't change the page, so they don't count.
+function norm(s){return s.replace(/\r\n/g,'\n').replace(/[ \t]+$/gm,'').replace(/\n{3,}/g,'\n\n').trim()}
+function dirty(){return norm(t.value)!==norm(saved)}
+function changed(){state.textContent=dirty()?'Not saved yet':'';schedule()}
+t.addEventListener('input',changed);
+form.addEventListener('submit',function(){saving=true});
+window.addEventListener('beforeunload',function(e){if(!saving&&dirty()){e.preventDefault();e.returnValue=''}});
+
+cardEditor();
+
+// ---- The easy editor ----
+// Cards show each part of the page in plain words and write the same page
+// text back into the box above, so saving, the preview, and editing on GitHub
+// work just as before. A card keeps its original lines until it's changed, so
+// an untouched page saves as it was, and anything the cards can't show is a
+// Text card with its lines as typed.
+function cardEditor(){
+var host=document.getElementById('cards'),modeBar=form.querySelector('.ed-mode'),textEd=form.querySelector('.text-ed'),
+  hint=document.getElementById('ed-hint'),doc,mode='cards',settingsOpen=false;
+try{if(localStorage.getItem('page-editor')==='text')mode='text'}catch(e){}
+var PIECES={'membership-plans':['Join boxes','The two Join boxes with the dues prices'],'social-links':['Social icons','The Discord, Strava, Facebook, and Instagram icons'],
+  instagram:['Instagram posts','The Instagram posts picked on the Instagram tab, and a Follow button'],board:['Board members','The board members, edited on the Board tab'],
+  'home-photos':['Home page photos','The photo slideshow, edited on the Home photos tab'],'upcoming-rides':['Next rides','The next few rides from the calendar, with a link to it']};
+var LEVELS=[['level-social','Social'],['level-intermediate','Intermediate'],['level-elite','Elite'],['level-intermediate-elite','Intermediate or Elite, depending on who turns out']];
+var PH={strava:'the club’s Strava page',kit:'the team kit store',donate:'the donation link','dues-individual':'Individual dues amount','dues-family':'Family dues amount'};
+var linkG=/(!?)\[([^\]]*)\]\(\s*([^)\s]*)\s*\)/g,FACT=/^\*\*([^*]+?)(?::\*\*|\*\*:)\s*(.*)$/;
+function piece(n){return PIECES[n]||(/^level-/.test(n)?['Ride level','The ride’s colored level tag with its speeds']:null)}
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function el(tag,attrs,kids){var e=document.createElement(tag);for(var k in attrs||{}){var v=attrs[k];if(v==null||v===false)continue;
+    if(k==='text')e.textContent=v;else if(k==='value')e.value=v;else if(k.slice(0,2)==='on')e.addEventListener(k.slice(2),v);else e.setAttribute(k,v===true?'':v)}
+  (kids||[]).forEach(function(c){if(c!=null)e.appendChild(typeof c==='string'?document.createTextNode(c):c)});return e}
+function btn(text,title,fn,off){return el('button',{type:'button','class':'ghost',title:title,'aria-label':title,disabled:off,onclick:fn,text:text})}
+// dest names where a link goes, in words: a page's title, a club link, or the address.
+function dest(href){if(/^\{[a-z-]+\}$/.test(href))return PH[href.slice(1,-1)]||href;var p=pagePath(href);
+  for(var i=0;i<page.options.length;i++)if(page.options[i].value===p)return page.options[i].text;return href}
+
+// Words with bold, italics, links, and club placeholders, as the boxes show them.
+function textHtml(s){return esc(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/\*([^*\s][^*]*?)\*/g,'<i>$1</i>')
+  .replace(/\{([a-z0-9-]+)\}/g,function(v,n){return '<span class="ph" contenteditable="false" data-ph="'+n+'">'+esc(PH[n]||n)+'</span>'})}
+function mdHtml(s){var out='',last=0,m;linkG.lastIndex=0;
+  while((m=linkG.exec(s))){out+=textHtml(s.slice(last,m.index));last=linkG.lastIndex;
+    out+=m[1]?esc(m[0]):'<a data-href="'+esc(m[3])+'" title="Goes to '+esc(dest(m[3]))+'">'+textHtml(m[2])+'</a>'}
+  return out+textHtml(s.slice(last))}
+// runs flattens a box (or pasted text) into pieces of words with their
+// formatting; block ends (paragraphs) are marked with p.
+function runs(node,f,out){f=f||{};out=out||[];
+  for(var c=node.firstChild;c;c=c.nextSibling){
+    if(c.nodeType===3){var s=c.data.replace(/\s/g,' ');if(s)out.push({t:s,b:f.b,i:f.i,h:f.h});continue}
+    if(c.nodeType!==1||/^(SCRIPT|STYLE|META|TITLE|HEAD|TEMPLATE|IMG)$/.test(c.tagName))continue;
+    if(c.getAttribute('data-ph')){out.push({ph:c.getAttribute('data-ph'),b:f.b,i:f.i,h:f.h});continue}
+    if(c.tagName==='BR'){out.push({t:' ',b:f.b,i:f.i,h:f.h});continue}
+    var g={b:f.b,i:f.i,h:f.h},st=c.style||{},w=st.fontWeight,tag=c.tagName;
+    if(tag==='B'||tag==='STRONG')g.b=true;
+    if(tag==='I'||tag==='EM')g.i=true;
+    if(w)g.b=w==='bold'||w==='bolder'||parseInt(w,10)>=600; // Google Docs wraps everything in <b style="font-weight:normal">
+    if(st.fontStyle)g.i=/italic|oblique/.test(st.fontStyle);
+    if(tag==='A'){var h=c.getAttribute('data-href')||c.getAttribute('href')||'';if(c.getAttribute('data-href')||/^(https?:|mailto:|tel:)/i.test(h))g.h=h}
+    var blk=/^(P|DIV|LI|H[1-6]|BLOCKQUOTE|TR|UL|OL|TABLE)$/.test(tag);if(blk)out.push({p:1});runs(c,g,out);if(blk)out.push({p:1})}
+  return out}
+// md writes runs back as page text: **bold**, *italics*, [words](address).
+function md(rs){rs=rs.map(function(r){return r.p?{t:' '}:r});var out='',i=0;
+  while(i<rs.length){var h=rs[i].h||'',j=i;while(j<rs.length&&(rs[j].h||'')===h)j++;
+    var inner=marks(rs.slice(i,j));out+=h&&inner.trim()?pad(inner,'['+inner.trim()+']('+h+')'):inner;i=j}
+  return out}
+function marks(rs){var out='',i=0;
+  while(i<rs.length){var b=!!rs[i].b,it=!!rs[i].i,j=i,s='';
+    while(j<rs.length&&!!rs[j].b===b&&!!rs[j].i===it){s+=rs[j].ph?'{'+rs[j].ph+'}':rs[j].t;j++}
+    var mk=(b?'**':'')+(it?'*':'');out+=mk&&s.trim()?pad(s,mk+s.trim()+mk):s;i=j}
+  return out}
+function pad(s,x){return s.match(/^\s*/)[0]+x+s.match(/\s*$/)[0]}
+function boxMd(e){return md(runs(e)).trim()}
+// mdOk says whether the boxes can show some text and give it back unchanged.
+function mdOk(s){var d=el('div');d.innerHTML=mdHtml(s);return boxMd(d)===s}
+
+// ---- Reading the page text into cards ----
+function parse(src){src=src.replace(/^﻿/,'').replace(/\r\n/g,'\n');var lines=src.split('\n'),fm={raw:null,lines:[]},start=0;
+  if(lines[0].trim()==='---')for(var i=1;i<lines.length;i++)if(lines[i].trim()==='---'){fm={raw:lines.slice(0,i+1).join('\n'),lines:lines.slice(1,i).map(fmLine)};start=i+1;break}
+  var bs=lex(lines.slice(start)).map(classify);bs.forEach(function(b,i){b.after=i?bs[i-1]:fm});
+  return{fm:fm,blocks:group(bs)}}
+function fmLine(raw){var l=raw.trim(),c=l.indexOf(':');if(!l||l[0]==='#'||c<0)return{raw:raw};
+  var v=l.slice(c+1).trim();if(v.length>=2&&(v[0]==='"'||v[0]==="'")&&v[v.length-1]===v[0])v=v.slice(1,-1);
+  return{raw:raw,key:l.slice(0,c).trim().toLowerCase(),value:v}}
+// lex groups lines the way the site does (content.go): headings, lists,
+// paragraphs, and notes for editors, each with its lines as typed.
+function lex(L){var out=[],cur=null,gap=[];
+  function push(p){p.sep='\n'+gap.map(function(g){return g+'\n'}).join('');gap=[];out.push(p)}
+  for(var i=0;i<L.length;i++){var raw=L[i],line=raw.trim(),m;
+    if(/^<!--/.test(line)){var j=i;while(j<L.length&&L[j].indexOf('-->')<0)j++;
+      var c=L.slice(i,j+1).join('\n').trim(),only=/^<!--([\s\S]*?)-->$/.exec(c);
+      push({kind:only&&only[1].indexOf('-->')<0?'note':'raw',lines:L.slice(i,j+1),text:only?only[1]:''});cur=null;i=j;continue}
+    if(!line){cur=null;gap.push(raw);continue}
+    if((m=/^(#{1,3})\s+(.+?)\s*#*$/.exec(line))){push({kind:'h'+m[1].length,text:m[2],lines:[raw]});cur=null;continue}
+    var nm=/^\d+[.)]\s+(.*)$/.exec(line),bm=/^[-*+]\s+(.*)$/.exec(line);
+    if(nm||bm){var k=nm?'ol':'ul';if(!cur||cur.kind!==k){cur={kind:k,items:[],lines:[]};push(cur)}
+      cur.items.push((nm||bm)[1]);cur.lines.push(raw);continue}
+    if(cur&&cur.items){cur.items[cur.items.length-1]+=' '+line;cur.lines.push(raw);continue}
+    if(cur){cur.text+=' '+line;cur.lines.push(raw);continue}
+    cur={kind:'p',text:line,lines:[raw]};push(cur)}
+  return out}
+function classify(p){var b={raw:p.lines.join('\n'),sep:p.sep},m,ms=[];
+  switch(p.kind){
+  case 'note':b.type='note';b.text=p.text.trim();return b;
+  case 'h1':b.type='title';b.text=p.text;return b;
+  case 'h2':case 'h3':b.type=p.kind;b.text=p.text;return b;
+  case 'ul':case 'ol':var items=p.items.map(function(s){return s.trim()});
+    if(p.kind==='ul'&&items.every(function(s){return FACT.test(s)})){var rows=items.map(function(s){var m=FACT.exec(s);return{label:m[1],md:m[2]}});
+      if(rows.every(function(r){return r.label.indexOf('[')<0&&inlineOk(r.md)})){b.type='facts';b.rows=rows;return b}}
+    if(items.every(inlineOk)){b.type='list';b.ordered=p.kind==='ol';b.items=items;return b}
+    break;
+  case 'p':var s=p.text;
+    if((m=/^\{([a-z0-9-]+)\}$/.exec(s))&&piece(m[1])){b.type='piece';b.name=m[1];return b}
+    linkG.lastIndex=0;while((m=linkG.exec(s)))ms.push(m);
+    if(ms.length&&!s.replace(linkG,'').trim()){var photos=ms.filter(function(x){return x[1]}).length;
+      if(photos===ms.length){b.type='photos';b.photos=ms.map(function(x){return{alt:x[2],url:x[3]}});return b}
+      if(!photos){b.type='buttons';b.links=ms.map(function(x){return{label:x[2],href:x[3]}});return b}}
+    if(inlineOk(s)){b.type='p';b.md=s;return b}}
+  b.type='text';return b}
+function inlineOk(s){return s.indexOf('<!--')<0&&s.indexOf('![')<0&&mdOk(s)}
+// Small headings in a row are columns, up to the next section heading. Each
+// small heading's card is its column.
+function group(bs){var out=[],cols=null,col=null;
+  bs.forEach(function(b){
+    if(b.type==='h3'){if(!cols){cols={type:'cols',cols:[]};out.push(cols)}col=b;b.heading=b.text;b.blocks=[];cols.cols.push(col);return}
+    if(b.type==='h2'||b.type==='title')cols=col=null;
+    (col?col.blocks:out).push(b)});
+  return out}
+
+// ---- Writing cards back as page text ----
+function fmText(fm){if(fm.raw!=null)return fm.raw;if(!fm.lines.length)return '';
+  return '---\n'+fm.lines.map(function(l){return l.raw!=null?l.raw:l.key+': '+l.value}).join('\n')+'\n---'}
+function blockText(b){if(b.raw!=null)return b.raw;
+  switch(b.type){
+  case 'title':return '# '+b.text.trim();
+  case 'h2':return '## '+(b.text.trim()||'New section');
+  case 'p':return b.md;
+  case 'buttons':return b.links.map(function(l){return '['+(l.label.trim()||dest(l.href))+']('+l.href+')'}).join(' ');
+  case 'photos':return b.photos.map(function(p){return '!['+p.alt.replace(/[\[\]\n]/g,'').trim()+']('+p.url+')'}).join(' ');
+  case 'list':var n=0;return b.items.filter(Boolean).map(function(x){return(b.ordered?(++n)+'. ':'- ')+x}).join('\n');
+  case 'facts':return b.rows.filter(function(r){return r.label.trim()||r.md}).map(function(r){
+      return '- **'+(r.label.replace(/[*\[\]]/g,'').replace(/:\s*$/,'').trim()||'Detail')+':**'+(r.md?' '+r.md:'')}).join('\n');
+  case 'note':var x=b.text.replace(/-->/g,'->').trim();return !x?'':x.indexOf('\n')<0?'<!-- '+x+' -->':'<!--\n'+x+'\n-->';
+  case 'piece':return '{'+b.name+'}';
+  case 'h3':return '### '+(b.heading.trim()||'Column')}
+  return ''}
+// out writes the whole page. Untouched neighbours keep the blank lines they
+// had between them; everything else gets one blank line.
+function out(d){var items=[];function add(o,s){if(s)items.push({o:o,s:s})}
+  add(d.fm,fmText(d.fm));
+  d.blocks.forEach(function(b){if(b.type!=='cols')return add(b,blockText(b));
+    b.cols.forEach(function(c){add(c,blockText(c));c.blocks.forEach(function(x){add(x,blockText(x))})})});
+  return items.map(function(it,k){var p=k&&items[k-1].o;
+    return !k?it.s:(it.o.after===p&&it.o.raw!=null&&p.raw!=null?it.o.sep:'\n\n')+it.s}).join('')+'\n'}
+// For checking the cards: the text every card would write if it were changed.
+function rewrite(d){function strip(b){if(b.type!=='text')b.raw=null;(b.cols||[]).forEach(function(c){c.raw=null;c.blocks.forEach(strip)})}
+  d.fm.raw=null;d.fm.lines.forEach(function(l){if(l.key)l.raw=null});d.blocks.forEach(strip);return out(d)}
+form.cards={parse:parse,text:out,rewrite:rewrite};
+
+function update(){t.value=out(doc);changed()}
+function edit(b){b.raw=null;update()}
+
+// ---- The format buttons over selected words ----
+var bar=el('div',{'class':'fmt-bar',role:'toolbar','aria-label':'Format the selected words',hidden:true},[
+  el('button',{type:'button','class':'ghost','data-f':'bold',title:'Bold (Ctrl+B)'},[el('strong',{text:'B'}),' Bold']),
+  el('button',{type:'button','class':'ghost','data-f':'italic',title:'Italics (Ctrl+I)'},[el('em',{text:'I'}),' Italic']),
+  el('button',{type:'button','class':'ghost','data-f':'link',title:'Link (Ctrl+K)',text:'Link'}),
+  el('button',{type:'button','class':'ghost','data-f':'unlink',text:'Remove link'})]);
+document.body.appendChild(bar);
+bar.addEventListener('mousedown',function(e){e.preventDefault()});
+bar.addEventListener('click',function(e){var b=e.target.closest('button'),ed=curBox();if(!b||!ed)return;var f=b.dataset.f;
+  if(f==='bold'||f==='italic')document.execCommand(f);else if(f==='link')boxLink(ed);else unlink(ed);place()});
+document.addEventListener('selectionchange',place);
+window.addEventListener('resize',place);
+function curNode(){var s=getSelection();if(!s.rangeCount)return null;var n=s.anchorNode;return n&&(n.nodeType===1?n:n.parentNode)}
+function curBox(){var n=curNode(),r=n&&n.closest('.rich');return r&&host.contains(r)?r:null}
+function curA(){var n=curNode(),a=n&&n.closest('a[data-href]');return a&&curBox()&&curBox().contains(a)?a:null}
+function place(){var ed=curBox(),s=getSelection(),a=curA();
+  if(!ed||mode!=='cards'||(s.isCollapsed&&!a)){bar.hidden=true;return}
+  bar.hidden=false;bar.querySelector('[data-f=unlink]').hidden=!a;
+  var r=s.getRangeAt(0).getBoundingClientRect();if(!r.width&&a)r=a.getBoundingClientRect();
+  var top=r.top+scrollY-bar.offsetHeight-8,below=matchMedia('(pointer:coarse)').matches;
+  if(below||top<scrollY+4)top=r.bottom+scrollY+(below?28:8);
+  bar.style.top=top+'px';bar.style.left=Math.max(8,Math.min(r.left+scrollX,scrollX+document.documentElement.clientWidth-bar.offsetWidth-8))+'px'}
+function boxLink(ed){var s=getSelection(),r=s.rangeCount?s.getRangeAt(0).cloneRange():null,a=curA(),said=(a?a.textContent:r?r.toString():'').trim();
+  linkFor(said,a?a.getAttribute('data-href'):'',function(words,href){ed.focus();var s=getSelection();
+    if(a){a.setAttribute('data-href',href);a.title='Goes to '+dest(href);if(words!==said)a.textContent=words}
+    else{if(r){s.removeAllRanges();s.addRange(r)}else{r=document.createRange();r.selectNodeContents(ed);r.collapse(false)}
+      var n=el('a',{'data-href':href,title:'Goes to '+dest(href)});
+      if(said&&words===said)n.appendChild(r.extractContents());else{r.deleteContents();n.textContent=words}
+      r.insertNode(n);r.setStartAfter(n);r.collapse(true);s.removeAllRanges();s.addRange(r)}
+    ed.dispatchEvent(new Event('input'))})}
+function unlink(ed){var a=curA();if(!a)return;while(a.firstChild)a.parentNode.insertBefore(a.firstChild,a);a.remove();ed.dispatchEvent(new Event('input'))}
+
+// rich makes a box for words with bold, italics, and links. o.split (Enter)
+// gets the words after the cursor and returns the next box; o.drop
+// (Backspace in an empty box) removes it.
+function rich(val,set,o){o=o||{};var e=el('div',{'class':'rich',contenteditable:'true',role:'textbox','aria-label':o.label||'Text','data-empty':o.empty||'Type here'});
+  e.innerHTML=mdHtml(val);e._split=o.split;
+  e.addEventListener('input',function(){set(boxMd(e))});
+  e.addEventListener('keydown',function(ev){var k=ev.key.toLowerCase();
+    if((ev.ctrlKey||ev.metaKey)&&!ev.altKey){if(k==='k'){ev.preventDefault();boxLink(e)}else if(k==='u')ev.preventDefault();else if(k==='b'||k==='i'){ev.preventDefault();document.execCommand(k==='b'?'bold':'italic')}}
+    else if(ev.key==='Enter'){ev.preventDefault();if(o.split)o.split(splitAt(e))}
+    else if(ev.key==='Backspace'&&o.drop&&!boxMd(e)){ev.preventDefault();o.drop()}});
+  e.addEventListener('paste',function(ev){paste(ev,e)});
+  e.addEventListener('drop',function(ev){ev.preventDefault()});
+  return e}
+function splitAt(e){var s=getSelection();if(!s.rangeCount)return '';var r=s.getRangeAt(0);r.deleteContents();
+  var tail=document.createRange();tail.setStart(r.startContainer,r.startOffset);tail.setEnd(e,e.childNodes.length);
+  var d=el('div');d.appendChild(tail.extractContents());e.dispatchEvent(new Event('input'));return boxMd(d)}
+// Pasting keeps the words, bold, italics, and links, and nothing else.
+// Several paragraphs become several cards (or list items).
+function paste(ev,e){var d=ev.clipboardData;if(!d)return;ev.preventDefault();var html=d.getData('text/html'),paras=[],cur=[];
+  if(html){runs(new DOMParser().parseFromString(html,'text/html').body).forEach(function(r){if(r.p){if(cur.length)paras.push(cur);cur=[]}else cur.push(r)});if(cur.length)paras.push(cur)}
+  else d.getData('text/plain').split(/\r?\n/).forEach(function(l){paras.push([{t:l}])});
+  paras=paras.map(function(p){return md(p).replace(/\s+/g,' ').trim()}).filter(Boolean);
+  if(!paras.length)return;if(!e._split)paras=[paras.join(' ')];
+  insertMd(paras[0]);for(var i=1;i<paras.length;i++){e=e._split(splitAt(e));if(!e)break;insertMd(paras[i])}}
+function insertMd(s){var h=mdHtml(s),sel=getSelection();if(!sel.rangeCount)return;
+  var tp=document.createElement('template');tp.innerHTML=h;var r=sel.getRangeAt(0),last=tp.content.lastChild;r.deleteContents();r.insertNode(tp.content);
+  if(last){r.setStartAfter(last);r.collapse(true);sel.removeAllRanges();sel.addRange(r)}
+  var box=curBox();if(box)box.dispatchEvent(new Event('input'))}
+function caret(e,end){e.focus();var r=document.createRange();r.selectNodeContents(e);r.collapse(!end);var s=getSelection();s.removeAllRanges();s.addRange(r)}
+
+// ---- Drawing the cards ----
+var KINDS=[['p','Paragraph'],['h2','Section heading',1],['photo','Photo'],['button','Button'],['list','List'],['facts','Ride details'],['cols','Columns',1],
+  ['membership-plans','Join boxes',1],['social-links','Social icons'],['instagram','Instagram posts',1],['upcoming-rides','Next rides',1],['level','Ride level'],['note','Note for editors']];
+function render(focus,where){host.textContent='';host.appendChild(settingsCard());cards(doc.blocks,host,true);
+  if(focus&&focus._focus){focus._focus(where);var c=focus._card;if(c&&c.scrollIntoView){var r=c.getBoundingClientRect();if(r.top<0||r.bottom>innerHeight)c.scrollIntoView({block:'center'})}}}
+function cards(arr,into,top){arr.forEach(function(b,i){if(b.type!=='title')into.appendChild(gap(arr,i,top));into.appendChild(card(arr,i,top))});into.appendChild(gap(arr,arr.length,top))}
+function name(b){switch(b.type){case 'title':return 'Page title';case 'h2':return 'Section heading';case 'p':return 'Paragraph';
+  case 'photos':return b.photos.length>1?'Row of photos':'Photo';case 'buttons':return b.links.length>1?'Row of buttons':'Button';
+  case 'list':return b.ordered?'Numbered list':'Bulleted list';case 'facts':return 'Ride details';case 'note':return 'Note for editors';
+  case 'piece':return piece(b.name)[0];case 'cols':return 'Columns'}return 'Text'}
+function move(arr,i,d){var b=arr.splice(i,1)[0];arr.splice(i+d,0,b);update();render(b)}
+function remove(arr,i,what){var b=arr.splice(i,1)[0];update();render();toast('Removed the '+what.toLowerCase()+'.',function(){arr.splice(Math.min(i,arr.length),0,b);update();render(b)})}
+function card(arr,i,top){var b=arr[i],c=el('section',{'class':'ed-card ed-k-'+b.type,'aria-label':name(b)}),head=el('div',{'class':'ed-head'},[el('span',{'class':'ed-name',text:name(b)})]);
+  b._card=c;c.appendChild(head);
+  if(b.type!=='title')head.appendChild(el('span',{'class':'ed-tools'},[btn('↑','Move up',function(){move(arr,i,-1)},i===0||arr[i-1].type==='title'),
+    btn('↓','Move down',function(){move(arr,i,1)},i===arr.length-1),btn('✕','Remove',function(){remove(arr,i,name(b))})]));
+  (BODY[b.type]||BODY.text)(b,c,arr,i,top);
+    return c}
+function field(label,input,help){return el('label',{'class':'ed-field'},[label,input,help?el('span',{'class':'muted small',text:help}):null])}
+function inp(val,set,attrs){var a={value:val,oninput:function(){set(this.value)}};for(var k in attrs||{})a[k]=attrs[k];return el(attrs&&attrs.rows?'textarea':'input',a)}
+// grow fits a text box to its text (once it's showing).
+function grow(ta){function f(){if(!ta.offsetParent)return;ta.style.height='auto';ta.style.height=ta.scrollHeight+2+'px'}ta._grow=f;ta.addEventListener('input',f);setTimeout(f);return ta}
+var BODY={
+  title:function(b,c){var i=inp(b.text,function(v){b.text=v;edit(b)},{'class':'ed-big','aria-label':'Page title',placeholder:'Page title'});b._focus=function(){i.focus()};
+    c.appendChild(i)},
+  h2:function(b,c){var i=inp(b.text,function(v){b.text=v;edit(b)},{'class':'ed-h2-input','aria-label':'Section heading',placeholder:'Section heading'});b._focus=function(){i.focus()};c.appendChild(i)},
+  p:function(b,c,arr,i){var e=rich(b.md,function(v){b.md=v;edit(b)},{label:'Paragraph',empty:'Type the paragraph here',
+      split:function(tail){var nb={type:'p',md:tail};arr.splice(i+1,0,nb);update();render(nb);return nb._el},
+      drop:function(){arr.splice(i,1);var p=arr[i-1];update();render(p,'end')}});
+    b._el=e;b._focus=function(w){caret(e,w==='end')};c.appendChild(e)},
+  photos:function(b,c,arr,i){var row=el('div',{'class':'ed-photos'}),msg=el('p',{'class':'ed-status small',role:'status'});
+    b.photos.forEach(function(p,k){var d=inp(p.alt,function(v){p.alt=v;edit(b)},{placeholder:'Describe it for people who can’t see it'}),img=el('img',{src:/^photos\//.test(p.url)?'/'+p.url:p.url,alt:''});
+      if(!k)b._focus=function(){d.focus()};
+      row.appendChild(el('figure',{'class':'ed-photo'},[img,
+        field('Describe this photo',d),
+        el('span',{'class':'ed-row'},[pick('Replace',function(u){p.url=u;edit(b);render(b)},msg,img),
+          btn('Adjust framing','Choose which part of the photo shows where it’s cropped',function(){openFraming(img.getAttribute('src').replace(/#.*$/,''),urlFraming(p.url),FRAME_SHAPES.page,function(v){p.url=withFraming(p.url,v);edit(b);render(b)})}),
+          btn('Remove','Remove this photo',function(){if(b.photos.length===1){remove(arr,i,'photo');return}b.photos.splice(k,1);edit(b);render(b)})])]))});
+    c.appendChild(row);c.appendChild(msg);c.appendChild(el('div',{'class':'ed-row'},[pick('＋ Add another photo',function(u){b.photos.push({alt:'',url:u});edit(b);render(b)},msg)]))},
+  buttons:function(b,c,arr,i){b.links.forEach(function(l,k){var w=inp(l.label,function(v){l.label=v;edit(b)},{'class':'ed-btn-words','aria-label':'Words on the button',placeholder:dest(l.href)});if(!k)b._focus=function(){w.focus()};
+      c.appendChild(el('div',{'class':'ed-button'},[w,el('span',{'class':'ed-dest'},['goes to',destPick(l.href,function(h){l.href=h;w.placeholder=dest(h);edit(b)})]),
+        b.links.length>1?btn('✕','Remove this button',function(){b.links.splice(k,1);edit(b);render(b)}):null]))});
+    c.appendChild(el('div',{'class':'ed-row'},[btn('＋ Add another button','Add another button beside it',function(){b.links.push({label:'',href:'/calendar'});edit(b);render(b)})]))},
+  list:function(b,c){var s=el('select',{'aria-label':'Kind of list',onchange:function(){b.ordered=this.value==='1';edit(b);render(b)}},[el('option',{value:'',text:'• Bullets'}),el('option',{value:'1',text:'1. Numbers'})]);
+    s.value=b.ordered?'1':'';c.querySelector('.ed-head').insertBefore(s,c.querySelector('.ed-tools'));
+    var ul=el(b.ordered?'ol':'ul',{'class':'ed-items'});if(!b.items.length)b.items.push('');
+    b.items.forEach(function(x,k){var e=rich(x,function(v){b.items[k]=v;edit(b)},{label:'List item '+(k+1),empty:'List item',
+        split:function(tail){b.items.splice(k+1,0,tail);edit(b);render(b,k+1);return b._els[k+1]},
+        drop:function(){if(b.items.length<2)return;b.items.splice(k,1);edit(b);render(b,'end:'+Math.max(0,k-1))}});
+      (b._els=b._els||[])[k]=e;ul.appendChild(el('li',{},[el('div',{},[e,btn('✕','Remove this item',function(){if(b.items.length<2){b.items[0]='';}else b.items.splice(k,1);edit(b);render(b)})])]))});
+    b._els.length=b.items.length;
+    b._focus=function(w){var end=/^end/.test(w||''),k=typeof w==='number'?w:end?+w.slice(4):0;if(b._els[k])caret(b._els[k],end)};
+    c.appendChild(ul);c.appendChild(el('div',{'class':'ed-row'},[btn('＋ Add an item','Add an item at the end',function(){b.items.push('');edit(b);render(b,b.items.length-1)})]))},
+  facts:function(b,c){var g=el('div',{'class':'ed-facts'});b._labels=[];b._els=[];
+    b.rows.forEach(function(r,k){var l=inp(r.label,function(v){r.label=v;edit(b)},{'aria-label':'Label '+(k+1),placeholder:['Like: When','Like: Start','Like: Pace'][k]||'Label, like Pace'});
+      var e=rich(r.md,function(v){r.md=v;edit(b)},{label:(r.label||'Detail')+' value',empty:'Like: 18–20 mph',split:function(tail){b.rows.splice(k+1,0,{label:'',md:tail});edit(b);render(b,k+1);return null}});
+      b._labels[k]=l;b._els[k]=e;g.appendChild(el('div',{'class':'ed-fact'},[l,e,btn('✕','Remove this line',function(){b.rows.splice(k,1);if(!b.rows.length)b.rows.push({label:'',md:''});edit(b);render(b)})]))});
+    b._focus=function(k){var l=b._labels[typeof k==='number'?k:0];if(l)l.focus()};
+    c.appendChild(g);c.appendChild(el('div',{'class':'ed-row'},[btn('＋ Add a line','Add a line at the end',function(){b.rows.push({label:'',md:''});edit(b);render(b,b.rows.length-1)})]))},
+  note:function(b,c){var ta=grow(inp(b.text,function(v){b.text=v;edit(b)},{rows:2,'aria-label':'Note for editors',placeholder:'A note for other editors'}));
+    b._focus=function(){ta.focus()};c.appendChild(el('p',{'class':'ed-label',text:'Note for editors · only editors see this, not visitors'}));c.appendChild(ta)},
+  piece:function(b,c){var p=piece(b.name),box=el('p',{'class':'ed-piece'},[el('strong',{text:p[0]})]);c.appendChild(box);b._focus=function(){};
+    if(!/^level-/.test(b.name)){box.title=p[1];return}
+    var s=el('select',{'aria-label':'Ride level',onchange:function(){b.name=this.value;edit(b)}},LEVELS.map(function(l){return el('option',{value:l[0],text:l[1]})}));
+    if(!LEVELS.some(function(l){return l[0]===b.name}))s.appendChild(el('option',{value:b.name,text:b.name.slice(6)}));s.value=b.name;box.appendChild(s)},
+  text:function(b,c){var ta=grow(inp(b.raw,function(v){b.raw=v;update()},{rows:Math.min(12,b.raw.split('\n').length+1),'aria-label':'Text',spellcheck:'false'}));b._focus=function(){ta.focus()};
+    c.appendChild(ta)},
+  cols:function(b,c,arr,i){var g=el('div',{'class':'ed-cols'});
+    b.cols.forEach(function(col,k){var h=inp(col.heading,function(v){col.heading=v;col.raw=null;update()},{placeholder:'Column heading','aria-label':'Column '+(k+1)+' heading'});if(!k)b._focus=function(){h.focus()};
+      var ce=el('div',{'class':'ed-col'},[el('div',{'class':'ed-head'},[el('span',{'class':'ed-name',text:'Column '+(k+1)}),el('span',{'class':'ed-tools'},[
+        btn('←','Move this column left',function(){b.cols.splice(k-1,0,b.cols.splice(k,1)[0]);update();render(b)},k===0),
+        btn('→','Move this column right',function(){b.cols.splice(k+1,0,b.cols.splice(k,1)[0]);update();render(b)},k===b.cols.length-1),
+        btn('✕','Remove this column',function(){if(b.cols.length===1){remove(arr,i,'columns');return}remove(b.cols,k,'column')})])]),h]);
+      cards(col.blocks,ce,false);g.appendChild(ce)});
+    c.appendChild(g);c.appendChild(el('div',{'class':'ed-row'},[btn('＋ Add a column','Add a column at the end',function(){var n={type:'h3',heading:'',blocks:[{type:'p',md:''}]};b.cols.push(n);update();render(b)})]))}};
+
+// destPick chooses where a button goes: a page, a club link, or a web address.
+function destPick(href,set){var s=el('select',{'aria-label':'Where it goes'}),u=el('input',{inputmode:'url',autocomplete:'off',placeholder:'https://www.example.com','aria-label':'Web or email address'});
+  s.innerHTML=page.innerHTML+'<optgroup label="Somewhere else"><option value="">Another website or an email address…</option></optgroup>';
+  var v=pagePath(href),has=[].some.call(s.options,function(o){return o.value&&o.value===v});
+  s.value=has?v:'';u.value=has?'':href;u.hidden=has;
+  s.addEventListener('change',function(){u.hidden=!!s.value;if(s.value)set(s.value);else{u.focus();if(u.value.trim())set(webAddress(u.value.trim()))}});
+  u.addEventListener('input',function(){if(u.value.trim())set(webAddress(u.value.trim()))});
+  return el('span',{'class':'ed-dest'},[s,u])}
+// pick is a button that uploads a photo and hands back its address. The
+// card says how the upload is going (msg), and the photo being replaced (img)
+// shows the new one, faded, until it's up.
+function pick(label,done,msg,img){var f=el('input',{type:'file',accept:'image/jpeg,image/png,image/webp'});
+  f.addEventListener('change',function(){var file=f.files[0];f.value='';if(!file)return;var old=img&&img.src;
+    if(img&&window.URL&&URL.createObjectURL){img.src=URL.createObjectURL(file);img.classList.add('uploading')}
+    upload(file,done,msg,function(){if(img){img.src=old;img.classList.remove('uploading')}})});
+  return el('label',{'class':'ghost mail-photo'},[label,f])}
+function upload(file,done,msg,failed){var fd=new FormData();fd.append('photo',file);say('Uploading the photo…');
+  function say(text,bad){var m=msg||state;m.textContent=text;m.classList.toggle('err-text',!!bad);if(bad&&!msg)alert(text)}
+  function fail(text){say(text,true);if(failed)failed()}
+  if(file.size>20<<20){fail('That photo is over 20 MB. Make it smaller at squoosh.app and try again.');return}
+  fetch('/admin/pages/photo',{method:'POST',body:fd}).then(function(r){
+      if((r.headers.get('Content-Type')||'').indexOf('json')<0)throw new Error(r.redirected?'login':'server');return r.json()})
+    .then(function(j){if(j.error){fail('That photo didn’t upload: '+j.error);return}say('');done(/\]\(([^)]*)\)$/.exec(j.markdown)[1])})
+    .catch(function(e){fail(e.message==='login'?'You’ve been logged out, so the photo didn’t upload. Log in again in another tab, then try again.'
+      :'The photo didn’t upload. Check your connection and try again.')})}
+
+// The ＋ Add buttons between cards.
+function gap(arr,i,top){var g=el('div',{'class':'ed-gap'}),a=el('button',{type:'button','class':'ed-add','aria-expanded':'false',text:'＋ Add'});
+  a.addEventListener('click',function(){var open=g.querySelector('.ed-menu');closeMenus();if(open)return;a.setAttribute('aria-expanded','true');
+    var m=el('div',{'class':'ed-menu'});KINDS.forEach(function(k){if(k[2]&&!top)return;
+      m.appendChild(el('button',{type:'button','class':'ghost',text:k[1],onclick:function(){closeMenus();add(arr,i,k[0])}}))});
+    g.appendChild(m);m.firstChild.focus()});
+  g.appendChild(a);return g}
+function closeMenus(){host.querySelectorAll('.ed-menu').forEach(function(m){m.previousSibling.setAttribute('aria-expanded','false');m.remove()})}
+document.addEventListener('click',function(e){if(!e.target.closest('.ed-gap'))closeMenus()});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&host.querySelector('.ed-menu')){var g=host.querySelector('.ed-menu').parentNode;closeMenus();g.firstChild.focus()}});
+function add(arr,i,k){var nb;
+  if(k==='photo'){var f=el('input',{type:'file',accept:'image/jpeg,image/png,image/webp'});
+    f.addEventListener('change',function(){if(f.files[0])upload(f.files[0],function(u){var nb={type:'photos',photos:[{alt:'',url:u}]};arr.splice(i,0,nb);update();render(nb)})});f.click();return}
+  switch(k){
+  case 'p':nb={type:'p',md:''};break;case 'h2':nb={type:'h2',text:''};break;
+  case 'button':nb={type:'buttons',links:[{label:'',href:'/calendar'}]};break;
+  case 'list':nb={type:'list',ordered:false,items:['']};break;
+  case 'facts':nb={type:'facts',rows:[{label:'',md:''},{label:'',md:''},{label:'',md:''}]};break;
+  case 'cols':nb={type:'cols',cols:[{type:'h3',heading:'',blocks:[{type:'p',md:''}]},{type:'h3',heading:'',blocks:[{type:'p',md:''}]}]};break;
+  case 'level':nb={type:'piece',name:'level-social'};break;
+  case 'note':nb={type:'note',text:''};break;
+  default:nb={type:'piece',name:k}}
+  arr.splice(i,0,nb);update();render(nb)}
+
+// Removing a card says so for a while, with a button to bring it back.
+var toastEl=el('div',{'class':'ed-toast',role:'status',hidden:true}),toastT;document.body.appendChild(toastEl);
+function toast(msg,undo){toastEl.textContent=msg+' ';toastEl.appendChild(el('button',{type:'button','class':'link light',text:'Undo',onclick:function(){toastEl.hidden=true;undo()}}));
+  toastEl.hidden=false;clearTimeout(toastT);toastT=setTimeout(function(){toastEl.hidden=true},12000)}
+
+// ---- The page settings, folded away ----
+function getS(k){for(var i=0;i<doc.fm.lines.length;i++)if(doc.fm.lines[i].key===k)return doc.fm.lines[i].value;return ''}
+function setS(k,v){v=String(v).replace(/\s+/g,' ').trim();var L=doc.fm.lines,i=L.length;while(i--&&L[i].key!==k);doc.fm.raw=null;
+  if(!v){if(i>=0)L.splice(i,1)}else if(i>=0){L[i].value=v;L[i].raw=null}else L.push({key:k,value:v});update()}
+function settingsCard(){var d=el('details',{'class':'ed-card ed-settings',open:settingsOpen,ontoggle:function(){settingsOpen=d.open;d.querySelectorAll('textarea').forEach(function(x){x._grow()})}}),
+    sum=el('span',{'class':'muted small'}),menuLabel=getS('menu')||titleText();
+  function says(){var m=getS('menu');sum.textContent=m?'In the Info menu as “'+m+'”':'Not in the Info menu'}says();
+  var label=inp(getS('menu'),function(v){menuLabel=v;setS('menu',v||titleText());says()},{placeholder:titleText()}),
+    order=inp(getS('order'),function(v){setS('order',v.replace(/[^0-9]/g,''))},{type:'number',min:0,step:1,inputmode:'numeric'}),
+    menuRows=el('div',{'class':'ed-sub',hidden:!getS('menu')},[field('Label in the menu',label),field('Place in the menu',order)]),
+    inMenu=el('input',{type:'checkbox',checked:!!getS('menu'),onchange:function(){setS('menu',this.checked?menuLabel||titleText():'');label.value=getS('menu');menuRows.hidden=!this.checked;says()}});
+  function check(k,text){return el('label',{'class':'check'},[el('input',{type:'checkbox',checked:isYes(getS(k)),onchange:function(){setS(k,this.checked?'yes':'')}}),' '+text])}
+  d.appendChild(el('summary',{},[el('strong',{text:'Page settings '}),sum]));
+  d.appendChild(el('div',{'class':'ed-fields'},[el('label',{'class':'check'},[inMenu,' Show this page in the Info menu']),menuRows,
+    field('Name in the browser tab',inp(getS('title'),function(v){setS('title',v)},{placeholder:titleText()}),'Leave it empty to use the page title.'),
+    field('Summary for Google and link previews',grow(inp(getS('description'),function(v){setS('description',v)},{rows:2})),'A sentence or two about the page.'),
+    check('wide','Wider layout'),check('people','People cards'),check('fold','Sections open with a tap on phones'),
+    others()]));
+  return d}
+function isYes(v){return /^(yes|true|y|on)$/i.test(v)}
+function titleText(){var b=doc.blocks.filter(function(b){return b.type==='title'})[0];return b?b.text.replace(/[*\[\]]|\(.*?\)/g,'').trim():''}
+function others(){var o=doc.fm.lines.filter(function(l){return l.key&&!/^(menu|order|title|description|wide|people|fold)$/.test(l.key)});
+  return o.length?el('p',{'class':'muted small',text:'Also kept as they are: '+o.map(function(l){return l.key+': '+l.value}).join(', ')}):null}
+
+// ---- Cards or text ----
+function setMode(m){mode=m;try{localStorage.setItem('page-editor',m)}catch(e){}
+  modeBar.querySelectorAll('[data-mode]').forEach(function(x){x.setAttribute('aria-pressed',x.dataset.mode===m)});
+  if(m==='cards'){doc=parse(t.value);render()}
+  host.hidden=m!=='cards';textEd.hidden=m==='cards';tools.hidden=m==='cards';hint.hidden=m!=='cards';bar.hidden=true;closeMenus()}
+modeBar.addEventListener('click',function(e){var b=e.target.closest('[data-mode]');if(b&&b.dataset.mode!==mode)setMode(b.dataset.mode)});
+modeBar.hidden=false;setMode(mode);
+}
+
+// The live preview, a moment after typing stops. It runs no scripts and
+// links in it don't go anywhere.
+var pane=form.querySelector('.page-preview'),frame=document.getElementById('preview'),err=document.getElementById('preview-err'),
+  holder=pane.querySelector('.preview-box'),timer,asked=0,size='desktop';
+if(!window.fetch||!('srcdoc' in frame))return;
+pane.hidden=false;
+function schedule(){clearTimeout(timer);timer=setTimeout(refresh,500)}
+function refresh(){var n=++asked,fd=new FormData();fd.append('text',t.value);
+  fetch(form.action+'/preview',{method:'POST',body:fd}).then(function(r){return r.text().then(function(b){return{ok:r.ok,body:b}})}).then(function(r){if(n!==asked)return;
+    if(!r.ok){err.textContent='This won’t save yet: '+r.body;err.hidden=false;return}
+    err.hidden=true;var d=frame.contentDocument,y=d&&d.defaultView?d.defaultView.scrollY:0;
+    frame.onload=function(){var d=frame.contentDocument;if(!d)return;d.defaultView.scrollTo(0,y);
+      d.addEventListener('click',function(e){if(e.target.closest('a,button'))e.preventDefault()},true);
+      d.addEventListener('submit',function(e){e.preventDefault()},true)};
+    frame.srcdoc=r.body}).catch(function(){})}
+function fit(){var w=holder.clientWidth,s=size==='phone'?Math.min(1,w/390):w/1200;
+  frame.style.width=(size==='phone'?390:1200)+'px';frame.style.transform='scale('+s+')';frame.style.height=(holder.clientHeight/s)+'px';
+  frame.style.left=size==='phone'?Math.max(0,(w-390*s)/2)+'px':'0'}
+pane.querySelector('.seg').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;size=b.dataset.size;
+  this.querySelectorAll('button').forEach(function(x){x.setAttribute('aria-pressed',x===b)});fit()});
+window.addEventListener('resize',fit);fit();refresh();
+// Preview: on or off, remembered in this browser. Off gives the words the
+// whole width.
+var toggle=document.getElementById('preview-toggle'),edit=pane.parentNode;
+function showPreview(on){edit.classList.toggle('no-preview',!on);toggle.setAttribute('aria-pressed',on);
+  toggle.title=on?'Hide the preview to give the words the whole width':'Show the preview';
+  try{localStorage.setItem('pagePreview',on?'1':'0')}catch(e){}if(on)fit()}
+toggle.hidden=false;
+toggle.addEventListener('click',function(){showPreview(edit.classList.contains('no-preview'))});
+try{if(localStorage.getItem('pagePreview')==='0')showPreview(false)}catch(e){}
+})();
+</script>
+{{template "foot" .}}{{end}}
+

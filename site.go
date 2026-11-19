@@ -139,6 +139,10 @@ func newSite(cfg Config) (*Site, error) {
 		b, err := fs.ReadFile(static, name)
 		return strings.ReplaceAll(string(b), "__V__", s.version), err
 	}
+	tokens, err := read("tokens.css") // colours, corners, shadows: one copy for site.css and admin.css
+	if err != nil {
+		return nil, err
+	}
 	css, err := read("site.css")
 	if err != nil {
 		return nil, err
@@ -162,7 +166,7 @@ func newSite(cfg Config) (*Site, error) {
 	if err != nil {
 		return nil, err
 	}
-	s.css, s.js, s.adminCSS = template.CSS(css), template.JS(js), template.CSS(adminCSS)
+	s.css, s.js, s.adminCSS = template.CSS(tokens+css), template.JS(js), template.CSS(tokens+adminCSS)
 	if s.sw, err = read("sw.js"); err != nil {
 		return nil, err
 	}
@@ -302,7 +306,7 @@ func newSite(cfg Config) (*Site, error) {
 	if s.email, err = template.New("").ParseFS(webFS, "web/templates/email.html"); err != nil {
 		return nil, err
 	}
-	if s.admin, err = template.New("").Funcs(funcs).ParseFS(webFS, "web/templates/admin.html", "web/templates/admin-email.html", "web/templates/admin-treasurer.html", "web/templates/admin-kit.html", "web/templates/admin-rsvp.html"); err != nil {
+	if s.admin, err = template.New("").Funcs(funcs).ParseFS(webFS, "web/templates/admin*.html"); err != nil {
 		return nil, err
 	}
 	return s, nil

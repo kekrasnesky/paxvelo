@@ -1,0 +1,122 @@
+{{/* Signing in, password reset, Security and Admins (admins.go). */}}
+
+{{define "login"}}{{template "head" .}}
+<form class="card login" method="post" action="/admin/login">
+  <h1>PaxVelo Admin</h1>
+  {{if .SetupLogin}}
+  <label>Your name <input name="name" required maxlength="60" autofocus autocomplete="name"></label>
+  <label>Setup password <input type="password" name="password" required autocomplete="current-password"></label>
+  {{else}}
+  <label>Email <input type="email" name="email" value="{{.Email}}" required maxlength="254" autofocus autocomplete="username"></label>
+  <label>Password <input type="password" name="password" required autocomplete="current-password"></label>
+  {{end}}
+  <button>{{icon "login"}}Log in</button>
+  {{if not .SetupLogin}}<p class="small"><a href="/admin/forgot">Forgot your password?</a></p>{{end}}
+</form>
+{{template "foot" .}}{{end}}
+
+{{define "forgot"}}{{template "head" .}}
+<form class="card login" method="post" action="/admin/forgot">
+  <h1>Reset your password</h1>
+  <label>Email <input type="email" name="email" required maxlength="254" autofocus autocomplete="username"></label>
+  <button>{{icon "mail"}}Email me a link</button>
+  <p class="small"><a href="/admin/login">← Back to log in</a></p>
+</form>
+{{template "foot" .}}{{end}}
+
+{{define "password"}}{{template "head" .}}
+<form class="card login" method="post" action="/admin/password">
+  <h1>Choose a password</h1>
+  <p class="muted small">{{.Account.Name}} · {{.Account.Email}}</p>
+  <input type="hidden" name="t" value="{{.Token}}">
+  <input type="email" name="email" value="{{.Account.Email}}" autocomplete="username" hidden>
+  <label>New password <input type="password" name="password" required minlength="10" autofocus autocomplete="new-password"></label>
+  <label>Type it again <input type="password" name="password2" required minlength="10" autocomplete="new-password"></label>
+  <button>{{icon "login"}}Save and log in</button>
+</form>
+{{template "foot" .}}{{end}}
+
+{{define "security"}}{{template "head" .}}
+<div class="title-row"><h1>Club PIN &amp; access</h1></div>
+<form method="post" action="/admin/security" class="card sec-card">
+  <h2>Club PIN <span class="sec-on{{if not .ClubPIN}} off{{end}}">{{if .ClubPIN}}On{{else}}Off{{end}}</span></h2>
+  <div class="sec-pin">
+    <input name="pin" value="{{.ClubPIN}}" minlength="4" maxlength="40" autocomplete="off" placeholder="At least 4 characters" aria-label="Club PIN">
+    <button name="do" value="pin">{{icon "check"}}Save</button>{{if .ClubPIN}}<button class="ghost" name="do" value="pin" formnovalidate onclick="this.form.off.value='1'">Turn off</button>{{end}}<input type="hidden" name="off" value="">
+  </div>
+  <details class="sec-more"><summary>How it works</summary>
+  </details>
+</form>
+<div class="card sec-card">
+  <h2>Other ways in</h2>
+  <ul class="sec-list">
+    <li><details><summary><span>Admin accounts</span><span class="sec-on">On</span></summary>
+      </details></li>
+    <li><details><summary><span>Setup password</span><span class="sec-on">On</span></summary>
+      </details></li>
+    <li><details><summary><span>Calendar API key</span><span class="sec-on{{if not .APIOn}} off{{end}}">{{if .APIOn}}On{{else}}Off{{end}}</span></summary>
+      <p class="small"><strong>Import Strava events</strong></p>
+      <pre class="small">curl -X POST {{.SiteURL}}/api/strava/sync -H "Authorization: Bearer $CALENDAR_API_KEY"</pre>
+      <p class="small"><strong>Read rides</strong></p>
+      <pre class="small">curl "{{.SiteURL}}/api/rides?from=2026-11-01&amp;to=2026-11-30"</pre>
+      </details></li>
+    <li><details><summary><span>Members’ own links</span><span class="sec-on">On</span></summary>
+      </details></li>
+  </ul>
+</div>
+<div class="card sec-card">
+  <h2>Backup</h2>
+  {{if .CanManage}}<p class="sec-pin"><a class="btn ghost" href="/admin/backup">{{icon "save"}}Download a full backup</a></p>
+  {{end}}
+</div>
+{{template "foot" .}}{{end}}
+
+{{define "admins"}}{{template "head" .}}
+<div class="title-row">
+  <h1>Admins</h1>
+</div>
+{{with .TestLink}}<p class="flash warn">Test mode: emails go to the server log instead of being sent. Here’s the link that would have been emailed: <a href="{{.}}">{{.}}</a></p>{{end}}
+<div class="table-wrap"><table class="cards">
+  <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Last login</th><th>Added</th><th><span class="sr">Actions</span></th></tr></thead>
+  <tbody>
+  {{range .Admins}}<tr>
+    <td data-label="Name">{{.Name}}{{if .President}} <span class="tag tag-pres">President</span>{{end}}{{with index $.AdminRoles .ID}} {{if $.IsBoard}}<a class="tag" href="/admin/board" title="Website → Board">{{.}}</a>{{else}}<span class="tag">{{.}}</span>{{end}}{{else}}{{if not .President}} <span class="tag" title="Rides, ride emails, photos, minutes, own expenses">Website admin</span>{{end}}{{end}}{{if eq .ID $.Account.ID}} <span class="tag">You</span>{{end}}</td>
+    <td class="email" data-label="Email"><a href="mailto:{{.Email}}">{{.Email}}</a>{{with .PayPal}}<br><span class="muted small">PayPal {{.}}</span>{{end}}</td>
+    <td data-label="Status">{{if .HasPassword}}<span class="paid">Active</span>{{else}}Invited, no password yet{{end}}</td>
+    <td data-label="Last login">{{with .LastLogin}}<span class="nowrap">{{date .}}</span><br><span class="muted small">{{clock .}}</span>{{else}}<span class="muted">Never</span>{{end}}</td>
+    <td data-label="Added"><span class="nowrap">{{date .Added}}</span>{{with .AddedBy}}<br><span class="muted small">by {{.}}</span>{{end}}</td>
+    <td class="right cell-act"><div class="acts">
+      {{if $.CanManage}}<form method="post" action="/admin/admins/{{.ID}}/link"><button class="link">{{icon "mail"}}{{if .HasPassword}}Send a reset link{{else}}Send a new link{{end}}</button></form>{{end}}
+      {{if and $.CanNamePresident (not .President)}}<form method="post" action="/admin/admins/{{.ID}}/president" onsubmit="return confirm('Make {{.Name}} the president? Only the president can change admins and the board{{if $.Account.President}}, so you won’t be able to anymore{{end}}.')"><button class="link">Make president</button></form>{{end}}
+      {{if and $.CanManage (ne .ID $.Account.ID)}}<form method="post" action="/admin/admins/{{.ID}}/remove" onsubmit="return confirm('Remove {{.Name}} as an admin? They won’t be able to log in.')"><button class="link danger">{{icon "trash"}}Remove</button></form>{{end}}
+    </div></td>
+  </tr>
+  {{else}}<tr><td colspan="6" class="empty">No admin accounts yet.</td></tr>
+  {{end}}
+  </tbody>
+</table></div>
+<div class="grid2">
+  {{if .CanManage}}<form class="card" method="post" action="/admin/admins">
+    <h2>Add an admin</h2>
+    <label>Name <input name="name" required maxlength="60" autocomplete="off"></label>
+    <label>Email <input type="email" name="email" required maxlength="254" autocomplete="off"></label>
+    <button>{{icon "plus"}}Add and email them</button>
+  </form>{{end}}
+  {{if .Account.ID}}<form class="card" id="paypal" method="post" action="/admin/admins/paypal">
+    <h2>PayPal for reimbursements</h2>
+    <label>PayPal email <input type="email" name="paypal" value="{{.Account.PayPal}}" placeholder="{{.Account.Email}}" maxlength="254" autocomplete="email"></label>
+    <button>{{icon "save"}}Save</button>
+  </form>{{end}}
+  {{if .Account.ID}}<form class="card" method="post" action="/admin/admins/password">
+    <h2>Change your password</h2>
+    <input type="email" name="email" value="{{.Account.Email}}" autocomplete="username" hidden>
+    <label>Current password <input type="password" name="current" required autocomplete="current-password"></label>
+    <label>New password <input type="password" name="password" required minlength="10" autocomplete="new-password"></label>
+    <label>Type it again <input type="password" name="password2" required minlength="10" autocomplete="new-password"></label>
+    <button>Change password</button>
+  </form>{{else}}<div class="card">
+    <h2>You’re using the setup password</h2>
+  </div>{{end}}
+</div>
+{{template "foot" .}}{{end}}
+

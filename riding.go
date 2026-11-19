@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 )
 
@@ -34,15 +33,6 @@ func init() {
 	}
 }
 
-// clubRides were checkboxes on the old join form. They're no longer asked,
-// but members who joined then still have their picks, shown in the admin.
-var clubRides = []choice{
-	{"tnr-a", "Tuesday Night Ride, A group (race pace)", "Tue A"},
-	{"tnr-b", "Tuesday Night Ride, B group", "Tue B"},
-	{"thursday", "Thursday Night Ride", "Thu"},
-	{"weekend", "Weekend rides", "Weekend"},
-}
-
 // levelAdvice is the built-in {ride_tips} for each answer, used until an
 // admin writes their own on the Email tab.
 var levelAdvice = map[string]string{
@@ -69,17 +59,6 @@ func (m Member) LevelName() string {
 		}
 	}
 	return ""
-}
-
-// RideNames lists the rides they picked on the old join form, briefly, for the admin.
-func (m Member) RideNames() string {
-	var names []string
-	for _, c := range clubRides {
-		if slices.Contains(m.Rides, c.Value) {
-			names = append(names, c.Short)
-		}
-	}
-	return strings.Join(names, ", ")
 }
 
 // Tip is the ride advice the welcome email gives for one answer: the admin's

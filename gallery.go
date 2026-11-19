@@ -37,29 +37,6 @@ const (
 // galleryWidths are the narrower copies made of each gallery photo.
 var galleryWidths = []int{480, 960, 1440}
 
-// galleryRide is a club ride photos used to be sorted by, before albums.
-// Old photos' albums are named after them (albumize).
-type galleryRide struct {
-	Key, Short, Name string
-}
-
-var galleryRides = []galleryRide{
-	{"tnr", "TNR", "Tuesday Night Ride (TNR)"},
-	{"thnr", "ThNR", "Thursday Night Ride (ThNR)"},
-	{"samr", "SaMR", "Saturday Morning Ride (SaMR)"},
-	{"sumr", "SuMR", "Sunday Morning Ride (SuMR)"},
-	{"shop", "Shop Ride", "Old Line shop ride"},
-	{"other", "Other ride", "Another ride"},
-}
-
-func rideFor(key string) (galleryRide, bool) {
-	i := slices.IndexFunc(galleryRides, func(r galleryRide) bool { return r.Key == key })
-	if i < 0 {
-		return galleryRide{}, false
-	}
-	return galleryRides[i], true
-}
-
 // cleanRideDate checks a typed date (from a date box, 2026-10-28): "" when
 // none was typed, an error when it isn't a real date from the club's time or
 // is in the future.
@@ -131,10 +108,6 @@ type GalleryPhoto struct {
 	By      string    `json:"by"`
 	From    int       `json:"from,omitempty"` // the sent-in photo it came from
 	Added   time.Time `json:"added"`
-	// From before albums: kept for naming old photos' albums.
-	Ride string   `json:"ride,omitempty"`
-	Date string   `json:"date,omitempty"`
-	Tags []string `json:"tags,omitempty"`
 }
 
 // copySrc is the address of the photo's copy w pixels wide, beside it:
@@ -377,54 +350,17 @@ func (a *App) mediaExists(src string) bool {
 
 var errNotFound = errors.New("not found")
 
-// albumize puts photos from before albums into albums: one for each ride
-// and date, like "TNR · Oct 28, 2026", newest first, and undated ones in
-// "Older photos". Callers must hold s.mu (it runs as the store opens).
+// albumize puts any photo without an album into "Older photos", so none
+// is ever lost. Callers must hold s.mu (it runs as the store opens).
 func (s *Store) albumize() {
-	type key struct{ ride, date string }
-	var keys []key
-	for _, p := range s.d.Gallery {
-		if p.Album != 0 {
-			continue
-		}
-		k := key{p.Ride, p.Date}
-		if !slices.Contains(keys, k) {
-			keys = append(keys, k)
-		}
-	}
-	if len(keys) == 0 {
+	if !slices.ContainsFunc(s.d.Gallery, func(p *GalleryPhoto) bool { return p.Album == 0 }) {
 		return
 	}
-	slices.SortStableFunc(keys, func(x, y key) int {
-		if (x.date == "") != (y.date == "") {
-			if x.date == "" {
-				return 1
-			}
-			return -1
-		}
-		return strings.Compare(y.date, x.date)
-	})
-	made := make(map[key]int)
-	var albums []*Album
-	for _, k := range keys {
-		r, _ := rideFor(k.ride)
-		title := r.Short
-		switch {
-		case k.date != "" && title != "":
-			title += " · " + dateLabel(k.date)
-		case k.date != "":
-			title = dateLabel(k.date)
-		case title == "":
-			title = "Older photos"
-		}
-		s.d.NextAlbum++
-		albums = append(albums, &Album{ID: s.d.NextAlbum, Title: title, Date: k.date, Created: time.Now().UTC()})
-		made[k] = s.d.NextAlbum
-	}
-	s.d.Albums = append(s.d.Albums, albums...)
+	s.d.NextAlbum++
+	s.d.Albums = append(s.d.Albums, &Album{ID: s.d.NextAlbum, Title: "Older photos", Created: time.Now().UTC()})
 	for _, p := range s.d.Gallery {
 		if p.Album == 0 {
-			p.Album = made[key{p.Ride, p.Date}]
+			p.Album = s.d.NextAlbum
 		}
 	}
 }

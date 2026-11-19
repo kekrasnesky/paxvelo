@@ -1,0 +1,352 @@
+{{/* Rides → Calendar, Weekly rides, History, Loaner bikes, Signs to print (ridesadmin.go, loaners.go, signs.go). */}}
+
+{{define "loaner-row"}}<tr id="q{{.ID}}">
+    <td data-label="Ride"><a href="/calendar/ride/{{.RideKey}}" target="_blank" rel="noopener">{{.RideName}}</a><br><span class="muted small">{{.RideLabel}}</span></td>
+    <td data-label="Rider">{{.RiderName}}{{if .Rider}}<br><span class="muted small">Parent or guardian: {{.Name}}</span>{{end}}<br><a class="small" href="mailto:{{.Email}}">{{.Email}}</a></td>
+    <td data-label="Bike">{{.BikeLabel}}</td>
+    <td class="nowrap" data-label="Asked">{{datetime .Asked}}{{with .Waiver}}<br><a class="small" href="/admin/ride-waivers/{{.}}">Waiver</a>{{end}}</td>
+{{end}}
+
+{{/* Signs to print (signs.go): one per sheet, each with a QR code to the site */}}
+{{define "signs"}}{{template "head" .}}
+<div class="title-row no-print"><h1>Signs to print</h1><button type="button" onclick="print()">{{icon "printer"}}Print</button></div>
+<div class="signs">{{range .Signs}}<section class="sign">
+  <img class="sign-logo" src="/static/img/logo.svg" alt="PaxVelo">
+  <h2>{{.Title}}</h2>
+  <p class="sign-line">{{.Line}}</p>
+  <div class="sign-qr">{{qr .Path .Title}}</div>
+  <p class="sign-addr">{{.Host $.SiteURL}}</p>
+  <p class="no-print"><a href="/qr/{{.Key}}" target="_blank" rel="noopener">{{icon "eye"}}On a phone screen</a></p>
+</section>{{end}}</div>
+{{template "foot" .}}{{end}}
+
+{{define "loaners"}}{{template "head" .}}
+<div class="title-row">
+  <h1>Loaner bikes</h1>
+</div>
+<h2 class="section">Waiting</h2>
+<div class="table-wrap"><table class="tight cards">
+  <thead><tr><th>Ride</th><th>Rider</th><th>Bike</th><th>Asked</th><th><span class="sr">Answer</span></th></tr></thead>
+  <tbody>
+  {{range .LoanersWaiting}}{{template "loaner-row" .}}
+    <td class="right row-acts">
+      <form method="post" action="/admin/loaners/{{.ID}}/confirm" class="inline"><button class="mini">{{icon "check"}}Confirm</button></form>
+      <form method="post" action="/admin/loaners/{{.ID}}/decline" class="inline loaner-decline"><input name="reason" maxlength="300" placeholder="Reason" aria-label="Reason for declining"><button class="link danger">Decline</button></form>
+    </td>
+  </tr>
+  {{else}}<tr><td colspan="6" class="empty">No requests waiting.</td></tr>
+  {{end}}
+  </tbody>
+</table></div>
+<h2 class="section">Confirmed</h2>
+<div class="table-wrap"><table class="tight cards">
+  <thead><tr><th>Ride</th><th>Rider</th><th>Bike</th><th>Asked</th><th><span class="sr">Cancel</span></th></tr></thead>
+  <tbody>
+  {{range .LoanersComing}}{{template "loaner-row" .}}
+    <td class="right row-acts"><form method="post" action="/admin/loaners/{{.ID}}/cancel" class="inline" onsubmit="return confirm('Cancel this bike for {{.RiderName}}? They get an email.')"><button class="link danger">{{icon "ban"}}Cancel</button></form></td>
+  </tr>
+  {{else}}<tr><td colspan="6" class="empty">No bikes confirmed for rides coming up.</td></tr>
+  {{end}}
+  </tbody>
+</table></div>
+{{with .LoanersPast}}<details class="loaner-past">
+  <summary>Earlier</summary>
+  <div class="table-wrap"><table class="tight cards">
+    <thead><tr><th>Ride</th><th>Rider</th><th>Bike</th><th>Asked</th><th>Answer</th></tr></thead>
+    <tbody>
+    {{range .}}{{template "loaner-row" .}}
+      <td data-label="Answer"><span class="tag">{{if eq .Status "confirmed"}}Confirmed{{else if eq .Status "declined"}}Declined{{else if eq .Status "cancelled"}}Cancelled{{else}}Not answered{{end}}</span>{{with .By}}<br><span class="muted small">{{.}}</span>{{end}}{{with .Reason}}<br><span class="muted small">{{.}}</span>{{end}}</td>
+    </tr>{{end}}
+    </tbody>
+  </table></div>
+</details>{{end}}
+
+<h2 class="section" id="bikes">Bikes</h2>
+<div class="loaner-bikes">
+  {{range .LoanerBikes}}<form class="card loaner-bike-row" method="post" action="/admin/loaners/bikes">
+    <input type="hidden" name="id" value="{{.ID}}">
+    <label>Size <input name="size" required maxlength="20" value="{{.Size}}"></label>
+    <label>Rider height <input name="fits" maxlength="40" value="{{.Fits}}"></label>
+    <label class="grow">Bike <input name="bike" maxlength="120" value="{{.Bike}}"></label>
+    <label>Status <select name="ready" class="loaner-status{{if not .Ready}} off{{end}}" onchange="this.form.requestSubmit()"><option value="yes"{{if .Ready}} selected{{end}}>Available</option><option value=""{{if not .Ready}} selected{{end}}>Not available</option></select></label>
+    <button class="mini ghost">{{icon "save"}}Save</button>
+    <button class="link danger" formaction="/admin/loaners/bikes/{{.ID}}/remove" onclick="return confirm('Remove the {{.Size}} bike?')">{{icon "trash"}}Remove</button>
+  </form>
+  {{end}}
+  <form class="card loaner-bike-row" method="post" action="/admin/loaners/bikes">
+    <label>Size <input name="size" required maxlength="20" placeholder="M"></label>
+    <label>Rider height <input name="fits" maxlength="40" placeholder="5'4&quot;–5'8&quot;"></label>
+    <label class="grow">Bike <input name="bike" maxlength="120" placeholder="Year, make, model, frame size, brakes"></label>
+    <label>Status <select name="ready"><option value="yes">Available</option><option value="" selected>Not available</option></select></label>
+    <button class="mini">{{icon "plus"}}Add bike</button>
+  </form>
+</div>
+{{template "foot" .}}{{end}}
+
+
+{{define "rides"}}{{template "head" .}}
+<div class="title-row">
+  <h1>Rides</h1>
+</div>
+{{if not .StravaReady}}<p class="flash warn">Strava isn’t set up in paxvelo.conf.</p>{{end}}
+
+<h2 class="section">Strava import</h2>
+{{with .StravaLink}}
+<div class="card">
+  <p>Connected as <strong>{{.Athlete}}</strong>.</p>
+  <p class="small">{{with .LastSync}}Last checked {{datetime .}}.{{end}} {{with .LastResult}}{{.}}.{{end}}</p>
+  {{with .LastError}}<p class="flash err">The last import didn’t work: {{.}}</p>{{end}}
+  <div class="wrap-row">
+    <form method="post" action="/admin/strava/sync"><button>Import now</button></form>
+    <form method="post" action="/admin/strava/disconnect" onsubmit="return confirm('Stop importing Strava events? Events already on the calendar stay.')"><button class="link danger">Disconnect</button></form>
+  </div>
+</div>
+{{else}}
+<div class="card">
+  {{if .StravaReady}}<form method="post" action="/admin/strava/connect"><button>Connect Strava</button></form>{{end}}
+</div>
+{{end}}
+<h2 class="section">Coming up</h2>
+{{if .Held}}<div class="card held">
+  <h2>Waiting for approval</h2>
+  <ul class="plain">{{range .Held}}<li><strong>{{.Name}}</strong>, {{.DateLabel}}{{if .Time}} at {{.TimeLabel}}{{end}}{{if .Place}}, {{.Place}}{{end}}{{if .AddedBy}} <span class="muted">(added by {{.AddedBy}})</span>{{end}}
+    <form method="post" action="/admin/rides/{{.Key}}/approve" class="inline"><input type="hidden" name="return" value="rides"><button class="mini">{{icon "check"}}Approve</button></form>
+    <a class="btn mini ghost" href="/admin/rides/{{.Key}}">Open</a></li>{{end}}</ul>
+</div>{{end}}
+<div class="table-wrap"><table class="stack">
+  <thead><tr><th>Date</th><th>Ride</th><th>Leaders</th><th><span class="sr">Actions</span></th></tr></thead>
+  <tbody>
+  {{range .Upcoming}}<tr{{if .Cancelled}} class="off"{{end}}>
+    <td class="nowrap">{{.DateLabel}}<br><span class="muted small">{{.TimeLabel}}</span></td>
+    <td class="lead"><a href="/admin/rides/{{.Key}}">{{.Name}}</a>{{if .IsVirtual}} {{template "virtual-badge" .}}{{end}}{{if not .IsRide}} <span class="tag">{{template "kind-icon" .}}{{.KindName}}</span>{{end}}{{if .Custom}} <span class="tag">One-off</span>{{end}}{{if .Unofficial}} <span class="tag" title="Not a PaxVelo event">Community</span>{{end}}{{if .Cancelled}} <span class="tag"{{with .StatusNote}} title="{{.}}"{{end}}>Cancelled</span>{{else if .IsOn}} <span class="tag tag-on"{{with .StatusNote}} title="{{.}}"{{end}}>On</span>{{end}}</td>
+    <td class="leaders">{{if not .IsRide}}{{with .Leaders}}{{(index . 0).Name}}{{else}}<span class="muted">–</span>{{end}}{{else}}{{range .Slots}}<span class="leader-line">{{with .Group}}<span class="muted">{{.}}:</span> {{end}}{{with .Leader}}{{.Name}}{{else}}<span class="danger">needs a leader</span>{{end}}</span>{{end}}{{end}}</td>
+    <td class="right nowrap row-acts acts-cell"><a class="btn mini ghost" href="/admin/rides/{{.Key}}">{{icon "pencil"}}Edit</a>
+      <form method="post" action="/admin/rides/{{.Key}}/cancel" class="inline"><input type="hidden" name="return" value="rides">{{if .Cancelled}}<input type="hidden" name="cancel" value="0"><button class="link small">{{icon "undo"}}Put back</button>{{else}}<input type="hidden" name="cancel" value="1"><button class="link danger small" onclick="return confirm('Cancel {{.Name}} on {{.ShortDate}}? It shows as cancelled on the calendar and the club is emailed.')">{{icon "ban"}}Cancel</button>{{end}}</form></td>
+  </tr>
+  {{else}}<tr><td colspan="4" class="empty">No rides in the next 60 days.</td></tr>
+  {{end}}
+  </tbody>
+</table></div>
+
+<h2 class="section">Weekly rides</h2>
+<div class="table-wrap"><table class="stack">
+  <thead><tr><th>Ride</th><th>When</th><th>Season</th><th>Start</th><th><span class="sr">Actions</span></th></tr></thead>
+  <tbody>
+  {{range .Series}}<tr>
+    <td class="lead"><a href="/admin/weekly/{{.ID}}"><strong>{{.Name}}</strong></a>{{if .IsVirtual}} {{template "virtual-badge" .}}{{end}}{{if .Unofficial}} <span class="tag" title="Not a PaxVelo event">Community</span>{{end}}{{with .Details}}<br><span class="muted small">{{firstLine .}}</span>{{end}}{{with .Groups}}<br><span class="muted small">Groups: {{join . ", "}}</span>{{end}}</td>
+    <td class="nowrap">{{.WeekdayName}}s, {{timeLabel .Time}}</td>
+    <td class="nowrap">{{.SeasonLabel}}</td>
+    <td>{{.Place}}</td>
+    <td class="right nowrap acts-cell"><a class="btn mini ghost" href="/admin/weekly/{{.ID}}">{{icon "pencil"}}Edit</a></td>
+  </tr>
+  {{else}}<tr><td colspan="5" class="empty">No weekly rides yet.</td></tr>
+  {{end}}
+  </tbody>
+</table></div>
+<form class="card new-issue" method="post" action="/admin/weekly">
+  <h2>Add a weekly ride</h2>
+  {{template "series-fields" (seriesBlank)}}
+  <button>{{icon "plus"}}Add weekly ride</button>
+</form>
+
+
+{{template "club-routes" .ClubRoutes}}
+{{template "foot" .}}{{end}}
+
+{{define "history"}}{{template "head" .}}{{$h := .History}}
+<div class="title-row">
+  <h1>Ride history</h1>
+  <p class="muted">{{$h.Total}} club events from Strava</p>
+</div>
+{{if not $h.Total}}<p class="flash warn">{{if $h.Connected}}No history yet.{{else}}<a href="/admin/rides">Connect Strava</a>{{end}}</p>
+{{else}}
+<nav class="filter" aria-label="Year">
+  {{range $h.Years}}<a href="/admin/history?y={{.Year}}"{{if .Current}} aria-current="page"{{end}}>{{.Year}} ({{.Rides}})</a>{{end}}
+  <a href="/admin/history?y=all"{{if eq $h.Year "all"}} aria-current="page"{{end}}>All years</a>
+</nav>
+<div class="grid2">
+  <section>
+    <h2 class="section">Who posted the most rides</h2>
+    {{if $h.Leaders}}<ol class="small">{{range $h.Leaders}}<li>{{.Name}}: {{.Count}}</li>{{end}}</ol>{{else}}<p class="muted small">None.</p>{{end}}
+  </section>
+  <section>
+    <h2 class="section">Who joined the most rides</h2>
+    {{if $h.Riders}}<ol class="small">{{range $h.Riders}}<li>{{.Name}}: {{.Count}}</li>{{end}}</ol>{{else}}<p class="muted small">None.</p>{{end}}
+  </section>
+</div>
+<h2 class="section">Rides per year</h2>
+<div class="table-wrap"><table class="tight">
+  <thead><tr><th>Year</th><th class="right">Rides</th><th class="right">Joined</th></tr></thead>
+  <tbody>{{range $h.Years}}<tr><td><a href="/admin/history?y={{.Year}}">{{.Year}}</a></td><td class="right">{{.Rides}}</td><td class="right">{{if .Joined}}{{.Joined}}{{else}}<span class="muted">–</span>{{end}}</td></tr>{{end}}</tbody>
+</table></div>
+<h2 class="section">{{if eq $h.Year "all"}}Every ride{{else}}Rides in {{$h.Year}}{{end}}</h2>
+<div class="table-wrap"><table class="tight stack">
+  <thead><tr><th>Date</th><th>Ride</th><th>Posted by</th><th>Route</th><th>Joined</th></tr></thead>
+  <tbody>
+  {{range $h.Rides}}<tr>
+    <td class="nowrap">{{.DateLabel}}{{if eq $h.Year "all"}}, {{slice .Date 0 4}}{{end}}<br><span class="muted small">{{timeLabel .Time}}</span></td>
+    <td class="lead"><a href="{{.StravaURL}}" target="_blank" rel="noopener">{{.Title}}</a></td>
+    <td>{{.Organizer}}</td>
+    <td>{{.Route}}</td>
+    <td>{{if .Going}}<details class="more"><summary>{{len .Going}}</summary><span class="small">{{range $i, $g := .Going}}{{if $i}}, {{end}}{{$g.Name}}{{end}}</span></details>{{else if .Checked}}<span class="muted">0</span>{{else}}<span class="muted">–</span>{{end}}</td>
+  </tr>{{else}}<tr><td colspan="5" class="empty">No rides this year.</td></tr>{{end}}
+  </tbody>
+</table></div>
+{{end}}
+{{template "foot" .}}{{end}}
+
+{{define "series-fields"}}{{template "kind-pick" .Kind}}
+  <div class="pair">
+    <label>Name <input name="name" value="{{.Name}}" required maxlength="80" placeholder="Saturday Coffee Ride"></label>
+    <label>Start time <input type="time" name="time" required value="{{or .Time "08:00"}}"></label>
+  </div>
+  <div class="pair">
+    <label>Day <select name="weekday">{{$wd := .Weekday}}{{range weekdays}}<option value="{{.N}}"{{if eq .N $wd}} selected{{end}}>{{.Name}}</option>{{end}}</select></label>
+    <label>Start location (optional) <input name="place" value="{{.Place}}" maxlength="100" placeholder="Leonardtown Square"></label>
+  </div>
+  <label>Description (optional) <textarea name="details" rows="3" maxlength="1000" placeholder="Route, pace, coffee stop, what to bring…">{{.Details}}</textarea></label>
+  {{template "virtual-check" .}}
+  <div class="ride-only" data-ride-only>
+    {{template "pace-select" .Groups}}
+    {{template "level-select" .Level}}
+  </div>
+  {{template "strava-link" .StravaURL}}
+  {{template "route-field" .RouteURL}}
+  <div class="pair">
+    <label>Season starts (optional) <input type="date" name="season_start" value="{{.From}}"></label>
+    <label>Season ends <input type="date" name="season_end" value="{{.Until}}"></label>
+  </div>
+  <label>Last date (optional) <input type="date" name="ends" value="{{.Ends}}"></label>
+  {{end}}
+
+{{/* A virtual ride's badge: Zwift's logo, with the word beside it where there's room */}}
+{{define "zwift"}}<span class="zwift" title="Virtual: on Zwift"><svg viewBox="0 0 980 908" width="17" height="16" aria-hidden="true" focusable="false"><path fill="#fa6618" d="M144 0L114 4L74 20L47 40L23 70L9 100L2 134L3 173L11 204L19 222L37 248L60 269L93 287L133 297L257 299L257 301L19 689L6 720L0 754L1 778L9 809L23 838L42 863L64 882L87 895L112 903L143 907L731 906L750 903L776 895L799 883L823 863L837 846L851 821L858 802L864 769L863 734L857 708L846 683L831 661L814 644L794 630L754 614L733 610L607 608L607 606L980 0Z"/></svg><span class="zwift-text">Zwift</span></span>{{end}}
+{{/* How a virtual ride shows: the Zwift logo, or a plain "Virtual" label for one on another app */}}
+{{define "virtual-badge"}}{{if .IsVirtual}}{{if .OnZwift}}{{template "zwift"}}{{else}}<span class="virtual-tag" title="Virtual ride">Virtual</span>{{end}}{{end}}{{end}}
+{{/* An event's label on the calendar, like "Club meeting"; a meeting has a building beside it */}}
+{{define "kind-badge"}}<span class="cal-kind">{{template "kind-icon" .}}{{.KindName}}</span>{{end}}
+{{define "kind-icon"}}{{if eq .Kind "meeting"}}<svg class="kind-icon" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 .8 1 4.3V6h14V4.3zM2.3 7h1.6v5H2.3zm3.3 0h1.6v5H5.6zm3.2 0h1.6v5H8.8zm3.3 0h1.6v5h-1.6zM1 12.8h14V15H1z"/></svg>{{end}}{{end}}
+{{define "virtual-check"}}<label class="check virtual-check" title="On Zwift, another app or an indoor trainer"><input type="checkbox" name="virtual"{{if .IsVirtual}} checked{{end}}> Virtual</label>
+  <input type="hidden" name="virtual_was" value="{{if .IsVirtual}}1{{else}}0{{end}}">
+  <label class="check zwift-check"><input type="checkbox" name="zwift"{{if or .OnZwift (not .IsVirtual)}} checked{{end}}> {{template "zwift"}} Show the Zwift logo on the calendar</label>
+  <input type="hidden" name="zwift_was" value="{{if or .OnZwift (not .IsVirtual)}}1{{else}}0{{end}}">
+  <label class="check" title="Not organized by PaxVelo: no club waiver, insurance or loaner bikes"><input type="checkbox" name="unofficial"{{if .Unofficial}} checked{{end}}> Community (not a PaxVelo event)</label>
+  {{end}}
+
+{{define "kind-pick"}}{{$kind := .}}<fieldset class="kinds">
+    <legend>What is it?</legend>
+    <div class="kind-opts">{{range eventKinds}}<label><input type="radio" name="kind" value="{{.Key}}" data-host="{{.Host}}"{{if eq .Key $kind}} checked{{end}}><span>{{.Name}}</span></label>{{end}}</div>
+  </fieldset>{{end}}
+
+{{/* A ride's Strava route (rideroute.go): paste a link, or pick from the club's routes */}}
+{{define "route-field"}}<label>Strava route (optional) <input name="route" value="{{.}}" list="club-routes" inputmode="url" autocomplete="off" placeholder="https://www.strava.com/routes/…" title="Paste a Strava route link, or pick one of the club’s routes"></label>{{end}}
+{{define "club-routes"}}<datalist id="club-routes">{{range .}}<option value="{{.URL}}">{{.Name}} · {{.Miles}}</option>{{end}}</datalist>{{end}}
+{{define "strava-link"}}<label>Strava event link (optional) <input type="url" name="strava_url" value="{{.}}" placeholder="https://www.strava.com/clubs/10197/group_events/…" data-strava-preview></label>
+  <div class="strava-preview" data-strava-out hidden aria-live="polite"></div>{{end}}
+
+{{define "pace-select"}}{{$pace := paceOf .}}<label>Pace groups <select name="pace">{{range paceChoices}}<option value="{{.Value}}"{{if eq .Value $pace}} selected{{end}}>{{.Label}}</option>{{end}}{{if eq $pace "keep"}}<option value="keep" selected>Keep: {{join . ", "}}</option>{{end}}</select></label>
+  {{end}}
+
+{{define "level-select"}}<fieldset class="levels">
+    <legend>Level</legend>
+    <div class="level-opts">{{range levelBoxes .}}<label class="check"><input type="checkbox" name="level" value="{{.Key}}"{{if .Checked}} checked{{end}}><span class="lvl lvl-{{.Key}}">{{.Name}}</span><span class="muted small">{{.MPH}}</span></label>{{end}}</div>
+  </fieldset>{{end}}
+
+{{define "series"}}{{template "head" .}}{{$f := .SeriesForm}}
+<p class="crumb"><a href="/admin/rides">← Rides</a></p>
+<h1>{{$f.Name}}</h1>
+<form class="card new-issue" method="post" action="/admin/weekly/{{$f.ID}}">
+  {{template "series-fields" $f}}
+  <button>{{icon "save"}}Save weekly ride</button>
+</form>
+<form class="footnote" method="post" action="/admin/weekly/{{$f.ID}}/delete" onsubmit="return confirm('Remove {{$f.Name}} from the calendar? Dates that already have a leader stay, as one-off rides.')"><button class="link danger">{{icon "trash"}}Remove this weekly ride</button></form>
+{{template "club-routes" .ClubRoutes}}
+{{template "foot" .}}{{end}}
+
+{{define "calendar"}}{{template "head" .}}{{$m := .Month}}
+<div class="title-row">
+  <h1>Calendar</h1>
+</div>
+{{if .Held}}<div class="card">
+  <h2>Waiting for approval</h2>
+  <ul class="plain">{{range .Held}}<li><strong>{{.Name}}</strong>, {{.DateLabel}}{{if .Time}} at {{.TimeLabel}}{{end}}{{if .Place}}, {{.Place}}{{end}}{{if .AddedBy}} <span class="muted">(added by {{.AddedBy}})</span>{{end}}
+    <form method="post" action="/admin/rides/{{.Key}}/approve" class="inline"><button class="mini">{{icon "check"}}Approve</button></form>
+    <a class="btn mini ghost" href="/admin/rides/{{.Key}}">Open</a>
+    <form method="post" action="/admin/rides/{{.Key}}/delete" class="inline" onsubmit="return confirm('Delete {{.Name}} on {{.DateLabel}}?')"><button class="link danger">{{icon "trash"}}Delete</button></form></li>{{end}}</ul>
+</div>{{end}}
+<div class="cal-bar">
+  <nav class="cal-nav" aria-label="Month"><a class="btn mini ghost" href="/admin/calendar?m={{$m.Prev}}" aria-label="Previous month">‹</a><h2>{{$m.MonthLabel}}</h2><a class="btn mini ghost" href="/admin/calendar?m={{$m.Next}}" aria-label="Next month">›</a></nav>
+  <a class="btn" href="/admin/rides/new">Add to the calendar</a>
+</div>
+<p class="cal-key small"><span class="nowrap"><span class="dot led"></span> Has its leaders</span> <span class="nowrap"><span class="dot partial"></span> Needs another leader</span> <span class="nowrap"><span class="dot open"></span> Needs a leader</span> <span class="nowrap"><span class="dot cancelled"></span> Cancelled</span></p>
+<div class="table-wrap cal-wrap"><table class="cal">
+  <thead><tr><th>Sun</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th></tr></thead>
+  <tbody>{{range $m.Weeks}}<tr>{{range .}}<td class="{{if not .InMonth}}out {{end}}{{if .Today}}today {{end}}{{if .Past}}past{{end}}">
+    <div class="cal-day"><span>{{.Day}}</span>{{if not .Past}}<a href="/admin/rides/new?date={{.Date}}" aria-label="Add a ride on {{.Date}}">+</a>{{end}}</div>
+    {{range .Rides}}<a class="cal-ride {{.Status}}" href="/admin/rides/{{.Key}}">{{if .IsVirtual}}{{template "virtual-badge" .}} {{end}}<span class="muted">{{.TimeLabel}}</span> {{.Name}}{{if not .IsRide}} {{template "kind-badge" .}}{{end}}{{if .Unofficial}} <span class="tag">Community</span>{{end}}<span class="lvls">{{range .Levels}}<span class="lvl lvl-{{.Key}}">{{.Name}}</span>{{end}}</span><span class="cal-lead">{{.LeaderSummary}}</span></a>{{end}}
+  </td>{{end}}</tr>{{end}}</tbody>
+</table></div>
+<ol class="cal-list">{{range $m.Days}}<li><h3>{{(index .Rides 0).DateLabel}}</h3>
+  {{range .Rides}}<a class="cal-ride {{.Status}}" href="/admin/rides/{{.Key}}">{{if .IsVirtual}}{{template "virtual-badge" .}} {{end}}<span class="muted">{{.TimeLabel}}</span> {{.Name}}{{if not .IsRide}} {{template "kind-badge" .}}{{end}}{{if .Unofficial}} <span class="tag">Community</span>{{end}}<span class="lvls">{{range .Levels}}<span class="lvl lvl-{{.Key}}">{{.Name}}</span>{{end}}</span><span class="cal-lead">{{.LeaderSummary}}</span></a>{{end}}</li>
+  {{else}}<li class="empty">{{$m.NoDays}}</li>{{end}}</ol>
+{{template "foot" .}}{{end}}
+
+{{define "ride"}}{{template "head" .}}{{$f := .RideForm}}
+<p class="crumb"><a href="/admin/calendar{{if $f.Date}}?m={{slice $f.Date 0 7}}{{end}}">← Calendar</a></p>
+<div class="title-row">
+  <h1>{{if $f.New}}Add to the calendar{{else}}{{$f.Name}}{{end}}</h1>
+  {{if not $f.New}}<p>{{if $f.Cancelled}}<span class="tag">Cancelled</span> {{else if $f.IsOn}}<span class="tag tag-on">On</span> {{end}}{{with $f.StatusLine}}<span class="muted small">{{.}}</span> · {{end}}{{if $f.Custom}}One-off{{else}}Weekly · <a href="/admin/weekly/{{$f.SeriesID}}">change every week</a>{{end}} · <a href="/calendar/ride/{{$f.Key}}" target="_blank" rel="noopener">Public page</a></p>{{end}}
+</div>
+{{if $f.Past}}<p class="flash warn">This {{$f.Noun}} has already happened.</p>{{end}}
+<form class="card new-issue ride-form" method="post" action="{{if $f.New}}/admin/rides/new{{else}}/admin/rides/{{$f.Key}}{{end}}" data-kinds{{with $f.Starts}} data-starts="{{.}}"{{end}}{{if $f.Fresh}} data-fresh{{end}}>
+  {{template "kind-pick" $f.Kind}}
+  <div class="ride-cols"><div class="ride-col">
+  <label>Name <input name="name" value="{{$f.Name}}" required maxlength="80" placeholder="Saturday Coffee Ride"></label>
+  <div class="pair">
+    {{if or $f.New $f.Custom}}<label>Date <input type="date" name="date" value="{{$f.Date}}" required></label>
+    {{else}}<label>Date <input value="{{$f.DateLabel}}" disabled></label>{{end}}
+    <label>Start time <input type="time" name="time" value="{{$f.Time}}"></label>
+  </div>
+  {{if $f.New}}<label class="check"><input type="checkbox" name="repeat" value="weekly" data-repeat{{if $f.Weekly}} checked{{end}}> Repeat every week</label>
+  <div class="repeat-opts" data-repeat-opts{{if not $f.Weekly}} hidden{{end}}>
+    <label>Last date (optional) <input type="date" name="repeat_until" value="{{$f.Until}}"></label>
+  </div>{{end}}
+  <label>Start location (optional) <input name="place" value="{{$f.Place}}" maxlength="100" placeholder="Leonardtown Square"></label>
+  <label>Description (optional) <textarea name="details" rows="3" maxlength="1000" placeholder="Route, pace, coffee stop, what to bring…">{{$f.Details}}</textarea></label>
+  {{template "virtual-check" $f}}
+  </div><div class="ride-col">
+  <div class="ride-only" data-ride-only>
+    {{$pace := $f.Pace}}<label>Pace groups <select name="pace" data-leaders>{{range paceChoices}}<option value="{{.Value}}"{{if eq .Value $pace}} selected{{end}}>{{.Label}}</option>{{end}}{{if eq $pace "keep"}}<option value="keep" selected>Keep: {{join $f.Groups ", "}}</option>{{end}}</select></label>
+    {{template "level-select" $f.Level}}
+  </div>
+  <fieldset class="leaders">
+    <legend data-ride-text="Ride leaders" data-event-text="Who’s running it">Ride leaders</legend>
+    {{range $f.Leaders}}<label class="leader-row" data-group="{{.Group}}"{{if and (ne .Group "") (ne .Group "A group") (ne .Group "B group") (ne .Group "C group")}} data-keep="1"{{end}}><span{{if not .Group}} data-host-label{{end}}>{{or .Group "Leader"}}</span>
+      <input name="{{.Field}}" value="{{.Name}}" placeholder="Needs a leader" maxlength="60"{{if not .Group}} data-ride-text="Needs a leader" data-event-text="Optional"{{end}}>
+      {{with .Note}}<span class="muted small">{{.}}</span>{{end}}</label>{{end}}
+  </fieldset>
+  {{template "strava-link" $f.StravaURL}}
+  {{template "route-field" $f.RouteURL}}
+  </div></div>
+  <button>{{if $f.New}}{{icon "plus"}}Add to the calendar{{else}}{{icon "save"}}Save changes{{end}}</button>
+</form>
+{{if and (not $f.New) (not $f.IsRide)}}<form method="post" action="/admin/rides/{{$f.Key}}/newsletter" class="card wrap-row event-news">
+  <strong>In the newsletter</strong>
+  {{if $.Issues}}<select name="issue" aria-label="Newsletter issue">{{range $.Issues}}<option value="{{.ID}}">{{.Label}}{{if not .IsPublished}} (draft){{end}}</option>{{end}}</select>
+  <button class="ghost">{{icon "plus"}}Add to newsletter</button>
+  {{else}}<a class="small" href="/admin/newsletter">Start a newsletter issue</a>{{end}}
+</form>{{end}}
+{{if not $f.New}}{{with $f.Riders}}<section class="card" id="riders">
+  <h2>Who’s going <span class="tag">{{len .}}</span></h2>
+  <table class="tight cards"><thead><tr><th>Name</th><th>Group</th><th>Email</th><th>First ride</th><th>Said so</th><th><span class="sr">Remove</span></th></tr></thead><tbody>
+  {{range .}}<tr><td data-label="Name">{{.Name}}</td><td data-label="Group">{{.Group}}</td><td data-label="Email">{{with .Email}}<a href="mailto:{{.}}">{{.}}</a>{{end}}</td><td data-label="First ride">{{if .First}}<span class="tag tag-on">First ride</span>{{end}}</td><td data-label="Said so">{{.Added.Format "Jan 2, 3:04 PM"}}</td>
+    <td class="right row-acts"><form method="post" action="/admin/rides/{{$f.Key}}/riders/{{.ID}}/remove" class="inline"><button class="link danger">{{icon "x"}}Remove</button></form></td></tr>{{end}}
+  </tbody></table>
+</section>{{end}}{{end}}
+{{if not $f.New}}<div class="wrap-row footnote">
+  <form method="post" action="/admin/rides/{{$f.Key}}/cancel" class="inline ride-status-form"><input name="note" maxlength="120" value="{{$f.StatusNote}}" placeholder="Note" aria-label="Note" title="Shown with On or Cancelled">{{if $f.Cancelled}}<button class="ghost" name="status" value="open">{{icon "undo"}}Put it back on the calendar</button>{{else}}<button class="ghost" name="status" value="on">{{icon "check"}}{{if $f.On}}On{{else}}Mark as on{{end}}</button><button class="ghost" name="status" value="cancel" onclick="return confirm('Cancel {{$f.Name}} on {{$f.DateLabel}}? The club will be emailed.')">{{icon "ban"}}Cancel this {{$f.Noun}}</button>{{end}}</form>
+  {{if $f.Custom}}<form method="post" action="/admin/rides/{{$f.Key}}/delete" class="inline" onsubmit="return confirm('Delete {{$f.Name}} for good? To keep it on the calendar as cancelled, use Cancel instead.')"><button class="link danger">{{icon "trash"}}Delete this {{$f.Noun}}</button></form>{{end}}
+</div>{{end}}
+{{template "club-routes" .ClubRoutes}}
+{{template "foot" .}}{{end}}
+

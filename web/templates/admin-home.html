@@ -1,0 +1,469 @@
+{{/* Home → Overview and How the site works; Stats (attention.go, dashboard.go, stats.go). */}}
+
+{{define "attention"}}{{template "head" .}}{{with .Dashboard}}
+{{if .SetupLogin}}<div class="setup-warn" role="alert">
+  <p><strong>You’re still using the setup password.</strong></p>
+  <a class="btn" href="/admin/admins">Go to Admins</a>
+</div>{{end}}
+<div class="title-row dash-title"><h1>Home</h1>
+  <nav class="quick" aria-label="Quick actions">
+    <a class="btn ghost" href="/admin/members#add">{{icon "plus"}}Add member</a>
+    <a class="btn ghost" href="/admin/members?dues=unpaid">{{icon "check"}}Mark paid</a>
+    <a class="btn ghost" href="/admin/email">{{icon "mail"}}Email members</a>
+    <a class="btn ghost" href="/admin/rides/new">{{icon "plus"}}Add a ride</a>
+  </nav>
+</div>
+{{if .Intro}}<section class="card intro">
+  <h2>Welcome to the admin portal</h2>
+  <div class="intro-acts"><a class="btn" href="/admin/guide">How the site works</a>
+  <form method="post" action="/admin/intro"><button class="ghost">Got it</button></form></div>
+</section>{{end}}
+
+<h2 class="glance-h">Needs attention</h2>
+{{if .Items}}<ul class="rows todo">{{range .Items}}<li><span>{{.Text}}</span><span class="act-row">{{template "needs-acts" .}}<a class="btn ghost" href="{{.Href}}">{{.Link}}</a></span></li>{{end}}</ul>
+{{else}}<p class="all-clear">{{icon "check"}}Nothing needs you right now.</p>{{end}}
+{{with .Nudges}}<h2 class="glance-h">Security</h2>
+<ul class="rows todo nudge">{{range .}}<li><span>{{.Text}}</span><a class="btn ghost" href="{{.Href}}">{{.Link}}</a></li>{{end}}</ul>{{end}}
+
+<div class="dash">
+{{with .Members}}<section class="card dash-card">
+  <div class="dash-head"><h2>Members</h2><a href="/admin/members">All members</a></div>
+  <dl class="nums">
+    <div><dt><a href="/admin/members?dues=paid">Current members</a></dt><dd><a href="/admin/members?dues=paid">{{.Paid}}</a></dd></div>
+    <div><dt><a href="/admin/members?dues=unpaid">Not paid yet</a></dt><dd><a href="/admin/members?dues=unpaid">{{.Unpaid}}</a></dd></div>
+    <div><dt><a href="/admin/members?dues=list">Email list only</a></dt><dd><a href="/admin/members?dues=list">{{.List}}</a></dd></div>
+    <div><dt>Joined in 30 days</dt><dd>{{.New}}</dd></div>
+  </dl>
+  <div class="plans">
+    <p><span>Individual plans</span><strong>{{.PaidIndividual}}</strong></p>
+    <p><span>Family plans</span><strong>{{.PaidFamily}}</strong></p>
+    <p><span>{{$.Year}} dues</span><strong>${{.Dues}}</strong></p>
+  </div>
+  <h3>Signed up, not marked paid yet</h3>
+  {{if .Signups}}<ul class="signups">{{range .Signups}}<li>
+    <span><strong>{{.Name}}</strong><br><span class="muted small">{{.PlanName}} · joined {{date .Joined}}{{if .Unconfirmed}} · email not confirmed{{end}}</span></span>
+    {{if $.IsBoard}}<form method="post" action="/admin/members/{{.ID}}/paid"><input type="hidden" name="paid" value="1"><input type="hidden" name="return" value="/admin"><button class="mini">{{icon "check"}}Mark paid</button></form>{{end}}
+  </li>{{end}}</ul>
+  {{with .MoreSignups}}<p class="small"><a href="/admin/members?dues=unpaid">{{.}} more on the unpaid list</a></p>{{end}}
+  {{else}}<p class="muted small">Nobody.</p>{{end}}
+</section>{{end}}
+
+<section class="card dash-card">
+  <div class="dash-head"><h2>Rides this week</h2><a href="/admin/calendar">Calendar</a></div>
+  {{if .Rides}}<ul class="week">{{range .Rides}}<li>
+    <span class="when">{{.ShortDate}}{{with .TimeLabel}}<br><span class="muted small">{{.}}</span>{{end}}</span>
+    <span><a href="/admin/rides/{{.Key}}"><strong>{{.Name}}</strong></a><br>
+      <span class="lead {{.Status}}">{{.LeaderSummary}}</span> <span class="muted small">· {{.GoingLabel}}</span></span>
+  </li>{{end}}</ul>
+  {{else}}<p class="muted">No rides on the calendar in the next seven days.</p>{{end}}
+  {{with .Off}}<p class="small cancelled"><strong>Cancelled:</strong> {{range $i, $o := .}}{{if $i}}; {{end}}<a href="/admin/rides/{{$o.Key}}">{{$o.Name}}</a>, {{$o.ShortDate}}{{end}}</p>{{end}}
+</section>
+</div>
+{{end}}
+{{template "foot" .}}{{end}}
+
+{{define "stats"}}{{template "head" .}}{{with .Stats}}
+<div class="title-row"><h1>Stats</h1></div>
+
+<section class="card stats-chart">
+  <h2>Visitors each week</h2>
+  <div class="wk-chart">
+    {{range .Bars}}<a class="wk{{if .Shown}} on{{end}}{{if .ThisWeek}} now{{end}}" href="/admin/stats?week={{.Week}}" aria-label="Week of {{.Label}}: {{.Visitors}} visitors, {{.Views}} page views{{if .ThisWeek}} so far{{end}}"{{if .Shown}} aria-current="true"{{end}}>
+      <span class="wk-val">{{.Visitors}}</span>
+      <span class="wk-col"><span class="wk-bar" style="height:{{.Height}}%"></span></span>
+      <span class="wk-day">{{.Label}}</span>
+      <span class="wk-tip" aria-hidden="true">Week of {{.Label}}{{if .ThisWeek}}, so far{{end}}<br><strong>{{.Visitors}}</strong> visitors · {{.Views}} views</span>
+    </a>{{end}}
+  </div>
+  <details><summary>Show as a table</summary>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Week of</th><th class="right">Visitors</th><th class="right">Page views</th></tr></thead>
+      <tbody>{{range .Bars}}<tr><td>{{.Label}}{{if .ThisWeek}} (so far){{end}}</td><td class="right">{{.Visitors}}</td><td class="right">{{.Views}}</td></tr>{{end}}</tbody>
+    </table></div>
+  </details>
+</section>
+
+<h2 class="section">{{.WeekLabel}}</h2>
+<ul class="tiles">
+  <li><strong>{{.Shown.Visitors}}</strong> {{if eq .Shown.Visitors 1}}visitor{{else}}visitors{{end}}</li>
+  <li><strong>{{.Shown.Views}}</strong> page {{if eq .Shown.Views 1}}view{{else}}views{{end}}</li>
+  <li><strong>{{.PhonePct}}%</strong> on a phone</li>
+</ul>
+<div class="stats-pair">
+  <div class="table-wrap"><table>
+    <thead><tr><th>Page</th><th class="right">Visitors</th><th class="right">Views</th></tr></thead>
+    <tbody>{{range .Pages}}<tr><td><a href="{{.Href}}" target="_blank" rel="noopener">{{.Label}}</a></td><td class="right">{{.Visitors}}</td><td class="right">{{.Views}}</td></tr>
+    {{else}}<tr><td colspan="3" class="empty">No visits counted this week yet.</td></tr>{{end}}</tbody>
+  </table></div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Came from</th><th class="right">Views</th></tr></thead>
+    <tbody>{{range .From}}<tr><td>{{.Label}}</td><td class="right">{{.Views}}</td></tr>
+    {{else}}<tr><td colspan="2" class="empty">None this week.</td></tr>{{end}}</tbody>
+  </table>
+  </div>
+</div>
+
+<h2 class="section">Newsletter issues</h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Issue</th><th class="right">Visitors</th><th class="right">Views</th></tr></thead>
+  <tbody>{{range .Issues}}<tr><td><a href="{{.Href}}" target="_blank" rel="noopener">{{.Label}}</a></td><td class="right">{{.Visitors}}</td><td class="right">{{.Views}}</td></tr>
+  {{else}}<tr><td colspan="3" class="empty">No newsletter views counted yet.</td></tr>{{end}}</tbody>
+</table></div>
+
+<h2 class="section">Emails to members</h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Date</th><th>Subject</th><th class="right">Sent</th><th class="right">Opened</th><th class="right">Clicked a link</th></tr></thead>
+  <tbody>{{range .Emails}}<tr>
+    <td class="nowrap">{{datetime .Created}}</td>
+    <td>{{.Subject}}{{with .Links}}<details class="small"><summary>Links clicked</summary><ul class="link-counts">{{range .}}<li><a href="{{.Href}}" target="_blank" rel="noopener">{{.Label}}</a> <span class="muted">{{.Visitors}} {{if eq .Visitors 1}}person{{else}}people{{end}}</span></li>{{end}}</ul></details>{{end}}</td>
+    <td class="right">{{.Sent}}</td>
+    <td class="right nowrap">{{.Opened}} <span class="muted">({{.OpenPct}}%)</span></td>
+    <td class="right nowrap">{{.Clicked}} <span class="muted">({{.ClickPct}}%)</span></td>
+  </tr>{{else}}<tr><td colspan="5" class="empty">No emails sent yet.</td></tr>{{end}}</tbody>
+</table></div>
+{{end}}
+{{template "foot" .}}{{end}}
+
+
+{{define "guide"}}{{template "head" .}}
+<div class="guide">
+<div class="title-row"><h1>How the site works</h1></div>
+<p class="guide-lede">Who uses the website, what they do there, which emails go out, and where the rides come from. Share it with new board members: it’s the same for every admin.</p>
+<nav class="guide-toc" aria-label="On this page"><a href="#g-map">The big picture</a><a href="#g-signup">A new member signs up</a><a href="#g-emails">Emails</a><a href="#g-rides">Rides</a><a href="#g-photos">Photos</a><a href="#g-people">Who does what</a></nav>
+<div class="guide-key"><span><i></i>something happens on the site</span><span><i class="r"></i>an email goes out</span><span><i class="n"></i>what the site remembers</span></div>
+
+<h2 class="section" id="g-map">The big picture</h2>
+<figure class="board">
+      <div class="surface">
+        <svg viewBox="0 0 960 490" role="img" aria-label="Five kinds of people use five parts of paxvelo.club. The site links out to PayPal, sends all email through Brevo, imports rides from Strava, reads Instagram through Behold, and is published from GitHub.">
+          <defs>
+            <filter id="wD" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="2" seed="4"/><feDisplacementMap in="SourceGraphic" scale="2.6"/></filter>
+            <marker id="hD" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M1,1 L9,5 L1,9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></marker>
+            <marker id="hDr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path class="r" d="M1,1 L9,5 L1,9" fill="none" stroke-width="1.6" stroke-linecap="round"/></marker>
+          </defs>
+          <g filter="url(#wD)">
+            <!-- people -->
+            <rect class="bx" x="20" y="53" width="180" height="54" rx="8"/>
+            <rect class="bx" x="20" y="143" width="180" height="54" rx="8"/>
+            <rect class="bx" x="20" y="233" width="180" height="54" rx="8"/>
+            <rect class="bx" x="20" y="323" width="180" height="54" rx="8"/>
+            <rect class="bx" x="20" y="413" width="180" height="54" rx="8"/>
+            <!-- site -->
+            <rect class="hub" x="290" y="10" width="360" height="470" rx="18"/>
+            <rect class="bx" x="320" y="53" width="300" height="54" rx="6"/>
+            <rect class="bx" x="320" y="143" width="300" height="54" rx="6"/>
+            <rect class="bx" x="320" y="233" width="300" height="54" rx="6"/>
+            <rect class="bx" x="320" y="323" width="300" height="54" rx="6"/>
+            <rect class="bx" x="320" y="413" width="300" height="54" rx="6"/>
+            <!-- services -->
+            <rect class="bx" x="780" y="53" width="160" height="54" rx="8"/>
+            <rect class="bx" x="780" y="143" width="160" height="54" rx="8"/>
+            <rect class="bx" x="780" y="233" width="160" height="54" rx="8"/>
+            <rect class="bx" x="780" y="323" width="160" height="54" rx="8"/>
+            <rect class="bx" x="780" y="413" width="160" height="54" rx="8"/>
+            <!-- people → site -->
+            <line class="ln" x1="200" y1="80" x2="314" y2="80" marker-end="url(#hD)"/>
+            <line class="ln" x1="200" y1="170" x2="314" y2="170" marker-end="url(#hD)"/>
+            <line class="ln" x1="200" y1="260" x2="314" y2="260" marker-end="url(#hD)"/>
+            <line class="ln" x1="200" y1="350" x2="314" y2="350" marker-end="url(#hD)"/>
+            <line class="ln" x1="200" y1="440" x2="314" y2="440" marker-end="url(#hD)"/>
+            <!-- site ↔ services -->
+            <line class="ln" x1="780" y1="80" x2="656" y2="80" marker-end="url(#hD)"/>
+            <line class="ln" x1="650" y1="170" x2="774" y2="170" marker-end="url(#hD)"/>
+            <line class="ln r" x1="650" y1="260" x2="774" y2="260" marker-end="url(#hDr)"/>
+            <line class="ln" x1="780" y1="350" x2="656" y2="350" marker-end="url(#hD)"/>
+            <line class="ln" x1="780" y1="440" x2="656" y2="440" marker-end="url(#hD)"/>
+          </g>
+          <text class="t hd" x="470" y="38" text-anchor="middle">paxvelo.club</text>
+          <!-- people labels -->
+          <text class="t" x="110" y="85" text-anchor="middle">Visitors</text>
+          <text class="t" x="110" y="175" text-anchor="middle">New members</text>
+          <text class="t" x="110" y="265" text-anchor="middle">Members</text>
+          <text class="t" x="110" y="355" text-anchor="middle">Riders &amp; leaders</text>
+          <text class="t" x="110" y="445" text-anchor="middle">Board admins</text>
+          <!-- site parts -->
+          <text class="t" x="470" y="85" text-anchor="middle">Home, Our Rides, newsletter, minutes</text>
+          <text class="t" x="470" y="175" text-anchor="middle">/join · plan, details, one riding question</text>
+          <text class="t" x="470" y="265" text-anchor="middle">/membership · details, dues, emails on/off</text>
+          <text class="t" x="470" y="355" text-anchor="middle">/calendar · see rides, lead one, add one</text>
+          <text class="t" x="470" y="445" text-anchor="middle">/admin · members, email, rides, pages</text>
+          <!-- people arrow labels -->
+          <text class="t s mt" x="257" y="72" text-anchor="middle">read</text>
+          <text class="t s mt" x="257" y="162" text-anchor="middle">sign up</text>
+          <text class="t s mt" x="257" y="252" text-anchor="middle">update</text>
+          <text class="t s mt" x="257" y="342" text-anchor="middle">lead · add</text>
+          <text class="t s mt" x="257" y="432" text-anchor="middle">run the club</text>
+          <!-- services -->
+          <text class="t" x="860" y="78" text-anchor="middle">Behold</text><text class="t s mt" x="860" y="96" text-anchor="middle">Instagram</text>
+          <text class="t" x="860" y="175" text-anchor="middle">PayPal</text>
+          <text class="t" x="860" y="258" text-anchor="middle">Brevo</text><text class="t s mt" x="860" y="276" text-anchor="middle">email sending</text>
+          <text class="t" x="860" y="355" text-anchor="middle">Strava club</text>
+          <text class="t" x="860" y="445" text-anchor="middle">GitHub</text>
+          <text class="t s mt" x="715" y="72" text-anchor="middle">posts every 3 h</text>
+          <text class="t s mt" x="715" y="162" text-anchor="middle">sends them to pay</text>
+          <text class="t s rt" x="715" y="252" text-anchor="middle">every email</text>
+          <text class="t s mt" x="715" y="342" text-anchor="middle">rides every hour</text>
+          <text class="t s mt" x="715" y="432" text-anchor="middle">publishes changes</text>
+        </svg>
+      </div>
+      <figcaption>Everyone uses one site with five front doors. The site never touches money or sends mail itself: PayPal takes dues, Brevo delivers every email, Strava supplies the club rides, and Behold supplies the Instagram posts. Members, rides and newsletters live in one data file on the server.</figcaption>
+    </figure>
+
+<h2 class="section" id="g-signup">A new member signs up</h2>
+<figure class="board">
+      <div class="surface">
+        <svg viewBox="0 0 960 600" role="img" aria-label="Signup flow: the rider submits the join form, the site saves them as not paid and emails every admin, sends the rider to PayPal, PayPal emails the club when they pay, Barry presses Mark paid, and the site sends the welcome email with riding advice for their answer.">
+          <defs>
+            <filter id="wA" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="2" seed="7"/><feDisplacementMap in="SourceGraphic" scale="2.6"/></filter>
+            <marker id="hA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M1,1 L9,5 L1,9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></marker>
+            <marker id="hAr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path class="r" d="M1,1 L9,5 L1,9" fill="none" stroke-width="1.6" stroke-linecap="round"/></marker>
+          </defs>
+          <g filter="url(#wA)">
+            <rect class="bx" x="30" y="14" width="180" height="46" rx="8"/>
+            <rect class="hub" x="270" y="14" width="180" height="46" rx="8"/>
+            <rect class="bx" x="510" y="14" width="180" height="46" rx="8"/>
+            <rect class="bx" x="750" y="14" width="180" height="46" rx="8"/>
+            <line class="lane" x1="120" y1="64" x2="120" y2="590"/>
+            <line class="lane" x1="360" y1="64" x2="360" y2="590"/>
+            <line class="lane" x1="600" y1="64" x2="600" y2="590"/>
+            <line class="lane" x1="840" y1="64" x2="840" y2="590"/>
+            <rect class="note" x="272" y="128" width="176" height="56" rx="3"/>
+            <rect class="note" x="752" y="366" width="176" height="56" rx="3"/>
+            <rect class="note" x="272" y="530" width="176" height="52" rx="3"/>
+            <line class="ln" x1="120" y1="104" x2="354" y2="104" marker-end="url(#hA)"/>
+            <line class="ln r" x1="360" y1="216" x2="834" y2="216" marker-end="url(#hAr)"/>
+            <line class="ln" x1="360" y1="262" x2="126" y2="262" marker-end="url(#hA)"/>
+            <line class="ln" x1="120" y1="306" x2="594" y2="306" marker-end="url(#hA)"/>
+            <line class="ln r" x1="600" y1="346" x2="834" y2="346" marker-end="url(#hAr)"/>
+            <line class="ln" x1="840" y1="450" x2="366" y2="450" marker-end="url(#hA)"/>
+            <line class="ln r" x1="360" y1="494" x2="126" y2="494" marker-end="url(#hAr)"/>
+          </g>
+          <text class="t hd" x="120" y="43" text-anchor="middle">New rider</text>
+          <text class="t hd" x="360" y="43" text-anchor="middle">paxvelo.club</text>
+          <text class="t hd" x="600" y="43" text-anchor="middle">PayPal</text>
+          <text class="t hd" x="840" y="43" text-anchor="middle">Admins · Barry</text>
+
+          <text class="t" x="237" y="96" text-anchor="middle">1 · submits the join form</text>
+          <text class="t s" x="360" y="152" text-anchor="middle">saves them: not paid,</text>
+          <text class="t s" x="360" y="172" text-anchor="middle">welcome email waiting</text>
+          <text class="t rt" x="597" y="208" text-anchor="middle">2 · “New member” email to every admin</text>
+          <text class="t" x="240" y="254" text-anchor="middle">3 · off to their plan’s PayPal link</text>
+          <text class="t" x="360" y="298" text-anchor="middle">4 · pays ${{.Guide.DuesIndividual}} or ${{.Guide.DuesFamily}}</text>
+          <text class="t rt" x="717" y="338" text-anchor="middle">5 · PayPal’s receipt</text>
+          <text class="t s" x="840" y="390" text-anchor="middle">Barry finds them on</text>
+          <text class="t s" x="840" y="410" text-anchor="middle">Members → Mark paid</text>
+          <text class="t" x="603" y="442" text-anchor="middle">6 · Mark paid</text>
+          <text class="t rt" x="240" y="486" text-anchor="middle">7 · welcome email</text>
+          <text class="t s rt" x="240" y="514" text-anchor="middle">riding advice for their answer</text>
+          <text class="t s" x="360" y="552" text-anchor="middle">first Mark paid only,</text>
+          <text class="t s" x="360" y="571" text-anchor="middle">never on renewals</text>
+        </svg>
+      </div>
+      <figcaption>Read top to bottom. Nothing reaches the new rider from the club until Barry confirms the payment in step 6. The yellow notes are what the site keeps track of: a website signup is flagged as waiting for its welcome, and the first Mark paid clears that flag, so the welcome goes out exactly once. Members you add yourself or import never get it.</figcaption>
+    </figure>
+
+<h2 class="section" id="g-emails">Every email the site sends</h2>
+<figure class="board">
+      <div class="surface">
+        <svg viewBox="0 0 960 470" role="img" aria-label="Six things trigger email, all sent through Brevo: a signup emails every admin, the first Mark paid emails the welcome, admins email members, ride changes email the club inbox, admin password links, and members' own membership links.">
+          <defs>
+            <filter id="wB" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="2" seed="11"/><feDisplacementMap in="SourceGraphic" scale="2.6"/></filter>
+            <marker id="hBr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path class="r" d="M1,1 L9,5 L1,9" fill="none" stroke-width="1.6" stroke-linecap="round"/></marker>
+          </defs>
+          <g filter="url(#wB)">
+            <rect class="hub" x="300" y="40" width="40" height="414" rx="8"/>
+            <rect class="bx" x="20" y="44" width="262" height="56" rx="8"/>
+            <rect class="bx" x="20" y="114" width="262" height="56" rx="8"/>
+            <rect class="bx" x="20" y="184" width="262" height="56" rx="8"/>
+            <rect class="bx" x="20" y="254" width="262" height="56" rx="8"/>
+            <rect class="bx" x="20" y="324" width="262" height="56" rx="8"/>
+            <rect class="bx" x="20" y="394" width="262" height="56" rx="8"/>
+            <rect class="bx" x="660" y="44" width="280" height="56" rx="8"/>
+            <rect class="bx" x="660" y="114" width="280" height="56" rx="8"/>
+            <rect class="bx" x="660" y="184" width="280" height="56" rx="8"/>
+            <rect class="bx" x="660" y="254" width="280" height="56" rx="8"/>
+            <rect class="bx" x="660" y="324" width="280" height="56" rx="8"/>
+            <rect class="bx" x="660" y="394" width="280" height="56" rx="8"/>
+            <line class="ln" x1="282" y1="72" x2="300" y2="72"/>
+            <line class="ln" x1="282" y1="142" x2="300" y2="142"/>
+            <line class="ln" x1="282" y1="212" x2="300" y2="212"/>
+            <line class="ln" x1="282" y1="282" x2="300" y2="282"/>
+            <line class="ln" x1="282" y1="352" x2="300" y2="352"/>
+            <line class="ln" x1="282" y1="422" x2="300" y2="422"/>
+            <line class="ln r" x1="340" y1="72" x2="654" y2="72" marker-end="url(#hBr)"/>
+            <line class="ln r" x1="340" y1="142" x2="654" y2="142" marker-end="url(#hBr)"/>
+            <line class="ln r" x1="340" y1="212" x2="654" y2="212" marker-end="url(#hBr)"/>
+            <line class="ln r" x1="340" y1="282" x2="654" y2="282" marker-end="url(#hBr)"/>
+            <line class="ln r" x1="340" y1="352" x2="654" y2="352" marker-end="url(#hBr)"/>
+            <line class="ln r" x1="340" y1="422" x2="654" y2="422" marker-end="url(#hBr)"/>
+            <rect class="note" x="214" y="34" width="54" height="22" rx="3"/>
+            <rect class="note" x="214" y="104" width="54" height="22" rx="3"/>
+          </g>
+          <text class="t s mt" x="20" y="26">When this happens</text>
+          <text class="t s mt" x="497" y="26" text-anchor="middle">the site emails</text>
+          <text class="t s mt" x="660" y="26">Who gets it</text>
+          <text class="t s" x="320" y="247" text-anchor="middle" transform="rotate(-90 320 247)">sent through Brevo</text>
+          <text class="t s" x="241" y="50" text-anchor="middle">new</text>
+          <text class="t s" x="241" y="120" text-anchor="middle">new</text>
+
+          <text class="t" x="34" y="77">Someone joins on the website</text>
+          <text class="t" x="34" y="147">Barry first presses Mark paid</text>
+          <text class="t" x="34" y="217">An admin sends from the Email tab</text>
+          <text class="t" x="34" y="278">A leader signs up or steps down,</text>
+          <text class="t" x="34" y="298">a ride is added or cancelled</text>
+          <text class="t" x="34" y="348">An admin is added, or forgets</text>
+          <text class="t" x="34" y="368">their password</text>
+          <text class="t" x="34" y="427">A member asks on /membership</text>
+
+          <text class="t rt" x="497" y="64" text-anchor="middle">“New member: Kim Rider (Family)”</text>
+          <text class="t rt" x="497" y="134" text-anchor="middle">Welcome + riding advice</text>
+          <text class="t rt" x="497" y="204" text-anchor="middle">club email, dues reminder, newsletter</text>
+          <text class="t rt" x="497" y="274" text-anchor="middle">ride notice with current leaders</text>
+          <text class="t rt" x="497" y="344" text-anchor="middle">link to choose a password</text>
+          <text class="t rt" x="497" y="414" text-anchor="middle">their private membership link</text>
+
+          <text class="t" x="674" y="77">Every admin</text>
+          <text class="t" x="674" y="147">The new member</text>
+          <text class="t" x="674" y="217">Members: everyone, or just not paid</text>
+          <text class="t" x="674" y="287">Club inbox ({{.Guide.RidesEmail}})</text>
+          <text class="t" x="674" y="357">That admin</text>
+          <text class="t" x="674" y="427">That member</text>
+        </svg>
+      </div>
+      <figcaption>Every email goes through Brevo. Member emails carry an unsubscribe link and the member's own membership link. Ride notices and password links don't, because they aren't to the member list. Admins can test any club email on themselves first. The club inbox gets ride cancellations and changes at once; first-timers, rides waiting for approval, loaner requests and new rides come together in one Morning summary from 9 am (at once when the ride is today or tomorrow). Turn it off on Email → Automations to get each one straight away.</figcaption>
+    </figure>
+    <h3 id="g-rsvp">Invitations and RSVPs</h3>
+    <p>For a meeting, party or anything else members should answer: make it on <a href="/admin/rsvp">Email → RSVPs</a> (name, day, place, last day to answer, and whether to ask what people are bringing), then press Write the invitation email. The email’s RSVP button opens each member’s own page, with their name filled in: they say whether they can come, who they’re bringing and, if asked, what they’re bringing, and can change it until RSVPs close. The place shows only from a member’s own link, so a home address stays off the public site. Members also see who’s coming, with guests and what they’re bringing (untick Members see who’s coming to keep that to admins), and get a Directions button (Apple Maps on iPhones, Google Maps on other phones, plus Waze) and Add to calendar, on the page and in the invitation email. Maps get the street address: a name before it (“Karl’s house, 12 Spoke Lane…”) is left out. The RSVPs page adds up who’s coming (with guests), lists who’s bringing what and which current members haven’t answered, and has a spreadsheet. Take answers off with a row’s Remove, or tick several and press Remove them in the bar that appears (like Members); Remove at the top deletes the whole invitation. Both have Undo. Pick its event under On the calendar and the club calendar shows the head count on it, who’s coming and what they’re bringing when you hover it (first name and last initial), and its page takes RSVPs with Directions, Add to calendar and Share; members who open it without their link can have it emailed. The day before, everyone who said I’ll be there or Maybe gets a reminder email with their answer, the place, a Directions button and their link to change it (Email → Automations → RSVP reminder, where you can change its words or switch it off; untick Remind them the day before to skip it for one invitation). Any email can carry an open invitation’s button: “RSVP: …” under Insert for each member, or a button’s Goes to list.</p>
+
+<h2 class="section" id="g-rides">Where the rides come from</h2>
+<figure class="board">
+      <div class="surface">
+        <svg viewBox="0 0 960 400" role="img" aria-label="Rides reach the calendar three ways: Strava club events imported hourly, weekly Tuesday and Thursday rides set up by admins, and rides riders add on the website, which wait for approval unless the rider typed the club PIN. The calendar feeds the calendar page and the newsletter.">
+          <defs>
+            <filter id="wC" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="2" seed="2"/><feDisplacementMap in="SourceGraphic" scale="2.6"/></filter>
+            <marker id="hC" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M1,1 L9,5 L1,9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></marker>
+            <marker id="hCr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path class="r" d="M1,1 L9,5 L1,9" fill="none" stroke-width="1.6" stroke-linecap="round"/></marker>
+          </defs>
+          <g filter="url(#wC)">
+            <rect class="bx" x="20" y="30" width="240" height="60" rx="8"/>
+            <rect class="bx" x="20" y="150" width="240" height="60" rx="8"/>
+            <rect class="bx" x="20" y="290" width="240" height="60" rx="8"/>
+            <polygon class="bx" points="320,320 400,284 480,320 400,356"/>
+            <rect class="hub" x="540" y="130" width="180" height="100" rx="12"/>
+            <rect class="bx" x="540" y="290" width="180" height="60" rx="8"/>
+            <rect class="note" x="570" y="186" width="120" height="30" rx="3"/>
+            <rect class="bx" x="790" y="20" width="160" height="60" rx="8"/>
+            <rect class="bx" x="790" y="100" width="160" height="60" rx="8"/>
+            <rect class="bx" x="790" y="290" width="160" height="60" rx="8"/>
+            <polyline class="ln" points="260,60 630,60 630,124" marker-end="url(#hC)"/>
+            <line class="ln" x1="260" y1="180" x2="534" y2="180" marker-end="url(#hC)"/>
+            <line class="ln" x1="260" y1="320" x2="314" y2="320" marker-end="url(#hC)"/>
+            <polyline class="ln" points="400,284 400,214 534,214" marker-end="url(#hC)"/>
+            <line class="ln" x1="480" y1="320" x2="534" y2="320" marker-end="url(#hC)"/>
+            <line class="ln" x1="630" y1="290" x2="630" y2="236" marker-end="url(#hC)"/>
+            <line class="ln r" x1="720" y1="320" x2="784" y2="320" marker-end="url(#hCr)"/>
+            <polyline class="ln" points="720,170 754,170 754,50 784,50" marker-end="url(#hC)"/>
+            <polyline class="ln" points="754,130 784,130" marker-end="url(#hC)"/>
+          </g>
+          <text class="t" x="140" y="56" text-anchor="middle">Strava club events</text>
+          <text class="t s mt" x="140" y="76" text-anchor="middle">riders RSVP here</text>
+          <text class="t" x="140" y="176" text-anchor="middle">Weekly rides (Tue &amp; Thu)</text>
+          <text class="t s mt" x="140" y="196" text-anchor="middle">set up by admins</text>
+          <text class="t" x="140" y="316" text-anchor="middle">A rider adds a ride</text>
+          <text class="t s mt" x="140" y="336" text-anchor="middle">on the website</text>
+          <text class="t s" x="400" y="325" text-anchor="middle">club PIN?</text>
+          <text class="t s mt" x="420" y="52" text-anchor="middle">imported every hour</text>
+          <text class="t s mt" x="397" y="172" text-anchor="middle">each week, in season</text>
+          <text class="t s mt" x="408" y="255">yes</text>
+          <text class="t s mt" x="507" y="312" text-anchor="middle">no</text>
+          <text class="t s mt" x="638" y="268">approved</text>
+          <text class="t hd" x="630" y="166" text-anchor="middle">Ride calendar</text>
+          <text class="t s" x="630" y="206" text-anchor="middle">leaders · levels</text>
+          <text class="t" x="630" y="316" text-anchor="middle">waits for an admin</text>
+          <text class="t s mt" x="630" y="336" text-anchor="middle">Calendar tab · Approve</text>
+          <text class="t" x="870" y="46" text-anchor="middle">/calendar</text>
+          <text class="t s mt" x="870" y="66" text-anchor="middle">see, lead, step down</text>
+          <text class="t" x="870" y="126" text-anchor="middle">Newsletter</text>
+          <text class="t s mt" x="870" y="146" text-anchor="middle">rides block, live</text>
+          <text class="t" x="870" y="316" text-anchor="middle">Club inbox</text>
+          <text class="t s mt" x="870" y="336" text-anchor="middle">“ride waiting”</text>
+        </svg>
+      </div>
+      <figcaption>Strava is where riders RSVP. The website is where rides get leaders. Three things feed the one calendar, and everything public reads from it: the calendar page and the newsletter's rides block. Taking, changing or giving up a leader spot also emails the club inbox. A rider skips the wait by typing the club PIN.</figcaption>
+    </figure>
+
+<h2 class="section" id="g-photos">Photos</h2>
+<div class="guide-flows">
+  <div class="card"><h3>A member shares photos</h3><ol>
+    <li>On <a href="/share-photos" target="_blank" rel="noopener">Share your photos</a> they pick photos from their phone (or drag them in), add captions if they like, type their name for the credit, and pick the album (ride or event) or name a new one. No account.</li>
+    <li>The phone shrinks the photos and they upload with a progress bar. The site drops where each was taken.</li>
+    <li><b>With the club PIN</b>, they go straight into the album they picked. <b>Without it</b>, or with no album picked, they wait on <a href="/admin/submitted">Photos to review</a>. Each person’s photos are one card, already ticked, with the album filled in when it can be: one press of <b>Approve</b> puts them in the gallery. Rejected photos are kept out of sight for 30 days in case of a mistake.</li></ol></div>
+  <div class="card"><h3>The gallery</h3><ul>
+    <li><a href="/gallery" target="_blank" rel="noopener">/gallery</a> is a grid of albums, each with a cover. An album is a grid of photos that loads more as you go.</li>
+    <li>A photo opens full screen with its caption and “Photo by …”. Swipe or use the arrow keys; <b>Share</b> sends a link to that one photo, and <b>Download</b> saves it.</li>
+    <li>Each photo is kept in three sizes, so phones load small files and big screens sharp ones.</li></ul></div>
+  <div class="card"><h3>Photos in the newsletter</h3><ul>
+    <li>The gallery is where the club’s photos live, and the newsletter picks from it.</li>
+    <li>In an issue, <b>Choose from the gallery</b> on a photo strip or a story opens the albums: tick photos and they go in, with “Photo by …” in a story’s caption.</li>
+    <li>Or start from the album: tick photos on its admin page and <b>Add to newsletter</b>. Right after approving, the card on Photos to review links straight there.</li>
+    <li>The newsletter keeps its own copy, so taking a photo out of the gallery later doesn’t change an issue already sent. Uploading a photo just for one issue still works; it doesn’t go in the gallery.</li></ul></div>
+  <div class="card"><h3>The club PIN</h3><ul>
+    <li>Set it on {{if .IsBoard}}<a href="/admin/security">Security → Club PIN &amp; access</a>{{else}}Security → Club PIN &amp; access{{end}} (the gear in the corner) and share it with members, in the newsletter or a club email. When it’s empty it’s off.</li>
+    <li>It lets members post photos and add rides without waiting for an admin, and lets ride leaders step down or cancel. Ten tries an hour, so it can’t be guessed.</li>
+    <li>If it gets around, change it there and tell members the new one.</li></ul></div>
+</div>
+
+<h2 class="section" id="g-people">Who does what</h2>
+<div class="guide-flows">
+  <div class="card"><h3>Visitors</h3><ul>
+    <li>Read the home page, Our Rides, Bike Safety 101, the board, the newsletter and meeting minutes.</li>
+    <li>Find rides on <a href="/calendar" target="_blank" rel="noopener">/calendar</a>, tagged Social, Intermediate or Elite, with route maps from Strava.</li>
+    <li>RSVP on Strava. The website doesn’t take RSVPs.</li>
+    <li>Browse the <a href="/gallery" target="_blank" rel="noopener">photo gallery</a> by album, and share their own photos.</li></ul></div>
+  <div class="card"><h3>New members</h3><ol>
+    <li>Pick Individual (${{.Guide.DuesIndividual}}) or Family (${{.Guide.DuesFamily}}) and fill in the <a href="/join" target="_blank" rel="noopener">join form</a>, with one riding question, the club terms and this year’s insurance waiver.</li>
+    <li>Every admin gets a “New member” email. The member goes on to PayPal.</li>
+    <li>The first time an admin presses <b>Mark paid</b>, they get the welcome email with the riding advice for their answer.</li></ol>
+    <p class="muted small">Members you add yourself or import never get the welcome email, and renewals don’t get it again.</p></div>
+  <div class="card"><h3>Members</h3><ul>
+    <li>Every club email has their private membership link: dues status, a PayPal button, this year’s waiver to sign, their details, and emails on or off.</li>
+    <li>The insurance waiver is signed once a year, and parents or guardians sign for each rider under 18 there too. Other adults on a Family membership each get an emailed link to sign their own, once the dues are marked paid. The {{if .IsBoard}}<a href="/admin/waivers">Waivers</a>{{else}}Waivers{{end}} tab keeps every signed copy and shows who hasn’t signed.</li>
+    <li>First-time riders sign at <a href="/ride-waiver" target="_blank" rel="noopener">/ride-waiver</a> (or <a href="/loaner" target="_blank" rel="noopener">/loaner</a>, with the club bike already picked): name, email, loaner or own bike, and a signature. A loaner bike adds the club’s loaner agreement to the League waiver. They’re under Waivers → First rides, and on the member’s page once someone with that email joins.</li>
+    <li>Every group ride’s page lists the loaner bikes marked Available on <a href="/admin/loaners">Rides → Loaner bikes</a>. A rider picks one and signs the loaner waiver, until 8 pm the day before. The bike is held for that ride, it's in the next morning's summary to {{.Guide.RidesEmail}} (at once if the ride is today or tomorrow), admins with alerts on get a Confirm button on their phone, and Home shows it; Confirm or Decline it there and the rider is emailed. Cancel frees the bike.</li>
+    <li>Every member email has an unsubscribe link.</li>
+    <li>With the club PIN, their photos and the rides they add go up right away.</li></ul></div>
+  <div class="card"><h3>Riders and ride leaders</h3><ul>
+    <li>Open a ride, type a name, press <b>I’ll lead</b>. The club inbox is told. No account, no Strava sign-in.</li>
+    <li>With their name and the club PIN, leaders mark their ride <b>Ride is on</b> or cancel it (with an optional note like “Rain”), step down, or add the Strava event link, under <b>Leading this ride?</b>. On or Cancelled shows in a banner on the ride page, on the home page’s next rides, on the calendar and in the calendar feed; a ride cancelled for today or tomorrow stays in the next rides, marked. Admins do the same on the ride’s admin page.</li>
+    <li><b>Signs to print</b> (Rides tab) has QR codes for Join, the ride waiver and the calendar, one sign per sheet. On a ride’s page, <b>Waiver code</b> fills a phone screen with the waiver’s code, for a leader to hold up for a new rider at the start.</li>
+    <li>A ride’s <b>Strava route</b> (paste its link, or pick a club route) shows its distance and climbing at the top of the ride page. Rides in the next six days show the National Weather Service forecast for their start.</li>
+    <li><b>I’m in</b> on a group ride’s page: a name, a pace group if there are several, an optional email for changes, and a <b>First club ride</b> tick. The page shows who’s going (first name and last initial) and the calendar shows the count; the same phone can say <b>Can’t make it</b>. First rides email the club inbox and show a <b>Sign the ride waiver</b> button. Cancelling or putting a ride back on emails everyone who left an email. Admins see names and emails on the ride’s admin page and can remove someone; emails are dropped 30 days after the ride.</li>
+    <li><b>Ride alerts</b> (the bell on the calendar and ride pages) put a notification on a rider’s phone when a ride coming up is cancelled or put back on, with the leader’s note. On an iPhone the button shows once PaxVelo is on the home screen (Share → Add to Home Screen). Once alerts are on, tapping the bell lets the rider choose <b>Ride changes</b> (cancelled or back on) and <b>Club news</b> (alerts the board sends from Email → Send an alert, at most five a day, opening the home page, the calendar, a ride or any page on this site). Nothing links a phone to a member; Email → Automations shows how many phones have each on.</li>
+    <li>Anyone can add a ride. It waits for approval on the <a href="/admin/calendar">Calendar</a> tab unless they typed the club PIN.</li></ul></div>
+  <div class="card"><h3>Treasurer</h3><ol>
+    <li>A “New member” email arrives, then PayPal’s receipt.</li>
+    <li>Open the link in the first email and press <b>Mark paid</b>. The first time, that sends their welcome email.</li>
+    <li>On January 1 everyone shows as not paid. Filter <a href="/admin/members?dues=unpaid">Not paid</a> and send a reminder with <code>{pay_link}</code>.</li>
+    <li>Any admin asks for club money on <a href="/admin/treasurer/requests">Treasurer → Requests</a>: <b>I already bought it</b>, or <b>I want to buy something</b>. Press <b>Take a photo</b> to snap the receipt with the phone’s camera (on a computer, the webcam), or upload a photo or PDF; then type the amount and what it was for, and pick the ride or event if there was one.</li>
+    <li>Nobody picks a category: the site guesses one from the words (pizza goes under Food &amp; Drink) and from where the treasurer filed similar requests before. The treasurer can change it on the request before approving. Board members see what’s left of that category’s budget as they type; going over only warns.</li>
+    <li>The treasurer and the president get an email with the receipt and <b>Approve</b> and <b>Reject</b> buttons. The buttons open a page with the request and one button to press; nothing is decided by opening the email or the link, so email scanners can’t approve anything. The links work for 7 days and only once.</li>
+    <li>Small amounts need only the treasurer’s OK: up to the <b>Treasurer alone approves up to</b> amount at the top of {{if .IsBoard}}<a href="/admin/treasurer/budget">Budget</a>{{else}}Budget{{end}} ($50 to start; blank means always two), as long as it fits in what’s left of the category’s budget. When the treasurer sent it, the president’s OK is the one needed. Anything bigger needs both.</li>
+    <li>Once approved it’s on Expenses by itself and the sender is emailed. Senders follow each request on <b>My requests</b>: Sent → Approved → Reimbursed (or Receipt added, for a purchase).</li>
+    <li>Reimbursements are by PayPal only: no PayPal account, no reimbursement. They go to the email the admin logs in with, unless they type a different one under <b>PayPal for reimbursements</b> on <a href="/admin/admins#paypal">Admins</a> (the form’s <b>Change</b> link goes there). The treasurer’s <b>To reimburse</b> list says who to pay, like “Pay Allie $45.00 — PayPal allie@…”. Send it in PayPal and press <b>Paid</b>; no money goes through the website. Pressing <b>Paid</b> emails a reimbursement receipt to PaxVeloClub@gmail.com for the club’s records, and to nobody else.</li>
+    <li>Reminders go by themselves: one to whoever hasn’t answered after 3 days, a Monday list of who still needs reimbursing to the treasurer, and one to anyone whose approved purchase has no receipt after 10 days.</li></ol></div>
+  <div class="card"><h3>Admins</h3><ul>
+    <li><a href="/admin">Needs attention</a> lists rides waiting for approval, rides this week with no leader, stuck email sends, unpublished newsletter drafts, and new photos members shared.</li>
+    <li><a href="/admin/submitted">Photos to review</a> (under Website) is the queue for photos shared without the club PIN. Each person’s photos are one card, all ticked: untick the ones you don’t want and <b>Approve</b> the rest into the album, or <b>Reject</b> them. Every action has an <b>Undo</b>. Photos stay private until approved. Photos posted with the PIN show there too, marked as such.</li>
+    <li><a href="/admin/gallery">Gallery</a>: start, rename, reorder and delete albums; upload photos straight into one; caption them, drag them into order, pick the cover, or move them to another album.</li>
+    <li>{{if .IsBoard}}<a href="/admin/security">Security</a>{{else}}Security{{end}} (the gear in the corner): admins and passwords, the club PIN, every other way into the site, and the full backup.</li>
+    <li><a href="/admin/email">Email</a>: club emails, and the welcome email with its four riding-advice boxes.</li>
+    <li>Newsletter, Rides, Pages, Home photos, Board, Instagram and Minutes go live as soon as you save.</li>
+    <li>The video at the top of the home page comes from Home photos → Top video: one finished video for computers (wide, best at 1920×1080) and one for phones (tall, best at 1080×1920), both exported as AV1 in an MP4 at about 3,000 kb/s. The site doesn’t compress them again: it only takes out the sound and the camera’s details (like its location), so they’re live as soon as they’re uploaded. Make the end match the start, since it plays on a loop. Phones and computers that can’t play AV1 (older iPhones and Macs) see the video’s first frame instead. With no phone video, phones play the computer one, cut to fit. The switch turns the video off, and the top photo shows instead. People who turn motion off on their phone always see the photo.</li>
+    <li>Three kinds of admin. <b>Website admins</b> run the calendar and rides, email members about rides and events, review photos and keep the gallery, read minutes, look members up and send their own spending requests. <b>Board members</b> (anyone on Website → Board) can do everything else too. Only the <b>president</b> changes who has which powers: the Board page, adding and removing admins, and the full backup.</li></ul></div>
+  <div class="card"><h3>What runs by itself</h3><ul>
+    <li>Strava club events import every hour. Instagram posts refresh every 3 hours.</li>
+    <li>Email sends carry on in the background and pick up after a restart.</li>
+    <li>A change saved to GitHub publishes the site, and the old version comes back if the new one won’t start.</li></ul></div>
+</div>
+</div>
+{{template "foot" .}}{{end}}

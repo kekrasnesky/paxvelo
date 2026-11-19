@@ -37,10 +37,8 @@ type Member struct {
 	EmergencyName  string `json:"emergency_name,omitempty"`
 	EmergencyPhone string `json:"emergency_phone,omitempty"`
 	// From the join form: their experience (riderLevels), which picks the
-	// welcome email's ride advice. Rides are what members who joined before
-	// the form was simplified picked (clubRides); nothing sets them now.
-	Level string   `json:"level,omitempty"`
-	Rides []string `json:"rides,omitempty"`
+	// welcome email's ride advice.
+	Level string `json:"level,omitempty"`
 	// WelcomePending is set for someone who joined on the website, until an
 	// admin marks their dues paid, which sends their welcome email. Members
 	// added by an admin or imported never get one.

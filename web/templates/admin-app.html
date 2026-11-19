@@ -1,0 +1,146 @@
+{{/* Admin app (phone home-screen frame): Home, search results, and the Needs you buttons the overview shares (adminapp.go, attention.go). */}}
+
+{{/* Buttons on a Needs you line that do the job right there (attentionAct). */}}
+{{define "needs-acts"}}{{range .Acts}}<form method="post" action="{{.Action}}">{{range $k, $v := .Fields}}<input type="hidden" name="{{$k}}" value="{{$v}}">{{end}}<input type="hidden" name="return" value="{{.Return}}"><button{{if .Quiet}} class="ghost"{{end}}>{{with .Icon}}{{icon .}}{{end}}{{.Label}}</button></form>{{end}}{{end}}
+{{define "admin-app"}}{{template "head" .}}{{$v := .App}}
+<header class="app-head">
+  <img src="/static/img/logo-light.svg" alt="PaxVelo" width="88" height="47">
+  <span class="app-hi">{{with $v.First}}Hi, {{.}}{{else}}Admin{{end}}</span>
+</header>
+<form class="app-search" role="search" method="get" action="/admin/app">
+  {{icon "search"}}<input type="search" name="q" value="{{with $v.Search}}{{.Q}}{{end}}" placeholder="Members, rides, RSVPs" aria-label="Search" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" maxlength="100">
+</form>
+<div id="app-results" aria-live="polite">{{with $v.Search}}{{template "app-results" .}}{{end}}</div>
+<script>
+// Search as it's typed (appsearch.go): the results take the place of the
+// rest of the page while there's something in the box.
+(function(){
+  var f=document.querySelector('.app-search'),q=f.q,out=document.getElementById('app-results'),t,n=0;
+  function show(on){document.body.classList.toggle('app-searching',on)}
+  show(q.value.trim().length>1);
+  q.addEventListener('input',function(){
+    clearTimeout(t);var v=q.value.trim();
+    if(v.length<2){out.innerHTML='';show(false);return}
+    t=setTimeout(function(){var k=++n;
+      fetch('/admin/app/search?q='+encodeURIComponent(v),{headers:{Accept:'text/html'}}).then(function(r){if(!r.ok)throw r;return r.text()})
+      .then(function(h){if(k!==n)return;out.innerHTML=h;show(true)}).catch(function(){});
+    },200);
+  });
+  f.addEventListener('submit',function(e){e.preventDefault();q.blur()});
+})();
+</script>
+{{range $v.Groups}}<section class="app-group g-{{.Key}}" aria-label="{{.Label}}">
+  <h2>{{.Label}}</h2>
+  <div class="app-tiles">{{range .Tiles}}<a class="app-tile" href="{{.Href}}"><span class="app-ic">{{icon .Icon}}</span><span>{{.Label}}</span>{{with .Badge}}<span class="badge">{{.}}</span>{{end}}</a>{{end}}</div>
+</section>{{end}}
+{{with $v.Items}}<section class="app-needs" aria-label="Needs you">
+  <h2>Needs you <span class="badge">{{len .}}</span></h2>
+  <ul>{{range .}}<li><a href="{{.Href}}"><span>{{.Text}}</span>{{icon "chevron"}}</a>{{if .Acts}}<div class="act-row app-acts">{{template "needs-acts" .}}</div>{{end}}</li>{{end}}</ul>
+</section>{{end}}
+{{with $v.Rides}}<section class="app-next" aria-label="Next rides">
+  <h2>Next rides</h2>
+  <ul>{{range .}}<li><a href="/admin/rides/{{.Key}}"><span class="app-day">{{.ShortDate}}{{with .TimeLabel}}<small>{{.}}</small>{{end}}</span>
+    <span class="app-ride"><strong>{{.Name}}</strong><small class="lead {{.Status}}">{{.LeaderSummary}}</small></span>{{icon "chevron"}}</a></li>{{end}}</ul>
+</section>{{end}}
+{{if $v.Kinds}}<section class="app-alerts" id="app-alerts" data-key="{{$v.PushKey}}" aria-label="Alerts">
+  <h2>Alerts on this phone</h2>
+  <ul>
+    <li class="al-off"><button type="button" class="app-go" data-do="on">{{icon "bell"}}Turn on alerts</button></li>
+    <li class="al-home" hidden>Add PV Admin to your Home Screen to get alerts.</li>
+    <li class="al-blocked" hidden>Notifications are blocked for PV Admin in Settings.</li>
+    {{range $v.Kinds}}<li class="al-on" hidden><label class="app-switch">{{.Label}}<input type="checkbox" role="switch" value="{{.Key}}" checked></label></li>{{end}}
+    <li class="al-on" hidden><button type="button" class="app-stop" data-do="off">Turn off alerts</button></li>
+  </ul>
+</section>
+<script>
+// Admin alerts (adminpush.go), at the foot of the page: Turn on alerts
+// registers the admin app's service worker, subscribes this phone and ties
+// it to this admin; the switches pick what comes; Turn off forgets it.
+(function(){
+  var box=document.getElementById('app-alerts');
+  function show(state){
+    box.querySelectorAll('li').forEach(function(li){li.hidden=true});
+    box.querySelectorAll('.al-'+state).forEach(function(li){li.hidden=false});
+  }
+  function post(path,body){return fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+    .then(function(r){if(!r.ok)throw r;return r.status===204?{}:r.json()})}
+  function tick(kinds){box.querySelectorAll('input[role=switch]').forEach(function(c){c.checked=kinds.indexOf(c.value)>=0})}
+  function key(k){var s=k.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';var raw=atob(s),out=new Uint8Array(raw.length);for(var i=0;i<raw.length;i++)out[i]=raw.charCodeAt(i);return out}
+  var standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone;
+  var iOS=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  if(!('serviceWorker' in navigator)||!('PushManager' in window)){show(iOS&&!standalone?'home':'blocked');return}
+  if(Notification.permission==='denied'){show('blocked');return}
+  var reg=navigator.serviceWorker.register('/admin/sw.js',{scope:'/admin/'});
+  show('off');
+  reg.then(function(r){return r.pushManager.getSubscription()}).then(function(s){
+    if(!s)return;
+    return post('/admin/push/kinds',{endpoint:s.endpoint}).then(function(j){tick(j.kinds);show('on')}).catch(function(){});
+  }).catch(function(){});
+  box.addEventListener('click',function(e){
+    var b=e.target.closest('button[data-do]');if(!b)return;
+    b.disabled=true;
+    if(b.dataset.do==='on'){
+      Notification.requestPermission().then(function(p){
+        if(p!=='granted')throw 'blocked';
+        return reg.then(function(r){return r.pushManager.getSubscription().then(function(s){
+          return s||r.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:key(box.dataset.key)})})});
+      }).then(function(s){return post('/admin/push/subscribe',s.toJSON())}).then(function(j){tick(j.kinds);show('on')})
+      .catch(function(x){show(x==='blocked'?'blocked':'off')}).finally(function(){b.disabled=false});
+    }else{
+      reg.then(function(r){return r.pushManager.getSubscription()}).then(function(s){
+        if(!s)return;return post('/admin/push/unsubscribe',{endpoint:s.endpoint}).then(function(){return s.unsubscribe()});
+      }).then(function(){show('off')}).catch(function(){}).finally(function(){b.disabled=false});
+    }
+  });
+  box.addEventListener('change',function(){
+    var on=[].map.call(box.querySelectorAll('input[role=switch]:checked'),function(c){return c.value});
+    reg.then(function(r){return r.pushManager.getSubscription()}).then(function(s){
+      if(s)return post('/admin/push/kinds',{endpoint:s.endpoint,kinds:on}).then(function(j){tick(j.kinds)});
+    }).catch(function(){});
+  });
+})();
+</script>{{end}}
+<nav class="app-foot" aria-label="More">
+  <a href="/" target="_blank" rel="noopener">{{icon "external"}}View site</a>
+  <a href="/admin/admins">{{icon "settings"}}Security</a>
+  <a href="/admin?app=0">{{icon "home"}}Full menu</a>
+  <form method="post" action="/admin/logout"><button class="link">{{icon "logout"}}Log out</button></form>
+</nav>
+{{template "foot" .}}{{end}}
+
+{{/* The admin app's search results (appsearch.go). */}}
+{{define "app-results"}}{{if .Empty}}<p class="app-none">No matches</p>{{else}}
+{{with .Members}}<section class="app-found" aria-label="Members"><h2>Members</h2><ul>{{range .}}<li><a href="{{.Href}}"><span class="app-hit"><strong>{{.Title}}</strong><small>{{.Sub}}</small></span>{{icon "chevron"}}</a></li>{{end}}</ul></section>{{end}}
+{{with .Rides}}<section class="app-found" aria-label="Rides"><h2>Rides</h2><ul>{{range .}}<li><a href="{{.Href}}"><span class="app-hit"><strong>{{.Title}}</strong><small>{{.Sub}}</small></span>{{icon "chevron"}}</a></li>{{end}}</ul></section>{{end}}
+{{with .Invite}}<section class="app-found" aria-label="RSVPs"><h2>RSVPs</h2><ul>{{range .}}<li><a href="{{.Href}}"><span class="app-hit"><strong>{{.Title}}</strong><small>{{.Sub}}</small></span>{{icon "chevron"}}</a></li>{{end}}</ul></section>{{end}}
+{{end}}{{end}}
+
+
+{{/* The app's phone jobs (appjobs.go): Rides today, Approvals, Mark paid. */}}
+{{define "app-today"}}{{template "head" .}}
+{{range .Jobs.Days}}<h2 class="section">{{.Label}}</h2>
+{{if .Rides}}<ul class="rows app-job">{{range .Rides}}<li id="r-{{.Key}}">
+  <a href="/admin/rides/{{.Key}}" class="app-job-what"><strong>{{.Name}}</strong><small>{{with .TimeLabel}}{{.}} · {{end}}{{if .Cancelled}}<span class="tag tag-no">Cancelled</span>{{else if .IsOn}}<span class="tag tag-on">On</span>{{else}}{{.LeaderSummary}}{{end}}{{with .StatusLine}} · {{.}}{{end}}</small></a>
+  <form method="post" action="/admin/rides/{{.Key}}/cancel" class="act-row"><input type="hidden" name="return" value="/admin/app/today"><input name="note" maxlength="120" value="{{.StatusNote}}" placeholder="Note" aria-label="Note" title="Shown with On or Cancelled">{{if .Cancelled}}<button class="ghost" name="status" value="open">{{icon "undo"}}Put it back</button>{{else}}{{if not .IsOn}}<button name="status" value="on">{{icon "check"}}Ride is on</button>{{end}}<button class="ghost" name="status" value="cancel" onclick="return confirm('Cancel {{.Name}} on {{.DateLabel}}? The club will be emailed.')">{{icon "ban"}}Cancel</button>{{end}}</form>
+</li>{{end}}</ul>{{else}}<p class="empty">No rides.</p>{{end}}
+{{end}}
+{{template "foot" .}}{{end}}
+
+{{define "app-approvals"}}{{template "head" .}}
+{{with .Jobs.Items}}<ul class="rows todo app-job">{{range .}}<li><a href="{{.Href}}" class="app-job-what">{{.Text}}</a><div class="act-row">{{template "needs-acts" .}}</div></li>{{end}}</ul>
+{{else}}<p class="empty">Nothing waiting.</p>{{end}}
+{{template "foot" .}}{{end}}
+
+{{define "app-paid"}}{{template "head" .}}
+{{with .Jobs.Paid}}<input type="search" class="app-job-filter" placeholder="Name" aria-label="Find a member" autocomplete="off" data-filter="app-paid-list">
+<ul class="rows app-job" id="app-paid-list">{{range .}}<li data-name="{{.Name}}">
+  <a href="/admin/members/{{.ID}}" class="app-job-what"><strong>{{.Name}}</strong>{{with .Sub}}<small>{{.}}</small>{{end}}</a>
+  <form method="post" action="/admin/members/{{.ID}}/paid" class="act-row"><input type="hidden" name="paid" value="1"><input type="hidden" name="return" value="/admin/app/paid"><button>{{icon "check"}}Mark paid</button></form>
+</li>{{end}}</ul>
+<script>
+// Narrow the list to names with what's typed.
+(function(){var q=document.querySelector('[data-filter]'),list=document.getElementById(q.dataset.filter);
+q.addEventListener('input',function(){var v=q.value.trim().toLowerCase();list.querySelectorAll('li').forEach(function(li){li.hidden=v!==''&&li.dataset.name.toLowerCase().indexOf(v)<0})})})();
+</script>
+{{else}}<p class="empty">Everyone has paid.</p>{{end}}
+{{template "foot" .}}{{end}}

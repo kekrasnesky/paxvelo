@@ -1,0 +1,305 @@
+{{/* Website → Home photos (with the photo framing tool), Board, Instagram, Minutes (homephotos.go, focus.go, boardroles.go, instagram.go, minutes.go). */}}
+
+{{/* A photo, as it shows on the site, and the button that opens the framing tool (openFraming) */}}
+{{define "framer"}}<div class="framer" data-shapes="{{.Shapes}}">
+  <button type="button" class="framer-open"><span class="framer-thumb"><img src="{{.URL}}" alt=""{{with .Focus}} style="{{focusStyle .}}"{{end}}></span>
+    <span class="framer-cta">{{icon "crop"}}Adjust framing</span></button>
+  <input type="hidden" name="{{.Field}}" value="{{.Focus}}">
+</div>{{end}}
+
+{{define "home-photos"}}{{template "head" .}}
+<div class="title-row"><h1>Home photos</h1></div>
+<form class="issue" id="hero" method="post" action="/admin/home-hero" enctype="multipart/form-data">
+  <section class="card">
+    <h2>Top photo</h2>
+    <div class="photo-field">
+      {{template "framer" (framer (or .Hero.Photo "/photos/hero.webp") .Hero.Focus "hero_focus" "hero")}}
+      <div class="fields">
+        <input type="hidden" name="hero_gallery" id="hero-gallery">
+        <button type="button" class="ghost gal-choose" id="hero-choose">Choose from the gallery</button>
+        <label>Or upload a photo <input type="file" name="hero_photo" id="hero-file" accept="image/jpeg,image/png,image/webp"></label>
+        <label>What’s in the photo <input name="hero_alt" value="{{.Hero.Alt}}" maxlength="120" placeholder="Riders climbing a country road on the Saturday ride"></label>
+        {{if .Hero.Photo}}<label class="check"><input type="checkbox" name="builtin"> Go back to the original photo</label>{{end}}
+      </div>
+    </div>
+    <div class="save-bar"><button>{{icon "save"}}Save top photo</button></div>
+  </section>
+</form>
+<script>
+// Choose from the gallery: the picked photo shows right away, ready to
+// frame, and becomes the top photo when Save top photo is pressed.
+(function(){var f=document.getElementById('hero'),box=f.querySelector('.photo-field'),g=document.getElementById('hero-gallery'),file=document.getElementById('hero-file'),
+  alt=f.elements.hero_alt,back=f.elements.builtin;
+  document.getElementById('hero-choose').addEventListener('click',function(){pickFromGallery(1,function(urls,caps){if(!urls[0])return;
+    g.value=urls[0];file.value='';if(back)back.checked=false;
+    var c=(caps[0]||'').split(' · Photo by ')[0];if(!/^Photo by /.test(c)&&c)alt.value=c;
+    var t=document.createElement('div');t.innerHTML=framerHTML(urls[0],'hero_focus','hero');box.replaceChild(t.firstChild,box.firstElementChild);initFramer(box.firstElementChild)})});
+  file.addEventListener('change',function(){if(file.files.length)g.value=''});
+})();
+</script>
+{{with .Video}}<section class="card issue video-card" id="video">
+  <div class="video-head">
+    <h2>Top video</h2>
+    <form method="post" action="/admin/home-video/switch"><input type="hidden" name="on" value="{{if .Off}}1{{end}}"><button class="switch" role="switch" aria-checked="{{if .Off}}false{{else}}true{{end}}" aria-label="Video on the home page" title="{{if .Off}}Off: press to turn on{{else}}On: press to turn off{{end}}"><span></span></button></form>
+  </div>
+  {{if not .FFmpeg}}<p class="flash warn">ffmpeg isn’t installed on the server.</p>{{end}}
+  {{if .Off}}<p class="muted">Off</p>{{end}}
+  <div class="video-slots">
+  {{range .Slots}}<section class="video-slot" id="video-{{.Kind}}">
+    <h3>{{.Label}}</h3>
+    <p class="muted small" title="The size and format it looks best at">{{.Best}}</p>
+    {{with .Error}}<p class="flash err">{{.}}</p>{{end}}{{with .Flash}}<p class="flash">{{.}}</p>{{end}}
+    {{with .File}}<video class="video-preview{{if .Tall}} tall{{end}}" src="{{.File}}"{{with .Poster}} poster="{{.}}"{{end}} autoplay muted loop playsinline controls></video>
+    <p class="small"><strong>{{.Name}}</strong><br><span class="muted">{{.Info}}</span></p>
+    {{range .Warn}}<p class="flash warn">{{.}}</p>{{end}}
+    {{else}}<p class="muted">No video.</p>{{end}}
+    <form class="video-upload" method="post" action="/admin/home-video/{{.Kind}}" enctype="multipart/form-data">
+      <label>{{if .File}}Replace{{else}}Upload{{end}} <input type="file" name="video" accept="video/mp4,video/webm,video/*" required></label>
+      <button>{{icon "upload"}}Upload</button>
+      <div class="meter upload-meter" hidden><span></span></div>
+      <span class="muted small video-status" role="status"></span>
+    </form>
+    {{if .File}}<form method="post" action="/admin/home-video/{{.Kind}}/remove" onsubmit="return confirm('Remove the {{.Label}}?')"><button class="link danger">{{icon "trash"}}Remove</button></form>{{end}}
+  </section>{{end}}
+  </div>
+</section>
+<script>
+// Videos go up with a progress bar (they can be big).
+document.querySelectorAll('form.video-upload').forEach(function(f){
+  if(!window.FormData||!window.XMLHttpRequest)return;
+  f.addEventListener('submit',function(e){
+    e.preventDefault();var x=new XMLHttpRequest(),btn=f.querySelector('button'),meter=f.querySelector('.meter'),bar=meter.firstElementChild,st=f.querySelector('.video-status');
+    btn.disabled=true;meter.hidden=false;bar.style.width='0%';st.textContent='0%';
+    x.upload.onprogress=function(ev){if(!ev.lengthComputable)return;var pc=Math.round(ev.loaded*100/ev.total);bar.style.width=pc+'%';st.textContent=pc<100?pc+'%':'Checking…'};
+    x.onload=function(){var go='/admin/home-photos#video';try{go=JSON.parse(x.responseText).go||go}catch(err){}location.href=go;if(go.indexOf('#')>0)location.reload()};
+    x.onerror=function(){btn.disabled=false;meter.hidden=true;st.textContent='The upload didn’t go through.'};
+    x.open('POST',f.action);x.setRequestHeader('Accept','application/json');x.send(new FormData(f));
+  });
+});
+</script>{{end}}
+<form class="issue" id="home-photos" method="post" action="/admin/home-photos" enctype="multipart/form-data">
+  <h2>Photo row</h2>
+  <input type="hidden" name="count" value="{{len .HomePhotos}}">
+  {{range $i, $p := .HomePhotos}}<section class="card home-photo">
+    <div class="photo-order">
+      <button type="button" class="drag-handle" aria-label="Drag to move this photo" title="Drag to move">⠿</button>
+      <span class="pos">Photo {{inc $i}} of {{len $.HomePhotos}}</span>
+      <button type="button" class="mini ghost" data-move="up" aria-label="Move up">↑</button>
+      <button type="button" class="mini ghost" data-move="down" aria-label="Move down">↓</button>
+    </div>
+    <input type="hidden" name="order{{$i}}" value="{{inc $i}}" class="order">
+    <div class="photo-field">
+      {{template "framer" (framer $p.Photo $p.Focus (printf "focus%d" $i) "home")}}
+      <input type="hidden" name="photo{{$i}}" value="{{$p.Photo}}">
+      <div class="fields">
+        <label>What’s in the photo <input name="alt{{$i}}" value="{{$p.Alt}}" maxlength="120" placeholder="Riders lined up at the start of the Thursday ride"></label>
+        <label class="check"><input type="checkbox" name="remove{{$i}}" class="remove-photo"> Remove this photo</label>
+        <p class="removing-note" hidden>Comes off when you save.</p>
+      </div>
+    </div>
+  </section>{{end}}
+  {{if lt (len .HomePhotos) .MaxHomePhotos}}<section class="card">
+    <h2>Add photos</h2>
+    <button type="button" class="ghost gal-choose" id="add-gallery">Choose from the gallery</button>
+    <label>Or upload photos <input type="file" name="add" id="add-photos" accept="image/jpeg,image/png,image/webp" multiple data-room="{{sub .MaxHomePhotos (len .HomePhotos)}}"></label>
+    <div class="picked" id="from-gallery" hidden></div>
+    <div class="picked" id="picked" hidden></div>
+  </section>{{end}}
+  <div class="save-bar"><button id="save-photos">{{icon "save"}}Save</button><span class="muted small" id="save-status" role="status"></span></div>
+  <div class="meter upload-meter" id="upload-meter" hidden><span></span></div>
+</form>
+<script>
+// Say what's about to change, and how an upload is going: big photos can take
+// a while on a slow connection, and the page otherwise just sits there.
+(function(){
+var form=document.getElementById('home-photos'),add=document.getElementById('add-photos'),picked=document.getElementById('picked'),
+  status=document.getElementById('save-status'),btn=document.getElementById('save-photos'),meter=document.getElementById('upload-meter'),hint=status.textContent;
+function n(k,one,many){return k+' '+(k===1?one:many)}
+function cards(){return [].slice.call(form.querySelectorAll('.home-photo'))}
+function order(){return cards().map(function(c){return c.querySelector('[name^=photo]').value}).join('|')}
+var startOrder=order();
+function pending(){
+  var adding=(add?add.files.length:0)+galleryCount(),removing=form.querySelectorAll('.remove-photo:checked').length,parts=[];
+  if(order()!==startOrder)parts.push('a new order');
+  if(adding)parts.push(n(adding,'photo','photos')+' to add');
+  if(removing)parts.push(n(removing,'photo','photos')+' to remove');
+  status.textContent=parts.length?'Not saved yet: '+parts.join(', ')+'. Press Save.':hint;
+  status.classList.toggle('pending',parts.length>0);
+}
+// Reordering: drag a card by its handle (mouse or finger), or use the arrows.
+function renumber(){var cs=cards();cs.forEach(function(c,i){c.querySelector('.order').value=i+1;c.querySelector('.pos').textContent='Photo '+(i+1)+' of '+cs.length});pending()}
+form.addEventListener('click',function(e){var b=e.target.closest('[data-move]');if(!b)return;var c=b.closest('.home-photo'),cs=cards(),i=cs.indexOf(c);
+  if(b.dataset.move==='up'&&i>0)form.insertBefore(c,cs[i-1]);
+  else if(b.dataset.move==='down'&&i<cs.length-1)form.insertBefore(c,cs[i+1].nextSibling);
+  else return;
+  renumber();b.focus();c.scrollIntoView({block:'nearest',behavior:'smooth'})});
+var drag=null,lastY=0,scroller=0;
+function moveTo(y){var cs=cards(),before=null;
+  for(var i=0;i<cs.length;i++){if(cs[i]===drag)continue;var r=cs[i].getBoundingClientRect();if(y<r.top+r.height/2){before=cs[i];break}}
+  if(before){if(drag.nextElementSibling!==before)form.insertBefore(drag,before)}
+  else{var last=cs[cs.length-1];if(last!==drag)form.insertBefore(drag,last.nextSibling)}}
+function edgeScroll(){if(!drag)return;var v=lastY<70?-12:lastY>innerHeight-110?12:0;if(v){scrollBy(0,v);moveTo(lastY)}scroller=requestAnimationFrame(edgeScroll)}
+form.querySelectorAll('.drag-handle').forEach(function(h){
+  h.addEventListener('pointerdown',function(e){e.preventDefault();drag=h.closest('.home-photo');drag.classList.add('dragging');lastY=e.clientY;h.setPointerCapture(e.pointerId);scroller=requestAnimationFrame(edgeScroll)});
+  h.addEventListener('pointermove',function(e){if(!drag)return;lastY=e.clientY;moveTo(e.clientY)});
+  function drop(){if(!drag)return;drag.classList.remove('dragging');cancelAnimationFrame(scroller);drag=null;renumber()}
+  h.addEventListener('pointerup',drop);h.addEventListener('pointercancel',drop);
+});
+form.querySelectorAll('.remove-photo').forEach(function(c){c.addEventListener('change',function(){
+  var card=c.closest('.home-photo');card.classList.toggle('removing',c.checked);card.querySelector('.removing-note').hidden=!c.checked;pending()})});
+// Choose from the gallery: picked photos show here and join the row on Save.
+var gal=document.getElementById('from-gallery'),galBtn=document.getElementById('add-gallery');
+function galleryCount(){return gal?gal.children.length:0}
+function room(){return add?+add.dataset.room-galleryCount():0}
+if(galBtn)galBtn.addEventListener('click',function(){
+  if(room()<=0){status.textContent='The row is full. Remove a photo to add another.';return}
+  pickFromGallery(room(),function(urls,caps){urls.forEach(function(u,i){
+    var c=(caps[i]||'').split(' · Photo by ')[0];if(/^Photo by /.test(c))c='';
+    var fg=document.createElement('figure');fg.innerHTML='<img src="'+esc(u)+'" alt=""><figcaption><button type="button" class="link danger small">Remove</button></figcaption>'+
+      '<input type="hidden" name="gallery" value="'+esc(u)+'"><input type="hidden" name="gallery_alt" value="'+esc(c)+'">';
+    fg.querySelector('button').addEventListener('click',function(){fg.remove();gal.hidden=!galleryCount();pending()});
+    gal.appendChild(fg)});
+    gal.hidden=!galleryCount();if(add.files.length)changed(add);pending()})});
+if(add)add.addEventListener('change',function(){
+  picked.innerHTML='';var fs=add.files,room=+add.dataset.room-galleryCount();
+  for(var i=0;i<fs.length;i++){var f=document.createElement('figure'),img=document.createElement('img'),cap=document.createElement('figcaption');
+    img.src=URL.createObjectURL(fs[i]);img.alt='';cap.textContent=fs[i].name;f.appendChild(img);f.appendChild(cap);if(i>=room)f.className='over';picked.appendChild(f)}
+  picked.hidden=!fs.length;
+  if(fs.length>room){var p=document.createElement('p');p.className='err-text small';p.textContent='Only '+n(room,'photo fits','photos fit')+'; the last '+(fs.length-room)+' won’t be added.';picked.appendChild(p)}
+  pending()});
+form.addEventListener('submit',function(e){
+  if(!window.FormData||!window.XMLHttpRequest)return;
+  e.preventDefault();
+  var files=add?add.files.length:0,x=new XMLHttpRequest(),bar=meter.firstElementChild;
+  btn.disabled=true;status.classList.remove('pending');
+  status.textContent=files?'Uploading '+n(files,'photo','photos')+'… 0%':'Saving…';
+  if(files){meter.hidden=false;bar.style.width='0%'}
+  x.upload.onprogress=function(ev){if(!files||!ev.lengthComputable)return;var pc=Math.round(ev.loaded*100/ev.total);bar.style.width=pc+'%';
+    status.textContent=pc<100?'Uploading '+n(files,'photo','photos')+'… '+pc+'%':'Uploaded. Shrinking the photos and updating the home page…'};
+  x.onload=function(){history.replaceState(null,'',x.responseURL);document.open();document.write(x.responseText);document.close();window.scrollTo(0,0)};
+  x.onerror=function(){btn.disabled=false;meter.hidden=true;status.textContent='The upload didn’t go through. Check your connection and press Save again.';status.classList.add('pending')};
+  x.open('POST',form.action);x.send(new FormData(form));
+});
+})();
+</script>
+{{template "foot" .}}{{end}}
+
+{{define "board"}}{{template "head" .}}
+<div class="title-row"><h1>Board members</h1></div>
+{{if .IsPresident}}<form class="issue" method="post" action="/admin/board" enctype="multipart/form-data">{{else}}<div class="issue"><fieldset disabled>{{end}}
+  <input type="hidden" name="count" value="{{len .Board}}">
+  {{range $i, $m := .Board}}<section class="card">
+    <h2>{{if $m.Name}}{{$m.Name}}{{else}}Add a board member{{end}}</h2>
+    <div class="trio board-who"><label>Member <select name="member{{$i}}" data-name="name{{$i}}" class="member-pick"><button type="button"><selectedcontent></selectedcontent></button><option value="">—</option>{{range $.BoardPick}}<option value="{{.ID}}" data-n="{{.Name}}"{{if eq .ID $m.Member}} selected{{end}}{{if .Admin}} title="Admin"{{end}}><span>{{.Name}}</span>{{if .Admin}}<span class="crown-txt"> ♛</span>{{crown}}{{end}}</option>{{end}}</select></label><label>Name on the page <input name="name{{$i}}" value="{{$m.Name}}" maxlength="60"></label><label>Role <input name="role{{$i}}" value="{{$m.Role}}" maxlength="60" list="board-roles"></label></div>
+    <div class="photo-field" data-board="{{$i}}">
+      {{if $m.Photo}}{{template "framer" (framer $m.Photo $m.Focus (printf "focus%d" $i) "board")}}{{else}}<span></span>{{end}}
+      <input type="hidden" name="photo_current{{$i}}" value="{{$m.Photo}}">
+      <div class="fields">
+        <button type="button" class="ghost gal-choose">Choose from the gallery</button>
+        <label>{{if $m.Photo}}Or upload a different photo{{else}}Or upload a photo{{end}} <input type="file" name="photo{{$i}}_file" accept="image/jpeg,image/png,image/webp"></label>
+        <label>Position <input type="number" name="order{{$i}}" value="{{inc $i}}" min="1" max="40" class="year"></label>
+        {{if $m.Photo}}<label class="check"><input type="checkbox" name="photo_remove{{$i}}"> Remove photo</label>{{end}}
+        {{if $m.Name}}<label class="check"><input type="checkbox" name="remove{{$i}}"> Remove this person</label>{{end}}
+      </div>
+    </div>
+  </section>{{end}}
+  {{if .IsPresident}}<div class="save-bar"><button>{{icon "save"}}Save</button></div>
+</form>{{else}}</fieldset></div>{{end}}
+<datalist id="board-roles"><option value="President"><option value="Vice President"><option value="Treasurer"><option value="Secretary"><option value="Member at Large"></datalist>
+<script>
+// Picking a member fills in the name shown on the page, when it's empty.
+document.querySelectorAll('select[data-name]').forEach(function(s){s.addEventListener('change',function(){
+  var n=s.form.elements[s.dataset.name];if(n&&!n.value.trim()&&s.value)n.value=s.options[s.selectedIndex].dataset.n})});
+// Choose from the gallery: the picked photo shows right away, ready to
+// frame, and is kept when Save is pressed.
+document.querySelectorAll('[data-board]').forEach(function(box){
+  var i=box.dataset.board,cur=box.querySelector('input[name="photo_current'+i+'"]'),file=box.querySelector('input[type=file]'),rm=box.querySelector('input[name="photo_remove'+i+'"]');
+  box.querySelector('.gal-choose').addEventListener('click',function(){pickFromGallery(1,function(urls){if(!urls[0])return;
+    cur.value=urls[0];file.value='';if(rm)rm.checked=false;
+    var t=document.createElement('div');t.innerHTML=framerHTML(urls[0],'focus'+i,'board');box.replaceChild(t.firstChild,box.firstElementChild);initFramer(box.firstElementChild)})});
+});
+</script>
+{{template "foot" .}}{{end}}
+
+
+{{define "minutes"}}{{template "head" .}}
+<div class="title-row">
+  <h1>Meeting minutes</h1>
+</div>
+<div class="table-wrap"><table class="stack">
+  <thead><tr><th>Meeting</th><th>File</th><th>Uploaded by</th><th><span class="sr">Actions</span></th></tr></thead>
+  <tbody>
+  {{range .Minutes}}<tr>
+    <td class="lead"><strong>{{.Title}}</strong><br><span class="muted small">{{.DateLabel}}</span></td>
+    <td><a href="{{.File}}" target="_blank" rel="noopener">{{.FileName}}</a><br><span class="muted small">{{.Kind}}, {{.SizeLabel}}{{with .Original}} · made from the <a href="{{.}}">Word file</a>{{else}}{{if eq .Kind "Word"}} · {{if $.CanConvert}}becomes a PDF when the site next restarts{{else}}stays a Word file until LibreOffice is on the server{{end}}{{end}}{{end}}</span></td>
+    <td>{{or .UploadedBy "—"}}</td>
+    <td class="right nowrap row-acts acts-cell">
+      <button type="button" class="mini ghost copy-link" data-copy="{{$.SiteURL}}/minutes#m{{.ID}}">{{icon "copy"}}Copy link</button>
+      <form method="post" action="/admin/minutes/{{.ID}}/delete" class="inline" onsubmit="return confirm('Delete the minutes for {{.DateLabel}}? This can’t be undone.')"><button class="link danger">{{icon "trash"}}Delete</button></form>
+    </td>
+  </tr>
+  {{else}}<tr><td colspan="4" class="empty">No minutes uploaded yet.</td></tr>
+  {{end}}
+  </tbody>
+</table></div>
+{{if .IsBoard}}<form class="card new-issue" method="post" action="/admin/minutes" enctype="multipart/form-data">
+  <h2>Upload minutes</h2>
+  <div class="pair">
+    <label>Meeting title <input name="title" maxlength="100" placeholder="Monthly club meeting"></label>
+    <label>Meeting date <input type="date" name="date" required></label>
+  </div>
+  <label>Short summary (optional) <textarea name="summary" rows="3" maxlength="600" placeholder="Approved the 2027 ride calendar and the new kit order."></textarea></label>
+  <label>Minutes file <input type="file" name="file" accept=".pdf,.docx,application/pdf" required></label>
+  <button>{{icon "upload"}}Upload</button>
+</form>{{end}}
+<script>
+// Copy link: the meeting's place on the public Minutes page, ready to paste into an email.
+document.querySelectorAll('.copy-link').forEach(function(b){b.addEventListener('click',function(){var u=b.dataset.copy,label=b.lastChild;
+  function done(t){label.textContent=t;setTimeout(function(){label.textContent='Copy link'},2000)}
+  if(navigator.clipboard)navigator.clipboard.writeText(u).then(function(){done('Copied')},function(){prompt('Copy this link',u)});else prompt('Copy this link',u)})});
+</script>
+{{template "foot" .}}{{end}}
+
+{{define "instagram"}}{{template "head" .}}
+<div class="title-row">
+  <h1>Instagram on the home page</h1>
+</div>
+
+<h2 class="section">The club’s Instagram feed</h2>
+{{with .InstagramLink}}
+<div class="card">
+  <p>Connected{{with .Username}} to <strong>@{{.}}</strong>{{end}} through Behold.</p>
+  <p class="small">{{with .LastSync}}Last checked {{datetime .}}.{{end}} {{with .LastResult}}{{.}}.{{end}} Feed: <span class="muted">{{.Feed}}</span></p>
+  {{with .LastError}}<p class="flash err">The last check didn’t work: {{.}}</p>{{end}}
+  <div class="wrap-row">
+    <form method="post" action="/admin/instagram/sync"><button>Check now</button></form>
+    <form method="post" action="/admin/instagram/disconnect" onsubmit="return confirm('Remove the Instagram feed? The home page goes back to Instagram’s embed for picked posts.')"><button class="link danger">Remove feed</button></form>
+  </div>
+</div>
+{{else}}
+<form class="card new-issue" method="post" action="/admin/instagram/connect">
+  <label>Behold feed link <input name="feed" type="url" placeholder="https://feeds.behold.so/…" required></label>
+  <button>Connect</button>
+</form>
+{{end}}
+
+<h2 class="section">Which posts</h2>
+<form class="card new-issue" method="post" action="/admin/instagram">
+  <label>Post links, one per line <textarea name="posts" rows="7" placeholder="https://www.instagram.com/p/…">{{.InstagramText}}</textarea></label>
+  <button>{{icon "save"}}Save</button>
+</form>
+
+{{if .InstaFeed}}<h2 class="section">Latest posts</h2>
+<div class="table-wrap"><table class="tight">
+  <thead><tr><th>Posted</th><th>Post</th><th>Kind</th><th>On the site</th></tr></thead>
+  <tbody>{{range .InstaFeed}}<tr>
+    <td class="nowrap">{{.DateLabel}}</td>
+    <td><a href="{{.Link}}" target="_blank" rel="noopener">{{or .CaptionLine "(no caption)"}}</a><br><span class="muted small">{{.Link}}</span></td>
+    <td class="nowrap">{{if eq .Kind "CAROUSEL_ALBUM"}}{{.Count}} photos{{else if .IsVideo}}Video{{else}}Photo{{end}}</td>
+    <td class="small">{{if .Video}}Shown, plays here{{else if and .IsVideo .Cover}}Shown; plays on Instagram (its music can’t be shared){{else if .Cover}}Shown{{else}}<span class="muted">–</span>{{end}}</td>
+  </tr>{{end}}</tbody>
+</table></div>
+{{else if .Instagram}}<h2 class="section">On the home page now</h2>
+<ul class="small">{{range .Instagram}}<li><a href="{{.}}" target="_blank" rel="noopener">{{.}}</a></li>{{end}}</ul>{{end}}
+{{template "foot" .}}{{end}}
+

@@ -1,0 +1,201 @@
+{{/* Email → Newsletter: the issue list and the issue editor (newsletter.go). */}}
+
+{{define "newsletter"}}{{template "head" .}}
+<div class="title-row">
+  <h1>Newsletter</h1>
+</div>
+<div class="table-wrap"><table class="stack">
+  <thead><tr><th>Issue</th><th>Status</th><th>Started</th><th>Last edited</th><th><span class="sr">Actions</span></th></tr></thead>
+  <tbody>
+  {{range .Issues}}<tr>
+    <td class="lead"><a href="/admin/newsletter/{{.ID}}">{{.Label}}</a> <span class="muted small">#{{.ID}}</span></td>
+    <td>{{if .IsPublished}}<span class="paid">Live</span>{{with .Published}}<br><span class="muted small">since {{stamp .}}</span>{{end}}{{else}}Draft{{end}}</td>
+    <td class="nowrap">{{if not .Created.IsZero}}{{stamp .Created}}{{else}}<span class="muted">Not recorded</span>{{end}}{{with .CreatedBy}}<br><span class="muted small">by {{.}}</span>{{end}}</td>
+    <td class="nowrap">{{stamp .Updated}}{{with .EditedBy}}<br><span class="muted small">by {{.}}</span>{{end}}</td>
+    <td class="right nowrap acts-cell"><a href="/admin/newsletter/{{.ID}}">Edit</a>{{if .IsPublished}} · <a href="{{.Path}}" target="_blank" rel="noopener">View</a>{{end}}</td>
+  </tr>
+  {{else}}<tr><td colspan="5" class="empty">No issues yet.</td></tr>
+  {{end}}
+  </tbody>
+</table></div>
+<form class="card new-issue" method="post" action="/admin/newsletter">
+  <h2>Start a new draft</h2>
+  <div class="wrap-row">
+    <label class="inline-label">Month <select name="month">{{range .Months}}<option value="{{.N}}"{{if eq .N $.NewMonth}} selected{{end}}>{{.Name}}</option>{{end}}</select></label>
+    <label class="inline-label">Year <input type="number" name="year" value="{{.NewYear}}" min="2000" max="2100" class="year"></label>
+    <button>{{icon "plus"}}Start draft</button>
+  </div>
+</form>
+{{template "foot" .}}{{end}}
+
+{{define "issue"}}{{template "head" .}}{{$is := .Issue}}
+<p class="crumb"><a href="/admin/newsletter">← All issues</a></p>
+<div class="title-row">
+  <h1>{{$is.Label}}</h1>
+  <p>{{if $is.IsPublished}}<span class="paid">Live</span>{{else}}<span class="tag">Draft</span>{{end}}</p>
+</div>
+<p class="muted small">Issue #{{$is.ID}}. Started{{if not $is.Created.IsZero}} {{stamp $is.Created}}{{end}}{{with $is.CreatedBy}} by {{.}}{{end}}. Last edited {{stamp $is.Updated}}{{with $is.EditedBy}} by {{.}}{{end}}.{{with $is.Published}} Published {{stamp .}}.{{end}}</p>
+{{with .MonthLive}}<p class="flash warn">{{.Label}} already has a published issue{{with .EditedBy}}, last edited by {{.}}{{end}}. This draft can’t be published until that one is unpublished. <a href="/admin/newsletter/{{.ID}}">Open the published one</a></p>{{end}}
+<div class="issue-actions">
+  {{if $is.IsPublished}}
+  <a class="btn ghost" href="{{$is.Path}}" target="_blank" rel="noopener">View live</a>
+  <a class="btn ghost" href="#email-it">{{icon "mail"}}Email this issue</a>
+  <form method="post" action="/admin/newsletter/{{$is.ID}}/unpublish" onsubmit="return confirm('Take this issue off the website?')"><button class="ghost">{{icon "eye-off"}}Unpublish</button></form>
+  {{end}}
+  <form method="post" action="/admin/newsletter/{{$is.ID}}/copy"><button class="ghost">{{icon "copy"}}Make another draft from this</button></form>
+</div>
+
+<form class="issue" method="post" action="/admin/newsletter/{{$is.ID}}" enctype="multipart/form-data">
+  <section class="card">
+    <h2>Cover</h2>
+    <div class="wrap-row">
+      <label class="inline-label">Month <select name="month">{{range .Months}}<option value="{{.N}}"{{if eq .N $is.Month}} selected{{end}}>{{.Name}}</option>{{end}}</select></label>
+      <label class="inline-label">Year <input type="number" name="year" value="{{$is.Year}}" min="2000" max="2100" class="year"></label>
+    </div>
+    <label>Tagline under the title <input name="tagline" value="{{$is.Tagline}}" maxlength="120"></label>
+    {{template "photo" (story "cover." (photoStory $is.Cover $is.CoverFocus $is.CoverCaption) "")}}
+  </section>
+
+  <input type="hidden" name="blocks_form" value="1">
+  <div class="blocks" id="blocks">
+  {{range $is.Blocks}}{{template "block" (editBlock . $.IssueRides $.EventChoices)}}{{end}}
+  </div>
+
+  <section class="card add-block">
+    <h2>Add a block</h2>
+    <div class="wrap-row">
+      <select id="add-kind" aria-label="Kind of block">{{range blockKinds}}<option value="{{.Kind}}">{{.Name}}</option>{{end}}</select>
+      <button type="button" class="ghost" id="add-block">{{icon "plus"}}Add</button>
+    </div>
+  </section>
+
+  <div class="save-bar">
+    <button{{if $is.IsPublished}} class="ghost"{{end}}>{{icon "save"}}{{if $is.IsPublished}}Save and update live{{else}}Save draft{{end}}</button>
+    <button class="ghost" formaction="/admin/newsletter/{{$is.ID}}?then=preview" formtarget="_blank">{{icon "eye"}}Save and preview</button>
+    {{if and (not $is.IsPublished) (not .MonthLive)}}<button formaction="/admin/newsletter/{{$is.ID}}?then=publish" onclick="return confirm('Save and publish {{$is.Label}} on the website?')">{{icon "globe"}}Save and publish</button>{{end}}
+  </div>
+</form>
+{{range blockKinds}}<template id="tpl-{{.Kind}}">{{template "block" (editBlock (newBlock .Kind) $.IssueRides $.EventChoices)}}</template>
+{{end}}
+<script>
+// Warn before leaving the page with changes that haven't been saved.
+(function(){var f=document.querySelector('form.issue'),dirty=false;if(!f)return;
+f.addEventListener('input',function(){dirty=true});f.addEventListener('change',function(){dirty=true});
+f.addEventListener('submit',function(e){if(!e.submitter||e.submitter.formTarget!=='_blank')dirty=false});
+window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();e.returnValue=''}})})();
+
+// Adding, moving, and removing blocks.
+(function(){var list=document.getElementById('blocks');if(!list)return;
+  function refresh(){var n=list.children.length;[].forEach.call(list.children,function(b,i){
+    b.querySelector('[data-act=up]').disabled=i===0;b.querySelector('[data-act=down]').disabled=i===n-1})}
+  document.getElementById('add-block').addEventListener('click',function(){
+    var kind=document.getElementById('add-kind').value,id=Math.random().toString(16).slice(2,10);
+    var t=document.createElement('div');t.innerHTML=document.getElementById('tpl-'+kind).innerHTML.split('__ID__').join(id);
+    var b=t.firstElementChild;list.appendChild(b);initBlock(b);refresh();changed(list);
+    b.scrollIntoView({behavior:'smooth',block:'center'});var first=b.querySelector('input:not([type=hidden]),textarea');if(first)first.focus({preventScroll:true})});
+  list.addEventListener('click',function(e){var btn=e.target.closest('button[data-act]');if(!btn||!btn.closest('.block-head'))return;var b=btn.closest('.block');
+    if(btn.dataset.act==='up'&&b.previousElementSibling)list.insertBefore(b,b.previousElementSibling);
+    if(btn.dataset.act==='down'&&b.nextElementSibling)list.insertBefore(b.nextElementSibling,b);
+    if(btn.dataset.act==='remove'){var used=[].some.call(b.querySelectorAll('textarea,input[type=url],input[name$=heading],input[name$=photo_current],input[name$=photos]'),function(x){return x.value.trim()});
+      if(used&&!confirm('Remove this '+b.dataset.name+'? Its text and photos come out of the issue.'))return;b.remove()}
+    refresh();changed(list)});
+  refresh()})();
+</script>
+
+<section class="card issue-email" id="email-it">
+  <h2>Email this issue</h2>
+  {{if not .Live}}<p class="flash warn">Test mode: emails go to the server log.</p>{{end}}
+  <form class="issue-email-form" method="post" action="/admin/newsletter/{{$is.ID}}/email-send">
+    <label>Subject <input name="subject" maxlength="200" value="{{issueSubject $is}}"></label>
+    <div class="wrap-row">
+      <input type="email" name="test_to" value="{{.TestTo}}" aria-label="Send the test to">
+      <button class="ghost" formaction="/admin/newsletter/{{$is.ID}}/email-test">{{icon "mail"}}Send a test</button>
+      <button type="button" class="link issue-email-preview">{{icon "eye"}}Preview</button>
+    </div>
+    <div class="wrap-row">
+      {{if $is.IsPublished}}<label class="inline-label">Send to <select name="audience">{{range .Audiences}}<option value="{{.Value}}">{{.Label}}</option>{{end}}</select></label>
+      <button onclick="return confirm('Email the {{$is.Label}} newsletter to: '+this.form.audience.selectedOptions[0].text+'?{{with .IssueSends}} It was already emailed {{len .}} time{{if gt (len .) 1}}s{{end}}.{{end}}')">{{icon "send"}}Send to members</button>
+      {{end}}
+    </div>
+  </form>
+  <div class="issue-email-frame" hidden><iframe title="Email preview" sandbox="allow-same-origin"></iframe></div>
+  {{with .IssueSends}}<h3>Emailed</h3>
+  <ul class="plain issue-sends">{{range .}}<li>{{stamp .Created}} · {{or .Audience "Everyone"}} · {{.Sent}} of {{.Total}} sent{{if .Failed}}, <span class="err-text">{{.Failed}} failed</span>{{end}} · {{statusLabel .Status}}</li>{{end}}</ul>
+  <p class="small"><a href="/admin/email/log?kind=Email+to+members">See each email in the sent log</a></p>{{end}}
+</section>
+<script>
+// Preview: the email as a member gets it, with the subject typed.
+(function(){var sec=document.getElementById('email-it'),btn=sec.querySelector('.issue-email-preview'),box=sec.querySelector('.issue-email-frame'),frame=box.querySelector('iframe'),subj=sec.querySelector('input[name=subject]');
+  btn.addEventListener('click',function(){box.hidden=false;frame.src='/admin/newsletter/{{$is.ID}}/email-preview?subject='+encodeURIComponent(subj.value);btn.lastChild.textContent='Refresh preview'});
+  frame.addEventListener('load',function(){try{frame.style.height=frame.contentDocument.documentElement.scrollHeight+'px'}catch(e){}})})();
+</script>
+<form class="footnote" method="post" action="/admin/newsletter/{{$is.ID}}/delete" onsubmit="return confirm('Delete the {{$is.Label}} issue? This can’t be undone.')"><button class="link danger">{{icon "trash"}}Delete this issue</button></form>
+{{template "foot" .}}{{end}}
+
+{{define "block"}}{{$p := .P}}<section class="card block block-{{.Kind.Kind}}" data-name="{{.Kind.Name}}">
+  <input type="hidden" name="block" value="{{.ID}}:{{.Kind.Kind}}">
+  <div class="block-head"><h2>{{.Kind.Name}}</h2><div class="block-tools">
+    <button type="button" class="mini ghost" data-act="up" aria-label="Move up">↑</button><button type="button" class="mini ghost" data-act="down" aria-label="Move down">↓</button><button type="button" class="link danger small" data-act="remove">Remove</button></div></div>
+  {{if eq .Kind.Kind "big"}}{{template "story" (story $p .Story "kicker subhead video")}}
+  {{else if eq .Kind.Kind "story"}}{{template "story" (story $p .Story "kicker video")}}
+  {{else if eq .Kind.Kind "banner"}}{{template "story" (story $p .Story "kicker button")}}
+  {{else if eq .Kind.Kind "rides"}}{{$r := .Rides}}
+    <p class="rides-now">Right now that’s <strong>{{len $r.Rides}} {{if eq (len $r.Rides) 1}}ride{{else}}rides{{end}}</strong> from {{$r.From}} to {{$r.To}}{{if $r.Need}}, and <strong class="danger">{{$r.Need}} still {{if eq $r.Need 1}}needs{{else}}need{{end}} a leader</strong>{{end}}.</p>
+    <label>Heading <input name="{{$p}}heading" value="{{.Heading}}" maxlength="120" placeholder="{{ridesHeading}}"></label>
+  {{else if eq .Kind.Kind "event"}}{{$ev := .Event}}
+    {{if .Events}}<label>Event <select name="{{$p}}event">{{if not $ev}}<option value="">Pick an event…</option>{{end}}{{range .Events}}<option value="{{.Key}}"{{if eq .Key $ev}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>
+    {{else}}<p class="flash warn">There are no club events on the calendar yet. <a href="/admin/rides/new" target="_blank" rel="noopener">Add one</a>.</p>{{end}}
+    <label>A few words (optional) <textarea name="{{$p}}body" rows="3" placeholder="Shown instead of the event’s description from the calendar">{{.Body}}</textarea></label>
+  {{else if eq .Kind.Kind "gallery"}}
+    <div class="strip" data-p="{{$p}}" data-max="{{maxGallery}}">{{range $g := .Photos}}{{template "strip-item" (stripPhoto $p $g (index $.Focus $g))}}{{end}}</div>
+    <div class="strip-add"><button type="button" class="ghost gal-choose">Choose from the gallery</button>
+      <label class="drop"><input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple hidden><strong>Upload photos</strong></label></div>
+    <p class="muted small"><span class="strip-count"></span> <span class="photo-status" role="status"></span></p>
+  {{else if eq .Kind.Kind "share"}}
+    <div class="fields">
+      <label>Heading <input name="{{$p}}heading" value="{{.Heading}}" maxlength="120" placeholder="{{shareHeading}}"></label>
+      <label>Text <textarea name="{{$p}}body" rows="2" placeholder="Optional">{{.Body}}</textarea></label>
+      <label>Button words <input name="{{$p}}link_label" value="{{.LinkLabel}}" maxlength="60" placeholder="{{shareButton}}"></label>
+    </div>
+  {{else if eq .Kind.Kind "instagram"}}
+    <label>Post links <textarea name="{{$p}}posts" rows="3" placeholder="https://www.instagram.com/p/…">{{lines .Posts}}</textarea></label>
+  {{end}}
+</section>{{end}}
+
+{{define "story"}}{{$p := .P}}{{$s := .S}}<div class="fields">
+  {{if .Has "kicker"}}<label>Small line above the heading <input name="{{$p}}kicker" value="{{$s.Kicker}}" maxlength="80"></label>{{end}}
+  <label>Heading <input name="{{$p}}heading" value="{{$s.Heading}}" maxlength="120"></label>
+  {{if .Has "subhead"}}<label>Subheading <input name="{{$p}}subhead" value="{{$s.Subhead}}" maxlength="160"></label>{{end}}
+  <label>Text <textarea name="{{$p}}body" rows="5">{{$s.Body}}</textarea></label>
+  {{template "photo" .}}
+  {{if .Has "video"}}<details class="more"{{if $s.VideoURL}} open{{end}}>
+    <summary>Video link</summary>
+    <div class="pair">
+      <label>Video link <input type="url" name="{{$p}}video_url" value="{{$s.VideoURL}}" placeholder="YouTube, Instagram, or Strava"></label>
+      <label>Video length <input name="{{$p}}video_length" value="{{$s.VideoLength}}" maxlength="10" placeholder="2:48"></label>
+    </div>
+  </details>{{end}}
+  <div class="pair">
+    <label>{{if .Has "button"}}Button words{{else}}Link words{{end}} <input name="{{$p}}link_label" value="{{$s.LinkLabel}}" maxlength="60" placeholder="{{if .Has "button"}}Learn more{{else}}Read more{{end}}"></label>
+    <label>{{if .Has "button"}}Button goes to{{else}}Link goes to{{end}} <input name="{{$p}}link_url" value="{{$s.LinkURL}}" placeholder="https://… or /rides or {kit}"></label>
+  </div>
+</div>{{end}}
+
+{{define "photo"}}{{$p := .P}}{{$s := .S}}<div class="photo-field" data-photo="{{$p}}">
+  <input type="hidden" name="{{$p}}photo_current" value="{{$s.Photo}}">
+  <div class="photo-shown">{{if $s.Photo}}{{template "framer" (framer $s.Photo $s.PhotoFocus (printf "%sphoto_focus" $p) (or (and (eq $p "cover.") "cover") "story"))}}{{end}}</div>
+  <div class="photo-tools">
+    <button type="button" class="ghost gal-choose">Choose from the gallery</button>
+    <label class="drop"><input type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden><strong>{{if $s.Photo}}Upload a different photo{{else}}Upload a photo{{end}}</strong></label>
+    <button type="button" class="link danger photo-remove"{{if not $s.Photo}} hidden{{end}}>{{icon "trash"}}Remove photo</button>
+    <p class="photo-status muted small" role="status"></p>
+    <label>Caption (optional) <input name="{{$p}}caption" value="{{$s.Caption}}" maxlength="160" placeholder="A short line under the photo"></label>
+  </div>
+</div>{{end}}
+
+{{define "strip-item"}}<div class="strip-item">
+  {{template "framer" (framer .URL .Focus (printf "%sfocus" .P) "strip")}}
+  <input type="hidden" name="{{.P}}photos" value="{{.URL}}">
+  <div class="strip-tools"><button type="button" class="mini ghost" data-act="left" aria-label="Move left">←</button><button type="button" class="mini ghost" data-act="right" aria-label="Move right">→</button><button type="button" class="link danger small" data-act="remove">Remove</button></div>
+</div>{{end}}
+

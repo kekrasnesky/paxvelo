@@ -1,0 +1,205 @@
+{{/* Email → Send an email (with the shared mail tools) and Sent log (admin.go, emaillog.go). */}}
+
+{{define "sent-log"}}{{template "head" .}}{{with .SentLog}}
+<div class="title-row">
+  <h1>Sent log</h1>
+</div>
+{{if not .Live}}<p class="flash warn">Test mode: emails go to the server log.</p>{{end}}
+<dl class="nums log-nums">
+  <div><dt>Today</dt><dd>{{.Today}}</dd></div>
+  <div><dt>Last 7 days</dt><dd>{{.Week}}</dd></div>
+  <div{{if .WeekFails}} class="bad"{{end}}><dt><a href="/admin/email/log?result=failed">Failed, last 7 days</a></dt><dd><a href="/admin/email/log?result=failed">{{.WeekFails}}</a></dd></div>
+</dl>
+<form class="tools log-filter" method="get" action="/admin/email/log">
+  <div class="search"><input type="search" name="q" value="{{.Q}}" placeholder="Search address, name, or subject" aria-label="Search the sent log">
+  <select name="kind" aria-label="Kind of email"><option value="">Every kind</option>{{$k := .Kind}}{{range .Kinds}}<option{{if eq . $k}} selected{{end}}>{{.}}</option>{{end}}</select>
+  <label class="check"><input type="checkbox" name="result" value="failed"{{if eq .Result "failed"}} checked{{end}}> Failed only</label>
+  <button class="ghost">{{icon "search"}}Show</button>{{if or .Q .Kind .Result}} <a href="/admin/email/log">Clear</a>{{end}}</div>
+</form>
+<div class="table-wrap"><table class="tight cards">
+  <thead><tr><th>When</th><th>Kind</th><th>To</th><th>Subject</th><th>Result</th></tr></thead>
+  <tbody>
+  {{range .Rows}}<tr{{if .Failed}} class="log-fail"{{end}}>
+    <td class="nowrap" data-label="When">{{stamp .Time}}</td>
+    <td data-label="Kind">{{.Kind}}</td>
+    <td class="email" data-label="To">{{with .Name}}{{.}}<br>{{end}}<span class="muted small">{{.To}}</span></td>
+    <td data-label="Subject">{{.Subject}}</td>
+    <td data-label="Result">{{if .Failed}}<strong class="err-text">Failed</strong>{{with .Error}}<br><span class="muted small">{{.}}</span>{{end}}{{else if eq .Result "sent"}}<span class="paid">Sent</span>{{else}}<span class="muted">Test mode, not sent</span>{{end}}</td>
+  </tr>
+  {{else}}<tr><td colspan="5" class="empty">{{if or .Q .Kind .Result}}No emails match that.{{else}}No emails logged yet.{{end}}</td></tr>
+  {{end}}
+  </tbody>
+</table></div>
+{{if .More}}<p class="muted small">Showing the newest {{len .Rows}} of {{.Shown}}.</p>{{end}}
+{{end}}{{template "foot" .}}{{end}}
+
+
+{{define "email"}}{{template "head" .}}
+{{if not .Live}}<p class="flash warn">Test mode: emails go to the server log.</p>{{end}}
+<div class="title-row"><h1>Send an email</h1>
+  {{if and .Live (gt .Allowance.Limit 0)}}{{with .Allowance}}<p class="allowance-pill" title="Emails sent since midnight UTC"><strong>{{.Left}} emails left today</strong> <span class="muted">· {{.Sent}} of {{.Limit}} sent, starts over {{.Resets}}</span> <span class="meter{{if ge .Percent 80}} high{{end}}" role="img" aria-label="{{.Sent}} of {{.Limit}} emails sent today"><span style="width:{{.Percent}}%"></span></span></p>{{end}}{{end}}
+</div>
+<form class="card compose mail-form" method="post">
+  <label>Subject <input name="subject" maxlength="200" value="{{.Draft.Subject}}" placeholder="What it’s about"></label>
+  <div class="mail-edit">
+    <div class="mail-write">
+      {{template "mail-pieces" (or .EmailPieces (mailPieces "member"))}}
+      <div class="text-ed">
+      {{template "mail-bar"}}
+      <label>Message <textarea name="body" rows="16">{{.Draft.Body}}</textarea></label>
+      </div>
+    </div>
+    {{template "mail-preview"}}
+  </div>
+  <div class="wrap-row mail-actions">
+    <span class="test-to"><input type="email" name="test_to" value="{{.TestTo}}" aria-label="Send test to"><button class="ghost" formaction="/admin/email/test">{{icon "mail"}}Send test</button></span>
+    <button class="link danger draft-discard" formaction="/admin/email/discard" onclick="return confirm('Discard this draft?')"{{if not (or .Draft.Subject .Draft.Body)}} hidden{{end}}>{{icon "trash"}}Discard draft</button>
+    <span class="draft-status muted small" role="status"></span>
+  </div>
+  <div class="wrap-row mail-actions">
+    <label class="inline-label">About
+      <select name="topic" class="email-topic">{{if .IsBoard}}<option value="">Club news and notices</option>{{end}}<option value="events">Rides and events</option></select>
+    </label>
+    <label class="inline-label">Send to
+      <select name="audience">{{range .Audiences}}<option value="{{.Value}}" data-all="{{.Label}}" data-events="{{.Events}}">{{.Label}}</option>{{end}}</select>
+    </label>
+    <button formaction="/admin/email/send" onclick="return confirm('Send this email to: '+this.form.audience.selectedOptions[0].text+'?')">{{icon "send"}}Send email</button>
+  </div>
+</form>
+<script>
+// The counts follow what the email is about.
+(function(){var f=document.querySelector('form.compose'),t=f&&f.querySelector('.email-topic');if(!t)return;
+  t.addEventListener('change',function(){f.querySelectorAll('select[name=audience] option').forEach(function(o){o.textContent=t.value==='events'?o.dataset.events:o.dataset.all})});
+})();
+</script>
+<script>
+// The draft saves itself a couple of seconds after each change, and the
+// page asks before you leave while a change hasn't been saved yet.
+(function(){var f=document.querySelector('form.compose'),st=f.querySelector('.draft-status'),discard=f.querySelector('.draft-discard'),timer,unsaved=false,leaving=false;
+  function save(){clearTimeout(timer);var fd=new URLSearchParams();fd.set('subject',f.subject.value);fd.set('body',f.body.value);
+    st.textContent='Saving…';
+    fetch('/admin/email/draft',{method:'POST',body:fd}).then(function(r){if(!r.ok)throw r;unsaved=false;st.textContent='Draft saved';discard.hidden=!(f.subject.value.trim()||f.body.value.trim())})
+      .catch(function(){st.textContent='Not saved: check your connection. It tries again when you type.'})}
+  f.addEventListener('input',function(e){if(e.target.name!=='subject'&&e.target.name!=='body')return;unsaved=true;st.textContent='';clearTimeout(timer);timer=setTimeout(save,2000)});
+  f.addEventListener('submit',function(){leaving=true});
+  f.addEventListener('keydown',function(e){if((e.ctrlKey||e.metaKey)&&!e.altKey&&!e.shiftKey&&e.key.toLowerCase()==='s'){e.preventDefault();save()}});
+  window.addEventListener('beforeunload',function(e){if(unsaved&&!leaving){save();e.preventDefault();e.returnValue=''}})})();
+</script>
+
+<div class="title-row section-row"><h2>Sent emails</h2><a href="/admin/stats">How many opened and clicked</a></div>
+<div class="table-wrap"><table class="sent-list stack">
+  <thead><tr><th>Date</th><th>Subject</th><th>Sent to</th><th>Progress</th><th>Status</th><th><span class="sr">Actions</span></th></tr></thead>
+  <tbody>
+  {{range $i, $c := .Campaigns}}<tr data-id="{{.ID}}"{{if ge $i 5}} class="sent-more" hidden{{end}}>
+    <td class="nowrap">{{datetime .Created}}</td>
+    <td class="lead">{{.Subject}}</td>
+    <td>{{or .Audience "Everyone"}}</td>
+    <td class="prog nowrap">{{progress .}}</td>
+    <td class="st">{{statusLabel .Status}}{{with .LastError}}<span class="small err-text">{{.}}</span>{{end}}</td>
+    <td class="right act acts-cell">{{if eq .Status "sending"}}<form method="post" action="/admin/email/{{.ID}}/stop"><button class="link danger">{{icon "pause"}}Stop</button></form>{{else if eq .Status "paused"}}<form method="post" action="/admin/email/{{.ID}}/resume"><button class="link">{{icon "play"}}Resume</button></form>{{end}}</td>
+  </tr>
+  {{else}}<tr><td colspan="6" class="empty">Nothing sent yet.</td></tr>
+  {{end}}
+  </tbody>
+</table></div>
+{{if gt (len .Campaigns) 5}}<p class="show-more"><button type="button" class="link" onclick="document.querySelectorAll('tr.sent-more').forEach(function(r){r.hidden=false});this.parentNode.remove()">Show all {{len .Campaigns}}</button>{{if .IsBoard}} · <a href="/admin/email/log">Every email in the sent log</a>{{end}}</p>{{end}}
+{{template "mail-tools" .}}
+{{if .Sending}}<script>
+(function poll(){setTimeout(function(){fetch('/admin/email/status').then(function(r){return r.json()}).then(function(list){var busy=false;list.forEach(function(c){var tr=document.querySelector('tr[data-id="'+c.id+'"]');if(!tr)return;tr.querySelector('.prog').textContent=c.progress;tr.querySelector('.st').textContent=c.status+(c.error?' – '+c.error:'');if(c.status==='Sending')busy=true;else tr.querySelector('.act').textContent=''});if(busy)poll()}).catch(poll)},3000)})();
+</script>{{end}}
+{{template "foot" .}}{{end}}
+
+{{define "mail-tools"}}
+<script>
+// Formatting buttons and the live preview for each email on this page.
+function initMail(form){
+  var ta=form.querySelector('textarea[name=body]'),subj=form.querySelector('input[name=subject]'),
+      frame=form.querySelector('.mail-preview iframe'),file=form.querySelector('.mail-photo input'),timer,asked=0;
+  function refresh(){var n=++asked,fd=new FormData();fd.append('subject',subj.value);fd.append('body',ta.value);
+    fetch(form.dataset.preview||'/admin/email/preview',{method:'POST',body:fd}).then(function(r){return r.text()}).then(function(h){if(n===asked)frame.srcdoc=h})}
+  function later(){clearTimeout(timer);timer=setTimeout(refresh,350)}
+  // Grow the preview to fit the email, again as each photo finishes loading.
+  // (Unless it was resized by hand with the bar under it: then it keeps that size.)
+  function fit(){if(frame.dataset.h)return;try{frame.style.height=frame.contentDocument.documentElement.scrollHeight+'px'}catch(e){}}
+  frame.addEventListener('fit',fit);
+  frame.addEventListener('load',function(){fit();try{frame.contentDocument.querySelectorAll('img').forEach(function(i){i.addEventListener('load',fit)})}catch(e){}});
+  ta.addEventListener('input',later);subj.addEventListener('input',later);refresh();
+  form.querySelectorAll('[data-w]').forEach(function(b){b.addEventListener('click',function(){
+    form.querySelectorAll('[data-w]').forEach(function(o){o.setAttribute('aria-pressed',o===b)});
+    frame.style.maxWidth=b.dataset.w+'px';setTimeout(fit,50)})});
+  function picked(){return ta.value.slice(ta.selectionStart,ta.selectionEnd)}
+  // Types text where the cursor is (keeping undo working where the browser allows).
+  function put(text){ta.focus();if(!document.execCommand('insertText',false,text)){ta.setRangeText(text,ta.selectionStart,ta.selectionEnd,'end');ta.dispatchEvent(new Event('input',{bubbles:true}))}}
+  // Puts something on lines of its own, with a blank line before and after.
+  function block(text){var before=ta.value.slice(0,ta.selectionStart);
+    put((before===''||/\n\n$/.test(before)?'':/\n$/.test(before)?'\n':'\n\n')+text+'\n\n')}
+  var act={
+    bold:function(){put('**'+(picked()||'bold words')+'**')},
+    italic:function(){put('*'+(picked()||'words in italics')+'*')},
+    link:function(){var box=document.getElementById('mail-link-box'),w=picked().trim(),at=[ta.selectionStart,ta.selectionEnd];
+      if(!box||!box.showModal){var u=prompt('The web address to link to:','https://');if(!u||u==='https://')return;put('['+(w||prompt('The words to click:','')||u)+']('+u+')');return}
+      openMailLink(w,function(label,href,big){ta.focus();ta.setSelectionRange(at[0],at[1]);var md='['+label+']('+href+')';if(big)block('['+md+']');else put(md)})},
+    button:function(){var w=picked()||prompt('The words on the button:','Sign up');if(!w)return;
+      var u=prompt('Where the button goes (a web address):','https://');if(!u||u==='https://')return;block('[['+w+']('+u+')]')},
+    heading:function(){block('## '+(picked()||'Heading'))},
+    list:function(){var p=picked();block(p?p.split('\n').filter(Boolean).map(function(l){return '- '+l.replace(/^- /,'')}).join('\n'):'- First thing\n- Second thing')},
+    name:function(){put('{first_name}')}
+  };
+  form.querySelectorAll('.mail-bar [data-do]').forEach(function(b){b.addEventListener('click',function(){act[b.dataset.do]()})});
+  ta.addEventListener('keydown',function(e){if(!(e.ctrlKey||e.metaKey)||e.altKey||e.shiftKey)return;var k={b:'bold',i:'italic',k:'link'}[e.key.toLowerCase()];
+    if(k){e.preventDefault();act[k]()}});
+  file.addEventListener('change',function(){var f=file.files[0];if(!f)return;var fd=new FormData();fd.append('photo',f);file.value='';
+    var st=form.querySelector('.mail-bar-status');st.textContent='Uploading the photo…';
+    fetch('/admin/pages/photo',{method:'POST',body:fd}).then(function(r){return r.json()}).then(function(j){
+      if(j.error){st.textContent=j.error;return}st.textContent='';var m=/\((\/[^)]+)\)/.exec(j.markdown);if(m)block('![Photo]('+m[1]+')')})
+    .catch(function(){st.textContent='The photo didn’t upload. Try again.'})});
+}
+// The link box: a page on the site, or any web or email address, as words
+// to click or a big button. done gets the words, the address, and whether
+// it's a button.
+function openMailLink(words,done){var box=document.getElementById('mail-link-box'),f=box.querySelector('form'),
+    w=box.querySelector('[name=words]'),page=box.querySelector('[name=page]'),url=box.querySelector('[name=url]');
+  w.value=words;url.value='';f.kind[0].checked=true;f.big.checked=false;
+  f.onsubmit=function(e){if(!e.submitter||e.submitter.value!=='ok')return;var web=f.kind[1].checked,href=web?url.value.trim():page.value;if(!href)return;
+    if(web&&!/^[a-z]+:/i.test(href))href=(href.indexOf('@')>0?'mailto:':'https://')+href;
+    var label=w.value.trim()||(web?href.replace(/^(https?:\/\/|mailto:)(www\.)?/,'').replace(/\/$/,''):page.options[page.selectedIndex].text);
+    var big=f.big.checked;setTimeout(function(){done(label,href,big)},0)}; // once the box has closed and the message box can take focus again
+  box.showModal();w.focus()}
+(function(){var box=document.getElementById('mail-link-box');if(!box)return;var f=box.querySelector('form');
+  box.querySelector('[name=url]').addEventListener('focus',function(){f.kind[1].checked=true});
+  box.querySelector('[name=page]').addEventListener('focus',function(){f.kind[0].checked=true})})();
+document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('form'))});
+</script>
+<dialog id="mail-link-box" class="card link-dialog">
+  <form method="dialog">
+    <h2>Add a link</h2>
+    <label>Words to click <input name="words" placeholder="See the ride calendar"></label>
+    <label class="check"><input type="radio" name="kind" value="page" checked> A page on the club website</label>
+    <select name="page" aria-label="Page">{{range .Links}}<option value="{{.Path}}">{{.Title}}</option>{{end}}</select>
+    <label class="check"><input type="radio" name="kind" value="web"> Another website or an email address</label>
+    <input name="url" inputmode="url" autocomplete="off" placeholder="https://www.example.com" aria-label="Web address">
+    <label class="check"><input type="checkbox" name="big"> Show it as a big button</label>
+    <div class="wrap-row"><button value="ok">{{icon "check"}}Add link</button><button value="" class="link">Cancel</button></div>
+  </form>
+</dialog>
+{{template "mail-cards"}}
+{{end}}
+
+{{define "mail-bar"}}<div class="mail-bar" role="toolbar" aria-label="Formatting">
+  <button type="button" class="ghost" data-do="bold" title="Bold (Ctrl+B)"><strong>B</strong></button>
+  <button type="button" class="ghost" data-do="italic" title="Italics (Ctrl+I)"><em>I</em></button>
+  <button type="button" class="ghost" data-do="link" title="Link (Ctrl+K)">Link</button>
+  <button type="button" class="ghost" data-do="button">Button</button>
+  <button type="button" class="ghost" data-do="heading">Heading</button>
+  <button type="button" class="ghost" data-do="list">List</button>
+  <label class="ghost mail-photo">Photo<input type="file" accept="image/jpeg,image/png,image/webp"></label>
+  <button type="button" class="ghost" data-do="name" title="Each member’s first name">First name</button>
+  <span class="mail-bar-status muted small" role="status"></span>
+</div>{{end}}
+
+{{define "mail-preview"}}<div class="mail-preview">
+  <div class="mail-preview-top"><strong>Preview</strong>
+    <span class="seg"><button type="button" class="ghost" data-w="600" aria-pressed="true">Computer</button><button type="button" class="ghost" data-w="375" aria-pressed="false">Phone</button></span></div>
+  <iframe title="Email preview" sandbox="allow-same-origin"></iframe>
+</div>{{end}}
+

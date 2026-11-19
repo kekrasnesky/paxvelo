@@ -71,7 +71,10 @@ func TestDemoCheck(t *testing.T) {
 
 // The demo club gives every admin screen something to show, and every one
 // of them opens with it.
-func TestDemoClubAdminPages(t *testing.T) {
+// demoApp is the site with the demo club in a new folder, and a cookie
+// signed in with the setup password.
+func demoApp(t *testing.T) (a *App, h http.Handler, admin *http.Cookie, store *Store) {
+	t.Helper()
 	cfg := testConfig()
 	cfg.DataDir, cfg.AdminPassword = t.TempDir(), "test-password-123"
 	store, err := openStore(cfg.DataDir)
@@ -94,15 +97,20 @@ func TestDemoClubAdminPages(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a := &App{cfg: cfg, store: store, site: site, limit: newLimiter(), stats: stats}
+	a = &App{cfg: cfg, store: store, site: site, limit: newLimiter(), stats: stats}
 	a.mailer = newMailer(cfg, store, site)
 	t.Cleanup(a.mailer.bg.Wait)
 	a.mailer.stats = stats
 	a.refreshNewsletter()
-	h := a.routes()
+	h = a.routes()
 	w := httptest.NewRecorder()
 	a.setSession(w, "Test Admin", 3600)
-	admin := w.Result().Cookies()[0]
+	admin = w.Result().Cookies()[0]
+	return a, h, admin, store
+}
+
+func TestDemoClubAdminPages(t *testing.T) {
+	a, h, admin, store := demoApp(t)
 
 	home := do(t, h, admin, "GET", "/admin", "", nil).Body.String()
 	for _, want := range []string{"Gravel Explorer, ", "is waiting for approval.", "Loaner bike for Early Coffee Spin", "/confirm\"><input type=\"hidden\" name=\"return\" value=\"/admin\">"} {
@@ -123,7 +131,7 @@ func TestDemoClubAdminPages(t *testing.T) {
 		"/admin/kit", "/admin/minutes", "/admin/stats", "/admin/treasurer", "/admin/treasurer/income",
 		"/admin/treasurer/requests", "/admin/treasurer/budget", "/admin/treasurer/reports", "/admin/admins", "/admin/security",
 		"/admin/signs", "/admin/guide", "/calendar", "/calendar/ride/" + rideKey,
-		"/admin/app?q=ride", "/admin/app/search?q=example", "/admin/email/auto/morning-summary/preview", "/calendar/new"}
+		"/admin/app?q=ride", "/admin/app/today", "/admin/app/approvals", "/admin/app/paid", "/admin/app/search?q=example", "/admin/email/auto/morning-summary/preview", "/calendar/new"}
 	if p := do(t, h, admin, "GET", "/admin/rides/new", "", nil).Body.String(); !strings.Contains(p, "data-starts=") || !strings.Contains(p, "18:00") {
 		t.Error("Add a ride should start from the weekly rides")
 	}

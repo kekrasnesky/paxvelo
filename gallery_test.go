@@ -324,18 +324,16 @@ func TestAlbumPages(t *testing.T) {
 	}
 }
 
-// Photos from before albums go into albums by ride and date when the site
-// starts, with copies made for them in the background.
+// Photos without an album go into "Older photos" when the site starts, with
+// copies made for old ones in the background.
 func TestAlbumize(t *testing.T) {
 	a, _, _ := testApp(t)
 	os.MkdirAll(a.mediaDir(), 0o755)
 	os.WriteFile(filepath.Join(a.mediaDir(), "old.jpg"), encodeJPEG(t, halves(1000, 600, 255)), 0o644)
 	a.store.mu.Lock()
 	a.store.d.Gallery = []*GalleryPhoto{
-		{ID: 1, Src: "/media/old.jpg", Ride: "tnr", Date: "2026-10-28", By: "Pat"},
+		{ID: 1, Src: "/media/old.jpg", By: "Pat"},
 		{ID: 2, Src: "/media/b.jpg", By: "Pat"},
-		{ID: 3, Src: "/media/c.jpg", Ride: "tnr", Date: "2026-10-28", By: "Sam"},
-		{ID: 4, Src: "/media/d.jpg", Date: "2025-05-01", By: "Sam"},
 	}
 	a.store.save()
 	a.store.mu.Unlock()
@@ -343,15 +341,8 @@ func TestAlbumize(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var titles []string
-	for _, al := range s.Albums() {
-		titles = append(titles, al.Title)
-	}
-	if !slices.Equal(titles, []string{"TNR · Oct 28, 2026", "May 1, 2025", "Older photos"}) {
-		t.Fatalf("albums %q", titles)
-	}
-	if got := s.AlbumPhotos(s.Albums()[0].ID); len(got) != 2 || got[0].ID != 1 || got[1].ID != 3 {
-		t.Errorf("TNR photos %+v", got)
+	if al := s.Albums(); len(al) != 1 || al[0].Title != "Older photos" || len(s.AlbumPhotos(al[0].ID)) != 2 {
+		t.Fatalf("albums %+v", al)
 	}
 	a.store = s
 	a.sizeOldPhotos()
