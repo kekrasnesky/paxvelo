@@ -36,7 +36,7 @@
 </div>
 <p class="muted small">Issue #{{$is.ID}}. Started{{if not $is.Created.IsZero}} {{stamp $is.Created}}{{end}}{{with $is.CreatedBy}} by {{.}}{{end}}. Last edited {{stamp $is.Updated}}{{with $is.EditedBy}} by {{.}}{{end}}.{{with $is.Published}} Published {{stamp .}}.{{end}}</p>
 {{with .MonthLive}}<p class="flash warn">{{.Label}} already has a published issue{{with .EditedBy}}, last edited by {{.}}{{end}}. This draft can’t be published until that one is unpublished. <a href="/admin/newsletter/{{.ID}}">Open the published one</a></p>{{end}}
-<div class="issue-actions">
+<div class="wrap-row issue-actions">
   {{if $is.IsPublished}}
   <a class="btn ghost" href="{{$is.Path}}" target="_blank" rel="noopener">View live</a>
   <a class="btn ghost" href="#email-it">{{icon "mail"}}Email this issue</a>
@@ -134,7 +134,7 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
 
 {{define "block"}}{{$p := .P}}<section class="card block block-{{.Kind.Kind}}" data-name="{{.Kind.Name}}">
   <input type="hidden" name="block" value="{{.ID}}:{{.Kind.Kind}}">
-  <div class="block-head"><h2>{{.Kind.Name}}</h2><div class="block-tools">
+  <div class="wrap-row block-head"><h2>{{.Kind.Name}}</h2><div class="block-tools">
     <button type="button" class="mini ghost" data-act="up" aria-label="Move up">↑</button><button type="button" class="mini ghost" data-act="down" aria-label="Move down">↓</button><button type="button" class="link danger small" data-act="remove">Remove</button></div></div>
   {{if eq .Kind.Kind "big"}}{{template "story" (story $p .Story "kicker subhead video")}}
   {{else if eq .Kind.Kind "story"}}{{template "story" (story $p .Story "kicker video")}}
@@ -147,8 +147,8 @@ window.addEventListener('beforeunload',function(e){if(dirty){e.preventDefault();
     {{else}}<p class="flash warn">There are no club events on the calendar yet. <a href="/admin/rides/new" target="_blank" rel="noopener">Add one</a>.</p>{{end}}
     <label>A few words (optional) <textarea name="{{$p}}body" rows="3" placeholder="Shown instead of the event’s description from the calendar">{{.Body}}</textarea></label>
   {{else if eq .Kind.Kind "gallery"}}
-    <div class="strip" data-p="{{$p}}" data-max="{{maxGallery}}">{{range $g := .Photos}}{{template "strip-item" (stripPhoto $p $g (index $.Focus $g))}}{{end}}</div>
-    <div class="strip-add"><button type="button" class="ghost gal-choose">Choose from the gallery</button>
+    <div class="wrap-row strip" data-p="{{$p}}" data-max="{{maxGallery}}">{{range $g := .Photos}}{{template "strip-item" (stripPhoto $p $g (index $.Focus $g))}}{{end}}</div>
+    <div class="wrap-row strip-add"><button type="button" class="ghost gal-choose">Choose from the gallery</button>
       <label class="drop"><input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple hidden><strong>Upload photos</strong></label></div>
     <p class="muted small"><span class="strip-count"></span> <span class="photo-status" role="status"></span></p>
   {{else if eq .Kind.Kind "share"}}

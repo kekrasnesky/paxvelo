@@ -4,7 +4,7 @@
 <div class="title-row">
   <h1>Members</h1>
 </div>
-<div class="tools">
+<div class="wrap-row tools">
   <form class="search" method="get" action="/admin/members">
     {{with .Dues}}<input type="hidden" name="dues" value="{{.}}">{{end}}
     <input type="search" name="q" value="{{.Q}}" placeholder="Search name, email, or phone" aria-label="Search members">
@@ -13,13 +13,13 @@
   </form>
   {{if .IsBoard}}<a class="btn ghost" href="/admin/members.csv">Export CSV</a>{{end}}
 </div>
-<nav class="filter" aria-label="Filter by membership">
+<nav class="wrap-row filter" aria-label="Filter by membership">
   <a href="/admin/members?dues=paid{{with .Q}}&q={{.}}{{end}}"{{if eq .Dues "paid"}} aria-current="page"{{end}} title="Dues paid and not expired">Current members ({{.Paid}})</a>
   <a href="/admin/members?dues=unpaid{{with .Q}}&q={{.}}{{end}}"{{if eq .Dues "unpaid"}} aria-current="page"{{end}} title="Expired, or joined online and unpaid">Not paid yet ({{.Unpaid}})</a>
   <a href="/admin/members?dues=list{{with .Q}}&q={{.}}{{end}}"{{if eq .Dues "list"}} aria-current="page"{{end}} title="Never paid dues">Email list only ({{.List}})</a>
   <a href="/admin/members{{with .Q}}?q={{.}}{{end}}"{{if eq .Dues ""}} aria-current="page"{{end}}>Everyone ({{.Total}})</a>
 </nav>
-{{if .IsBoard}}<form id="bulk" class="bulk-bar" method="post" action="/admin/members/paid" hidden>
+{{if .IsBoard}}<form id="bulk" class="wrap-row bulk-bar" method="post" action="/admin/members/paid" hidden>
   <input type="hidden" name="return" value="/admin/members?q={{.Q}}&dues={{.Dues}}">
   <span class="bulk-n"></span>
   <button class="mini">{{icon "check"}}Mark them paid</button>
@@ -214,11 +214,11 @@ body.addEventListener('submit',function(e){var f=e.target;if(!f.classList.contai
 <div class="title-row">
   <h1>Waivers</h1>
 </div>
-<div class="tools">
-  <nav class="filter year-pick" aria-label="Year">{{range .WaiverYears}}<a href="/admin/waivers?year={{.}}{{with $.Show}}&show={{.}}{{end}}"{{if eq . $.Year}} aria-current="page"{{end}}>{{.}}</a>{{end}}</nav>
+<div class="wrap-row tools">
+  <nav class="wrap-row filter year-pick" aria-label="Year">{{range .WaiverYears}}<a href="/admin/waivers?year={{.}}{{with $.Show}}&show={{.}}{{end}}"{{if eq . $.Year}} aria-current="page"{{end}}>{{.}}</a>{{end}}</nav>
   <a class="btn ghost" href="/admin/{{if eq .Show "rides"}}ride-{{end}}waivers.csv?year={{.Year}}">Export CSV</a>
 </div>
-<nav class="filter" aria-label="Show">
+<nav class="wrap-row filter" aria-label="Show">
   <a href="/admin/waivers?year={{.Year}}"{{if and (ne .Show "unsigned") (ne .Show "rides")}} aria-current="page"{{end}}>Signed ({{len .Waivers}})</a>
   <a href="/admin/waivers?year={{.Year}}&show=unsigned"{{if eq .Show "unsigned"}} aria-current="page"{{end}}>Not signed ({{len .Unsigned}})</a>
   <a href="/admin/waivers?year={{.Year}}&show=rides"{{if eq .Show "rides"}} aria-current="page"{{end}}>First rides ({{len .RideWaivers}})</a>

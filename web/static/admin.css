@@ -147,7 +147,7 @@ tr.off td{color:var(--muted)}
 .flash.warn::before{content:"i";background:var(--warn)}
 @keyframes shake{20%,60%{transform:translateX(-4px)}40%,80%{transform:translateX(4px)}}
 @media (prefers-reduced-motion:reduce){.flash.err,.flash.warn{animation:none}}
-.tools{display:flex;flex-wrap:wrap;justify-content:space-between;gap:.75rem;margin-top:1.25rem}
+.tools{justify-content:space-between;margin-top:1.25rem}
 .search{display:flex;flex:1;align-items:center;gap:.5rem;max-width:30rem}
 .search input{min-width:0}
 @media (max-width:700px){.tools .search{flex-basis:100%;max-width:none}}
@@ -158,7 +158,7 @@ tr.off td{color:var(--muted)}
 .footnote{margin-top:2rem}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (max-width:700px){.grid2{grid-template-columns:minmax(0,1fr)}}
-.filter{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:1rem}
+.filter{margin-top:1rem}
 .filter a{padding:.35rem .85rem;border:1px solid var(--field);border-radius:var(--pill);background:var(--card);text-decoration:none;font-size:.85rem;transition:border-color .15s,background-color .15s}
 .filter a:hover{border-color:var(--ink)}
 .filter a[aria-current]{border-color:var(--ink);background:var(--ink);color:#fff}
@@ -174,7 +174,7 @@ tr.off td{color:var(--muted)}
 .compose .wrap-row+.wrap-row{padding-top:.4rem;border-top:1px solid var(--line)}
 .crumb{margin:0 0 .6rem}
 .crumb a{text-decoration:none}
-.issue-actions{display:flex;flex-wrap:wrap;gap:.6rem;margin:1.1rem 0 .9rem}
+.issue-actions{margin:1.1rem 0 .9rem}
 .issue{display:grid;gap:1.25rem;margin-top:1.25rem}
 .issue h3{margin:0 0 .6rem;font-size:1rem;font-weight:500}
 .fields{display:grid;gap:.9rem}
@@ -234,8 +234,8 @@ details.more[open]{display:grid;gap:.6rem;padding-bottom:.8rem}
 .drop{display:block;padding:.75rem 1rem;border:1px dashed #b9afa5;background:var(--card);font-weight:300;cursor:pointer}
 .drop:hover,.dragging .drop,.drop.dragging{border-color:var(--red);background:#fbf3f2}
 .drop strong{font-weight:500}
-.strip{display:flex;flex-wrap:wrap;gap:1rem}
-.strip-add{display:flex;flex-wrap:wrap;align-items:stretch;gap:.6rem}
+
+.strip-add{align-items:stretch}
 .strip-add[hidden]{display:none}
 .gal-pick{width:min(46rem,calc(100vw - 2rem));max-height:85vh;padding:1.25rem 1.5rem;border:1px solid var(--line)}
 .gal-pick:not([open]){display:none}
@@ -250,7 +250,7 @@ details.more[open]{display:grid;gap:.6rem;padding-bottom:.8rem}
 .gal-pick-photo span{display:flex;gap:.35rem;align-items:flex-start}
 .gal-pick-photo input{width:auto;margin:.2rem 0 0}
 .gal-pick-foot{position:sticky;bottom:-1.25rem;display:flex;align-items:center;gap:.8rem;margin-top:1rem;padding:.8rem 0;background:var(--card)}
-.sent-actions{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem;padding-top:.4rem;border-top:1px solid var(--line)}
+.sent-actions{padding-top:.4rem;border-top:1px solid var(--line)}
 .sent-actions .sent-all{margin-right:auto}
 .sent-actions button:disabled{opacity:.45;cursor:default}
 .sent-msg{flex-basis:100%;margin:0}
@@ -269,7 +269,7 @@ details.more[open]{display:grid;gap:.6rem;padding-bottom:.8rem}
 .sent-who,.sent-note{margin:0}
 .sent-note{white-space:pre-line}
 .gal-tools{margin:1rem 0}
-.gal-tools-go{display:flex;flex-wrap:wrap;gap:.5rem;grid-column:1/-1}
+.gal-tools-go{grid-column:1/-1}
 .gal-upload{display:grid;gap:.7rem;margin:1rem 0}
 .gal-upload h2,.gal-upload p{margin:0}
 .gal-upload .gal-tools{margin:0}
@@ -332,11 +332,12 @@ form:not(:has(input[name=virtual]:checked)) .zwift-check{display:none}
 .album-list a{text-decoration:none}
 .album-info{display:grid;gap:.15rem;min-width:0}
 .album-tags:empty{display:none}
-.album-tags{display:flex;flex-wrap:wrap;gap:.3rem}
+
 .album-tag{display:inline-flex;align-items:center;padding:.05rem .45rem;border-radius:var(--pill);background:var(--tint-2);color:var(--muted);font-size:.72rem;font-weight:500}
 .album-tag .ic{width:.95em;height:.95em;margin-right:.3em}
 .album-tag.star{background:#f6e7bf;color:#7a5a0c}
-.album-acts{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:.4rem}
+
+.album-acts{justify-content:flex-end}
 .album-acts button,.album-acts .btn{display:inline-flex;align-items:center;padding:.5rem .75rem;font-size:.85rem}
 .album-acts .on{border-color:#c8961e;background:#f6e7bf;color:#5f4609}
 .album-acts .on .ic{fill:currentColor}
@@ -354,7 +355,7 @@ form:not(:has(input[name=virtual]:checked)) .zwift-check{display:none}
 .album-settings.is-featured{border-left-color:#c8961e}
 .album-settings.is-hidden{border-left-color:#b8b0a8;background:#f7f5f2}
 .album-settings .gal-tools{margin:0}
-.album-switches{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.6rem;padding-top:.8rem;border-top:1px solid var(--line)}
+.album-switches{justify-content:space-between;padding-top:.8rem;border-top:1px solid var(--line)}
 .album-switches p{display:flex;align-items:flex-start;gap:.1rem;margin:0}
 .album-switches p .ic{margin-top:.15rem}
 .album-delete{margin:2rem 0 1rem;padding:1rem 1.5rem}
@@ -369,11 +370,10 @@ form:not(:has(input[name=virtual]:checked)) .zwift-check{display:none}
 .album-status{color:var(--ok);align-self:center}
 .album-status:empty,.album-save[hidden],.none-ticked .ticked-acts{display:none}
 .album-tools{gap:.7rem;margin:1rem 0;padding:1rem 1.2rem}
-.album-tools .gal-tools-go{align-items:center}
 .album-tools button{padding:.55rem .85rem}
 .album-tools .wrap-row{gap:.4rem}
 .album-tools .wrap-row select,.album-tools .wrap-row input{width:auto;min-width:10rem;flex:none;padding:.5rem .6rem}
-.album-ticked{margin:.3rem 0 0;padding-top:.7rem;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:.8rem;align-items:center}
+.album-ticked{margin:.3rem 0 0;padding-top:.7rem;border-top:1px solid var(--line)}
 .album-ticked .tick-all{display:inline-flex;align-items:center;gap:.3rem;font-weight:500;cursor:pointer}
 .tick-all input{width:auto;margin:0}
 .album-grid .sent-photo{cursor:grab;background:var(--card)}
@@ -384,11 +384,11 @@ form:not(:has(input[name=virtual]:checked)) .zwift-check{display:none}
 .strip-tools button:disabled{opacity:.35;cursor:default}
 .strip-add{max-width:34rem}
 /* Calendar tab and ride pages */
-.cal-bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:1rem;margin-top:1.25rem}
+.cal-bar{justify-content:space-between;margin-top:1.25rem}
 .cal-nav{display:flex;align-items:center;gap:.75rem}
 .cal-nav h2{min-width:11rem;text-align:center}
 .cal-nav .btn{display:inline-grid;place-items:center;width:2.5rem;height:2.5rem;padding:0;font-size:1.4rem;line-height:1}
-.cal-key{display:flex;flex-wrap:wrap;align-items:center;gap:.3rem .9rem;margin:.9rem 0 0;color:var(--muted)}
+.cal-key{margin:.9rem 0 0;color:var(--muted)}
 .dot{display:inline-block;width:.7rem;height:.7rem;border-radius:50%;background:var(--ok)}
 .dot.partial{background:#4f7f99}.dot.open{background:#c98a1b}.dot.cancelled{background:#b9afa5}
 .cal{table-layout:fixed;min-width:760px}
@@ -417,7 +417,7 @@ form:not(:has(input[name=virtual]:checked)) .zwift-check{display:none}
 /* Newsletter blocks */
 .blocks{display:grid;gap:1.25rem}
 .blocks:empty{display:none}
-.block-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.5rem 1rem;padding-bottom:.6rem;border-bottom:1px solid var(--line)}
+.block-head{justify-content:space-between;padding-bottom:.6rem;border-bottom:1px solid var(--line)}
 .block-tools{display:flex;align-items:center;gap:.35rem}
 .block-tools .mini{padding:.3rem .55rem}
 .block-tools button:disabled{opacity:.35;cursor:default}
@@ -436,14 +436,14 @@ form:not(:has(input[name=virtual]:checked)) .zwift-check{display:none}
 @media (min-width:1100px){.mail-edit{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
 .mail-write{display:grid;gap:.5rem}
 .mail-write p{margin:0}
-.mail-bar{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem}
+
 .mail-bar button,.mail-photo{display:inline-block;padding:.42rem .7rem;font:500 .82rem/1 var(--font);cursor:pointer}
 .mail-photo{position:relative;border:1px solid #cfc6bd}
 .mail-photo input{position:absolute;width:1px;height:1px;opacity:0}
 .mail-photo:focus-within{outline:2px solid var(--red);outline-offset:2px}
 .mail-preview{display:grid;gap:.5rem}
 .mail-preview p{margin:0}
-.mail-preview-top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.5rem;font-size:.9rem}
+.mail-preview-top{justify-content:space-between;font-size:.9rem}
 .seg{display:inline-flex}
 .seg button{padding:.38rem .7rem;font-size:.8rem}
 .seg button+button{border-left:0}
@@ -474,7 +474,7 @@ form:not(:has(input[name=virtual]:checked)) .zwift-check{display:none}
    without boxes until it's pointed at or clicked, and each card's name and
    ↑ ↓ ✕ buttons show on hover or while editing it (always on touch screens).
    ＋ Add shows between cards on hover, and always at the very end. */
-.ed-mode{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem .9rem}
+
 .ed-cards{display:grid;gap:0;min-width:0;padding:.5rem 0}
 .page-editor .ed-cards textarea{min-height:0}
 .ed-card{position:relative;display:grid;grid-template-columns:minmax(0,1fr);gap:.5rem;min-width:0;padding:.55rem .75rem;border-left:3px solid transparent;background:var(--card)}
@@ -516,12 +516,12 @@ form:not(:has(input[name=virtual]:checked)) .zwift-check{display:none}
 .ed-photo .ed-field input{font-size:.85rem}
 .ed-status{margin:0}
 .ed-status:empty{display:none}
-.ed-row{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem .8rem}
-.ed-button{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem .6rem}
+
+
 .ed-card input.ed-btn-words{width:auto;min-width:9rem;field-sizing:content;padding:.6rem 1rem;border-color:var(--red);background:var(--red);color:#fff;font-weight:500}
 .ed-card input.ed-btn-words::placeholder{color:#f3d6d5}
 .ed-card:hover input.ed-btn-words,.ed-card input.ed-btn-words:focus{border-color:var(--ink);background:var(--red)}
-.ed-dest{display:flex;flex-wrap:wrap;align-items:center;flex:1 1 12rem;gap:.35rem;min-width:0;color:var(--muted);font-size:.82rem}
+.ed-dest{flex:1 1 12rem;min-width:0;color:var(--muted);font-size:.82rem}
 .ed-dest .ed-dest{flex:1 1 10rem}
 .ed-card .ed-dest select{flex:1 1 10rem;min-width:0;max-width:20rem}
 .ed-card .ed-dest input{flex:1 1 10rem;width:auto;min-width:0;max-width:20rem;padding:.3rem .45rem;border-color:var(--line);font-size:.85rem}
@@ -629,10 +629,10 @@ button:has(>.ic),.btn:has(>.ic){display:inline-flex;align-items:center;justify-c
 /* Home */
 .setup-warn{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin:0 0 1.5rem;padding:1rem 1.2rem;border:2px solid var(--red);background:#fbf3f2}
 .setup-warn p{margin:0;max-width:60ch}.setup-warn .btn{flex:none}
-.dash-title{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.8rem 1.5rem}
-.quick{display:flex;flex-wrap:wrap;gap:.5rem}.quick .btn{padding:.55rem .85rem}
+.dash-title{align-items:center;justify-content:space-between}
+.quick .btn{padding:.55rem .85rem}
 .intro{margin:1.5rem 0 0;border-left:3px solid var(--ink)}
-.intro p{margin:0}.intro-acts{display:flex;flex-wrap:wrap;gap:.6rem}.intro-acts form{margin:0}
+.intro p{margin:0}.intro-acts form{margin:0}
 .todo.nudge li{border-left-color:var(--warn)}
 .dash{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,22rem),1fr));gap:1rem;margin:2rem 0 0}
 .dash-card{gap:.9rem}.dash-card h3{margin:.3rem 0 0;font-size:.95rem;font-weight:500}
@@ -668,10 +668,10 @@ button:has(>.ic),.btn:has(>.ic){display:inline-flex;align-items:center;justify-c
 .guide{display:grid;gap:1rem}
 .guide h2.section{margin:2rem 0 0}
 .guide-lede{margin:0;max-width:70ch;color:var(--muted)}
-.guide-toc{display:flex;flex-wrap:wrap;gap:.4rem}
+
 .guide-toc a{padding:.25rem .75rem;border:1px solid var(--line);border-radius:2rem;background:var(--card);font-size:.85rem;text-decoration:none}
 .guide-toc a:hover{border-color:var(--red)}
-.guide-key{display:flex;flex-wrap:wrap;gap:.4rem 1.25rem;font-size:.85rem;color:var(--muted)}
+.guide-key{font-size:.85rem;color:var(--muted)}
 .guide-key span{display:inline-flex;align-items:center;gap:.5rem}
 .guide-key i{display:inline-block;width:28px;border-top:2px solid var(--ink)}
 .guide-key i.r{border-color:var(--red)}
@@ -737,7 +737,7 @@ button:has(>.ic),.btn:has(>.ic){display:inline-flex;align-items:center;justify-c
 @media (max-width:600px){.wk:nth-child(odd) .wk-day{visibility:hidden}}
 @media (max-width:400px){.wk-day{font-size:.66rem}}
 .stats-chart details .table-wrap{max-width:28rem}
-.tiles{display:flex;flex-wrap:wrap;gap:1rem;margin:0;padding:0;list-style:none}
+.tiles{align-items:stretch;gap:1rem;margin:0;padding:0;list-style:none}
 .tiles li{flex:1 1 9rem;padding:1rem 1.25rem;border:1px solid var(--line);background:var(--card);color:var(--muted)}
 .tiles strong{display:block;color:var(--ink);font-size:1.75rem;font-weight:500;line-height:1.2}
 .stats-pair{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:0 1.25rem;align-items:start}
@@ -748,20 +748,20 @@ button:has(>.ic),.btn:has(>.ic){display:inline-flex;align-items:center;justify-c
 /* The ride page: "What is it?" as a row of chips, Level as tickboxes, and the
    map of a pasted Strava event's route */
 .kinds,.levels{display:grid;gap:.5rem;padding:0}
-.kind-opts{display:flex;flex-wrap:wrap;gap:.4rem}
+
 .kind-opts label{display:block;font-weight:300}
 .kind-opts input{position:absolute;width:1px;height:1px;opacity:0}
 .kind-opts span{display:block;padding:.45rem .8rem;border:1px solid #cfc6bd;border-radius:var(--pill);background:var(--card);cursor:pointer}
 .kind-opts input:checked+span{border-color:var(--red);background:var(--red);color:#fff}
 .kind-opts input:focus-visible+span{outline:2px solid var(--red);outline-offset:2px}
-.level-opts{display:flex;flex-wrap:wrap;gap:.5rem 1.4rem}
+
 .level-opts .check{gap:.45rem}
 .lvl{display:inline-block;padding:.1rem .55rem;border-radius:var(--pill);background:var(--lc);color:#fff;font-size:.78rem;font-weight:500}
 .lvl-social{--lc:var(--ok)}.lvl-intermediate{--lc:#b45f06}.lvl-elite{--lc:#a3172d}
 .ride-only{display:grid;gap:1rem}
 .ride-only[hidden],.repeat-opts[hidden],.strava-preview[hidden]{display:none}
 .repeat-opts{display:grid;gap:.3rem;margin-top:-.5rem;padding:0 0 0 1.6rem}
-.strava-preview{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem 1rem;margin-top:-.5rem;padding:.6rem;border:1px solid var(--line);background:var(--paper)}
+.strava-preview{margin-top:-.5rem;padding:.6rem;border:1px solid var(--line);background:var(--paper)}
 .strava-preview .sp-map{flex:0 0 auto;line-height:0}
 .strava-preview img{width:min(260px,100%);aspect-ratio:2/1;object-fit:cover;border:1px solid var(--line)}
 .strava-preview .sp-text{display:grid;gap:.15rem;min-width:12rem;flex:1;font-size:.9rem}
@@ -774,7 +774,7 @@ th[aria-sort=descending] button.sort::after{content:" ↓";color:inherit}
 .pick-col{width:2rem}
 .pick-col input{width:auto;margin:0}
 .member-link{font-weight:500;color:var(--ink)}
-.bulk-bar{position:sticky;top:var(--bar-top,0);z-index:3;transition:top .25s ease;display:flex;flex-wrap:wrap;align-items:center;gap:.6rem 1rem;margin-top:1rem;padding:.6rem 1rem;border:1px solid var(--ink);background:var(--card);box-shadow:var(--shadow-pop)}
+.bulk-bar{position:sticky;top:var(--bar-top,0);z-index:3;transition:top .25s ease;margin-top:1rem;padding:.6rem 1rem;border:1px solid var(--ink);background:var(--card);box-shadow:var(--shadow-pop)}
 .bulk-bar[hidden]{display:none}
 .bulk-n{font-weight:500}
 .member-h{margin:1.4rem 0 .4rem;font-size:1rem}
@@ -809,7 +809,7 @@ tr.log-fail{background:#fdf2f1}
 .issue-sends{margin:0;font-size:.9rem}
 
 /* Email: Send an email and Automations */
-.allowance-pill{display:flex;flex-wrap:wrap;align-items:center;gap:.2rem .5rem;margin:0 0 0 auto;font-size:.85rem}
+.allowance-pill{margin:0 0 0 auto;font-size:.85rem}
 .allowance-pill .meter{display:inline-block;width:6rem}
 .compose.mail-form{margin-top:1rem}
 .mail-actions .test-to{display:flex;flex:1 1 18rem;gap:.5rem;min-width:0}
@@ -900,7 +900,7 @@ body.resizing iframe{pointer-events:none}
 .auto-row{--c:var(--ok);border:1px solid var(--line);border-left:6px solid var(--c);background:var(--card)}
 .auto-row.is-off{--c:var(--err)}
 .auto-row.is-manual{--c:#d4a20b}
-.auto-head{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem 1rem;padding:.65rem .9rem}
+.auto-head{padding:.65rem .9rem}
 .auto-open{display:grid;flex:1 1 16rem;justify-items:start;gap:.1rem;min-width:0;padding:.15rem 0;border:0;background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer}
 .auto-open:hover,.auto-open[disabled]{background:none;color:var(--ink);opacity:1}
 .auto-open strong{font-size:1rem;font-weight:500}
@@ -929,21 +929,21 @@ body.resizing iframe{pointer-events:none}
 .auto-body[hidden],.auto-pick[hidden]{display:none}
 .auto-pick{display:grid;gap:.75rem;padding:1rem;border-top:1px solid #efdca4;background:#fffbea}
 .auto-pick h3{margin:0;font-size:1rem;font-weight:500}
-.pick-tools{display:flex;flex-wrap:wrap;gap:.3rem 1.2rem;font-size:.85rem}
+.pick-tools{font-size:.85rem}
 .pick-list{background:var(--card)}
 .pick-list .tag svg{width:.9em;height:.9em;vertical-align:-.1em}
 .auto-fixed .auto-row{--c:var(--ok)}
 @media (max-width:800px){.auto-body{grid-template-columns:minmax(0,1fr)}}
 .pick-list input[type=checkbox]{flex:none;width:1.1rem;height:1.1rem;margin:0;accent-color:var(--red)}
 /* Treasurer tab (admin-treasurer.html) */
-.money-top{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem 1rem;margin-bottom:1rem}
+.money-top{margin-bottom:1rem}
 .money-top h1{margin-right:auto}
 .money-pick{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center}
 .money-pick select,.money-pick input{width:auto;padding:.45rem .6rem}
 .money-pick .inline-label{gap:.5rem}
 .money-total{margin:0;font-size:1.05rem}
 .money-total strong{font-weight:500}
-.money-acts{display:flex;flex-wrap:wrap;gap:.5rem}
+
 .money-acts .btn,.money-acts button{padding:.5rem .8rem}
 .money-form{margin-bottom:1rem;gap:.8rem}
 .money-add>summary.btn{display:none;list-style:none;margin-bottom:1rem}
@@ -958,14 +958,14 @@ body.resizing iframe{pointer-events:none}
 .money-in>span{position:absolute;left:.65rem;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none}
 .money-in input{padding-left:1.4rem}
 .money-amt{font-variant-numeric:tabular-nums}
-.money-has-receipt{display:flex;flex-wrap:wrap;align-items:center;gap:1rem}
+
 .receipt-link{display:inline-flex;align-items:center;gap:.2rem;font-size:.85rem}
 .receipt-link img{display:block;width:2.6rem;height:2.6rem;object-fit:cover;border:1px solid var(--line);border-radius:3px}
 .money-has-receipt .receipt-link img{width:4.5rem;height:4.5rem}
 .money-list td{vertical-align:middle}
 .money-dues{margin-bottom:1rem;gap:.5rem}
 .money-dues.off .money-big{color:var(--muted);text-decoration:line-through}
-.dues-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:1rem}
+.dues-head{justify-content:space-between;align-items:flex-start}
 .dues-head p{margin:0}
 .money-big{font-size:1.6rem;font-weight:500;line-height:1.3;font-variant-numeric:tabular-nums}
 .dues-where select{width:auto}
@@ -1090,7 +1090,8 @@ a.tag{text-decoration:none}
 a.tag:hover{border-color:var(--ink);color:var(--ink)}
 .dues-net{margin:.15rem 0 0;font-size:.9rem;font-variant-numeric:tabular-nums}
 .dues-net strong{font-weight:500}
-.dues-more{display:flex;flex-wrap:wrap;gap:.4rem 1.5rem}
+
+.dues-more{align-items:flex-start}
 .dues-more>details{flex:1 1 18rem;min-width:0}
 .fee-form{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,8.5rem),1fr));gap:.6rem;align-items:end;margin-top:.5rem}
 .fee-form button{padding:.55rem .8rem}
@@ -1115,10 +1116,10 @@ a.tag:hover{border-color:var(--ink);color:var(--ink)}
 .flash:not(.err):not(.warn){cursor:pointer}
 @media (prefers-reduced-motion:reduce){:target{animation:none}.is-busy::after{animation-duration:2s}}
 
-.auto-gone{display:flex;flex-wrap:wrap;gap:.5rem 1.25rem;margin:.75rem 0}
+.auto-gone{margin:.75rem 0}
 .auto-gone form{display:flex;align-items:center;gap:.5rem}
 /* ---- Treasurer → Requests ---- */
-.kind-pick{display:flex;flex-wrap:wrap;gap:.5rem}
+
 .kind-pick label{position:relative;cursor:pointer}
 .kind-pick input{position:absolute;opacity:0;width:1px;height:1px}
 .kind-pick span{display:inline-flex;align-items:center;gap:.45rem;padding:.55rem 1rem;border:1px solid var(--field);border-radius:var(--pill);background:var(--card);font-size:.9rem;transition:border-color .15s,background-color .15s,color .15s}
@@ -1129,15 +1130,15 @@ a.tag:hover{border-color:var(--ink);color:var(--ink)}
 .req-form textarea{resize:vertical;min-height:2.6rem}
 .req{gap:.8rem;margin-bottom:1rem;border-left:4px solid var(--line)}
 .req.mine{border-left-color:var(--warn)}
-.req-head{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:.5rem 1rem}
+.req-head{align-items:flex-start;justify-content:space-between}
 .req-what{min-width:0}
 .req-what .tag{margin:0 0 .35rem}
 .req-what h3{margin:0;font-size:1.1rem;font-weight:500}
 .req-what p,.req-head .money-big{margin:0}
 .req-note{margin:0;white-space:pre-line}
-.req-foot{display:flex;flex-wrap:wrap;align-items:center;gap:.8rem 1.2rem}
+
 .req-foot .receipt-link img{width:3.5rem;height:3.5rem}
-.req-steps{display:flex;flex-wrap:wrap;gap:.5rem;margin:0;padding:0;list-style:none}
+.req-steps{margin:0;padding:0;list-style:none}
 .step{display:inline-flex;align-items:center;gap:.4rem;padding:.3rem .75rem .3rem .4rem;border:1px solid var(--line);border-radius:var(--pill);font-size:.85rem}
 .step::before{content:"";display:grid;place-items:center;width:1.3rem;height:1.3rem;border-radius:50%;font-size:.75rem;font-weight:500;line-height:1}
 .step.wait::before{content:"…";border:1px dashed var(--field);color:var(--muted)}
@@ -1201,7 +1202,7 @@ a.tag:hover{border-color:var(--ink);color:var(--ink)}
 .req-date>summary{display:inline-flex;align-items:center;gap:.4rem;list-style:none;cursor:pointer;font-size:.9rem;color:var(--muted)}
 .req-date>summary::-webkit-details-marker{display:none}
 .req-date[open]>summary{display:none}
-.req-dup{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem;margin:0}
+.req-dup{margin:0}
 .req-form .money-go{justify-self:stretch;display:inline-flex;justify-content:center;padding:.9rem}
 .req-cat select{width:auto;max-width:100%;padding:.4rem .6rem;font-size:.85rem}
 .pay-list{gap:0;margin:0 0 1rem;padding:.4rem 1.2rem;list-style:none}
@@ -1289,8 +1290,9 @@ a.tag:hover{border-color:var(--ink);color:var(--ink)}
 .kit-add>summary::-webkit-details-marker{display:none}
 .kit-prices{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
 .kit-photo-row img{width:80px;height:80px;border-radius:var(--radius);object-fit:contain;background:#f6f3ef}
-.kit-sums{display:flex;flex-wrap:wrap;gap:.4rem 1.6rem;margin:0}
-.kit-tally{display:flex;flex-wrap:wrap;gap:1rem 2rem}
+.kit-sums{margin:0}
+.kit-tally{align-items:flex-start;gap:1rem 2rem}
+
 .kit-tally h3{margin:0 0 .3rem;font-size:1rem}
 .kit-tally td,.kit-tally th{text-align:center;min-width:2.6rem}
 .kit-next summary{width:max-content;list-style:none}
@@ -1300,7 +1302,7 @@ a.tag:hover{border-color:var(--ink);color:var(--ink)}
 
 /* Rides → Loaner bikes */
 .loaner-bikes{display:grid;gap:.7rem}
-.loaner-bike-row{display:flex;flex-wrap:wrap;align-items:flex-end;gap:.6rem 1rem;margin:0}
+.loaner-bike-row{align-items:flex-end;margin:0}
 .loaner-bike-row label{margin:0}
 .loaner-bike-row label:not(.grow):not(.check) input{width:8rem}
 .loaner-bike-row .grow{flex:1 1 16rem}
@@ -1315,18 +1317,18 @@ a.tag:hover{border-color:var(--ink);color:var(--ink)}
 .video-slot h3{margin:0}
 .video-slot>p{margin:.2rem 0 .6rem}
 .video-preview.tall{aspect-ratio:9/16;max-width:16rem}
-.video-upload{display:flex;flex-wrap:wrap;align-items:flex-end;gap:.6rem 1rem;margin:.6rem 0}
+.video-upload{align-items:flex-end;margin:.6rem 0}
 .video-upload label{margin:0}
 .video-upload .meter{flex-basis:100%;position:static}
 
 /* Email → RSVPs (admin-rsvp.html) */
 .rsvp-list{display:grid;gap:.6rem;margin:0 0 1rem;padding:0;list-style:none}
-.rsvp-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.6rem 1.2rem;margin:0}
+.rsvp-row{justify-content:space-between;margin:0}
 .rsvp-row.past{opacity:.7}
 .rsvp-row-main{display:grid;gap:.1rem;color:inherit;text-decoration:none}
 .rsvp-row-main:hover strong{text-decoration:underline}
-.rsvp-row-sums{display:flex;flex-wrap:wrap;align-items:center;gap:.3rem 1rem}
-.rsvp-acts{display:flex;flex-wrap:wrap;gap:.6rem}
+
+
 .rsvp-sums{margin:0 0 1rem}
 .rsvp-table td{vertical-align:top}
 .rsvp-table tr.rsvp-no td{color:var(--muted,#6b625c)}
@@ -1339,7 +1341,7 @@ a.tag:hover{border-color:var(--ink);color:var(--ink)}
 /* Email → Send an alert: the form and a phone notification beside it */
 .alert-edit{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,22rem);gap:1.25rem;align-items:start;margin-bottom:1.25rem}
 @media (max-width:800px){.alert-edit{grid-template-columns:minmax(0,1fr)}}
-.alert-send{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem 1rem;margin:0}
+.alert-send{margin:0}
 .alert-preview{margin:0;padding:1.25rem;border-radius:var(--radius-lg);background:linear-gradient(160deg,#2b3440,#11161c)}
 .note-card{display:flex;gap:.7rem;padding:.75rem .85rem;border-radius:1.1rem;background:rgba(245,245,247,.92);color:#111;box-shadow:0 4px 16px rgba(0,0,0,.25)}
 .note-card img{flex:none;width:2.5rem;height:2.5rem;border-radius:.6rem}
@@ -1408,7 +1410,7 @@ body.app-home{--app-card:rgba(34,30,28,.78);--app-card-press:rgba(52,46,43,.9);-
 .app-ic{display:grid;place-items:center;width:4rem;height:4rem;border-radius:16px;background:var(--g);color:var(--paper);box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 2px 6px rgba(0,0,0,.35)}
 .app-ic .ic{width:2.25rem;height:2.25rem;margin:0;stroke-width:1.7}
 .app-tile .badge{position:absolute;top:.4rem;right:.4rem;margin:0;min-width:1.5rem;height:1.5rem;background:var(--alert);font-size:.8rem;box-shadow:0 0 0 2px rgba(34,30,28,.9)}
-.app-foot{display:flex;justify-content:center;flex-wrap:wrap;gap:.4rem 1.4rem;margin-top:2.2rem;font-size:.85rem}
+.app-foot{justify-content:center;margin-top:2.2rem;font-size:.85rem}
 .app-foot a,.app-home .app-foot .link{display:inline-flex;align-items:center;color:var(--app-dim);text-decoration:none;background:none;border:0;box-shadow:none;padding:0;font:inherit;font-weight:300}
 .app-foot form{margin:0}
 .app-home .flash{margin-top:1rem}

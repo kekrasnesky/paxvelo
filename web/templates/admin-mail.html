@@ -10,7 +10,7 @@
   <div><dt>Last 7 days</dt><dd>{{.Week}}</dd></div>
   <div{{if .WeekFails}} class="bad"{{end}}><dt><a href="/admin/email/log?result=failed">Failed, last 7 days</a></dt><dd><a href="/admin/email/log?result=failed">{{.WeekFails}}</a></dd></div>
 </dl>
-<form class="tools log-filter" method="get" action="/admin/email/log">
+<form class="wrap-row tools log-filter" method="get" action="/admin/email/log">
   <div class="search"><input type="search" name="q" value="{{.Q}}" placeholder="Search address, name, or subject" aria-label="Search the sent log">
   <select name="kind" aria-label="Kind of email"><option value="">Every kind</option>{{$k := .Kind}}{{range .Kinds}}<option{{if eq . $k}} selected{{end}}>{{.}}</option>{{end}}</select>
   <label class="check"><input type="checkbox" name="result" value="failed"{{if eq .Result "failed"}} checked{{end}}> Failed only</label>
@@ -37,7 +37,7 @@
 {{define "email"}}{{template "head" .}}
 {{if not .Live}}<p class="flash warn">Test mode: emails go to the server log.</p>{{end}}
 <div class="title-row"><h1>Send an email</h1>
-  {{if and .Live (gt .Allowance.Limit 0)}}{{with .Allowance}}<p class="allowance-pill" title="Emails sent since midnight UTC"><strong>{{.Left}} emails left today</strong> <span class="muted">· {{.Sent}} of {{.Limit}} sent, starts over {{.Resets}}</span> <span class="meter{{if ge .Percent 80}} high{{end}}" role="img" aria-label="{{.Sent}} of {{.Limit}} emails sent today"><span style="width:{{.Percent}}%"></span></span></p>{{end}}{{end}}
+  {{if and .Live (gt .Allowance.Limit 0)}}{{with .Allowance}}<p class="wrap-row allowance-pill" title="Emails sent since midnight UTC"><strong>{{.Left}} emails left today</strong> <span class="muted">· {{.Sent}} of {{.Limit}} sent, starts over {{.Resets}}</span> <span class="meter{{if ge .Percent 80}} high{{end}}" role="img" aria-label="{{.Sent}} of {{.Limit}} emails sent today"><span style="width:{{.Percent}}%"></span></span></p>{{end}}{{end}}
 </div>
 <form class="card compose mail-form" method="post">
   <label>Subject <input name="subject" maxlength="200" value="{{.Draft.Subject}}" placeholder="What it’s about"></label>
@@ -185,7 +185,7 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
 {{template "mail-cards"}}
 {{end}}
 
-{{define "mail-bar"}}<div class="mail-bar" role="toolbar" aria-label="Formatting">
+{{define "mail-bar"}}<div class="wrap-row mail-bar" role="toolbar" aria-label="Formatting">
   <button type="button" class="ghost" data-do="bold" title="Bold (Ctrl+B)"><strong>B</strong></button>
   <button type="button" class="ghost" data-do="italic" title="Italics (Ctrl+I)"><em>I</em></button>
   <button type="button" class="ghost" data-do="link" title="Link (Ctrl+K)">Link</button>
@@ -198,7 +198,7 @@ document.querySelectorAll('.mail-edit').forEach(function(e){initMail(e.closest('
 </div>{{end}}
 
 {{define "mail-preview"}}<div class="mail-preview">
-  <div class="mail-preview-top"><strong>Preview</strong>
+  <div class="wrap-row mail-preview-top"><strong>Preview</strong>
     <span class="seg"><button type="button" class="ghost" data-w="600" aria-pressed="true">Computer</button><button type="button" class="ghost" data-w="375" aria-pressed="false">Phone</button></span></div>
   <iframe title="Email preview" sandbox="allow-same-origin"></iframe>
 </div>{{end}}

@@ -66,9 +66,9 @@
     <div class="album-info">
       <a href="/admin/gallery/{{.ID}}" draggable="false"><strong>{{.Title}}</strong></a>
       <span class="muted small">{{with .DateLabel}}{{.}} · {{end}}{{.Count}} {{if eq .Count 1}}photo{{else}}photos{{end}}</span>
-      <span class="album-tags">{{if .Featured}}<span class="album-tag star">{{icon "star"}}Featured</span>{{end}}{{if .Hidden}}<span class="album-tag off">{{icon "eye-off"}}Hidden from the website</span>{{else if not .Count}}<span class="album-tag off">Not on the website until it has photos</span>{{end}}</span>
+      <span class="wrap-row album-tags">{{if .Featured}}<span class="album-tag star">{{icon "star"}}Featured</span>{{end}}{{if .Hidden}}<span class="album-tag off">{{icon "eye-off"}}Hidden from the website</span>{{else if not .Count}}<span class="album-tag off">Not on the website until it has photos</span>{{end}}</span>
     </div>
-    <span class="album-acts">
+    <span class="wrap-row album-acts">
       {{if .Featured}}<button class="ghost on" name="do" value="unfeature:{{.ID}}" aria-pressed="true" title="Stop featuring this album">{{icon "star"}}<span>Featured</span></button>{{else}}<button class="ghost" name="do" value="feature:{{.ID}}" aria-pressed="false" title="Show this album first, and big, on the gallery page">{{icon "star"}}<span>Feature</span></button>{{end}}
       {{if .Hidden}}<button class="ghost" name="do" value="show:{{.ID}}" title="Put it back on the website">{{icon "eye"}}<span>Show</span></button>{{else}}<button class="ghost" name="do" value="hide:{{.ID}}" title="Take it off the website; nothing is deleted">{{icon "eye-off"}}<span>Hide</span></button>{{end}}
       <a class="btn ghost" href="/admin/gallery/{{.ID}}">{{icon "pencil"}}<span>Edit</span></a>
@@ -89,12 +89,12 @@
     <label class="field">Date (optional) <input type="date" name="date" value="{{$al.Date}}"></label>
     <div><button name="do" value="rename">{{icon "check"}}Save</button></div>
   </form>
-  <form method="post" action="/admin/gallery/{{$al.ID}}" class="album-switches">
+  <form method="post" action="/admin/gallery/{{$al.ID}}" class="wrap-row album-switches">
     <p class="small">{{if $al.Hidden}}{{icon "eye-off"}}<span><strong>Hidden from the website.</strong></span>
     {{else if $al.Featured}}{{icon "star"}}<span><strong>Featured:</strong> it shows first, and big, on the gallery page.{{if not $al.Photos}} It will show once it has photos.{{end}}</span>
     {{else if $al.Photos}}{{icon "globe"}}<span><strong>On the website</strong>, in its place in the <a href="/admin/gallery">album list</a>.</span>
     {{else}}{{icon "globe"}}<span>It goes on the website once it has photos.</span>{{end}}</p>
-    <span class="album-acts">
+    <span class="wrap-row album-acts">
       {{if $al.Featured}}<button class="ghost on" name="do" value="unfeature" aria-pressed="true">{{icon "star"}}<span>Stop featuring</span></button>{{else}}<button class="ghost" name="do" value="feature">{{icon "star"}}<span>Feature it</span></button>{{end}}
       {{if $al.Hidden}}<button class="ghost" name="do" value="show">{{icon "eye"}}<span>Show on the website</span></button>{{else}}<button class="ghost" name="do" value="hide">{{icon "eye-off"}}<span>Hide from the website</span></button>{{end}}
     </span>
@@ -112,22 +112,22 @@
 {{if $al.Photos}}<form method="post" action="/admin/gallery/{{$al.ID}}" class="album-photos">
   <input type="hidden" name="order" value="">
   <div class="card album-tools">
-    <div class="gal-tools-go">
+    <div class="wrap-row gal-tools-go">
       <button name="do" value="save" class="album-save">{{icon "check"}}Save captions and order</button>
       <span class="muted small">Sort:</span>
       <button class="ghost" name="do" value="sort-old">Oldest first</button>
       <button class="ghost" name="do" value="sort-new">Newest first</button>
       <button class="ghost" name="do" value="sort-by">By photographer</button>
     </div>
-    <p class="muted small album-ticked"><span class="album-count">With the ticked photos:</span> <label class="tick-all"><input type="checkbox"> Tick all</label></p>
-    <div class="gal-tools-go ticked-acts">
+    <p class="muted small wrap-row album-ticked"><span class="album-count">With the ticked photos:</span> <label class="tick-all"><input type="checkbox"> Tick all</label></p>
+    <div class="wrap-row gal-tools-go ticked-acts">
       <button class="ghost" name="do" value="first">Move to start</button>
       <button class="ghost" name="do" value="last">Move to end</button>
       {{if $.Albums}}<span class="wrap-row"><select name="to" aria-label="Album to move them to">{{range $.Albums}}<option value="{{.ID}}">{{.Title}}</option>{{end}}</select><button class="ghost" name="do" value="move">Move to album</button></span>{{end}}
       <span class="wrap-row"><input name="by" maxlength="100" placeholder="Photographer’s name" aria-label="Photographer’s name"><button class="ghost" name="do" value="credit">Set credit</button></span>
       <button class="ghost danger" name="do" value="remove" onclick="return confirm('Take the ticked photos out of the gallery? Photos members shared can be approved again from Photos to review.')">{{icon "trash"}}Take out</button>
     </div>
-    <div class="gal-tools-go ticked-acts" id="to-newsletter">{{if $.Issues}}<span class="wrap-row"><select name="issue" aria-label="Newsletter issue">{{range $.Issues}}<option value="{{.ID}}">{{.Label}}{{if not .IsPublished}} (draft){{end}}</option>{{end}}</select><button class="ghost" name="do" value="newsletter">{{icon "plus"}}Add to newsletter</button></span>
+    <div class="wrap-row gal-tools-go ticked-acts" id="to-newsletter">{{if $.Issues}}<span class="wrap-row"><select name="issue" aria-label="Newsletter issue">{{range $.Issues}}<option value="{{.ID}}">{{.Label}}{{if not .IsPublished}} (draft){{end}}</option>{{end}}</select><button class="ghost" name="do" value="newsletter">{{icon "plus"}}Add to newsletter</button></span>
       {{else}}<a class="small" href="/admin/newsletter">Start a newsletter issue</a>{{end}}</div>
   </div>
   <div class="sent-grid album-grid">{{range $al.Photos}}<div class="sent-photo{{if $al.Ticked .ID}} on{{end}}" draggable="true" data-id="{{.ID}}" data-framed>
@@ -302,7 +302,7 @@
     <input name="caption-{{.ID}}" value="{{.Caption}}" maxlength="200" placeholder="Caption (optional)" aria-label="Caption">{{end}}
     <span class="small"><a class="sent-view" href="/admin/submitted/{{.ID}}/photo" target="_blank" rel="noopener">View larger</a> · <a href="/admin/submitted/{{.ID}}/photo?download=1">Download</a></span>
   </div>{{end}}</div>
-  {{if $b.Waiting}}{{$to := or $b.AlbumName "a new album"}}{{range .Albums}}{{if eq .ID $b.Album}}{{$to = .Title}}{{end}}{{end}}<div class="sent-actions">
+  {{if $b.Waiting}}{{$to := or $b.AlbumName "a new album"}}{{range .Albums}}{{if eq .ID $b.Album}}{{$to = .Title}}{{end}}{{end}}<div class="wrap-row sent-actions">
     {{if gt $b.Waiting 1}}<label class="sent-all check"><input type="checkbox" checked> All {{$b.Waiting}}</label>{{end}}
     <button name="do" value="approve">{{icon "check"}}<span>Approve <span class="sent-n">{{$b.Waiting}} {{if eq $b.Waiting 1}}photo{{else}}photos{{end}}</span> into <span class="sent-to">{{$to}}</span></span></button>
     <button class="ghost danger" name="do" value="reject" formnovalidate>{{icon "trash"}}<span>Reject <span class="sent-n">{{$b.Waiting}} {{if eq $b.Waiting 1}}photo{{else}}photos{{end}}</span></span></button>

@@ -6,7 +6,7 @@
   <a class="btn" href="/admin/admins">Go to Admins</a>
 </div>{{end}}
 <div class="title-row dash-title"><h1>Home</h1>
-  <nav class="quick" aria-label="Quick actions">
+  <nav class="wrap-row quick" aria-label="Quick actions">
     <a class="btn ghost" href="/admin/members#add">{{icon "plus"}}Add member</a>
     <a class="btn ghost" href="/admin/members?dues=unpaid">{{icon "check"}}Mark paid</a>
     <a class="btn ghost" href="/admin/email">{{icon "mail"}}Email members</a>
@@ -15,7 +15,7 @@
 </div>
 {{if .Intro}}<section class="card intro">
   <h2>Welcome to the admin portal</h2>
-  <div class="intro-acts"><a class="btn" href="/admin/guide">How the site works</a>
+  <div class="wrap-row intro-acts"><a class="btn" href="/admin/guide">How the site works</a>
   <form method="post" action="/admin/intro"><button class="ghost">Got it</button></form></div>
 </section>{{end}}
 
@@ -84,7 +84,7 @@
 </section>
 
 <h2 class="section">{{.WeekLabel}}</h2>
-<ul class="tiles">
+<ul class="wrap-row tiles">
   <li><strong>{{.Shown.Visitors}}</strong> {{if eq .Shown.Visitors 1}}visitor{{else}}visitors{{end}}</li>
   <li><strong>{{.Shown.Views}}</strong> page {{if eq .Shown.Views 1}}view{{else}}views{{end}}</li>
   <li><strong>{{.PhonePct}}%</strong> on a phone</li>
@@ -129,8 +129,8 @@
 <div class="guide">
 <div class="title-row"><h1>How the site works</h1></div>
 <p class="guide-lede">Who uses the website, what they do there, which emails go out, and where the rides come from. Share it with new board members: it’s the same for every admin.</p>
-<nav class="guide-toc" aria-label="On this page"><a href="#g-map">The big picture</a><a href="#g-signup">A new member signs up</a><a href="#g-emails">Emails</a><a href="#g-rides">Rides</a><a href="#g-photos">Photos</a><a href="#g-people">Who does what</a></nav>
-<div class="guide-key"><span><i></i>something happens on the site</span><span><i class="r"></i>an email goes out</span><span><i class="n"></i>what the site remembers</span></div>
+<nav class="wrap-row guide-toc" aria-label="On this page"><a href="#g-map">The big picture</a><a href="#g-signup">A new member signs up</a><a href="#g-emails">Emails</a><a href="#g-rides">Rides</a><a href="#g-photos">Photos</a><a href="#g-people">Who does what</a></nav>
+<div class="wrap-row guide-key"><span><i></i>something happens on the site</span><span><i class="r"></i>an email goes out</span><span><i class="n"></i>what the site remembers</span></div>
 
 <h2 class="section" id="g-map">The big picture</h2>
 <figure class="board">

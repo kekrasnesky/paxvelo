@@ -60,8 +60,8 @@
     {{if $k.Orders}}<a class="btn ghost mini" href="/admin/kit/orders.csv?round={{$k.Round}}">{{icon "download"}}Spreadsheet</a>{{end}}
   </div>
   {{if $k.Orders}}
-  <p class="kit-sums"><span><strong>{{len $k.Orders}}</strong> <span class="muted">{{if eq (len $k.Orders) 1}}order{{else}}orders{{end}}</span></span> <span><strong>{{$k.Paid}}</strong> <span class="muted">paid</span></span> <span><strong>{{money $k.PaidTotal}}</strong> <span class="muted">of {{money $k.Total}} in</span></span></p>
-  <div class="kit-tally">{{range $k.Tally}}<div><h3>{{.Item}} <span class="muted small">{{.Total}}</span></h3>
+  <p class="wrap-row kit-sums"><span><strong>{{len $k.Orders}}</strong> <span class="muted">{{if eq (len $k.Orders) 1}}order{{else}}orders{{end}}</span></span> <span><strong>{{$k.Paid}}</strong> <span class="muted">paid</span></span> <span><strong>{{money $k.PaidTotal}}</strong> <span class="muted">of {{money $k.Total}} in</span></span></p>
+  <div class="wrap-row kit-tally">{{range $k.Tally}}<div><h3>{{.Item}} <span class="muted small">{{.Total}}</span></h3>
     <table class="tight"><thead><tr>{{range .Sizes}}<th>{{.Size}}</th>{{end}}</tr></thead>
     <tbody><tr>{{range .Sizes}}<td title="{{.Paid}} paid">{{.Qty}}{{if lt .Paid .Qty}} <span class="muted small">({{.Paid}})</span>{{end}}</td>{{end}}</tr></tbody></table></div>{{end}}</div>
   <div class="table-wrap"><table>

@@ -7,7 +7,7 @@ editor for one, and the easy editor every email box uses (mail-cards). */}}
 <div class="title-row"><h1>Automations</h1><a class="btn auto-new" href="/admin/email/auto/new">{{icon "plus"}}New automated email</a></div>
 
 <div class="auto-list">{{range $v.Autos}}{{template "auto-row" .}}{{end}}{{range $v.Manual}}{{template "auto-row" .}}{{end}}</div>
-{{if $v.Gone}}<div class="auto-gone">{{range $v.Gone}}<form method="post" action="/admin/email/auto/{{.Key}}/restore"><span class="muted">{{.Name}} (deleted)</span> <button class="link">{{icon "undo"}}Put back</button></form>{{end}}</div>{{end}}
+{{if $v.Gone}}<div class="wrap-row auto-gone">{{range $v.Gone}}<form method="post" action="/admin/email/auto/{{.Key}}/restore"><span class="muted">{{.Name}} (deleted)</span> <button class="link">{{icon "undo"}}Put back</button></form>{{end}}</div>{{end}}
 
 <details class="auto-fixed">
   <summary><h2>Built-in notices</h2> <span class="auto-count">{{len $v.Builtin}}</span></summary>
@@ -60,7 +60,7 @@ document.querySelectorAll('form.auto-pause').forEach(function(f){f.addEventListe
 </script>{{end}}
 
 {{define "auto-row"}}<section class="auto-row {{if .Manual}}is-manual{{else if .Paused}}is-off{{else}}is-on{{end}}" id="a-{{.Key}}" data-key="{{.Key}}">
-  <div class="auto-head">
+  <div class="wrap-row auto-head">
     <button type="button" class="auto-open" aria-expanded="false"{{if .Fixed}} disabled{{end}}>
       <strong>{{.Name}}</strong><span>{{.When}}</span>
     </button>
@@ -75,7 +75,7 @@ document.querySelectorAll('form.auto-pause').forEach(function(f){f.addEventListe
     <input type="hidden" name="return" value="/admin/email/auto">
     <div class="pick-top"><h3>Who gets the {{.Name}}?</h3>
       <input type="search" class="pick-search" placeholder="Search names or emails" aria-label="Search members"></div>
-    <div class="pick-tools"><button type="button" class="link" data-pick="new">Everyone not sent yet</button><button type="button" class="link" data-pick="none">Clear</button></div>
+    <div class="wrap-row pick-tools"><button type="button" class="link" data-pick="new">Everyone not sent yet</button><button type="button" class="link" data-pick="none">Clear</button></div>
     <ul class="pick-list">{{range .Movers}}<li><label><input type="checkbox" name="id" value="{{.ID}}"{{if .Sent}} data-sent{{end}}{{if not .Paid}} data-unpaid{{end}}>
       <span class="pick-name">{{.Name}} <span class="muted small">{{.Email}}</span></span>
       {{if .Sent}}<span class="tag" title="Already sent">{{icon "check"}}Sent</span>{{end}}{{if not .Paid}}<span class="tag tag-warn">Not paid</span>{{end}}</label></li>
@@ -232,7 +232,7 @@ function update(){ta.value=out();ta.dispatchEvent(new Event('input',{bubbles:tru
 function edit(b){b.raw=null;update()}
 
 // ---- The bar: bold, italics, link, and pieces, for the box being typed in ----
-var host=el('div',{'class':'ed-cards mail-cards'}),bar=el('div',{'class':'mail-bar mail-fmt',role:'toolbar','aria-label':'Formatting'});
+var host=el('div',{'class':'ed-cards mail-cards'}),bar=el('div',{'class':'wrap-row mail-bar mail-fmt',role:'toolbar','aria-label':'Formatting'});
 function keep(b){b.addEventListener('mousedown',function(e){e.preventDefault()});return b}
 bar.appendChild(keep(el('button',{type:'button','class':'ghost',title:'Bold (Ctrl+B)',html:'<strong>B</strong>',onclick:function(){if(back())document.execCommand('bold')}})));
 bar.appendChild(keep(el('button',{type:'button','class':'ghost',title:'Italics (Ctrl+I)',html:'<em>I</em>',onclick:function(){if(back())document.execCommand('italic')}})));
@@ -314,10 +314,10 @@ var BODY={
     b._el=e;b._focus=function(w){caret(e,w==='end')};c.appendChild(e)},
   h2:function(b,c){var t=inp(b.text,function(v){b.text=v;edit(b)},{'class':'ed-h2-input','aria-label':'Heading',placeholder:'Heading'});b._focus=function(){t.focus()};c.appendChild(t)},
   button:function(b,c){var w=inp(b.label,function(v){b.label=v;edit(b)},{'class':'ed-btn-words','aria-label':'Words on the button',placeholder:'Words on the button'});
-    b._focus=function(){w.focus()};c.appendChild(el('div',{'class':'ed-button'},[w,dest(b.href,function(h){b.href=h;edit(b)})]))},
+    b._focus=function(){w.focus()};c.appendChild(el('div',{'class':'wrap-row ed-button'},[w,dest(b.href,function(h){b.href=h;edit(b)})]))},
   photo:function(b,c){var img=el('img',{src:b.url,alt:''}),msg=el('p',{'class':'ed-status small',role:'status'});
     c.appendChild(el('figure',{'class':'ed-photo'},[img,el('label',{'class':'ed-field'},['Describe it for people who can’t see it',inp(b.alt,function(v){b.alt=v;edit(b)})]),
-      el('div',{'class':'ed-row'},[pick('Replace the photo',function(u){b.url=u;img.src=u;edit(b)},msg)]),msg]))},
+      el('div',{'class':'wrap-row ed-row'},[pick('Replace the photo',function(u){b.url=u;img.src=u;edit(b)},msg)]),msg]))},
   list:function(b,c,i){var ul=el('ul',{'class':'ed-items'});b._els=[];
     b.items.forEach(function(x,k){var e=rich(x,function(v){b.items[k]=v;edit(b)},{label:'List item',empty:'List item',
         split:function(tail){b.items.splice(k+1,0,tail);edit(b);render(b);var n=b._els[k+1];if(n)caret(n);return n},
@@ -338,7 +338,7 @@ function dest(href,set){var s=el('select',{'aria-label':'Where it goes'}),u=el('
   function web(x){return /^[a-z]+:|^\{/i.test(x)?x:(x.indexOf('@')>0?'mailto:':'https://')+x}
   s.addEventListener('change',function(){u.hidden=!!s.value;if(s.value)set(s.value);else{u.focus();if(u.value.trim())set(web(u.value.trim()))}});
   u.addEventListener('input',function(){if(u.value.trim())set(web(u.value.trim()))});
-  return el('span',{'class':'ed-dest'},['Goes to ',s,u])}
+  return el('span',{'class':'wrap-row ed-dest'},['Goes to ',s,u])}
 function pick(label,done,msg){var f=el('input',{type:'file',accept:'image/jpeg,image/png,image/webp'});
   f.addEventListener('change',function(){var file=f.files[0];f.value='';if(file)upload(file,done,msg)});return el('label',{'class':'ghost mail-photo'},[label,f])}
 function upload(file,done,msg){var fd=new FormData();fd.append('photo',file);function say(t,bad){if(msg){msg.textContent=t;msg.classList.toggle('err-text',!!bad)}else if(bad)alert(t)}
@@ -367,7 +367,7 @@ function toast(msg,undo){toastEl.textContent=msg+' ';toastEl.appendChild(el('but
   toastEl.hidden=false;clearTimeout(toastT);toastT=setTimeout(function(){toastEl.hidden=true},12000)}
 
 // ---- Easy editor or text ----
-var modeBar=el('div',{'class':'ed-mode'},[el('span',{'class':'seg',role:'group','aria-label':'How to edit'},[
+var modeBar=el('div',{'class':'wrap-row ed-mode'},[el('span',{'class':'seg',role:'group','aria-label':'How to edit'},[
   el('button',{type:'button','class':'ghost','data-mode':'cards',text:'Easy editor'}),el('button',{type:'button','class':'ghost','data-mode':'text',text:'Edit as text'})])]);
 modeBar.querySelectorAll('[data-mode]').forEach(function(b){b.addEventListener('click',function(){setMode(b.dataset.mode)})});
 write.insertBefore(modeBar,textEd);write.insertBefore(bar,textEd);write.insertBefore(host,textEd);
@@ -395,7 +395,7 @@ document.querySelectorAll('form.mail-form').forEach(mailCards);
     <option value="other"{{if eq $v.Pick "other"}} selected{{end}}>Another page…</option>
   </select></label>
   <label class="alert-path"{{if ne $v.Pick "other"}} hidden{{end}}>Page <input name="path" maxlength="300" value="{{$v.Path}}" placeholder="/membership" pattern="/.*" title="A page on this site, starting with /"></label>
-  <p class="alert-send"><button{{if or (not $v.News) (not $v.Left)}} disabled{{end}}>{{icon "bell"}}Send to {{$v.News}} {{if eq $v.News 1}}phone{{else}}phones{{end}}</button>
+  <p class="wrap-row alert-send"><button{{if or (not $v.News) (not $v.Left)}} disabled{{end}}>{{icon "bell"}}Send to {{$v.News}} {{if eq $v.News 1}}phone{{else}}phones{{end}}</button>
     <span class="muted small" title="Phones with alerts on: {{$v.Phones}}">{{$v.Today}} of {{$v.PerDay}} today</span></p>
 </form>
 <figure class="alert-preview" aria-label="Preview">

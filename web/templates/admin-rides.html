@@ -63,7 +63,7 @@
 
 <h2 class="section" id="bikes">Bikes</h2>
 <div class="loaner-bikes">
-  {{range .LoanerBikes}}<form class="card loaner-bike-row" method="post" action="/admin/loaners/bikes">
+  {{range .LoanerBikes}}<form class="card wrap-row loaner-bike-row" method="post" action="/admin/loaners/bikes">
     <input type="hidden" name="id" value="{{.ID}}">
     <label>Size <input name="size" required maxlength="20" value="{{.Size}}"></label>
     <label>Rider height <input name="fits" maxlength="40" value="{{.Fits}}"></label>
@@ -73,7 +73,7 @@
     <button class="link danger" formaction="/admin/loaners/bikes/{{.ID}}/remove" onclick="return confirm('Remove the {{.Size}} bike?')">{{icon "trash"}}Remove</button>
   </form>
   {{end}}
-  <form class="card loaner-bike-row" method="post" action="/admin/loaners/bikes">
+  <form class="card wrap-row loaner-bike-row" method="post" action="/admin/loaners/bikes">
     <label>Size <input name="size" required maxlength="20" placeholder="M"></label>
     <label>Rider height <input name="fits" maxlength="40" placeholder="5'4&quot;–5'8&quot;"></label>
     <label class="grow">Bike <input name="bike" maxlength="120" placeholder="Year, make, model, frame size, brakes"></label>
@@ -160,7 +160,7 @@
 </div>
 {{if not $h.Total}}<p class="flash warn">{{if $h.Connected}}No history yet.{{else}}<a href="/admin/rides">Connect Strava</a>{{end}}</p>
 {{else}}
-<nav class="filter" aria-label="Year">
+<nav class="wrap-row filter" aria-label="Year">
   {{range $h.Years}}<a href="/admin/history?y={{.Year}}"{{if .Current}} aria-current="page"{{end}}>{{.Year}} ({{.Rides}})</a>{{end}}
   <a href="/admin/history?y=all"{{if eq $h.Year "all"}} aria-current="page"{{end}}>All years</a>
 </nav>
@@ -235,21 +235,21 @@
 
 {{define "kind-pick"}}{{$kind := .}}<fieldset class="kinds">
     <legend>What is it?</legend>
-    <div class="kind-opts">{{range eventKinds}}<label><input type="radio" name="kind" value="{{.Key}}" data-host="{{.Host}}"{{if eq .Key $kind}} checked{{end}}><span>{{.Name}}</span></label>{{end}}</div>
+    <div class="wrap-row kind-opts">{{range eventKinds}}<label><input type="radio" name="kind" value="{{.Key}}" data-host="{{.Host}}"{{if eq .Key $kind}} checked{{end}}><span>{{.Name}}</span></label>{{end}}</div>
   </fieldset>{{end}}
 
 {{/* A ride's Strava route (rideroute.go): paste a link, or pick from the club's routes */}}
 {{define "route-field"}}<label>Strava route (optional) <input name="route" value="{{.}}" list="club-routes" inputmode="url" autocomplete="off" placeholder="https://www.strava.com/routes/…" title="Paste a Strava route link, or pick one of the club’s routes"></label>{{end}}
 {{define "club-routes"}}<datalist id="club-routes">{{range .}}<option value="{{.URL}}">{{.Name}} · {{.Miles}}</option>{{end}}</datalist>{{end}}
 {{define "strava-link"}}<label>Strava event link (optional) <input type="url" name="strava_url" value="{{.}}" placeholder="https://www.strava.com/clubs/10197/group_events/…" data-strava-preview></label>
-  <div class="strava-preview" data-strava-out hidden aria-live="polite"></div>{{end}}
+  <div class="wrap-row strava-preview" data-strava-out hidden aria-live="polite"></div>{{end}}
 
 {{define "pace-select"}}{{$pace := paceOf .}}<label>Pace groups <select name="pace">{{range paceChoices}}<option value="{{.Value}}"{{if eq .Value $pace}} selected{{end}}>{{.Label}}</option>{{end}}{{if eq $pace "keep"}}<option value="keep" selected>Keep: {{join . ", "}}</option>{{end}}</select></label>
   {{end}}
 
 {{define "level-select"}}<fieldset class="levels">
     <legend>Level</legend>
-    <div class="level-opts">{{range levelBoxes .}}<label class="check"><input type="checkbox" name="level" value="{{.Key}}"{{if .Checked}} checked{{end}}><span class="lvl lvl-{{.Key}}">{{.Name}}</span><span class="muted small">{{.MPH}}</span></label>{{end}}</div>
+    <div class="wrap-row level-opts">{{range levelBoxes .}}<label class="check"><input type="checkbox" name="level" value="{{.Key}}"{{if .Checked}} checked{{end}}><span class="lvl lvl-{{.Key}}">{{.Name}}</span><span class="muted small">{{.MPH}}</span></label>{{end}}</div>
   </fieldset>{{end}}
 
 {{define "series"}}{{template "head" .}}{{$f := .SeriesForm}}
@@ -274,11 +274,11 @@
     <a class="btn mini ghost" href="/admin/rides/{{.Key}}">Open</a>
     <form method="post" action="/admin/rides/{{.Key}}/delete" class="inline" onsubmit="return confirm('Delete {{.Name}} on {{.DateLabel}}?')"><button class="link danger">{{icon "trash"}}Delete</button></form></li>{{end}}</ul>
 </div>{{end}}
-<div class="cal-bar">
+<div class="wrap-row cal-bar">
   <nav class="cal-nav" aria-label="Month"><a class="btn mini ghost" href="/admin/calendar?m={{$m.Prev}}" aria-label="Previous month">‹</a><h2>{{$m.MonthLabel}}</h2><a class="btn mini ghost" href="/admin/calendar?m={{$m.Next}}" aria-label="Next month">›</a></nav>
   <a class="btn" href="/admin/rides/new">Add to the calendar</a>
 </div>
-<p class="cal-key small"><span class="nowrap"><span class="dot led"></span> Has its leaders</span> <span class="nowrap"><span class="dot partial"></span> Needs another leader</span> <span class="nowrap"><span class="dot open"></span> Needs a leader</span> <span class="nowrap"><span class="dot cancelled"></span> Cancelled</span></p>
+<p class="wrap-row cal-key small"><span class="nowrap"><span class="dot led"></span> Has its leaders</span> <span class="nowrap"><span class="dot partial"></span> Needs another leader</span> <span class="nowrap"><span class="dot open"></span> Needs a leader</span> <span class="nowrap"><span class="dot cancelled"></span> Cancelled</span></p>
 <div class="table-wrap cal-wrap"><table class="cal">
   <thead><tr><th>Sun</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th></tr></thead>
   <tbody>{{range $m.Weeks}}<tr>{{range .}}<td class="{{if not .InMonth}}out {{end}}{{if .Today}}today {{end}}{{if .Past}}past{{end}}">

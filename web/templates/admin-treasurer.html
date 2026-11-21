@@ -7,14 +7,14 @@
 </form>{{end}}
 
 {{define "money-ledger"}}{{template "head" .}}{{$m := .Money}}{{$in := eq $m.Kind "income"}}
-<div class="money-top">
+<div class="wrap-row money-top">
   <h1>{{.Title}}</h1>
   {{template "money-year" .}}
   <p class="money-total"><span class="muted">{{if $m.Cat}}{{$m.Cat}}{{else}}{{$m.Year}}{{end}}</span> <strong>{{money $m.Total}}</strong></p>
 </div>
 {{with $m.Removed}}<form class="flash warn undo-flash" method="post" action="/admin/treasurer/entries/{{.}}/restore">Removed. <button class="link">{{icon "undo"}}Undo</button></form>{{end}}
 {{with $m.Dues}}<section class="card money-dues{{if not $m.DuesCat}} off{{end}}">
-  <div class="dues-head">
+  <div class="wrap-row dues-head">
     <div>
       <h2>Membership dues</h2>
       <p class="money-big" title="Dues marked paid on Members, at today’s prices">{{money .Total}}</p>
@@ -27,7 +27,7 @@
       <noscript><button class="ghost mini">Save</button></noscript>
     </form>
   </div>
-  <div class="dues-more">
+  <div class="wrap-row dues-more">
   {{with .Lines}}<details class="dues-list"><summary>Who paid ({{len .}})</summary>
     <div class="table-wrap"><table class="tight">
       <thead><tr><th>Date</th><th>Member</th><th>Plan</th><th class="right">Dues</th><th class="right">PayPal fee</th></tr></thead>
@@ -99,7 +99,7 @@
     <label class="money-file">Receipt <input type="file" name="receipt" accept="image/*,.pdf,application/pdf"></label>
     {{if not $f.ID}}<button class="money-go">{{icon "plus"}}Add</button>{{end}}
   </div>
-  {{if $f.Receipt}}<div class="money-has-receipt">{{template "money-receipt" $f}}<label class="check"><input type="checkbox" name="drop_receipt"> Remove this receipt</label></div>{{end}}
+  {{if $f.Receipt}}<div class="wrap-row money-has-receipt">{{template "money-receipt" $f}}<label class="check"><input type="checkbox" name="drop_receipt"> Remove this receipt</label></div>{{end}}
   {{if $f.ID}}<div class="wrap-row"><button>{{icon "save"}}Save</button><a class="btn ghost" href="/admin/treasurer{{if $in}}/income{{end}}?year={{$m.Year}}">Cancel</a></div>{{end}}
 </form>{{if not $f.ID}}</details>{{end}}{{end}}
 
@@ -129,7 +129,7 @@ document.querySelectorAll('.money-form select[name=category]').forEach(function(
 </tr>{{end}}
 
 {{define "money-budget"}}{{template "head" .}}{{$m := .Money}}{{$b := $m.Budget}}
-<div class="money-top">
+<div class="wrap-row money-top">
   <h1>Budget</h1>
   {{template "money-year" .}}
   <form class="wrap-row req-limit no-print" id="limit" method="post" action="/admin/treasurer/budget/one-ok">
@@ -194,10 +194,10 @@ document.querySelectorAll('.money-form select[name=category]').forEach(function(
 </article>{{end}}
 
 {{define "money-reports"}}{{template "head" .}}{{$m := .Money}}
-<div class="money-top no-print">
+<div class="wrap-row money-top no-print">
   <h1>Reports</h1>
   {{if not $m.SavedOne}}<form method="get" class="money-pick"><label class="inline-label">Through <input type="date" name="through" value="{{$m.Through}}" onchange="this.form.submit()"></label><noscript><button class="ghost mini">Show</button></noscript></form>{{end}}
-  <div class="money-acts">
+  <div class="wrap-row money-acts">
     <button type="button" class="ghost" onclick="print()">{{icon "printer"}}Print</button>
     <a class="btn ghost" href="/admin/treasurer/report.csv?{{$m.Download}}" title="For a spreadsheet">{{icon "download"}}CSV</a>
     <a class="btn ghost" href="/admin/treasurer/report.md?{{$m.Download}}" title="For a document">{{icon "download"}}Markdown</a>
@@ -230,7 +230,7 @@ document.querySelectorAll('.money-form select[name=category]').forEach(function(
 
 {{define "money-requests"}}{{template "head" .}}{{$q := .Money.Requests}}{{$f := $q.Form}}
 <div class="req-page">
-<div class="money-top"><h1>Requests</h1></div>
+<div class="wrap-row money-top"><h1>Requests</h1></div>
 {{if $q.NoTreasurer}}<p class="flash warn">No admin holds the Treasurer role. {{if .IsBoard}}<a href="/admin/board">Website → Board</a>{{else}}Website → Board{{end}}</p>{{end}}
 {{if and $q.NoPresident $q.Board}}<p class="flash warn">No admin is marked president. <a href="/admin/admins">Admins</a></p>{{end}}
 {{with $q.Withdrawn}}<form class="flash warn undo-flash" method="post" action="/admin/treasurer/requests/{{.}}/restore">Withdrawn. <button class="link">{{icon "undo"}}Undo</button></form>{{end}}
@@ -250,7 +250,7 @@ document.querySelectorAll('.money-form select[name=category]').forEach(function(
 
 {{with $q.Mine}}<h2 class="section" id="mine">My requests</h2>
 {{range .}}<article class="card my-req{{if eq .Status "rejected"}} is-no{{end}}" id="r{{.ID}}">
-  <div class="req-head">
+  <div class="wrap-row req-head">
     <div class="req-what"><h3>{{.What}}</h3>
       <p class="muted small">{{.KindLabel}} · {{.DateLabel}}{{with .EventLabel}} · {{.}}{{end}}</p></div>
     <p class="money-big">{{money .Amount}}</p>
@@ -258,7 +258,7 @@ document.querySelectorAll('.money-form select[name=category]').forEach(function(
   <ol class="track" aria-label="Progress">{{range .Track}}<li class="{{.State}}"><span>{{.Label}}</span>{{with .When}}<small>{{.}}</small>{{end}}</li>{{end}}</ol>
   {{with .Rejection}}<p class="req-why"><strong>{{.By}}:</strong> {{.Reason}}</p>{{end}}
   {{if and .PayTo (eq .Status "approved") (not .PaidBack)}}<p class="muted small">{{.PayTo}}</p>{{end}}
-  {{if or .Receipt .Withdraw .AddBought}}<div class="req-foot">
+  {{if or .Receipt .Withdraw .AddBought}}<div class="wrap-row req-foot">
     {{if .Receipt}}{{template "money-receipt" .SpendRequest}}{{end}}
     <div class="wrap-row req-acts">
       {{if .Withdraw}}<form method="post" action="/admin/treasurer/requests/{{.ID}}/withdraw"><button class="link danger">{{icon "trash"}}Withdraw</button></form>{{end}}
@@ -273,7 +273,7 @@ document.querySelectorAll('.money-form select[name=category]').forEach(function(
 </div>
 <details class="money-add req-add no-print" id="add"{{if or (not $q.Answer) $.Error $q.Dup}} open{{end}}><summary class="btn">{{icon "plus"}}New request</summary>
 <form class="card money-form req-form" method="post" action="/admin/treasurer/requests" enctype="multipart/form-data"{{if $q.Board}} data-guess="/admin/treasurer/requests/guess"{{end}}>
-  <div class="kind-pick req-kind" role="radiogroup" aria-label="What kind">
+  <div class="wrap-row kind-pick req-kind" role="radiogroup" aria-label="What kind">
     <label><input type="radio" name="kind" value="report"{{if ne $f.Kind "purchase"}} checked{{end}}><span>I already bought it</span></label>
     <label><input type="radio" name="kind" value="purchase"{{if eq $f.Kind "purchase"}} checked{{end}}><span>I want to buy something</span></label>
   </div>
@@ -296,7 +296,7 @@ document.querySelectorAll('.money-form select[name=category]').forEach(function(
   <details class="req-date"><summary>{{icon "calendar"}}<span data-today="{{$f.Date}}">{{$f.DateLabel}}</span></summary>
     <label>Date <input type="date" name="date" value="{{$f.Date}}" required></label></details>
   {{with $q.PayPal}}<p class="req-paypal muted small" data-only="report"{{if eq $f.Kind "purchase"}} hidden{{end}}>Reimbursed by PayPal to {{.}} <a class="link" href="/admin/admins#paypal">{{icon "pencil"}}Change</a></p>{{end}}
-  {{with $q.Dup}}<p class="flash warn req-dup">{{.}} <button class="ghost mini" name="dup_ok" value="1">{{icon "send"}}Send anyway</button></p>{{end}}
+  {{with $q.Dup}}<p class="flash warn wrap-row req-dup">{{.}} <button class="ghost mini" name="dup_ok" value="1">{{icon "send"}}Send anyway</button></p>{{end}}
   <button class="money-go">{{icon "send"}}Send</button>
 </form></details>
 </div>
@@ -388,7 +388,7 @@ document.querySelectorAll('.req-reject,.req-bought').forEach(function(d){d.addEv
 {{template "foot" .}}{{end}}
 
 {{define "req-card"}}{{/* a waiting request (requestRow) */}}<article class="card req{{if .Decide}} mine{{end}}" id="r{{.ID}}">
-  <div class="req-head">
+  <div class="wrap-row req-head">
     <div class="req-what">
       <span class="tag">{{.KindLabel}}</span>
       <h3>{{.What}}</h3>
@@ -402,9 +402,9 @@ document.querySelectorAll('.req-reject,.req-bought').forEach(function(d){d.addEv
   </form>{{end}}
   {{with .Hint}}<p class="req-hint{{if $.Over}} over{{end}}">{{.}}</p>{{end}}
   {{with .Note}}<p class="req-note">{{.}}</p>{{end}}
-  <div class="req-foot">
+  <div class="wrap-row req-foot">
     {{if .Receipt}}{{template "money-receipt" .SpendRequest}}{{end}}
-    <ul class="req-steps">{{range .Steps}}{{template "req-step" .}}{{end}}</ul>
+    <ul class="wrap-row req-steps">{{range .Steps}}{{template "req-step" .}}{{end}}</ul>
     <div class="wrap-row req-acts">
       {{if .Decide}}<form method="post" action="/admin/treasurer/requests/{{.ID}}/approve"><button>{{icon "check"}}Approve</button></form>
       <details class="req-reject"><summary class="btn ghost danger">{{icon "x"}}Reject</summary>

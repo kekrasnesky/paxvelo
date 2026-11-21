@@ -5,12 +5,12 @@
 {{with $k.Removed}}<form class="flash warn undo-flash" id="removed" method="post" action="/admin/rsvp/restore">Removed {{.Title}}. <button class="link">{{icon "undo"}}Undo</button></form>{{end}}
 
 <ul class="rsvp-list">
-{{range $k.Events}}{{$c := .Count}}<li class="card rsvp-row{{if .Past $k.Now}} past{{end}}">
+{{range $k.Events}}{{$c := .Count}}<li class="card wrap-row rsvp-row{{if .Past $k.Now}} past{{end}}">
   <a href="/admin/rsvp/{{.ID}}" class="rsvp-row-main">
     <strong>{{.Title}}</strong>
     <span class="muted small">{{or .When "No date"}}</span>
   </a>
-  <span class="rsvp-row-sums">
+  <span class="wrap-row">
     <span title="Coming, with guests"><strong>{{$c.Coming}}</strong> <span class="muted">coming</span></span>
     {{if $c.Maybe}}<span><strong>{{$c.Maybe}}</strong> <span class="muted">maybe</span></span>{{end}}
     {{if $c.No}}<span><strong>{{$c.No}}</strong> <span class="muted">can’t</span></span>{{end}}
@@ -35,7 +35,7 @@
 </div>
 <p class="muted">{{or $e.When "No date"}}{{with $e.Place}} · {{.}}{{end}}{{with $k.OnCal}} · <a href="/calendar/ride/{{.Key}}#rsvp" target="_blank" rel="noopener" title="Its event on the club calendar">{{icon "calendar"}}On the calendar</a>{{end}}</p>
 
-<div class="card rsvp-acts">
+<div class="card wrap-row rsvp-acts">
   <form method="post" action="/admin/rsvp/{{$e.ID}}/email" class="inline"><button title="Drafts it on Send an email"{{if not $k.Open}} disabled{{end}}>{{icon "mail"}}Write the invitation email</button></form>
   <form method="post" action="/admin/rsvp/{{$e.ID}}/close" class="inline">{{if $e.Closed}}<input type="hidden" name="closed" value="0"><button class="ghost">{{icon "undo"}}Take RSVPs again</button>{{else}}<input type="hidden" name="closed" value="1"><button class="ghost">{{icon "ban"}}Stop taking RSVPs</button>{{end}}</form>
   <a class="btn ghost" href="/rsvp/{{$e.ID}}?t=test" target="_blank" rel="noopener" title="As members see it">{{icon "eye"}}See the page</a>
@@ -48,13 +48,13 @@
     <h2>Answers</h2>
     {{if $e.Replies}}<a class="btn ghost mini" href="/admin/rsvp/{{$e.ID}}/answers.csv">{{icon "download"}}Spreadsheet</a>{{end}}
   </div>
-  <p class="kit-sums rsvp-sums">
+  <p class="wrap-row kit-sums rsvp-sums">
     <span><strong>{{$c.Coming}}</strong> <span class="muted">coming{{if $c.Guests}} ({{$c.Yes}} + {{$c.Guests}} guests){{end}}</span></span>
     <span><strong>{{$c.Maybe}}</strong> <span class="muted">maybe</span></span>
     <span><strong>{{$c.No}}</strong> <span class="muted">can’t make it</span></span>
     <span><strong>{{len $k.Waiting}}</strong> <span class="muted">members haven’t answered</span></span>
   </p>
-  {{if $e.Replies}}<form id="bulk" class="bulk-bar" method="post" action="/admin/rsvp/{{$e.ID}}/answers/remove" hidden>
+  {{if $e.Replies}}<form id="bulk" class="wrap-row bulk-bar" method="post" action="/admin/rsvp/{{$e.ID}}/answers/remove" hidden>
     <span class="bulk-n"></span>
     <button class="mini ghost danger">{{icon "trash"}}Remove them</button>
     <button type="button" class="link small bulk-clear">Clear</button>

@@ -53,7 +53,7 @@
     <p class="small"><strong>{{.Name}}</strong><br><span class="muted">{{.Info}}</span></p>
     {{range .Warn}}<p class="flash warn">{{.}}</p>{{end}}
     {{else}}<p class="muted">No video.</p>{{end}}
-    <form class="video-upload" method="post" action="/admin/home-video/{{.Kind}}" enctype="multipart/form-data">
+    <form class="wrap-row video-upload" method="post" action="/admin/home-video/{{.Kind}}" enctype="multipart/form-data">
       <label>{{if .File}}Replace{{else}}Upload{{end}} <input type="file" name="video" accept="video/mp4,video/webm,video/*" required></label>
       <button>{{icon "upload"}}Upload</button>
       <div class="meter upload-meter" hidden><span></span></div>

@@ -38,7 +38,7 @@ func TestAdminGridsShrink(t *testing.T) {
 // Use .box .field .field-row .facts .rows .act-row .wrap-row instead.
 func TestAdminRetiredClasses(t *testing.T) {
 	retired := []string{"send-row", "todo-acts", "when-row", "auto-facts", "sent-tags", "howto", "allowance", "lede",
-		"auto-actions", "auto-info", "auto-main", "auto-state", "auto-paused-note"}
+		"auto-actions", "auto-info", "auto-main", "auto-state", "auto-paused-note", "rsvp-row-sums"}
 	files, _ := filepath.Glob("web/templates/*.html")
 	gos, _ := filepath.Glob("*.go")
 	for _, f := range gos {
@@ -56,6 +56,23 @@ func TestAdminRetiredClasses(t *testing.T) {
 			if regexp.MustCompile(`(^|[^\w-])` + regexp.QuoteMeta(c) + `($|[^\w-])`).Match(b) {
 				t.Errorf("%s uses the retired class %q", f, c)
 			}
+		}
+	}
+}
+
+// A row of things that wraps is .wrap-row (or .act-row, .title-row): a class
+// of its own sits on the block and keeps only what differs (docs/look.md).
+// The two left out size the fields inside them in their own way.
+func TestAdminRowsUseBlocks(t *testing.T) {
+	b, err := os.ReadFile("web/static/admin.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ok := map[string]bool{"title-row": true, "act-row": true, "wrap-row": true, "sec-pin": true, "money-pick": true}
+	re := regexp.MustCompile(`(?m)(?:^|\})\.([a-z0-9-]+)\{([^}]*)\}`)
+	for _, m := range re.FindAllStringSubmatch(string(b), -1) {
+		if strings.Contains(m[2], "display:flex") && strings.Contains(m[2], "flex-wrap:wrap") && !ok[m[1]] {
+			t.Errorf(".%s is a wrapping row of its own: put wrap-row on it and keep only what differs", m[1])
 		}
 	}
 }
