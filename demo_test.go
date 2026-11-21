@@ -171,7 +171,7 @@ func TestDemoClubAdminPages(t *testing.T) {
 		if strings.Contains(page, `<header class="bar"`) {
 			t.Errorf("app opening %s: still draws the menu bar", p)
 		}
-		if strings.Contains(desk, `<header class="bar"`) && !strings.Contains(page, `class="app-top" href="/admin/app"`) {
+		if strings.Contains(desk, `<header class="bar"`) && !strings.Contains(page, `class="app-back" href="/admin/app"`) {
 			t.Errorf("app opening %s: no Home bar", p)
 		}
 	}

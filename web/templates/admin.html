@@ -17,7 +17,7 @@
 <style>{{.CSS}}</style>
 </head>
 <body{{if eq .Tab "app"}} class="app-home"{{end}}>
-{{if and .Tab (ne .Tab "app")}}{{if .InApp}}<a class="app-top" href="/admin/app">{{icon "home"}}<span>Home</span><b>{{.Title}}</b></a>{{else}}
+{{if and .Tab (ne .Tab "app")}}{{if .InApp}}<header class="app-top"><a class="app-back" href="/admin/app">{{icon "chevron"}}Home</a><b>{{.Title}}</b></header>{{else}}
 <header class="bar">
   <a class="brand" href="/admin">PaxVelo Admin</a>
   <nav class="groups" aria-label="Admin">{{range .Nav.Groups}}<a href="{{.Href}}"{{if .Current}} aria-current="page"{{end}}>{{.Label}}{{with .Badge}} <span class="badge">{{.}}<span class="sr"> need attention</span></span>{{end}}</a>{{end}}</nav>
@@ -38,13 +38,14 @@ shrinkPicked();
 // The top bar slides away while scrolling down and comes back on the way up;
 // rows pinned under it follow (--bar-top). Keyboard focus in it keeps it.
 (function(){
-  // Inside the admin app the Home bar stands in for it (appframe.go).
+  // Inside the admin app the Home bar stands in for it (appframe.go) and
+  // stays put: it is the way back.
   var bar=document.querySelector('.bar,.app-top'),root=document.documentElement;if(!bar)return;
   var lastY=scrollY,ticking=false,hidden=false;
   function place(){root.style.setProperty('--bar-top',hidden?'0px':bar.offsetHeight+'px')}
   function onScroll(){
     ticking=false;var y=scrollY;if(Math.abs(y-lastY)<6)return;
-    var hide=y>lastY&&y>bar.offsetHeight+40&&!bar.contains(document.activeElement);
+    var hide=!bar.classList.contains('app-top')&&y>lastY&&y>bar.offsetHeight+40&&!bar.contains(document.activeElement);
     if(hide!==hidden){hidden=hide;bar.classList.toggle('bar-hidden',hide);place()}
     lastY=y;
   }

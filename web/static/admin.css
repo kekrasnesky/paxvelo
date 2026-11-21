@@ -1356,11 +1356,12 @@ a.tag:hover{border-color:var(--ink);color:var(--ink)}
    needs you, the next rides, then rows of square buttons with icons. Inside
    the home screen app every other screen trades the menu bar for a Home bar
    back to the buttons (appframe.go: the server draws one or the other). */
-.app-top{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:.5rem;padding:calc(.7rem + env(safe-area-inset-top)) 1rem .7rem;background:linear-gradient(rgba(45,45,45,.68),rgba(45,45,45,.68)),var(--ink) url(/static/img/tarmac.jpg?v=__V__) center top/740px 740px repeat;color:#fff;text-decoration:none;font-weight:500;transition:transform .25s ease}
+.app-top{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:.5rem;padding:calc(.7rem + env(safe-area-inset-top)) 1rem .7rem;background:linear-gradient(rgba(45,45,45,.68),rgba(45,45,45,.68)),var(--ink) url(/static/img/tarmac.jpg?v=__V__) center top/740px 740px repeat;color:#fff;font-weight:500;transition:transform .25s ease}
 .app-top.bar-hidden{transform:translateY(-100%)}
 @media (prefers-reduced-motion:reduce){.app-top{transition:none}}
-.app-top .ic{width:1.3em;height:1.3em;margin:0}
-.app-top span{font-size:.85rem;opacity:.75}
+.app-back{display:inline-flex;align-items:center;flex:none;gap:.15rem;min-height:2.6rem;padding:.35rem .9rem .35rem .5rem;border:1px solid rgba(245,242,236,.28);border-radius:var(--pill);background:rgba(245,242,236,.12);color:var(--paper);text-decoration:none;font-weight:500}
+.app-back:hover,.app-back:active{background:rgba(245,242,236,.22);color:var(--paper)}
+.app-back .ic{width:1.3em;height:1.3em;margin:0;transform:scaleX(-1)}
 .app-top b{margin-left:auto;min-width:0;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* The app home is the website's asphalt (its header and footer), with warm
    see-through cards, the site's paper-colored text, and muted colors from
