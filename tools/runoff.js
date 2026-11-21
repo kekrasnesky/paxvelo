@@ -1,11 +1,13 @@
-// Phone run-off check (docs/look.md, "Phones"): lists every admin page with
-// something wider than a 320px or 375px screen, in the normal admin and in
-// the admin app frame (pv_app cookie).
+// Phone run-off check (docs/look.md, "Phones"): lists every page with
+// something wider than a 320px or 375px screen: admin pages in the normal
+// admin and in the admin app frame (pv_app cookie), public pages once.
+// Chrome can't show iPhone-only widths (date and time fields:
+// TestDateFieldsShrink), so an empty table isn't the whole story.
 //
 // Run it against a -demo preview (CLAUDE.md, Previews), never real members:
 // sign in, open any /admin page, and paste this file into the browser's
-// console. It finds the pages itself by following /admin links from Home and
-// the app Home (GET only, nothing that signs out or downloads; one page per
+// console. It finds the pages itself by following links from Home, the app
+// Home, the public home page and the calendar (GET only, nothing that signs out or downloads; one page per
 // kind, so /admin/members/1 stands for every member), loads each in a hidden
 // frame of each width (as srcdoc: admin pages refuse to be framed), and
 // prints a table. An empty table means no run-off. It ends with the frame
@@ -17,14 +19,14 @@
 // so the browser shows no scroll bar for these: the content is just cut off.
 (async () => {
   const WIDTHS = [320, 375];
-  const START = ["/admin?app=0", "/admin/app?app=1"];
+  const START = ["/admin?app=0", "/admin/app?app=1", "/", "/calendar"];
   const MAX_PAGES = 150;
-  const SKIP = /\/(logout|login|forgot|password|strava)(\/|$)|\.(csv|ics|pdf|jpe?g|png|webp|zip|json|txt)$|\/(photo|file|receipt|download)(\/|$)/i;
+  const SKIP = /\/(logout|login|forgot|password|strava)(\/|$)|\.(csv|ics|pdf|jpe?g|png|webp|gif|svg|ico|mp4|zip|json|txt|xml|js|css|woff2|webmanifest)$|\/(photo|file|receipt|download|static|media|files)(\/|$)/i;
   const appWas = !!document.querySelector(".app-top"); // pv_app is HttpOnly: tell by the top bar
 
   const norm = (href) => {
     const u = new URL(href, location.origin);
-    if (u.origin !== location.origin || !u.pathname.startsWith("/admin")) return "";
+    if (u.origin !== location.origin) return "";
     for (const k of ["app", "ok", "err"]) u.searchParams.delete(k);
     const p = u.pathname + (u.search || "");
     return SKIP.test(u.pathname) ? "" : p;
@@ -91,6 +93,7 @@
         const r = el.getBoundingClientRect();
         if (r.width < 1 || r.height < 1) return false;
         if (cs.clip !== "auto" && cs.position === "absolute") return false; // screen-reader-only text
+        if (cs.position === "absolute" && (r.right < 0 || r.left > vw)) return false; // parked off screen on purpose: skip link, honeypot
         return (r.right > vw + 0.5 || r.left < -0.5) && !scrolls(el);
       };
       for (const el of d.body.querySelectorAll("*")) {
@@ -111,18 +114,22 @@
     await fetch("/admin?app=" + app, { credentials: "same-origin" });
     const frame = app === "1" ? "app" : "admin";
     const jobs = [];
-    for (const p of pages) for (const wd of WIDTHS) jobs.push([p, wd]);
+    for (const p of pages) {
+      const pub = !p.startsWith("/admin");
+      if (pub && app === "1") continue; // public pages don't change with the frame
+      for (const wd of WIDTHS) jobs.push([p, wd, pub ? "site" : frame]);
+    }
     const run = async () => {
       while (jobs.length) {
-        const [p, wd] = jobs.shift();
-        for (const r of await measure(p, wd)) found.push({ frame, width: wd, page: p, element: r.el, "px over": r.px });
+        const [p, wd, fr] = jobs.shift();
+        for (const r of await measure(p, wd)) found.push({ frame: fr, width: wd, page: p, element: r.el, "px over": r.px });
       }
     };
     await Promise.all([run(), run(), run(), run()]);
   }
   await fetch("/admin?app=" + (appWas ? "1" : "0"), { credentials: "same-origin" });
 
-  console.log(`Run-off check: ${pages.length} pages × ${WIDTHS.join("/")}px × admin/app frame: ${found.length ? found.length + " problem(s)" : "nothing runs off"}.`);
+  console.log(`Run-off check: ${pages.length} pages × ${WIDTHS.join("/")}px × admin/app frame (public pages once): ${found.length ? found.length + " problem(s)" : "nothing runs off"}.`);
   if (found.length) console.table(found);
   return { pages: pages.length, problems: found };
 })();

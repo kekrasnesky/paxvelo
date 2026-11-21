@@ -33,6 +33,21 @@ func TestAdminGridsShrink(t *testing.T) {
 	}
 }
 
+// iPhones draw date and time fields wider than width:100% allows unless their
+// native look is dropped (the ride editor's Date and Start time ran off the
+// screen); Chrome shows nothing, so tools/runoff.js can't catch it.
+func TestDateFieldsShrink(t *testing.T) {
+	for _, f := range []string{"web/static/admin.css", "web/static/site.css"} {
+		b, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !regexp.MustCompile(`input:is\(\[type=date\],\[type=time\][^)]*\)\)?\{-webkit-appearance:none;appearance:none`).Match(b) {
+			t.Errorf("%s: date and time fields need -webkit-appearance:none;appearance:none", f)
+		}
+	}
+}
+
 // One-off layout classes that the building blocks replaced (docs/look.md):
 // none comes back in a template, admin.css or the Go code that writes HTML.
 // Use .box .field .field-row .facts .rows .act-row .wrap-row instead.

@@ -634,7 +634,11 @@ td:hover .cal-add,.cal-add:focus-visible{opacity:1}
 /* Form fields: one look for every text box, list and note on the site.
    :where keeps these at no weight, so a form's own sizes still win. */
 :where(main) :where(input:not([type=checkbox],[type=radio],[type=file],[type=range],[type=submit],[type=button],[type=hidden],[type=image],[type=color]),select,textarea){
-  width:100%;padding:.65rem .85rem;border:1px solid var(--field);border-radius:var(--r-md);background:#fff;color:var(--ink);font:300 1rem/1.4 var(--font);transition:border-color .15s,box-shadow .15s}
+  width:100%;max-width:100%;min-width:0;padding:.65rem .85rem;border:1px solid var(--field);border-radius:var(--r-md);background:#fff;color:var(--ink);font:300 1rem/1.4 var(--font);transition:border-color .15s,box-shadow .15s}
+/* iPhones give date and time fields a width of their own that ignores
+   width:100% until the native look is dropped (same rule in admin.css) */
+:where(main) :where(input:is([type=date],[type=time],[type=datetime-local],[type=month],[type=week])){-webkit-appearance:none;appearance:none;display:block}
+:where(main) ::-webkit-date-and-time-value{min-height:1.4em;margin:0;text-align:left}
 :where(main) :where(textarea){resize:vertical}
 @media (hover:hover){:where(main) :where(input,select,textarea):hover:not(:focus,:disabled){border-color:#a89a8f}}
 :where(main) :where(input,select,textarea):focus{outline:0;border-color:var(--red);box-shadow:var(--ring)}

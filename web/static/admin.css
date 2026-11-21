@@ -85,6 +85,11 @@ label{display:grid;gap:.3rem;font-size:.9rem;font-weight:500}
 fieldset{min-width:0;margin:0;padding:0;border:0}
 legend{padding:0;margin:0 0 .4rem;font-size:.9rem;font-weight:500}
 input,textarea,select{width:100%;max-width:100%;min-width:0;padding:.6rem .75rem;border:1px solid var(--field);border-radius:var(--radius);background:var(--card);color:var(--ink);font:300 15px/1.5 var(--font);transition:border-color .15s,box-shadow .15s}
+/* iPhones give date and time fields a width of their own that ignores
+   width:100% until the native look is dropped (Chrome, so runoff.js, never
+   shows it). TestDateFieldsShrink keeps this here and in site.css. */
+input:is([type=date],[type=time],[type=datetime-local],[type=month],[type=week]){-webkit-appearance:none;appearance:none;display:block}
+input::-webkit-date-and-time-value{min-height:1.5em;margin:0;text-align:left}
 input:hover,textarea:hover,select:hover{border-color:#a3978b}
 input:focus,textarea:focus,select:focus{outline:none;border-color:var(--red);box-shadow:var(--ring)}
 input[type=checkbox],input[type=radio]{accent-color:var(--red);box-shadow:none}
