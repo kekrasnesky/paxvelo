@@ -235,5 +235,32 @@ func seedDemo(s *Store, loc *time.Location) error {
 	if _, err := s.AddSubmitted(shared, SubmittedPhoto{Name: "Priya Natarajan", Email: mail("priya"), Note: "From the century", Album: album.ID}); err != nil {
 		return err
 	}
+
+	// An album on the website with photos in it (their narrower copies are
+	// made at startup).
+	coffee, err := s.AddAlbum("Saturday Coffee Ride", day(-12))
+	if err != nil {
+		return err
+	}
+	media := filepath.Join(filepath.Dir(s.path), "media")
+	if err := os.MkdirAll(media, 0o755); err != nil {
+		return err
+	}
+	for i, c := range []color.RGBA{{0x9a, 0x2b, 0x29, 0xff}, {0x3a, 0x6e, 0x8f, 0xff}, {0x6b, 0x8e, 0x4e, 0xff}, {0xd9, 0xa4, 0x41, 0xff}, {0x5c, 0x4b, 0x7d, 0xff}, {0x8a, 0x8a, 0x8a, 0xff}} {
+		img := image.NewRGBA(image.Rect(0, 0, 900, 600))
+		draw.Draw(img, img.Bounds(), &image.Uniform{c}, image.Point{}, draw.Src)
+		var b bytes.Buffer
+		if err := jpeg.Encode(&b, img, nil); err != nil {
+			return err
+		}
+		name := fmt.Sprintf("demo-coffee-%d.jpg", i+1)
+		if err := os.WriteFile(filepath.Join(media, name), b.Bytes(), 0o644); err != nil {
+			return err
+		}
+		by := []string{"Sam Ritter", "Priya Natarajan"}[i%2]
+		if err := s.AddGallery(GalleryPhoto{Album: coffee.ID, Src: "/media/" + name, By: by, Caption: []string{"Rolling out", "", "Coffee stop", "", "", "Back at the start"}[i]}); err != nil {
+			return err
+		}
+	}
 	return nil
 }

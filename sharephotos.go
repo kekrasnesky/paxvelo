@@ -72,6 +72,7 @@ type shareData struct {
 	Album, AlbumName string
 	Agree            bool
 	Albums           []Album // the latest ones, to pick from
+	To               *Album  // the album they came from, when they shared from its page
 	Max              int
 	PINOn            bool   // the club PIN is set
 	Message          string // a problem
@@ -84,6 +85,11 @@ const shareAlbums = 12 // albums to pick from on the share page
 
 func (a *App) shareData(d shareData) shareData {
 	d.Token, d.Max, d.PINOn = a.formToken(), maxSharePhotos, a.store.ClubPIN() != ""
+	if id, err := strconv.Atoi(d.Album); err == nil {
+		if al, ok := a.store.Album(id); ok && !al.Hidden {
+			d.To = &al
+		}
+	}
 	for _, al := range a.store.Albums() {
 		if !al.Hidden && len(d.Albums) < shareAlbums {
 			d.Albums = append(d.Albums, al)
@@ -194,7 +200,7 @@ func (a *App) sharePhotos(w http.ResponseWriter, r *http.Request) {
 		fail(http.StatusInternalServerError, "Something went wrong on our end. Try again in a minute.")
 		return
 	}
-	d = shareData{Done: true, Name: name}
+	d = shareData{Done: true, Name: name, Album: d.Album}
 	n, them := len(saved), plural(len(saved), "photo", "photos")
 	switch posted, al := a.postWithPIN(added, from); {
 	case posted == n:
@@ -204,6 +210,9 @@ func (a *App) sharePhotos(w http.ResponseWriter, r *http.Request) {
 		}
 	default:
 		d.Detail = fmt.Sprintf("We got your %d %s. They’ll be in the gallery once an admin approves them.", n, them)
+		if n == 1 {
+			d.Detail = "We got your photo. It’ll be in the gallery once an admin approves it."
+		}
 		a.alertPhotos(n-posted, from.Name)
 	}
 	if len(skipped) > 0 {

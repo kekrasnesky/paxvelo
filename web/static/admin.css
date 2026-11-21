@@ -378,6 +378,11 @@ form:not(:has(input[name=virtual]:checked)) .zwift-check{display:none}
 .tick-all input{width:auto;margin:0}
 .album-grid .sent-photo{cursor:grab;background:var(--card)}
 .album-grid .sent-photo.dragging{opacity:.4}
+.album-grid .sent-photo{position:relative}
+.album-grid .sent-photo.busy{opacity:.55;pointer-events:none}
+.photo-x{position:absolute;top:.6rem;right:.6rem;z-index:1;display:inline-flex;align-items:center;justify-content:center;width:2.4rem;height:2.4rem;padding:0;border:1px solid var(--line);border-radius:var(--pill);background:var(--card);color:var(--err)}
+.photo-x:hover{border-color:var(--err);background:var(--err-bg);color:var(--err-ink)}
+.photo-x .ic{width:1.15rem;height:1.15rem;margin:0}
 .strip-item{display:grid;gap:.4rem;padding:.6rem;border:1px solid var(--line);background:var(--card)}
 .strip-tools{display:flex;align-items:center;gap:.35rem}
 .strip-tools .mini{padding:.3rem .55rem}
@@ -565,7 +570,7 @@ form:not(:has(input[name=virtual]:checked)) .zwift-check{display:none}
 .fmt-bar{position:absolute;z-index:20;display:flex;gap:.25rem;padding:.3rem;border:1px solid var(--ink);background:var(--card);box-shadow:var(--shadow-pop)}
 .fmt-bar [hidden],#link-box [hidden],.fmt-bar[hidden],.ed-toast[hidden],.page-bar[hidden],.ed-mode[hidden],.ed-cards[hidden],.text-ed[hidden],.ed-sub[hidden],.ed-fields [hidden]{display:none}
 .fmt-bar button{padding:.42rem .65rem;font:500 .82rem/1 var(--font)}
-.ed-toast{position:fixed;left:50%;bottom:1.2rem;z-index:30;display:flex;align-items:center;gap:.8rem;padding:.7rem 1rem;background:var(--ink);color:var(--paper);transform:translateX(-50%);box-shadow:var(--shadow-pop)}
+.ed-toast{position:fixed;left:50%;bottom:calc(1.2rem + env(safe-area-inset-bottom));z-index:30;display:flex;width:max-content;max-width:calc(100vw - 2rem);align-items:center;gap:.8rem;padding:.7rem 1rem;background:var(--ink);color:var(--paper);transform:translateX(-50%);box-shadow:var(--shadow-pop)}
 /* Touch screens can't hover: the buttons stay showing, small, above each card,
    and the fields keep a light outline so it's clear they can be typed in. */
 @media (hover:none){

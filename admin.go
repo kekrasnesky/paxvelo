@@ -324,7 +324,7 @@ var flashText = map[string]string{
 	"submitted-rejected":   "Rejected. They’re deleted in 30 days; until then they’re under Already reviewed, where you can put them back.",
 	"submitted-restored":   "Put back, ready to review.",
 	"submitted-unapproved": "Taken back out of the gallery, ready to review again.",
-	"gallery-removed":      "Taken out of the gallery.",
+	"photos-restored":      "Put back.",
 	"album-new":            "Album started. Upload photos into it below, or approve shared photos into it on Photos to review.",
 	"album-saved":          "Saved.",
 	"album-cover":          "That photo is the album’s cover now.",
@@ -397,6 +397,7 @@ var flashText = map[string]string{
 
 var errorText = map[string]string{
 	"none-ticked":       "Tick the photos first.",
+	"photo-gone":        "That photo is already gone. Reload the page.",
 	"name":              "Enter a name.",
 	"email":             "Enter a valid email address.",
 	"phone":             "Enter a phone number with its area code, like 301-555-0123.",

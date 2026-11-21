@@ -765,6 +765,14 @@ td:hover .cal-add,.cal-add:focus-visible{opacity:1}
 .album-featured:active img{opacity:.85}
 @media (max-width:600px){.album-featured img{aspect-ratio:4/3}}
 .album-meta{color:var(--muted);font-size:.88rem;font-weight:300}
+.albums li{display:grid;align-content:start;gap:.35rem}
+.albums a.album-share,.album-share{display:inline-flex;align-items:center;gap:.35rem;justify-self:start;color:var(--red);font-size:.88rem;font-weight:500;text-decoration:none}
+.album-share::before{content:"+";display:grid;place-items:center;width:1.3rem;height:1.3rem;border-radius:50%;background:var(--red);color:var(--paper);font:400 1rem/1 var(--font)}
+@media (hover:hover){.album-share:hover{text-decoration:underline}}
+.album-feat{display:grid;gap:.5rem;margin:1.4rem 0 2rem}
+.album-feat .album-featured{margin:0}
+.share-to{margin:-.4rem 0 1.2rem!important;font-size:1.1rem;font-weight:500}
+.share-to span{color:var(--muted);font-weight:300}
 @media (hover:hover){.albums a:hover img{opacity:.88}.albums a:hover .album-title{color:var(--red)}}
 .albums a:focus-visible img{outline:2px solid var(--red);outline-offset:2px}
 .gal{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin:0;padding:0;list-style:none}

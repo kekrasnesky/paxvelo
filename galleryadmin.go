@@ -28,14 +28,19 @@ func albumAdminHref(id int) string { return "/admin/gallery/" + strconv.Itoa(id)
 // albumAdmin is one album on its admin page.
 type albumAdmin struct {
 	Album
-	Photos []GalleryPhoto
-	Cover  int   // the photo shown as its cover
-	Tick   []int // photos to show ticked, like the ones just approved
+	Photos  []GalleryPhoto
+	Cover   int   // the photo shown as its cover
+	Tick    []int // photos to show ticked, like the ones just approved
+	Removed []int // photos just removed, for the Undo note
 }
 
 func (al albumAdmin) Ticked(id int) bool { return slices.Contains(al.Tick, id) }
 
+// RemovedIDs is the Undo button's list, like "12,13".
+func (al albumAdmin) RemovedIDs() string { return joinIDs(al.Removed) }
+
 func (a *App) galleryAdminPage(w http.ResponseWriter, r *http.Request) {
+	a.purgeRemoved()
 	v := adminView{Title: "Gallery", Tab: "gallery", AlbumList: &albumListView{Cards: a.store.AlbumCards(true)}}
 	v.Flash, v.Error = flashFrom(r)
 	a.renderAdmin(w, r, http.StatusOK, "gallery", v)
@@ -205,9 +210,11 @@ func (a *App) albumAdminPage(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	a.purgeRemoved()
 	_, tick := undoAction(":" + r.URL.Query().Get("tick"))
+	_, removed := undoAction(":" + r.URL.Query().Get("removed"))
 	v := adminView{Title: al.Title, Tab: "gallery", Issues: a.store.Issues(),
-		Album: &albumAdmin{Album: al, Photos: a.store.AlbumPhotos(id), Cover: al.Cover, Tick: tick}}
+		Album: &albumAdmin{Album: al, Photos: a.store.AlbumPhotos(id), Cover: al.Cover, Tick: tick, Removed: a.store.RemovedIn(id, removed)}}
 	if ph := v.Album.Photos; len(ph) > 0 && !slices.ContainsFunc(ph, func(p GalleryPhoto) bool { return p.ID == al.Cover }) {
 		v.Album.Cover = ph[0].ID
 	}
@@ -345,6 +352,38 @@ func (a *App) albumAction(w http.ResponseWriter, r *http.Request) {
 		done("album-saved")
 		return
 	}
+	// Removing: a photo's own button ("remove:12"), or the ticked photos;
+	// and Undo ("restore:12,13").
+	if what, list, _ := strings.Cut(do, ":"); what == "remove" || what == "restore" {
+		ids := tickedIDs(r)
+		if list != "" {
+			_, ids = undoAction(do)
+		}
+		if len(ids) == 0 {
+			fail("none-ticked")
+			return
+		}
+		var n int
+		var err error
+		if what == "remove" {
+			n, err = a.removePhotos(ids)
+		} else {
+			n, err = a.restorePhotos(ids)
+		}
+		switch {
+		case err != nil && asJSON:
+			replyJSON(w, http.StatusOK, map[string]any{"ok": false, "error": errorText["save"]})
+		case err != nil:
+			fail("save")
+		case asJSON:
+			replyJSON(w, http.StatusOK, map[string]any{"ok": n > 0, "n": n, "error": errorText["photo-gone"]})
+		case what == "remove":
+			back(w, r, here+"?removed="+joinIDs(ids))
+		default:
+			done("photos-restored")
+		}
+		return
+	}
 	if c, ok := strings.CutPrefix(do, "cover:"); ok { // the photo's own button
 		n, _ := strconv.Atoi(c)
 		if a.store.SetCover(id, n) != nil {
@@ -387,13 +426,6 @@ func (a *App) albumAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		err = a.store.EditPhotos(nil, ids, by)
-	case "remove":
-		var files []string
-		if files, err = a.store.RemoveGallery(ids); err == nil {
-			a.removeMedia(files)
-			done("gallery-removed")
-			return
-		}
 	}
 	if err != nil {
 		fail("save")

@@ -109,6 +109,7 @@
   </div>
   <p class="gal-up-msg small" role="status" aria-live="polite"></p>
 </form>
+{{with $al.Removed}}<form class="flash warn undo-flash" method="post" action="/admin/gallery/{{$al.ID}}">Removed {{len .}} {{if eq (len .) 1}}photo{{else}}photos{{end}}. <button class="link" name="do" value="restore:{{$al.RemovedIDs}}">{{icon "undo"}}Undo</button></form>{{end}}
 {{if $al.Photos}}<form method="post" action="/admin/gallery/{{$al.ID}}" class="album-photos">
   <input type="hidden" name="order" value="">
   <div class="card album-tools">
@@ -125,12 +126,13 @@
       <button class="ghost" name="do" value="last">Move to end</button>
       {{if $.Albums}}<span class="wrap-row"><select name="to" aria-label="Album to move them to">{{range $.Albums}}<option value="{{.ID}}">{{.Title}}</option>{{end}}</select><button class="ghost" name="do" value="move">Move to album</button></span>{{end}}
       <span class="wrap-row"><input name="by" maxlength="100" placeholder="Photographer’s name" aria-label="Photographer’s name"><button class="ghost" name="do" value="credit">Set credit</button></span>
-      <button class="ghost danger" name="do" value="remove" onclick="return confirm('Take the ticked photos out of the gallery? Photos members shared can be approved again from Photos to review.')">{{icon "trash"}}Take out</button>
+      <button class="ghost danger" name="do" value="remove">{{icon "trash"}}Remove</button>
     </div>
     <div class="wrap-row gal-tools-go ticked-acts" id="to-newsletter">{{if $.Issues}}<span class="wrap-row"><select name="issue" aria-label="Newsletter issue">{{range $.Issues}}<option value="{{.ID}}">{{.Label}}{{if not .IsPublished}} (draft){{end}}</option>{{end}}</select><button class="ghost" name="do" value="newsletter">{{icon "plus"}}Add to newsletter</button></span>
       {{else}}<a class="small" href="/admin/newsletter">Start a newsletter issue</a>{{end}}</div>
   </div>
   <div class="sent-grid album-grid">{{range $al.Photos}}<div class="sent-photo{{if $al.Ticked .ID}} on{{end}}" draggable="true" data-id="{{.ID}}" data-framed>
+    <button class="photo-x" name="do" value="remove:{{.ID}}" title="Remove from the gallery" aria-label="Remove photo by {{.By}}">{{icon "trash"}}</button>
     <label><img src="{{.Thumb}}" alt="{{.Alt}}" loading="lazy"{{with .Focus}} style="{{focusStyle .}}"{{end}}>
     <span><input type="checkbox" name="id" value="{{.ID}}"{{if $al.Ticked .ID}} checked{{end}}> By {{.By}}</span></label>
     <input name="caption-{{.ID}}" value="{{.Caption}}" maxlength="200" placeholder="Caption" aria-label="Caption">
@@ -218,6 +220,38 @@
   var count=document.querySelector('.album-count');
   function ticked(){var n=grid.querySelectorAll('.sent-photo input[type=checkbox]:checked').length;count.textContent=n?n+' ticked:':'';count.closest('.album-tools').classList.toggle('none-ticked',!n)}
   grid.addEventListener('change',ticked);document.querySelector('.tick-all input').addEventListener('change',ticked);ticked();
+
+  // A photo's remove button works in place; Undo (for 12 seconds) puts back
+  // every photo removed since the note came up.
+  var gone=[],toast=document.createElement('div'),toastT;
+  toast.className='ed-toast';toast.setAttribute('role','status');toast.hidden=true;document.body.appendChild(toast);
+  function post(v){var fd=new URLSearchParams();fd.append('do',v);
+    return fetch(form.action,{method:'POST',body:fd,headers:{Accept:'application/json'},credentials:'same-origin'}).then(function(r){return r.json()})}
+  function oops(j){alert(j&&j.error||'Couldn’t reach the server. Check your connection and try again.')}
+  function note(){
+    toast.textContent='Removed '+(gone.length===1?'1 photo':gone.length+' photos')+'. ';
+    var u=document.createElement('button');u.type='button';u.className='link light';u.textContent='Undo';u.addEventListener('click',undo);
+    toast.appendChild(u);toast.hidden=false;clearTimeout(toastT);toastT=setTimeout(function(){toast.hidden=true;gone=[]},12000);
+  }
+  function undo(){
+    var back=gone;gone=[];toast.hidden=true;clearTimeout(toastT);
+    post('restore:'+back.map(function(g){return g.id}).join(',')).then(function(j){
+      if(!j.ok)return oops(j);
+      back.reverse().forEach(function(g){if(g.next&&g.next.parentNode===grid)grid.insertBefore(g.card,g.next);else grid.appendChild(g.card)});
+      ticked();
+    }).catch(function(){oops()});
+  }
+  grid.addEventListener('click',function(e){
+    var b=e.target.closest('.photo-x');if(!b)return;
+    e.preventDefault();
+    var card=b.closest('.sent-photo');if(card.classList.contains('busy'))return;
+    card.classList.add('busy');
+    post(b.value).then(function(j){
+      card.classList.remove('busy');
+      if(!j.ok)return oops(j);
+      gone.push({id:card.getAttribute('data-id'),card:card,next:card.nextElementSibling});card.remove();ticked();note();
+    }).catch(function(){card.classList.remove('busy');oops()});
+  });
 })();
 </script>
 {{template "foot" .}}{{end}}

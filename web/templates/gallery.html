@@ -4,14 +4,14 @@
     <h1>Photo Gallery</h1>
     <a class="btn" href="/share-photos">Share your photos</a>
   </div>
-  {{with .Featured}}<a class="album-featured" href="{{.Href}}">
+  {{with .Featured}}<div class="album-feat"><a class="album-featured" href="{{.Href}}">
     <img src="{{.Cover.Src}}"{{with .Cover.Srcset}} srcset="{{.}}" sizes="(min-width:1200px) 1100px, 100vw"{{end}} alt="" decoding="async"{{if .Cover.W}} width="{{.Cover.W}}" height="{{.Cover.H}}"{{end}}{{with .Cover.Focus}} style="{{focusStyle .}}"{{end}}>
     <span class="album-featured-text">
       <span class="album-kicker">Featured album</span>
       <span class="album-title">{{.Title}}</span>
       <span class="album-meta">{{with .DateLabel}}{{.}} · {{end}}{{.Count}} {{if eq .Count 1}}photo{{else}}photos{{end}}</span>
     </span>
-  </a>{{end}}
+  </a><a class="album-share" href="/share-photos?album={{.ID}}" aria-label="Share your photos of {{.Title}}">Share your photos</a></div>{{end}}
   {{if .Albums}}<ul class="albums">
     {{range .Albums}}<li>
       <a href="{{.Href}}">
@@ -19,6 +19,7 @@
         <span class="album-title">{{.Title}}</span>
         <span class="album-meta">{{with .DateLabel}}{{.}} · {{end}}{{.Count}} {{if eq .Count 1}}photo{{else}}photos{{end}}</span>
       </a>
+      <a class="album-share" href="/share-photos?album={{.ID}}" aria-label="Share your photos of {{.Title}}">Share your photos</a>
     </li>{{end}}
   </ul>
   {{else if not .Featured}}

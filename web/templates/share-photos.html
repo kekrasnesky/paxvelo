@@ -1,6 +1,7 @@
 {{define "content"}}{{with .Data}}
 <article class="page page-narrow">
   <h1>Share Your Photos</h1>
+  {{with .To}}<p class="share-to">{{.Title}}{{with .DateLabel}} <span>· {{.}}</span>{{end}}</p>{{end}}
   <form class="join share" method="post" action="/share-photos" enctype="multipart/form-data"{{if .Done}} hidden{{end}}>
     <input type="hidden" name="ft" value="{{.Token}}">
     <div class="hp" aria-hidden="true"><label>Leave this empty <input name="website" tabindex="-1" autocomplete="off"></label></div>
@@ -11,12 +12,13 @@
     </label>
     <ul class="share-previews" hidden></ul>
     <label>Your name <input name="name" required maxlength="100" autocomplete="name" value="{{.Name}}"></label>
-    {{$album := .Album}}<label><span>Ride or event <span class="opt">optional</span></span> <select name="album" class="share-album">
+    {{if .To}}<input type="hidden" name="album" value="{{.To.ID}}">
+    {{else}}{{$album := .Album}}<label><span>Ride or event <span class="opt">optional</span></span> <select name="album" class="share-album">
       <option value="">Not sure</option>
       {{range .Albums}}<option value="{{.ID}}"{{if eq (print .ID) $album}} selected{{end}}>{{.Title}}{{with .DateLabel}} ({{.}}){{end}}</option>{{end}}
       <option value="new"{{if eq $album "new"}} selected{{end}}>Something else…</option>
     </select></label>
-    <label class="share-new">Name it <input name="album_name" maxlength="80" placeholder="Saturday ride to Point Lookout, Oct 25" value="{{.AlbumName}}"></label>
+    <label class="share-new">Name it <input name="album_name" maxlength="80" placeholder="Saturday ride to Point Lookout, Oct 25" value="{{.AlbumName}}"></label>{{end}}
     {{if .PINOn}}<label><span>Club PIN <span class="opt">optional</span></span> <input name="pin" maxlength="40" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
     {{end}}<label class="check-row share-agree"><input type="checkbox" name="agree" value="yes" required{{if .Agree}} checked{{end}}> I took these or have permission to share them, and PaxVelo can use them online and in the newsletter.</label>
     <button class="btn" type="submit">Share photos</button>
@@ -26,7 +28,7 @@
   <div class="joined share-done" tabindex="-1"{{if not .Done}} hidden{{end}}>
     <p class="joined-title">Thanks! Your photos are in.</p>
     <p class="joined-detail">{{.Detail}}</p>
-    <p><a href="/share-photos">Share more photos</a> · <a class="share-see" href="{{or .Link "/gallery"}}">{{if .Link}}See them{{else}}See the gallery{{end}}</a></p>
+    <p><a href="/share-photos{{with .To}}?album={{.ID}}{{end}}">Share more photos</a> · <a class="share-see" href="{{or .Link "/gallery"}}">{{if .Link}}See them{{else}}See the gallery{{end}}</a></p>
   </div>
 </article>
 {{end}}{{end}}
