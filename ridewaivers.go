@@ -293,11 +293,15 @@ func (a *App) signRideWaiver(w http.ResponseWriter, r *http.Request) {
 		a.renderRideWaiver(w, http.StatusBadRequest, d)
 		return
 	}
-	if _, _, err := a.store.SignRideWaiver(signed, a.site.waiver.forRide(d.Bike == bikeLoaner, minor), a.cfg.Location); err != nil {
+	rw, isNew, err := a.store.SignRideWaiver(signed, a.site.waiver.forRide(d.Bike == bikeLoaner, minor), a.cfg.Location)
+	if err != nil {
 		log.Printf("ride waiver %s: %v", signed.Email, err)
 		d.Message = "Something went wrong on our end. Try again in a minute."
 		a.renderRideWaiver(w, http.StatusInternalServerError, d)
 		return
+	}
+	if isNew {
+		a.alertRideWaiver(rw)
 	}
 	// Away from the form, so reloading doesn't send it again.
 	http.Redirect(w, r, rideWaiverPath+"?signed=1", http.StatusSeeOther)

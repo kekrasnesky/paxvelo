@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -18,17 +19,20 @@ import (
 // for approval, a loaner bike request, photos to review, and (board) a new
 // member. Unlike the members' ride alerts each phone is tied to the admin
 // who turned it on, so alerts follow their level and their role in a
-// request; removing an admin forgets their phones. The admin app uses its
+// request; removing an admin forgets their phones. Riders saying "I'm in"
+// and waivers signed come too, for admins who turn them on. The admin app uses its
 // own service worker (/admin/sw.js, the same script as /sw.js) so its
 // subscription is separate from the club app's ride alerts in the same
 // browser.
 
 // AdminPushSub is one admin's phone with admin alerts on. Off lists the
-// kinds they turned off; new kinds start on.
+// kinds they turned off (new kinds start on); On lists the opt-in kinds they
+// turned on.
 type AdminPushSub struct {
 	PushSub
 	Admin int      `json:"admin"`
 	Off   []string `json:"off,omitempty"`
+	On    []string `json:"on,omitempty"`
 }
 
 // adminAlertKinds are the kinds of admin alert, in the switches' order.
@@ -37,12 +41,23 @@ var adminAlertKinds = []struct{ Key, Label string }{
 	{"rides", "Rides and loaner bikes"},
 	{"photos", "Photos to review"},
 	{"members", "New members"},
+	{"riders", "Riders joining rides"},
+	{"waivers", "Waivers signed"},
 }
 
-// boardOnlyKinds are kinds only board members get.
-var boardOnlyKinds = map[string]bool{"members": true}
+// boardOnlyKinds are kinds only board members get (waivers: the waiver
+// pages are the board's).
+var boardOnlyKinds = map[string]bool{"members": true, "waivers": true}
 
-func (p AdminPushSub) Wants(kind string) bool { return !slices.Contains(p.Off, kind) }
+// optInKinds start off: they can come many times a day.
+var optInKinds = map[string]bool{"riders": true, "waivers": true}
+
+func (p AdminPushSub) Wants(kind string) bool {
+	if optInKinds[kind] {
+		return slices.Contains(p.On, kind)
+	}
+	return !slices.Contains(p.Off, kind)
+}
 
 const maxAdminPush = 200
 
@@ -59,11 +74,11 @@ func (s *Store) AddAdminPush(admin int, p PushSub) error {
 			if x.Admin == admin && x.PushSub == p {
 				return nil
 			}
-			off := x.Off
+			off, optIn := x.Off, x.On
 			if x.Admin != admin {
-				off = nil
+				off, optIn = nil, nil
 			}
-			s.d.AdminPush[i] = AdminPushSub{PushSub: p, Admin: admin, Off: off}
+			s.d.AdminPush[i] = AdminPushSub{PushSub: p, Admin: admin, Off: off, On: optIn}
 			return s.save()
 		}
 	}
@@ -86,14 +101,17 @@ func (s *Store) AdminPushKinds(admin int, endpoint string, on []string) ([]strin
 	}
 	p := &s.d.AdminPush[i]
 	if on != nil {
-		var off []string
+		var off, optIn []string
 		for _, k := range adminAlertKinds {
-			if !slices.Contains(on, k.Key) {
+			switch picked := slices.Contains(on, k.Key); {
+			case optInKinds[k.Key] && picked:
+				optIn = append(optIn, k.Key)
+			case !optInKinds[k.Key] && !picked:
 				off = append(off, k.Key)
 			}
 		}
-		if !slices.Equal(off, p.Off) {
-			p.Off = off
+		if !slices.Equal(off, p.Off) || !slices.Equal(optIn, p.On) {
+			p.Off, p.On = off, optIn
 			if err := s.save(); err != nil {
 				return nil, err
 			}
@@ -382,7 +400,6 @@ func (a *App) alertRequestSettled(q SpendRequest) {
 	a.alertAdmins("requests", m, 72*time.Hour, func(u AdminUser) bool { return u.ID == q.ByID })
 }
 
-// alertSignup: someone joined on the website (board).
 // alertPaid tells admins a member paid by card (stripe.go).
 func (a *App) alertPaid(m Member, cents int64) {
 	a.alertAdmins("members", pushMsg{
@@ -392,10 +409,63 @@ func (a *App) alertPaid(m Member, cents int64) {
 	}, 72*time.Hour, nil)
 }
 
+// alertSignup: someone joined on the website (board).
 func (a *App) alertSignup(m Member) {
 	a.alertAdmins("members", pushMsg{
 		Title: "New member: " + m.Name,
 		Body:  m.PlanName(),
 		URL:   fmt.Sprintf("/admin/members/%d", m.ID), Tag: "member-" + strconv.Itoa(m.ID),
 	}, 72*time.Hour, nil)
+}
+
+// alertRiderIn: someone said "I'm in" on a ride's page. One alert per ride,
+// replaced by the next, with how many are going.
+func (a *App) alertRiderIn(o RideOcc, name string, first bool) {
+	body := o.ShortDate() + " · " + plural(len(o.Riders), "1 going", strconv.Itoa(len(o.Riders))+" going")
+	if first {
+		body += " · first club ride"
+	}
+	a.alertAdmins("riders", pushMsg{
+		Title: name + " is in: " + o.Name, Body: body,
+		URL: "/admin/rides/" + o.Key + "#riders", Tag: "in-" + o.Key,
+	}, 24*time.Hour, nil)
+}
+
+// alertWaiver: a waiver was signed (board). who is the rider, or riders.
+func (a *App) alertWaiver(who, body, url string) {
+	a.alertAdmins("waivers", pushMsg{Title: "Waiver signed: " + who, Body: body, URL: url, Tag: "waiver-" + url}, 72*time.Hour, nil)
+}
+
+// alertRideWaiver: a ride waiver (or loaner waiver) signed on the website.
+func (a *App) alertRideWaiver(w RideWaiver) {
+	body := "Ride waiver, own bike"
+	if w.Bike == bikeLoaner {
+		body = "Ride waiver, loaner bike"
+	}
+	if w.Minor {
+		body += " · signed by " + w.Name
+	}
+	a.alertWaiver(w.RiderName(), body, "/admin/ride-waivers/"+strconv.Itoa(w.ID))
+}
+
+// alertMemberWaiver: this year's waivers signed by a member, for themselves
+// or riders on their plan, in one alert.
+func (a *App) alertMemberWaiver(ws []Waiver) {
+	if len(ws) == 0 {
+		return
+	}
+	var riders []string
+	for _, w := range ws {
+		riders = append(riders, or(w.Rider, w.Name))
+	}
+	w := ws[0]
+	body := fmt.Sprintf("%d waiver · %s", w.Year, w.Where)
+	if w.Minor || len(ws) > 1 {
+		body += " · signed by " + w.Name
+	}
+	url := "/admin/waivers/" + strconv.Itoa(w.ID)
+	if len(ws) > 1 {
+		url = "/admin/waivers"
+	}
+	a.alertWaiver(strings.Join(riders, ", "), body, url)
 }

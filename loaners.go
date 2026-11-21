@@ -387,7 +387,7 @@ func (a *App) askLoaner(w http.ResponseWriter, r *http.Request) {
 		a.renderLoaner(w, http.StatusBadRequest, o, d)
 		return
 	}
-	waiver, _, err := a.store.SignRideWaiver(signed, a.site.waiver.forRide(true, minor), a.cfg.Location)
+	waiver, newWaiver, err := a.store.SignRideWaiver(signed, a.site.waiver.forRide(true, minor), a.cfg.Location)
 	if err != nil {
 		log.Printf("loaner waiver %s: %v", signed.Email, err)
 		d.Message = "Something went wrong on our end. Try again in a minute."
@@ -407,6 +407,9 @@ func (a *App) askLoaner(w http.ResponseWriter, r *http.Request) {
 	}
 	a.notifyLoaner(q)
 	a.alertLoaner(q)
+	if newWaiver {
+		a.alertRideWaiver(waiver)
+	}
 	http.Redirect(w, r, loanerPath(o.Key)+"?asked=1", http.StatusSeeOther)
 }
 

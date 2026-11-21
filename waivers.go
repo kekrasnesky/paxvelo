@@ -349,9 +349,11 @@ func (a *App) signWaiver(w http.ResponseWriter, r *http.Request) {
 		v.WaiverMessage = joinProblems["drawing"]
 	default:
 		signed.Year, signed.Signature, signed.Drawing, signed.Where, signed.IP = v.Year, signature, drawing, "Membership page", clientIP(r)
-		if _, _, err := a.store.SignWaiver(signed, a.site.waiver); err != nil {
+		if w, isNew, err := a.store.SignWaiver(signed, a.site.waiver); err != nil {
 			log.Printf("sign waiver %s: %v", name, err)
 			v.WaiverMessage = "Something went wrong on our end. Try again in a minute."
+		} else if isNew {
+			a.alertMemberWaiver([]Waiver{w})
 		}
 	}
 	if v.WaiverMessage != "" {
@@ -414,9 +416,11 @@ func (a *App) signMinorWaiver(w http.ResponseWriter, r *http.Request) {
 	default:
 		signed := Waiver{MemberID: m.ID, Year: v.Year, Signature: cleanName(f.Signature), Drawing: drawing, Where: "Membership page", IP: clientIP(r),
 			Rider: rider, Minor: true, RiderAge: age, GuardianPhone: phone}
-		if _, _, err := a.store.SignWaiver(signed, a.site.waiver.forMinor()); err != nil {
+		if w, isNew, err := a.store.SignWaiver(signed, a.site.waiver.forMinor()); err != nil {
 			log.Printf("sign minor waiver %s: %v", m.Email, err)
 			v.MinorMessage = "Something went wrong on our end. Try again in a minute."
+		} else if isNew {
+			a.alertMemberWaiver([]Waiver{w})
 		}
 	}
 	if v.MinorMessage != "" {

@@ -174,6 +174,9 @@ func (a *App) imIn(w http.ResponseWriter, r *http.Request) {
 		rideBack(w, r, key, "err="+or(rideErrCode(err), "noride")+"#going")
 		return
 	}
+	if isNew {
+		a.alertRiderIn(o, name, first)
+	}
 	if isNew && first {
 		body := fmt.Sprintf("**%s** said they're coming to %s, their first club ride.", name, rideWhen(o))
 		if group != "" {

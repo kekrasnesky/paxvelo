@@ -335,19 +335,27 @@ func (a *App) renewal(r *http.Request, reply func(int, joinData), m Member, deta
 func (a *App) applyJoin(m Member, year int, signature string, drawing []byte, ip string, riders []joinRider, adults []HouseholdAdult) ([]string, []HouseholdAdult) {
 	// This year's waiver, unless they already signed one. The record keeps
 	// the name on file and the name typed.
-	if _, _, err := a.store.SignWaiver(Waiver{MemberID: m.ID, Year: year, Signature: signature, Drawing: drawing, Where: "Join form", IP: ip}, a.site.waiver); err != nil {
+	var fresh []Waiver // new ones, for the admins' alert
+	if w, isNew, err := a.store.SignWaiver(Waiver{MemberID: m.ID, Year: year, Signature: signature, Drawing: drawing, Where: "Join form", IP: ip}, a.site.waiver); err != nil {
 		log.Printf("join %s: waiver: %v", m.Email, err)
+	} else if isNew {
+		fresh = append(fresh, w)
 	}
 	var signedFor []string
 	for _, k := range riders {
 		signed := Waiver{MemberID: m.ID, Year: year, Signature: signature, Drawing: drawing, Where: "Join form", IP: ip,
 			Rider: k.Name, Minor: true, RiderAge: k.Age, GuardianPhone: m.Phone}
-		if _, _, err := a.store.SignWaiver(signed, a.site.waiver.forMinor()); err != nil {
+		w, isNew, err := a.store.SignWaiver(signed, a.site.waiver.forMinor())
+		if err != nil {
 			log.Printf("join %s: minor waiver: %v", m.Email, err)
 			continue
 		}
+		if isNew {
+			fresh = append(fresh, w)
+		}
 		signedFor = append(signedFor, k.Name)
 	}
+	a.alertMemberWaiver(fresh)
 	// The other adults on a Family plan sign their own waivers, with the link
 	// emailed to them. A member who has adults listed already keeps them.
 	var added []HouseholdAdult
