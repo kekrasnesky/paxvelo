@@ -1091,6 +1091,10 @@ button:has(>.ic),.btn:has(>.ic){display:inline-flex;align-items:center;justify-c
 .rsvp-pin{flex:none;width:1.6rem;height:1.6rem;margin-top:.15rem;fill:none;stroke:var(--red);stroke-width:2;stroke-linejoin:round}
 .rsvp-place strong{display:block;font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .rsvp-info .rsvp-place+.rsvp-details{margin-top:.6rem;padding-left:2.35rem}
+/* The pay page (stripe.go): the welcome after paying on joining */
+.pay-note{padding:.6rem .9rem;border-radius:var(--r-sm);background:var(--warn-bg);color:var(--warn-ink);font-weight:500}
+.pay-rides{padding:0;list-style:none}
+.pay-rides li{padding:.5rem 0;border-bottom:1px solid var(--rule)}
 .rsvp-acts{display:grid;grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr));gap:.6rem;margin-top:1rem}
 .rsvp-acts .btn{display:flex;align-items:center;justify-content:center;gap:.5rem}
 .rsvp-acts svg{width:1.15rem;height:1.15rem;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}

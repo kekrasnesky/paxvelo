@@ -117,7 +117,7 @@ func (m *Mailer) personalize(s string, mem Member) string {
 	if strings.Contains(s, "{rides_for_you}") {
 		rides = rideList(ridesFor(m.store, m.cfg.Location, mem.Level, 3), m.cfg.SiteURL)
 	}
-	pay := m.cfg.PayLink(mem.Plan)
+	pay := payLink(m.cfg, m.store, mem)
 	if pay == "" {
 		pay = m.cfg.SiteURL + "/join"
 	}

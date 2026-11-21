@@ -128,7 +128,7 @@ func TestDemoClubAdminPages(t *testing.T) {
 		"/admin/rides", "/admin/calendar", "/admin/rides/new", "/admin/rides/" + rideKey, "/admin/weekly/1", "/admin/loaners",
 		"/admin/rsvp", "/admin/rsvp/1", "/admin/email", "/admin/email/auto", "/admin/email/log", "/admin/email/alerts",
 		"/admin/newsletter", "/admin/gallery", "/admin/submitted", "/admin/pages", "/admin/home-photos", "/admin/board",
-		"/admin/kit", "/admin/minutes", "/admin/stats", "/admin/treasurer", "/admin/treasurer/income",
+		"/admin/kit", "/admin/minutes", "/admin/stats", "/admin/treasurer", "/admin/treasurer/income", "/admin/treasurer/payments",
 		"/admin/treasurer/requests", "/admin/treasurer/budget", "/admin/treasurer/reports", "/admin/admins", "/admin/security",
 		"/admin/signs", "/admin/guide", "/calendar", "/calendar/ride/" + rideKey,
 		"/admin/app?q=ride", "/admin/app/today", "/admin/app/approvals", "/admin/app/paid", "/admin/app/search?q=example", "/admin/email/auto/morning-summary/preview", "/calendar/new"}

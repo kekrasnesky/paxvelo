@@ -101,8 +101,8 @@ func (a *App) membershipView(m Member, token string) membershipData {
 	}
 	d.DetailsDone = m.Phone != "" && m.EmergencyName != "" && m.EmergencyPhone != "" && d.LevelName != ""
 	if !d.Paid {
-		if link := a.cfg.PayLink(m.Plan); link != "" {
-			d.PayURL, d.PayLabel = link, fmt.Sprintf("Pay $%d with PayPal", a.cfg.Dues(m.Plan))
+		if link := a.payLink(m); link != "" {
+			d.PayURL, d.PayLabel = link, a.payLabel(m.Plan)
 		}
 	}
 	if w, ok := a.store.WaiverFor(m.ID, year); ok {
@@ -409,7 +409,7 @@ func (a *App) sendConfirm(m Member) error {
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "Hi %s,\n\n%s\n\n[[%s](%s&confirm=1#confirm)]", or(m.FirstName(), "there"), intro, button, a.cfg.membershipURL(m.Token))
-	if pay := a.cfg.PayLink(m.Plan); pay != "" && !m.Paid() && !m.newsOnly() {
+	if pay := a.payLink(m); pay != "" && !m.Paid() && !m.newsOnly() {
 		fmt.Fprintf(&b, "\n\nHaven’t paid yet? [Pay your $%d %s dues for %d](%s).", a.cfg.Dues(m.Plan), strings.ToLower(m.PlanName()), year, pay)
 	}
 	pageDoes := "check your dues and update your details"

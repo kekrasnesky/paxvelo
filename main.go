@@ -222,6 +222,9 @@ func (a *App) routes() http.Handler {
 	// Joining and leaving.
 	mux.HandleFunc("GET /join", a.joinPage)
 	mux.HandleFunc("POST /join", a.join)
+	mux.HandleFunc("GET /pay/{code}", a.payPage)
+	mux.HandleFunc("POST /pay/{code}", a.startPay)
+	mux.HandleFunc("POST /stripe/webhook", a.stripeWebhook)
 	mux.HandleFunc("GET /unsubscribe", a.unsubscribePage)
 	mux.HandleFunc("POST /unsubscribe", a.unsubscribe)
 	mux.HandleFunc("GET /membership", a.membershipPage)
@@ -282,6 +285,8 @@ func (a *App) routes() http.Handler {
 	mux.Handle("GET /admin/treasurer/income", a.boardOnly(a.incomePage))
 	mux.Handle("POST /admin/treasurer/income/dues", a.boardOnly(a.duesCategory))
 	mux.Handle("POST /admin/treasurer/income/fee", a.boardOnly(a.payPalFee))
+	mux.Handle("GET /admin/treasurer/payments", a.boardOnly(a.paymentsPage))
+	mux.Handle("GET /admin/treasurer/payments.csv", a.boardOnly(a.paymentsDownload))
 	mux.Handle("POST /admin/treasurer/entries", a.boardOnly(a.addLedger))
 	mux.Handle("GET /admin/treasurer/entries/{id}", a.boardOnly(a.editLedgerPage))
 	mux.Handle("POST /admin/treasurer/entries/{id}", a.boardOnly(a.saveLedger))

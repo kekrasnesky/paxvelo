@@ -55,6 +55,8 @@ type moneyView struct {
 	Requests *requestsView
 	// Budget: the most the treasurer's OK alone approves (requests.go).
 	OneLimit int64
+	// Payments: card payments through Stripe (stripeadmin.go).
+	Payments *paymentsView
 }
 
 // duesView is the membership income worked out from Members.

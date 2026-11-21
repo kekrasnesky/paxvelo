@@ -53,6 +53,8 @@ var autoTriggers = []autoTrigger{
 	{"joined", "someone joins on the website", "", false, "Everyone who fills in the join form, paid or not.", "Everyone who joins on the website"},
 	{"unpaid", "someone joins on the website", "if they haven’t paid yet", false, "A nudge to pay: it’s skipped once they’re marked paid.", "New members who haven’t paid yet"},
 	{"paid", "a member is marked paid", "", false, "Each time dues are marked paid, joining or renewing.", "Members marked paid"},
+	{"renewed", "a member renews", "", false, "Marked paid, or paid by card, for another year: not a new member’s first payment.", "Members who renew (on a Family plan, only the one who pays)"},
+	{"checkout", "someone starts paying by card", "if they haven’t finished", false, "They went to the card payment page and left: it’s skipped once they’re paid.", "Members who left the card payment page without paying"},
 	{"waiver", "a member is marked paid", "if they haven’t signed this year’s waiver", false, "A reminder to sign: it’s skipped once they have.", "Members marked paid who haven’t signed this year’s waiver"},
 	{"expiring", "a member’s dues run out", "", true, "A renewal reminder: it’s skipped if they renew first.", "Paid-up members (on a Family plan, only the one who pays)"},
 	{"expired", "a member’s dues ran out", "if they haven’t renewed", false, "For members whose dues lapsed.", "Members who haven’t renewed (on a Family plan, only the one who pays)"},
@@ -132,6 +134,19 @@ func (a *App) autoDue(au Automation, m Member) (due time.Time, occ string, ok bo
 				return
 			}
 		}
+	case "renewed":
+		// Another year paid, by someone who'd paid before: not a first
+		// payment, and not a site-move one (that has its own email).
+		base = m.lastPaidOn()
+		movedOver := m.MovedSent != nil && base.Sub(*m.MovedSent).Abs() < 24*time.Hour
+		if len(m.PaidYears) < 2 || m.FamilyOf != 0 || movedOver {
+			return
+		}
+	case "checkout":
+		if m.FamilyOf != 0 {
+			return
+		}
+		base = a.store.Unfinished(m)
 	case "expiring":
 		if !m.Paid() || m.FamilyOf != 0 { // a family rider's dues are the plan holder's to renew
 			return
@@ -425,6 +440,65 @@ func (s *Store) seedPayNudge() {
 		Subject: payNudgeSubject, Body: payNudgeBody, Created: time.Now().UTC(),
 	})
 	s.d.PayNudgeSeeded = true
+}
+
+// ---- Membership emails ----
+
+// Three more ordinary automations, added once (MemberAutosSeeded) like the
+// renewal and pay reminders: thanks with the new date when someone renews,
+// a nudge the day after someone leaves the card payment page without paying,
+// and a note a week after dues run out.
+
+const (
+	renewedSubject = "Thanks for renewing, {first_name}"
+	renewedBody    = `Hi {first_name},
+
+Thanks for renewing! Your PaxVelo membership is good through {dues_expire}.
+
+Your membership page has your dues, waiver and details:
+{my_link}
+
+See you on the road!
+PaxVelo`
+
+	checkoutSubject = "Finish paying your PaxVelo dues"
+	checkoutBody    = `Hi {first_name},
+
+It looks like your card payment didn’t go through. Your {dues} dues are one step away:
+
+[[Pay my dues]({pay_link})]
+
+Something went wrong? Reply to this email and we’ll sort it out.
+
+PaxVelo`
+
+	lapsedSubject = "Your PaxVelo membership ran out"
+	lapsedBody    = `Hi {first_name},
+
+Your PaxVelo membership ran out on {dues_expire}. We’d love to keep riding with you:
+
+[[Renew for {dues}]({pay_link})]
+
+{rides_for_you}
+
+PaxVelo`
+)
+
+func (s *Store) seedMemberAutos() {
+	if s.d.MemberAutosSeeded {
+		return
+	}
+	now := time.Now().UTC()
+	for _, au := range []Automation{
+		{Name: "Thanks for renewing", Trigger: "renewed", Days: 0, Subject: renewedSubject, Body: renewedBody},
+		{Name: "Finish paying", Trigger: "checkout", Days: 1, Subject: checkoutSubject, Body: checkoutBody},
+		{Name: "Membership ran out", Trigger: "expired", Days: 7, Subject: lapsedSubject, Body: lapsedBody},
+	} {
+		s.d.NextAuto++
+		au.ID, au.Created = s.d.NextAuto, now
+		s.d.Automations = append(s.d.Automations, &au)
+	}
+	s.d.MemberAutosSeeded = true
 }
 
 // MarkAutoSent records that an automation is going to a member for a day,
@@ -917,7 +991,7 @@ func (a *App) samplePat() Member {
 func (a *App) fillConfirm(body string, m Member) string {
 	button := "[[Confirm my email](" + a.cfg.membershipURL(m.Token) + "&confirm=1#confirm)]"
 	pay := ""
-	if p := a.cfg.PayLink(m.Plan); p != "" && !m.Paid() {
+	if p := a.payLink(m); p != "" && !m.Paid() {
 		pay = "Haven’t paid yet? [Pay your $" + strconv.Itoa(a.cfg.Dues(m.Plan)) + " " + strings.ToLower(m.PlanName()) + " dues for " + strconv.Itoa(a.cfg.ThisYear()) + "](" + p + ")."
 	}
 	return strings.NewReplacer("{confirm_button}", button, "{pay_line}", pay).Replace(body)

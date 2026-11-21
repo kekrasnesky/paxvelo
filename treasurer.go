@@ -605,7 +605,8 @@ type duesLine struct {
 	Plan    string
 	Date    string // 2006-01-02
 	Cents   int64
-	Fee     int64 // what PayPal kept, worked out (PayPalFee)
+	Fee     int64 // what PayPal kept, worked out (PayPalFee), or what Stripe kept
+	Card    bool  // paid by card through Stripe (stripe.go)
 	Guessed bool  // marked paid without a date (imported): counted on their join day
 }
 
@@ -626,10 +627,12 @@ func (d duesLine) DateLabel() string { return mdy(d.Date) }
 // (or, from a Squarespace orders import, the day it was paid), at today's
 // dues for the member's plan. Years imported without a date count on the
 // member's join day in that year. Deleted members aren't counted. Each
-// payment also has its PayPal fee worked out (PayPalFee).
+// payment also has its PayPal fee worked out (PayPalFee), or for one paid
+// through Stripe, the fee Stripe kept.
 func (a *App) duesIncome(year int, through string) (sum duesSum) {
 	y := strconv.Itoa(year)
 	fee := a.store.PayPalFee()
+	card := a.store.stripeFees()
 	for _, m := range a.store.Members() {
 		if m.FamilyOf != 0 { // a rider's dues are their plan's, counted once there
 			continue
@@ -646,7 +649,9 @@ func (a *App) duesIncome(year int, through string) (sum duesSum) {
 			c := int64(a.cfg.Dues(m.Plan)) * 100
 			line := duesLine{Member: m.Name, Plan: m.PlanName(), Date: d, Cents: c, Guessed: !ok}
 			movedOver := m.MovedSent != nil && ok && t.Sub(*m.MovedSent).Abs() < 24*time.Hour
-			if ok && fee.Since != "" && d >= fee.Since && !movedOver {
+			if f, paidByCard := card[m.ID][p]; paidByCard {
+				line.Fee, line.Card = f, true
+			} else if ok && fee.Since != "" && d >= fee.Since && !movedOver {
 				line.Fee = fee.On(c)
 			}
 			sum.Total += c

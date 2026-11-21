@@ -50,7 +50,7 @@ func publicCSP(hashes []string) string {
 		"connect-src 'self'",
 		"object-src 'none'",
 		"base-uri 'self'",
-		"form-action 'self'",
+		"form-action 'self' https://checkout.stripe.com", // the Pay button goes on to Stripe (stripe.go)
 		"frame-ancestors 'none'",
 	}, "; ")
 }

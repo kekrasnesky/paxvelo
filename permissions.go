@@ -67,7 +67,7 @@ func levelName(l adminLevel) string {
 var boardTabs = map[string]bool{
 	"waivers": true, "auto": true, "alerts": true, "newsletter": true, "sent-log": true,
 	"pages": true, "home-photos": true, "board": true, "instagram": true,
-	"expenses": true, "income": true, "budget": true, "reports": true,
+	"expenses": true, "income": true, "payments": true, "budget": true, "reports": true,
 	"security": true, "kit": true,
 }
 

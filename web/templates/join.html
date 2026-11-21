@@ -86,7 +86,7 @@
   <div class="joined" tabindex="-1"{{if not .Data.OK}} hidden{{end}}>
     <p class="joined-title">{{if .Data.OK}}{{.Data.Message}}{{end}}</p>
     <p class="joined-detail">{{.Data.Detail}}</p>
-    <p class="joined-pay"{{if not .Data.PayURL}} hidden{{end}}><a class="btn" href="{{.Data.PayURL}}" target="_blank" rel="noopener noreferrer"><span>{{.Data.PayLabel}}</span><span class="sr"> (opens in a new tab)</span></a></p>
+    <p class="joined-pay"{{if not .Data.PayURL}} hidden{{end}}>{{if .Data.Go}}<a class="btn" href="{{.Data.PayURL}}"><span>{{.Data.PayLabel}}</span></a>{{else}}<a class="btn" href="{{.Data.PayURL}}" target="_blank" rel="noopener noreferrer"><span>{{.Data.PayLabel}}</span><span class="sr"> (opens in a new tab)</span></a>{{end}}</p>
     <p>Next, <a href="/calendar" target="_blank" rel="noopener noreferrer">find your first ride on the club calendar<span class="sr"> (opens in a new tab)</span></a>, and read <a href="/bike-safety" target="_blank" rel="noopener noreferrer">Bike Safety 101<span class="sr"> (opens in a new tab)</span></a> before you go.</p>
     <form class="joined-minors" method="post" action="/membership/link" target="_blank">
       <input type="hidden" name="email" value="{{.Data.Form.Email}}">

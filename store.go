@@ -281,6 +281,12 @@ type storeData struct {
 	BoardLinked bool `json:"board_linked,omitempty"`
 	// Club inbox notices kept for the morning summary (summary.go).
 	Summary ClubSummary `json:"club_summary,omitzero"`
+	// Dues paid by card through Stripe (stripe.go).
+	Payments  []StripePayment  `json:"stripe_payments,omitempty"`
+	Checkouts []StripeCheckout `json:"stripe_checkouts,omitempty"` // card payments started, finished or not
+	// The membership emails (Thanks for renewing, Finish paying, Membership
+	// ran out) were added once (seedMemberAutos).
+	MemberAutosSeeded bool `json:"member_autos_seeded,omitempty"`
 }
 
 type Store struct {
@@ -406,6 +412,7 @@ func openStore(dir string) (*Store, error) {
 	s.seedLoaners()
 	s.seedRenewal()
 	s.seedPayNudge()
+	s.seedMemberAutos()
 	s.tidyRiders(time.Now()) // imin.go
 	s.linkBoard()
 	return s, s.save()
@@ -591,6 +598,12 @@ func (s *Store) SetPaid(id, year int, paid bool) error {
 	if m == nil {
 		return nil
 	}
+	s.setPaid(m, year, paid)
+	return s.save()
+}
+
+// setPaid marks a year paid or not, without saving.
+func (s *Store) setPaid(m *Member, year int, paid bool) {
 	was := m.PaidFor(year)
 	years := m.PaidYears[:0:0]
 	for _, y := range m.PaidYears {
@@ -610,7 +623,6 @@ func (s *Store) SetPaid(id, year int, paid bool) error {
 		years = append(years, year)
 	}
 	m.PaidYears = years
-	return s.save()
 }
 
 // TakeWelcome reports whether a member's welcome email is still to be sent,

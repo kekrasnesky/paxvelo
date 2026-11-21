@@ -383,6 +383,15 @@ func (a *App) alertRequestSettled(q SpendRequest) {
 }
 
 // alertSignup: someone joined on the website (board).
+// alertPaid tells admins a member paid by card (stripe.go).
+func (a *App) alertPaid(m Member, cents int64) {
+	a.alertAdmins("members", pushMsg{
+		Title: "Dues paid: " + m.Name,
+		Body:  "$" + moneyInput(cents) + " by card, " + m.PlanName(),
+		URL:   fmt.Sprintf("/admin/members/%d", m.ID), Tag: "paid-" + strconv.Itoa(m.ID),
+	}, 72*time.Hour, nil)
+}
+
 func (a *App) alertSignup(m Member) {
 	a.alertAdmins("members", pushMsg{
 		Title: "New member: " + m.Name,

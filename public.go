@@ -25,6 +25,7 @@ type joinData struct {
 	Message          string        // error text, or the headline after joining
 	Detail           string        // the sentence under the headline
 	PayURL, PayLabel string        // PayPal button, when dues are owed
+	Go               bool          // card payments (stripe.go): the page goes straight on to pay
 	Today            string        // the date beside the waiver signature
 	Adults           []adultRow    // other adults on a Family plan, as typed
 	Riders           []riderRow    // riders under 18 the parent or guardian signs for, as typed
@@ -199,7 +200,7 @@ func (a *App) join(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Cache-Control", "no-store")
 			w.WriteHeader(status)
 			json.NewEncoder(w).Encode(map[string]any{
-				"ok": d.OK, "message": d.Message, "detail": d.Detail, "pay_url": d.PayURL, "pay_label": d.PayLabel,
+				"ok": d.OK, "message": d.Message, "detail": d.Detail, "pay_url": d.PayURL, "pay_label": d.PayLabel, "go": d.Go,
 			})
 			return
 		}
@@ -271,8 +272,11 @@ func (a *App) join(w http.ResponseWriter, r *http.Request) {
 	dues := a.cfg.Dues(m.Plan)
 	d.Message = fmt.Sprintf("Thanks, %s! Two last steps.", m.FirstName())
 	d.Detail = fmt.Sprintf("Pay your $%d %s dues for %d to finish joining.", dues, strings.ToLower(m.PlanName()), year)
-	if link := a.cfg.PayLink(m.Plan); link != "" {
-		d.PayURL, d.PayLabel = link, fmt.Sprintf("Pay $%d with PayPal", dues)
+	if link := a.payLink(m); link != "" {
+		d.PayURL, d.PayLabel = link, a.payLabel(m.Plan)
+		if a.cfg.Stripe() { // on to the card payment page, which comes back to a welcome
+			d.PayURL, d.Go = link+"?from=join", true
+		}
 	} else {
 		d.Detail += " We’ll email you how to pay."
 	}

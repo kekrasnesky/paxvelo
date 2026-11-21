@@ -19,7 +19,7 @@
       <h2>Membership dues</h2>
       <p class="money-big" title="Dues marked paid on Members, at today’s prices">{{money .Total}}</p>
       <p class="muted small">{{.Individual}} Individual × ${{.DuesIndividual}} · {{.Family}} Family × ${{.DuesFamily}}</p>
-      {{if .Fees}}<p class="dues-net"><span class="muted">PayPal fees</span> −{{money .Fees}} <span class="muted">· net</span> <strong>{{money .Net}}</strong></p>{{end}}
+      {{if .Fees}}<p class="dues-net"><span class="muted">Fees</span> −{{money .Fees}} <span class="muted">· net</span> <strong>{{money .Net}}</strong></p>{{end}}
     </div>
     <form method="post" action="/admin/treasurer/income/dues" class="dues-where">
       <input type="hidden" name="year" value="{{$m.Year}}">
@@ -30,8 +30,8 @@
   <div class="wrap-row dues-more">
   {{with .Lines}}<details class="dues-list"><summary>Who paid ({{len .}})</summary>
     <div class="table-wrap"><table class="tight">
-      <thead><tr><th>Date</th><th>Member</th><th>Plan</th><th class="right">Dues</th><th class="right">PayPal fee</th></tr></thead>
-      <tbody>{{range .}}<tr><td class="nowrap">{{if .Guessed}}<span title="Marked paid without a date: counted on their join day">≈ </span>{{end}}{{.DateLabel}}</td><td>{{.Member}}</td><td>{{.Plan}}</td><td class="right nowrap">{{money .Cents}}</td><td class="right nowrap">{{if .Fee}}−{{money .Fee}}{{else}}<span class="muted" title="Before PayPal, or paid on the old site">—</span>{{end}}</td></tr>{{end}}</tbody>
+      <thead><tr><th>Date</th><th>Member</th><th>Plan</th><th class="right">Dues</th><th class="right">Fee</th></tr></thead>
+      <tbody>{{range .}}<tr><td class="nowrap">{{if .Guessed}}<span title="Marked paid without a date: counted on their join day">≈ </span>{{end}}{{.DateLabel}}</td><td>{{.Member}}</td><td>{{.Plan}}</td><td class="right nowrap">{{money .Cents}}</td><td class="right nowrap">{{if .Fee}}<span{{if .Card}} title="Card, through Stripe"{{end}}>−{{money .Fee}}</span>{{else}}<span class="muted" title="Before PayPal, or paid on the old site">—</span>{{end}}</td></tr>{{end}}</tbody>
     </table></div>
   </details>{{end}}
   <details class="dues-list"><summary>PayPal fee{{with .Fee}} ({{.Percent}}% + {{money .Fixed}}){{end}}</summary>
@@ -53,7 +53,7 @@
   {{if $m.Fees}}<tr class="fee-row">
     <td class="c-date nowrap">{{$m.Year}}</td>
     <td class="c-cat">{{$m.FeeCat}}</td>
-    <td class="c-what">PayPal fees on dues</td>
+    <td class="c-what">Payment fees on dues</td>
     <td class="c-who"></td>
     <td class="c-amt right nowrap money-amt">{{money $m.Fees}}</td>
     <td class="c-rcpt"></td>
@@ -224,6 +224,42 @@ document.querySelectorAll('.money-form select[name=category]').forEach(function(
     </div></td>
   </tr>{{end}}</tbody>
 </table></div>{{end}}
+{{template "foot" .}}{{end}}
+
+{{define "money-payments"}}{{template "head" .}}{{$m := .Money}}{{$p := $m.Payments}}
+<div class="wrap-row money-top">
+  <h1>Payments</h1>
+  {{template "money-year" .}}
+  <p class="money-total"><span class="muted">{{$m.Year}}</span> <strong>{{money $p.Total}}</strong></p>
+</div>
+{{if not $p.On}}<p class="flash warn" title="STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET in paxvelo.conf">Card payments are off.</p>{{else if $p.Test}}<p class="flash warn">Stripe test mode: no real money.</p>{{end}}
+{{with $p.Rows}}<dl class="facts pay-facts">
+  <div><dt>Payments</dt><dd>{{len .}}</dd></div>
+  <div><dt>New members</dt><dd>{{$p.New}}</dd></div>
+  <div><dt>Renewals</dt><dd>{{$p.Renew}}</dd></div>
+  <div><dt>Stripe fees</dt><dd>−{{money $p.Fees}}</dd></div>
+  <div><dt>Net</dt><dd><strong>{{money $p.Net}}</strong></dd></div>
+</dl>{{end}}
+{{with $p.Unfinished}}<section class="card">
+  <h2>Started, not paid</h2>
+  <ul class="rows">{{range .}}<li>
+    <span><a href="/admin/members/{{.Member.ID}}"><strong>{{.Member.Name}}</strong></a> <span class="muted small">{{date .Started}} · {{money .Cents}}{{if .Join}} · join form{{end}}</span></span>
+    <span class="act-row">{{with .Member.Email}}<a class="link" href="mailto:{{.}}">{{icon "send"}}Email</a>{{end}}</span>
+  </li>{{end}}</ul>
+</section>{{end}}
+{{if $p.Rows}}<div class="wrap-row"><h2 class="section">Card payments</h2> <a class="ghost btn" href="/admin/treasurer/payments.csv?year={{$m.Year}}">{{icon "download"}}Spreadsheet</a></div>
+<div class="table-wrap"><table class="tight cards">
+  <thead><tr><th>Date</th><th>Member</th><th>Plan</th><th class="right">Amount</th><th class="right">Fee</th><th><span class="sr">Stripe</span></th></tr></thead>
+  <tbody>{{range $p.Rows}}<tr>
+    <td class="nowrap" data-label="Date">{{date .At}}</td>
+    <td data-label="Member">{{if .Gone}}{{.Name}} <span class="tag">Deleted</span>{{else}}<a href="/admin/members/{{.Member}}">{{.Name}}</a>{{end}}{{if .Renewed}} <span class="tag" title="Paid up already: added a year">Renewal</span>{{end}}{{if eq .Mode "test"}} <span class="tag tag-warn">Test</span>{{end}}{{with .Note}} <span class="tag tag-warn">{{.}}</span>{{end}}</td>
+    <td data-label="Plan">{{.PlanName}}</td>
+    <td class="right nowrap" data-label="Amount">{{money .Cents}}</td>
+    <td class="right nowrap" data-label="Fee"><span{{if not .FeeSure}} title="Worked out: 2.9% + 30¢"{{end}}>{{if not .FeeSure}}≈ {{end}}−{{money .Fee}}</span></td>
+    <td class="right" data-label="Stripe">{{with .DashURL}}<a class="link" href="{{.}}" target="_blank" rel="noopener noreferrer">{{icon "external"}}Stripe</a>{{end}}</td>
+  </tr>{{end}}</tbody>
+</table></div>
+{{else}}<p class="empty">No card payments in {{$m.Year}}.</p>{{end}}
 {{template "foot" .}}{{end}}
 
 {{define "req-step"}}{{/* one answer (reqStep) */}}<li class="step {{with .D}}{{if .OK}}yes{{else}}no{{end}}{{else}}wait{{end}}"><span class="step-role">{{.Role}}</span> {{with .D}}<span title="{{date .At}}">{{.By}}</span>{{else}}<span class="muted">Waiting</span>{{end}}</li>{{end}}

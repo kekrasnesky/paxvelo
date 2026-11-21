@@ -39,6 +39,11 @@ type Config struct {
 	StravaURL        string
 	DonateURL        string
 
+	// Card payments through Stripe Checkout (stripe.go); both set = on
+	StripeSecretKey     string
+	StripeWebhookSecret string
+	StripeAPI           string // https://api.stripe.com; tests point it elsewhere
+
 	// Ride calendar: the Strava import, and notices about ride leaders
 	StravaClientID     string
 	StravaClientSecret string
@@ -138,6 +143,10 @@ func loadConfig() (Config, error) {
 		KitURL:           get("KIT_URL", defaultKitURL),
 		StravaURL:        get("STRAVA_URL", "https://www.strava.com/clubs/10197"),
 		DonateURL:        get("DONATE_URL", ""),
+
+		StripeSecretKey:     get("STRIPE_SECRET_KEY", ""),
+		StripeWebhookSecret: get("STRIPE_WEBHOOK_SECRET", ""),
+		StripeAPI:           strings.TrimRight(get("STRIPE_API", "https://api.stripe.com"), "/"),
 
 		StravaClientID:     get("STRAVA_CLIENT_ID", ""),
 		StravaClientSecret: get("STRAVA_CLIENT_SECRET", ""),

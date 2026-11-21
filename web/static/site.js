@@ -322,10 +322,14 @@
   // Confirm for them, once the page is really shown (not while it's being
   // prerendered). The server never confirms on a plain page load, since email
   // scanners open links too.
+  // The pay page (data-auto="Opening checkout…") goes on to Stripe the same way.
   var auto=d.querySelector('form[data-auto]');
   if(auto){
-    var go=function(){var b=auto.querySelector('button');if(b){b.disabled=true;b.lastChild.textContent='Confirming…'}auto.submit()};
+    var b=auto.querySelector('button'),was=b&&b.lastChild.textContent;
+    var go=function(){if(b){b.disabled=true;b.lastChild.textContent=auto.dataset.auto||'Confirming…'}auto.submit()};
     if(d.prerendering)d.addEventListener('prerenderingchange',go,{once:true});else go();
+    // Back from Stripe with the browser's Back button: the button works again
+    addEventListener('pageshow',function(e){if(e.persisted&&b){b.disabled=false;b.lastChild.textContent=was}});
   }
 
   // Join form: write phone numbers as 301-555-0123 while they're typed. One
@@ -367,6 +371,7 @@
         if(j.pay_url){var a=pay.querySelector('a');a.href=j.pay_url;a.querySelector('span').textContent=j.pay_label;pay.hidden=false}else{pay.hidden=true}
         form.hidden=true;done.hidden=false;done.focus();
         d.querySelectorAll('.join-back,.join-foot').forEach(function(p){p.hidden=true}); // "Already a member?" no longer fits
+        if(j.go&&j.pay_url){var a2=pay.querySelector('a');a2.removeAttribute('target');location.assign(j.pay_url)} // card payments: straight on to pay, back to a welcome
       })
       .catch(function(){fail('Couldn’t reach the server. Check your connection and try again.')});
   });

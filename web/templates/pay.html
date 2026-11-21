@@ -1,0 +1,41 @@
+{{define "head"}}<meta name="robots" content="noindex"><meta name="referrer" content="same-origin">{{end}}
+{{define "content"}}
+<article class="page page-narrow">
+{{with .Data}}
+{{if .Welcome}}
+  <h1>Welcome to PaxVelo{{with .First}}, {{.}}{{end}}!</h1>
+  {{if .Unconfirmed}}<p class="pay-note" role="alert">Confirm your email: the link is in your inbox.</p>{{end}}
+  <dl class="facts">
+    <div><dt>Plan</dt><dd>{{.Plan}}</dd></div>
+    <div><dt>Good through</dt><dd>{{.Through}}</dd></div>
+  </dl>
+  {{with .Rides}}<h2>Rides coming up that suit you</h2>
+  <ul class="pay-rides">{{range .}}<li><a href="/calendar/ride/{{.Key}}"><strong>{{.ShortDate}}{{with .TimeLabel}}, {{.}}{{end}}</strong> {{.Name}}</a>{{with .Place}} <span class="muted">· {{.}}</span>{{end}}</li>{{end}}</ul>{{end}}
+  <p class="rsvp-acts"><a class="btn" href="/calendar">Club calendar</a> <a class="btn btn-quiet" href="/bike-safety">Bike Safety 101</a> <a class="btn btn-quiet" href="/membership">My Membership</a></p>
+{{else if eq .State "paid"}}
+  <h1>Thanks, your dues are paid</h1>
+  <dl class="facts">
+    <div><dt>Plan</dt><dd>{{.Plan}}</dd></div>
+    <div><dt>Good through</dt><dd>{{.Through}}</dd></div>
+  </dl>
+  {{if .Renew}}<form method="post" action="/pay/{{.Code}}">
+    <input type="hidden" name="renew" value="1">
+    <button class="btn btn-quiet" type="submit">Renew now: ${{.Dues}}</button>
+  </form>{{end}}
+  <p><a class="btn" href="/membership">My Membership</a></p>
+{{else if eq .State "wait"}}
+  <h1>Payment processing</h1>
+  <p class="lead">Your bank hasn’t confirmed it yet. Your membership page shows it once it does.</p>
+  <p><a class="btn" href="/membership">My Membership</a></p>
+{{else}}
+  <h1>{{.Year}} {{.Plan}} dues</h1>
+  {{with .Message}}<p class="msg err" role="alert">{{.}}</p>{{end}}
+  <form method="post" action="/pay/{{.Code}}"{{if and (eq .State "go") (not .Message) (not .PayPal)}} data-auto="Opening checkout…"{{end}}{{if .PayPal}} class="rsvp-acts"{{end}}>
+    {{if .Join}}<input type="hidden" name="from" value="join">{{end}}
+    <button class="btn" type="submit">Pay ${{.Dues}}{{if .PayPal}} by card{{end}}</button>
+    {{with .PayPal}}<a class="btn btn-quiet" href="{{.}}" rel="noopener noreferrer">Pay with PayPal</a>{{end}}
+  </form>
+{{end}}
+{{end}}
+</article>
+{{end}}

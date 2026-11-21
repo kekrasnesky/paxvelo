@@ -18,6 +18,17 @@ DUES_INDIVIDUAL=35
 DUES_FAMILY=45
 PAYPAL_INDIVIDUAL_URL=
 PAYPAL_FAMILY_URL=
+# Or card payments through Stripe, which mark members paid by themselves.
+# Both set = Pay buttons go to the site's pay page: card, plus PayPal while the
+# PAYPAL_* links above are filled in (empty them for card only). In Stripe's dashboard:
+#   Developers > API keys > Create restricted key: Checkout Sessions "Write";
+#     PaymentIntents, Charges and Balance "Read" (for the exact fee)
+#     -> STRIPE_SECRET_KEY (rk_live_..., or rk_test_/sk_test_ to try it)
+#   Developers > Webhooks > Add endpoint: https://paxvelo.club/stripe/webhook,
+#     events checkout.session.completed and checkout.session.async_payment_succeeded
+#     -> its signing secret (whsec_...) is STRIPE_WEBHOOK_SECRET
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
 
 # ---- Links ----
 # The Club Kit page's team store button (Info menu → Club Kit); paxvelo.club/kit also goes here.

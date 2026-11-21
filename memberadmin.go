@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // A member's own admin page (/admin/members/{id}): their details to fix, the
@@ -19,6 +20,8 @@ type memberView struct {
 	Waivers     []Waiver     // every waiver they signed, for themselves or others, newest first
 	RideWaivers []RideWaiver // ride waivers signed with their email
 	Primary     *Member      // for a rider: the member whose Family plan they're on
+	Card        []payRow     // dues paid by card through Stripe (stripe.go), newest first
+	LeftPaying  time.Time    // when they last left the card payment page without paying, or zero
 }
 
 var errEmailTaken = errors.New("another member has that email")
@@ -33,6 +36,7 @@ func (a *App) memberPage(w http.ResponseWriter, r *http.Request) {
 	v := adminView{Title: m.Name, Tab: "members", Year: a.cfg.ThisYear(), CanManage: a.isBoard(r)}
 	v.Flash, v.Error = flashFrom(r)
 	v.MemberPage = &memberView{Member: m, Waivers: a.store.WaiversOf(id), RideWaivers: a.store.RideWaiversOf(id)}
+	v.MemberPage.Card, v.MemberPage.LeftPaying = a.memberPayments(m)
 	if m.FamilyOf != 0 {
 		if p, ok := a.store.MemberByID(m.FamilyOf); ok {
 			v.MemberPage.Primary = &p
@@ -134,6 +138,13 @@ func (a *App) payMember(id int) (string, error) {
 	if _, err := a.store.Pay(id, false); err != nil {
 		return "", err
 	}
+	return a.afterPaid(id), nil
+}
+
+// afterPaid does what follows a payment, from Mark paid or Stripe: the
+// welcome email when it's due, and waiver links for the other adults on a
+// Family plan. It returns Mark paid's notice code.
+func (a *App) afterPaid(id int) string {
 	code := "paid"
 	if a.store.Welcome().Enabled {
 		switch m, due, err := a.store.TakeWelcome(id, a.cfg.ThisYear()); {
@@ -147,7 +158,7 @@ func (a *App) payMember(id int) (string, error) {
 	if names := a.emailHousehold(a.store.UnsignedHousehold(id, a.cfg.ThisYear())); len(names) > 0 {
 		code += "-links"
 	}
-	return code, nil
+	return code
 }
 
 // markPaidMany marks every ticked member paid at once, for the January rush.

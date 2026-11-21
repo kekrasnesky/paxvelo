@@ -157,6 +157,8 @@ body.addEventListener('submit',function(e){var f=e.target;if(!f.classList.contai
       {{else}}<span class="muted">{{if .DuesExpire.IsZero}}Not paid{{else}}Expired {{date .DuesExpire}}{{end}}</span> <input type="hidden" name="paid" value="1"><button class="mini">{{icon "check"}}Mark paid</button>{{end}}
     </form>
     {{with .DuesExpire}}{{if not .IsZero}}<p class="small">Dues good through <strong>{{date .}}</strong></p>{{end}}{{end}}
+    {{with .Card}}<ul class="rows card-pays">{{range .}}<li><span class="small">{{date .At}} · {{money .Cents}} by card{{if .Renewed}} · renewal{{end}}{{if eq .Mode "test"}} <span class="tag tag-warn">Test</span>{{end}}</span>{{with .DashURL}}<span class="act-row"><a class="link" href="{{.}}" target="_blank" rel="noopener noreferrer">{{icon "external"}}Stripe</a></span>{{end}}</li>{{end}}</ul>{{end}}
+    {{if not .LeftPaying.IsZero}}<p class="small"><span class="tag tag-warn" title="Went to the card payment page and left">Started paying {{date .LeftPaying}}, not finished</span></p>{{end}}
     {{if $paid}}<form method="post" action="/admin/members/{{.ID}}/paid" class="inline" onsubmit="return confirm('Record an early renewal for {{.FirstName}}? Their dues then run a year past {{date .DuesExpire}}.')">
       <input type="hidden" name="return" value="/admin/members/{{.ID}}"><input type="hidden" name="paid" value="renew">
       <button class="link small">{{icon "plus"}}Renew early (adds a year)</button>

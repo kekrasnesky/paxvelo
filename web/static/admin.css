@@ -968,6 +968,9 @@ body.resizing iframe{pointer-events:none}
 .receipt-link img{display:block;width:2.6rem;height:2.6rem;object-fit:cover;border:1px solid var(--line);border-radius:3px}
 .money-has-receipt .receipt-link img{width:4.5rem;height:4.5rem}
 .money-list td{vertical-align:middle}
+/* Treasurer → Payments (stripeadmin.go): the year in a row of figures */
+.pay-facts{grid-template-columns:repeat(auto-fit,minmax(min(100%,8rem),1fr));margin:0 0 1rem}
+.pay-facts>div{display:block}
 .money-dues{margin-bottom:1rem;gap:.5rem}
 .money-dues.off .money-big{color:var(--muted);text-decoration:line-through}
 .dues-head{justify-content:space-between;align-items:flex-start}

@@ -3,7 +3,7 @@ package main
 // A made-up club for trying the site on a computer: `go run . -demo` fills an
 // empty DATA_DIR with members in every state, rides (weekly, one-off,
 // waiting, virtual, community, an event), riders, an invitation with
-// answers, a loaner request, treasurer lines, a spending request and two shared
+// answers, a loaner request, treasurer lines, card payments, a spending request and two shared
 // photos, so every admin screen has something on it. Names are invented and every
 // address is at example.com, which can't receive mail.
 //
@@ -206,6 +206,35 @@ func seedDemo(s *Store, loc *time.Location) error {
 		}
 	}
 	if _, err := s.AddSpendRequest(SpendRequest{Kind: reqReport, Date: day(-1), Cents: 4599, Category: "Club Rides & Promotional Items", What: "Snacks for the first-timer welcome ride", By: "Sam Ritter", ByEmail: mail("sam"), Status: reqWaiting}); err != nil {
+		return err
+	}
+	// Card payments (stripe.go, test mode): one new member, one renewal, and
+	// a website joiner who left the card payment page without paying.
+	s.mu.Lock()
+	for i, c := range []struct {
+		email   string
+		renewed bool
+		ago     int
+	}{{mail("priya"), false, 9}, {mail("gabe"), true, 2}} {
+		m := s.byEmail(c.email)
+		if m == nil {
+			continue
+		}
+		at := now.AddDate(0, 0, -c.ago).UTC()
+		cents := int64(3500)
+		sess := fmt.Sprintf("cs_test_demo%d", i+1)
+		s.d.Payments = append(s.d.Payments, StripePayment{Session: sess, Member: m.ID, Name: m.Name, Plan: m.Plan, Year: m.LastPaid(), Cents: cents,
+			Fee: stripeFeeGuess(cents), FeeSure: true, At: at, Intent: fmt.Sprintf("pi_test_demo%d", i+1), Email: m.Email, Renewed: c.renewed, Via: "webhook", Mode: "test"})
+		s.d.Checkouts = append(s.d.Checkouts, StripeCheckout{Session: sess, Member: m.ID, Cents: cents, Started: at.Add(-3 * time.Minute), From: "pay", Paid: true})
+		m.ownPaidOn()
+		m.PaidOn[m.LastPaid()] = at
+	}
+	if m := s.byEmail(mail("marcus")); m != nil {
+		s.d.Checkouts = append(s.d.Checkouts, StripeCheckout{Session: "cs_test_demo3", Member: m.ID, Cents: 3500, Started: now.Add(-26 * time.Hour).UTC(), From: "join"})
+	}
+	err = s.save()
+	s.mu.Unlock()
+	if err != nil {
 		return err
 	}
 	album, err := s.AddAlbum("Fall Century 2026", day(-40))

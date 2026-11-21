@@ -422,8 +422,9 @@
     <li>Browse the <a href="/gallery" target="_blank" rel="noopener">photo gallery</a> by album, and share their own photos.</li></ul></div>
   <div class="card"><h3>New members</h3><ol>
     <li>Pick Individual (${{.Guide.DuesIndividual}}) or Family (${{.Guide.DuesFamily}}) and fill in the <a href="/join" target="_blank" rel="noopener">join form</a>, with one riding question, the club terms and this year’s insurance waiver.</li>
-    <li>Every admin gets a “New member” email. The member goes on to PayPal.</li>
-    <li>The first time an admin presses <b>Mark paid</b>, they get the welcome email with the riding advice for their answer.</li></ol>
+    {{if .Guide.Stripe}}<li>Every admin gets a “New member” email. The form goes straight on to the card payment page (Stripe), and back to a welcome page with rides that suit them.</li>
+    <li>Once Stripe has the money, the site marks them paid by itself and they get the welcome email with the riding advice for their answer. Leave without paying, and the next day they get <b>Finish paying</b>.</li></ol>{{else}}<li>Every admin gets a “New member” email. The member goes on to PayPal.</li>
+    <li>The first time an admin presses <b>Mark paid</b>, they get the welcome email with the riding advice for their answer.</li></ol>{{end}}
     <p class="muted small">Members you add yourself or import never get the welcome email, and renewals don’t get it again.</p></div>
   <div class="card"><h3>Members</h3><ul>
     <li>Every club email has their private membership link: dues status, a PayPal button, this year’s waiver to sign, their details, and emails on or off.</li>
@@ -441,8 +442,10 @@
     <li><b>Ride alerts</b> (the bell on the calendar and ride pages) put a notification on a rider’s phone when a ride coming up is cancelled or put back on, with the leader’s note. On an iPhone the button shows once PaxVelo is on the home screen (Share → Add to Home Screen). Once alerts are on, tapping the bell lets the rider choose <b>Ride changes</b> (cancelled or back on) and <b>Club news</b> (alerts the board sends from Email → Send an alert, at most five a day, opening the home page, the calendar, a ride or any page on this site). Nothing links a phone to a member; Email → Automations shows how many phones have each on.</li>
     <li>Anyone can add a ride. It waits for approval on the <a href="/admin/calendar">Calendar</a> tab unless they typed the club PIN.</li></ul></div>
   <div class="card"><h3>Treasurer</h3><ol>
-    <li>A “New member” email arrives, then PayPal’s receipt.</li>
-    <li>Open the link in the first email and press <b>Mark paid</b>. The first time, that sends their welcome email.</li>
+    {{if .Guide.Stripe}}<li>Card payments mark members paid by themselves. <a href="/admin/treasurer/payments">Treasurer → Payments</a> lists each one with Stripe’s fee and a link to it in Stripe, and who started paying and didn’t finish. A refund is done in Stripe; then press Undo on the member.</li>
+    <li>Paid another way (cash, check)? Open the member and press <b>Mark paid</b>.</li>
+    <li>Renewals get <b>Thanks for renewing</b>, and a week after dues run out, <b>Membership ran out</b> (Email → Automations).</li>{{else}}<li>A “New member” email arrives, then PayPal’s receipt.</li>
+    <li>Open the link in the first email and press <b>Mark paid</b>. The first time, that sends their welcome email.</li>{{end}}
     <li>On January 1 everyone shows as not paid. Filter <a href="/admin/members?dues=unpaid">Not paid</a> and send a reminder with <code>{pay_link}</code>.</li>
     <li>Any admin asks for club money on <a href="/admin/treasurer/requests">Treasurer → Requests</a>: <b>I already bought it</b>, or <b>I want to buy something</b>. Press <b>Take a photo</b> to snap the receipt with the phone’s camera (on a computer, the webcam), or upload a photo or PDF; then type the amount and what it was for, and pick the ride or event if there was one.</li>
     <li>Nobody picks a category: the site guesses one from the words (pizza goes under Food &amp; Drink) and from where the treasurer filed similar requests before. The treasurer can change it on the request before approving. Board members see what’s left of that category’s budget as they type; going over only warns.</li>

@@ -215,7 +215,7 @@ func TestPayPalFees(t *testing.T) {
 	if !strings.Contains(income, "−$3.77") || !strings.Contains(income, `value="3.49"`) {
 		t.Error("the Income page should show the PayPal fees and the rate")
 	}
-	if exp := do(t, h, admin, "GET", "/admin/treasurer?year=2026", "", nil).Body.String(); !strings.Contains(exp, "PayPal fees on dues") || !strings.Contains(exp, "$243.87") {
+	if exp := do(t, h, admin, "GET", "/admin/treasurer?year=2026", "", nil).Body.String(); !strings.Contains(exp, "Payment fees on dues") || !strings.Contains(exp, "$243.87") {
 		t.Error("the Expenses page should list the PayPal fees and count them in the total")
 	}
 	// A new rate, from a new day, in another category; or not counted at all.

@@ -27,7 +27,7 @@ var adminGroups = []adminGroup{
 	{"Website", "/admin/pages", []adminSection{{"pages", "Pages", "/admin/pages"}, {"home-photos", "Home photos", "/admin/home-photos"}, {"gallery", "Gallery", "/admin/gallery"}, {"submitted", "Photos to review", "/admin/submitted"},
 		{"board", "Board", "/admin/board"}, {"instagram", "Instagram", "/admin/instagram"}, {"minutes", "Minutes", "/admin/minutes"}, {"kit", "Club kit", "/admin/kit"}}},
 	{"Treasurer", "/admin/treasurer", []adminSection{{"expenses", "Expenses", "/admin/treasurer"}, {"requests", "Requests", "/admin/treasurer/requests"}, {"income", "Income", "/admin/treasurer/income"},
-		{"budget", "Budget", "/admin/treasurer/budget"}, {"reports", "Reports", "/admin/treasurer/reports"}}},
+		{"payments", "Payments", "/admin/treasurer/payments"}, {"budget", "Budget", "/admin/treasurer/budget"}, {"reports", "Reports", "/admin/treasurer/reports"}}},
 	{"Stats", "/admin/stats", []adminSection{{"stats", "Stats", "/admin/stats"}}},
 }
 
@@ -110,6 +110,7 @@ func adminNavFor(tab string, attention int, board bool, requests int) adminNav {
 type guideView struct {
 	DuesIndividual, DuesFamily int
 	RidesEmail                 string
+	Stripe                     bool // card payments are on (stripe.go)
 }
 
 // guidePage explains the whole site to admins: who uses it, the signup
@@ -117,7 +118,7 @@ type guideView struct {
 // the "guide" template, so change it there when the site changes.
 func (a *App) guidePage(w http.ResponseWriter, r *http.Request) {
 	a.seenGuide(r) // and Home stops pointing them here
-	g := guideView{DuesIndividual: a.cfg.DuesIndividual, DuesFamily: a.cfg.DuesFamily, RidesEmail: a.cfg.RidesEmail}
+	g := guideView{DuesIndividual: a.cfg.DuesIndividual, DuesFamily: a.cfg.DuesFamily, RidesEmail: a.cfg.RidesEmail, Stripe: a.cfg.Stripe()}
 	a.renderAdmin(w, r, http.StatusOK, "guide", adminView{Title: "How the site works", Tab: "guide", Guide: &g})
 }
 
