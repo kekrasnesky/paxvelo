@@ -284,6 +284,9 @@ type storeData struct {
 	// Dues paid by card through Stripe (stripe.go).
 	Payments  []StripePayment  `json:"stripe_payments,omitempty"`
 	Checkouts []StripeCheckout `json:"stripe_checkouts,omitempty"` // card payments started, finished or not
+	// PayWith is how members pay dues, picked on Treasurer → Payments:
+	// "card", "paypal", or "" for both (payWays).
+	PayWith string `json:"pay_with,omitempty"`
 	// The membership emails (Thanks for renewing, Finish paying, Membership
 	// ran out) were added once (seedMemberAutos).
 	MemberAutosSeeded bool `json:"member_autos_seeded,omitempty"`

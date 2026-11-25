@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 )
@@ -19,6 +20,10 @@ type paymentsView struct {
 	Fees       int64
 	New, Renew int
 	Unfinished []unfinishedRow
+	// The Card / PayPal / Both switch: what's set up, and how members pay
+	// now ("card", "paypal", "both", or "" with neither set up).
+	CanCard, CanPayPal bool
+	With               string
 }
 
 func (v paymentsView) Net() int64 { return v.Total - v.Fees }
@@ -53,7 +58,18 @@ type unfinishedRow struct {
 const unfinishedFor = 30 * 24 * time.Hour
 
 func (a *App) paymentsView(year int) *paymentsView {
-	v := &paymentsView{On: a.cfg.Stripe(), Test: a.cfg.Stripe() && !isLiveKey(a.cfg.StripeSecretKey)}
+	v := &paymentsView{On: a.cfg.Stripe(), Test: a.cfg.Stripe() && !isLiveKey(a.cfg.StripeSecretKey),
+		CanCard: a.cfg.Stripe(), CanPayPal: a.cfg.PayPalIndividual != "" || a.cfg.PayPalFamily != ""}
+	switch w := a.store.PayWith(); {
+	case w == "card" && v.CanCard, w == "paypal" && v.CanPayPal:
+		v.With = w
+	case v.CanCard && v.CanPayPal:
+		v.With = "both"
+	case v.CanCard:
+		v.With = "card"
+	case v.CanPayPal:
+		v.With = "paypal"
+	}
 	for _, p := range a.store.StripePayments() {
 		if p.At.In(a.cfg.Location).Year() != year {
 			continue
@@ -110,6 +126,20 @@ func (a *App) paymentsPage(w http.ResponseWriter, r *http.Request) {
 	v := adminView{Title: "Payments", Tab: "payments", Money: m}
 	v.Flash, v.Error = flashFrom(r)
 	a.renderAdmin(w, r, http.StatusOK, "money-payments", v)
+}
+
+// payWith is the Card / PayPal / Both switch on Payments.
+func (a *App) payWith(w http.ResponseWriter, r *http.Request) {
+	to := "/admin/treasurer/payments?year=" + url.QueryEscape(r.FormValue("year"))
+	v := r.FormValue("with")
+	if v == "both" {
+		v = ""
+	}
+	if err := a.store.SetPayWith(v); err != nil {
+		back(w, r, to+"&err=save")
+		return
+	}
+	back(w, r, to)
 }
 
 // paymentsDownload is a year's card payments as a spreadsheet.

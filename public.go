@@ -274,7 +274,7 @@ func (a *App) join(w http.ResponseWriter, r *http.Request) {
 	d.Detail = fmt.Sprintf("Pay your $%d %s dues for %d to finish joining.", dues, strings.ToLower(m.PlanName()), year)
 	if link := a.payLink(m); link != "" {
 		d.PayURL, d.PayLabel = link, a.payLabel(m.Plan)
-		if a.cfg.Stripe() { // on to the card payment page, which comes back to a welcome
+		if card, _ := payWays(a.cfg, a.store, m.Plan); card { // on to the card payment page, which comes back to a welcome
 			d.PayURL, d.Go = link+"?from=join", true
 		}
 	} else {

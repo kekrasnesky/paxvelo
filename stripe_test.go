@@ -409,3 +409,83 @@ func TestMembershipAutomations(t *testing.T) {
 		t.Error("paid by other means: not unfinished")
 	}
 }
+
+// Treasurer → Payments switches dues between card, PayPal and both. A way
+// that isn't set up can't be picked, and switching one off only counts
+// while the other works.
+func TestPayWithSwitch(t *testing.T) {
+	a, h, _ := testApp(t)
+	admin := adminCookie(a)
+	m, _, err := a.store.Join(memberDetails{Name: "Pat Rider", Email: "pat@example.com", Plan: "individual"}, a.cfg.ThisYear())
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.cfg.PayPalIndividual = "https://paypal.example/ind"
+	page := do(t, h, admin, "GET", "/admin/treasurer/payments", "", nil).Body.String()
+	if !strings.Contains(page, `value="card" aria-pressed="false" disabled`) || !strings.Contains(page, `value="paypal" aria-pressed="true">`) {
+		t.Errorf("without Stripe keys, Card can't be picked and PayPal is on: %s", page)
+	}
+	newFakeStripe(t, a)
+	code := payCode(a.store, m.ID)
+	pick := func(with string) {
+		t.Helper()
+		ct, body := form(url.Values{"with": {with}, "year": {"2026"}})
+		if w := do(t, h, admin, "POST", "/admin/treasurer/payments/with", ct, body); w.Code != http.StatusSeeOther {
+			t.Fatalf("%s: %d", with, w.Code)
+		}
+	}
+	if !strings.Contains(do(t, h, admin, "GET", "/admin/treasurer/payments", "", nil).Body.String(), `value="both" aria-pressed="true">`) {
+		t.Error("both set up: both, to start")
+	}
+
+	pick("paypal")
+	if got := a.payLink(m); got != "https://paypal.example/ind" {
+		t.Errorf("PayPal only: the pay link is PayPal's, got %q", got)
+	}
+	if w := do(t, h, nil, "GET", "/pay/"+code, "", nil); w.Code != http.StatusSeeOther || w.Header().Get("Location") != "https://paypal.example/ind" {
+		t.Errorf("an old card link goes on to PayPal: %d %q", w.Code, w.Header().Get("Location"))
+	}
+	if w := do(t, h, nil, "POST", "/pay/"+code, "application/x-www-form-urlencoded", nil); w.Header().Get("Location") != "/pay/"+code {
+		t.Errorf("no card payment starts: %q", w.Header().Get("Location"))
+	}
+	if p := do(t, h, nil, "GET", "/membership?t="+m.Token, "", nil).Body.String(); !strings.Contains(p, "Pay $35 with PayPal") {
+		t.Error("the membership page says PayPal")
+	}
+
+	pick("card")
+	if got := a.payLink(m); got != a.cfg.SiteURL+"/pay/"+code {
+		t.Errorf("card only: the pay page, got %q", got)
+	}
+	if b := do(t, h, nil, "GET", "/pay/"+code, "", nil).Body.String(); strings.Contains(b, "PayPal") || !strings.Contains(b, "data-auto") {
+		t.Error("card only: no PayPal button, straight on to Stripe")
+	}
+
+	pick("both")
+	if b := do(t, h, nil, "GET", "/pay/"+code, "", nil).Body.String(); !strings.Contains(b, "Pay $35 by card") || !strings.Contains(b, "Pay with PayPal") {
+		t.Error("both: side by side")
+	}
+
+	pick("paypal")
+	a.cfg.PayPalIndividual, a.cfg.PayPalFamily = "", "" // PayPal taken out of the conf: card it is
+	if got := a.payLink(m); got != a.cfg.SiteURL+"/pay/"+code {
+		t.Errorf("with no PayPal link, card still works: %q", got)
+	}
+	if ct, body := form(url.Values{"with": {"cash"}}); do(t, h, admin, "POST", "/admin/treasurer/payments/with", ct, body).Header().Get("Location") == "" || a.store.PayWith() != "paypal" {
+		t.Error("an unknown pick isn't saved")
+	}
+}
+
+// With a PayPal link for one plan only, picking PayPal still shows PayPal
+// (the other plan pays by card, as there's no other way).
+func TestPayWithOnePlanPayPal(t *testing.T) {
+	a, h, _ := testApp(t)
+	newFakeStripe(t, a)
+	a.cfg.PayPalIndividual = "https://paypal.example/ind"
+	a.store.SetPayWith("paypal")
+	if page := do(t, h, adminCookie(a), "GET", "/admin/treasurer/payments", "", nil).Body.String(); !strings.Contains(page, `value="paypal" aria-pressed="true">`) {
+		t.Error("the switch shows what was picked")
+	}
+	if card, _ := payWays(a.cfg, a.store, "family"); !card {
+		t.Error("Family has no PayPal link, so it stays on card")
+	}
+}

@@ -118,7 +118,7 @@ type guideView struct {
 // the "guide" template, so change it there when the site changes.
 func (a *App) guidePage(w http.ResponseWriter, r *http.Request) {
 	a.seenGuide(r) // and Home stops pointing them here
-	g := guideView{DuesIndividual: a.cfg.DuesIndividual, DuesFamily: a.cfg.DuesFamily, RidesEmail: a.cfg.RidesEmail, Stripe: a.cfg.Stripe()}
+	g := guideView{DuesIndividual: a.cfg.DuesIndividual, DuesFamily: a.cfg.DuesFamily, RidesEmail: a.cfg.RidesEmail, Stripe: a.cardOn()}
 	a.renderAdmin(w, r, http.StatusOK, "guide", adminView{Title: "How the site works", Tab: "guide", Guide: &g})
 }
 

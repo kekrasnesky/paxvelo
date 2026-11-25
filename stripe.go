@@ -98,21 +98,48 @@ func readPayCode(store *Store, code string) (int, bool) {
 	return id, err == nil && id > 0
 }
 
-// payLink is where a member pays their dues: the site's own pay page with
-// Stripe on, otherwise the PayPal link for their plan ("" if neither is set
-// up).
+// payWays is how members can pay a plan's dues now: by card (the Stripe
+// keys set) and the plan's PayPal link (PAYPAL_*_URL set), less whichever
+// Treasurer → Payments switched off. Switching one off only counts while
+// the other works, so there's always a way to pay if either is set up.
+func payWays(cfg Config, store *Store, plan string) (card bool, paypal string) {
+	card, paypal = cfg.Stripe(), cfg.PayLink(plan)
+	switch store.PayWith() {
+	case "card":
+		if card {
+			paypal = ""
+		}
+	case "paypal":
+		if paypal != "" {
+			card = false
+		}
+	}
+	return card, paypal
+}
+
+// cardOn reports whether members pay dues by card now (any plan).
+func (a *App) cardOn() bool {
+	c1, _ := payWays(a.cfg, a.store, "individual")
+	c2, _ := payWays(a.cfg, a.store, "family")
+	return c1 || c2
+}
+
+// payLink is where a member pays their dues: the site's own pay page while
+// card payments are on, otherwise the PayPal link for their plan ("" if
+// neither is set up).
 func payLink(cfg Config, store *Store, m Member) string {
-	if cfg.Stripe() && m.ID > 0 {
+	card, paypal := payWays(cfg, store, m.Plan)
+	if card && m.ID > 0 {
 		return cfg.SiteURL + "/pay/" + payCode(store, m.ID)
 	}
-	return cfg.PayLink(m.Plan)
+	return paypal
 }
 
 func (a *App) payLink(m Member) string { return payLink(a.cfg, a.store, m) }
 
 // payLabel is the pay button's words.
 func (a *App) payLabel(plan string) string {
-	if a.cfg.Stripe() {
+	if card, _ := payWays(a.cfg, a.store, plan); card {
 		return fmt.Sprintf("Pay $%d", a.cfg.Dues(plan))
 	}
 	return fmt.Sprintf("Pay $%d with PayPal", a.cfg.Dues(plan))
@@ -147,7 +174,8 @@ type payData struct {
 const renewWindow = 60 * 24 * time.Hour
 
 func (a *App) payView(m Member, code string, join bool) payData {
-	d := payData{State: "go", Code: code, Plan: m.PlanName(), Dues: a.cfg.Dues(m.Plan), Join: join, PayPal: a.cfg.PayLink(m.Plan)}
+	d := payData{State: "go", Code: code, Plan: m.PlanName(), Dues: a.cfg.Dues(m.Plan), Join: join}
+	_, d.PayPal = payWays(a.cfg, a.store, m.Plan)
 	d.Year = m.anniversary(m.nextPaidYear(time.Now())).Year()
 	if m.Paid() {
 		d.State, d.Through = "paid", m.DuesExpire().Format("January 2, 2006")
@@ -182,6 +210,16 @@ func (a *App) payPage(w http.ResponseWriter, r *http.Request) {
 	}
 	q := r.URL.Query()
 	join := q.Get("from") == "join"
+	if card, paypal := payWays(a.cfg, a.store, m.Plan); !card && q.Get("session") == "" {
+		// Card payments switched off on Treasurer → Payments: an old link
+		// goes on to PayPal. Someone back from Stripe still sees how it went.
+		if paypal == "" {
+			a.site.notFound(w, r)
+			return
+		}
+		http.Redirect(w, r, paypal, http.StatusSeeOther)
+		return
+	}
 	if sid := q.Get("session"); sid != "" {
 		done, err := a.checkSession(sid, id, "return")
 		if err != nil {
@@ -219,6 +257,10 @@ func (a *App) startPay(w http.ResponseWriter, r *http.Request) {
 	m, found := a.store.MemberByID(id)
 	if !ok || !found || !a.cfg.Stripe() || m.FamilyOf != 0 {
 		a.site.notFound(w, r)
+		return
+	}
+	if card, _ := payWays(a.cfg, a.store, m.Plan); !card {
+		http.Redirect(w, r, "/pay/"+code, http.StatusSeeOther)
 		return
 	}
 	join := r.FormValue("from") == "join"
@@ -591,4 +633,23 @@ func (s *Store) stripeFees() map[int]map[int]int64 {
 		out[p.Member][p.Year] += p.Fee
 	}
 	return out
+}
+
+// PayWith is how members pay dues, as picked on Treasurer → Payments:
+// "card", "paypal", or "" for both.
+func (s *Store) PayWith() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.d.PayWith
+}
+
+// SetPayWith saves it.
+func (s *Store) SetPayWith(v string) error {
+	if v != "" && v != "card" && v != "paypal" {
+		return errors.New("card, paypal or both")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.d.PayWith = v
+	return s.save()
 }

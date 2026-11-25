@@ -232,6 +232,13 @@ document.querySelectorAll('.money-form select[name=category]').forEach(function(
   {{template "money-year" .}}
   <p class="money-total"><span class="muted">{{$m.Year}}</span> <strong>{{money $p.Total}}</strong></p>
 </div>
+<form class="wrap-row pay-with" method="post" action="/admin/treasurer/payments/with">
+  <input type="hidden" name="year" value="{{$m.Year}}">
+  <span class="muted small" aria-hidden="true">Dues by</span>
+  <span class="seg" role="group" aria-label="Dues by">
+    <button class="ghost" name="with" value="card" aria-pressed="{{eq $p.With "card"}}"{{if not $p.CanCard}} disabled title="STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET in paxvelo.conf"{{end}}>Card</button><button class="ghost" name="with" value="paypal" aria-pressed="{{eq $p.With "paypal"}}"{{if not $p.CanPayPal}} disabled title="PAYPAL_INDIVIDUAL_URL and PAYPAL_FAMILY_URL in paxvelo.conf"{{end}}>PayPal</button><button class="ghost" name="with" value="both" aria-pressed="{{eq $p.With "both"}}"{{if not (and $p.CanCard $p.CanPayPal)}} disabled{{end}}>Both</button>
+  </span>
+</form>
 {{if not $p.On}}<p class="flash warn" title="STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET in paxvelo.conf">Card payments are off.</p>{{else if $p.Test}}<p class="flash warn">Stripe test mode: no real money.</p>{{end}}
 {{with $p.Rows}}<dl class="facts pay-facts">
   <div><dt>Payments</dt><dd>{{len .}}</dd></div>

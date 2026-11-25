@@ -287,6 +287,7 @@ func (a *App) routes() http.Handler {
 	mux.Handle("POST /admin/treasurer/income/fee", a.boardOnly(a.payPalFee))
 	mux.Handle("GET /admin/treasurer/payments", a.boardOnly(a.paymentsPage))
 	mux.Handle("GET /admin/treasurer/payments.csv", a.boardOnly(a.paymentsDownload))
+	mux.Handle("POST /admin/treasurer/payments/with", a.boardOnly(a.payWith))
 	mux.Handle("POST /admin/treasurer/entries", a.boardOnly(a.addLedger))
 	mux.Handle("GET /admin/treasurer/entries/{id}", a.boardOnly(a.editLedgerPage))
 	mux.Handle("POST /admin/treasurer/entries/{id}", a.boardOnly(a.saveLedger))
