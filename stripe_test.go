@@ -43,6 +43,8 @@ func newFakeStripe(t *testing.T, a *App) *fakeStripe {
 			id := fmt.Sprintf("cs_test_%d", len(f.started))
 			f.member[id] = r.PostForm.Get("metadata[member]")
 			fmt.Fprintf(w, `{"id":%q,"url":"https://checkout.stripe.com/c/pay/%s"}`, id, id)
+		case r.Method == "GET" && r.URL.Path == "/v1/checkout/sessions": // the key check on Payments
+			fmt.Fprint(w, `{"data":[]}`)
 		case r.Method == "GET" && strings.HasPrefix(r.URL.Path, "/v1/checkout/sessions/"):
 			id := strings.TrimPrefix(r.URL.Path, "/v1/checkout/sessions/")
 			mem, ok := f.member[id]
@@ -487,5 +489,86 @@ func TestPayWithOnePlanPayPal(t *testing.T) {
 	}
 	if card, _ := payWays(a.cfg, a.store, "family"); !card {
 		t.Error("Family has no PayPal link, so it stays on card")
+	}
+}
+
+// The Stripe keys and PayPal links can be typed on Payments instead of
+// paxvelo.conf, by the treasurer or the president only. Keys never go back
+// to the browser, a blank key stays as it was, and a key Stripe refuses
+// isn't saved.
+func TestPaySetup(t *testing.T) {
+	k := newReqKit(t)
+	a, h := k.a, k.h
+	newFakeStripe(t, a)
+	api := a.cfg.StripeAPI
+	a.cfg.StripeSecretKey, a.cfg.StripeWebhookSecret = "", "" // nothing in the conf
+	a.cfg.PayPalIndividual = "https://paypal.example/conf"
+	m, _, _ := a.store.Join(memberDetails{Name: "Pat Rider", Email: "pat@example.com", Plan: "individual"}, a.cfg.ThisYear())
+	post := func(c *http.Cookie, v url.Values) string {
+		t.Helper()
+		ct, body := form(v)
+		return do(t, h, c, "POST", "/admin/treasurer/payments/setup", ct, body).Header().Get("Location")
+	}
+
+	page := do(t, h, k.as(k.gabe), "GET", "/admin/treasurer/payments", "", nil).Body.String()
+	if !strings.Contains(page, `id="setup" open`) && !strings.Contains(page, `id="setup"`) || !strings.Contains(page, `value="https://paypal.example/conf"`) {
+		t.Error("the treasurer sees the setup, with the conf's PayPal link")
+	}
+	if page := do(t, h, k.as(k.allie), "GET", "/admin/treasurer/payments", "", nil).Body.String(); strings.Contains(page, `id="setup"`) {
+		t.Error("another board member doesn't see it")
+	}
+	if loc := post(k.as(k.allie), url.Values{"secret": {"sk_test_abc"}}); !strings.Contains(loc, "treasurer-only") || a.store.PaySettings().Set {
+		t.Errorf("another board member can't save: %q", loc)
+	}
+
+	if loc := post(k.as(k.gabe), url.Values{"secret": {"sk_test_wrong"}, "webhook": {"whsec_test"}}); !strings.Contains(loc, "err=pay-secret-no") || a.store.PaySettings().Set {
+		t.Errorf("a key Stripe refuses isn't saved: %q", loc)
+	}
+	if loc := post(k.as(k.gabe), url.Values{"secret": {"pk_test_abc"}}); !strings.Contains(loc, "err=pay-secret") {
+		t.Errorf("a publishable key is refused: %q", loc)
+	}
+	if loc := post(k.as(k.gabe), url.Values{"paypal_individual": {"http://paypal.example"}}); !strings.Contains(loc, "err=pay-paypal") {
+		t.Errorf("a PayPal link must be https: %q", loc)
+	}
+	if loc := post(k.as(k.gabe), url.Values{"secret": {"sk_test_abc"}, "webhook": {"whsec_test"}, "paypal_individual": {"https://paypal.example/new"}}); !strings.Contains(loc, "ok=pay-setup") {
+		t.Fatalf("saved: %q", loc)
+	}
+	c := a.payCfg()
+	if !c.Stripe() || c.StripeSecretKey != "sk_test_abc" || c.PayPalIndividual != "https://paypal.example/new" || c.StripeAPI != api {
+		t.Fatalf("the saved settings are used: %+v", a.store.PaySettings())
+	}
+	if got := a.payLink(m); got != a.cfg.SiteURL+"/pay/"+payCode(a.store, m.ID) {
+		t.Errorf("card payments are on: %q", got)
+	}
+	page = do(t, h, k.as(k.gabe), "GET", "/admin/treasurer/payments", "", nil).Body.String()
+	if strings.Contains(page, "sk_test_abc") || strings.Contains(page, "whsec_test") || !strings.Contains(page, `placeholder="sk_test_…_abc"`) && !strings.Contains(page, `placeholder="••••••••"`) {
+		t.Error("the keys never go back to the browser")
+	}
+	if !strings.Contains(page, "Gabriel Murray") || !strings.Contains(page, "/stripe/webhook") {
+		t.Error("who saved it, and the webhook address to give Stripe")
+	}
+
+	// Blank keys stay; clearing a PayPal link clears it (the conf's isn't used any more).
+	post(k.as(k.gabe), url.Values{"paypal_individual": {""}})
+	if c := a.payCfg(); c.StripeSecretKey != "sk_test_abc" || c.StripeWebhookSecret != "whsec_test" || c.PayPalIndividual != "" {
+		t.Errorf("blank keys kept, PayPal cleared: %+v", a.store.PaySettings())
+	}
+	// The webhook checks against the saved signing secret.
+	body := `{"type":"checkout.session.completed","data":{"object":{"id":"cs_none"}}}`
+	if w := webhook(t, h, body, signStripe(body, "whsec_test", time.Now())); w.Code == http.StatusBadRequest {
+		t.Errorf("the saved signing secret is used: %d", w.Code)
+	}
+	// Remove takes the keys out: card payments off.
+	post(k.as(k.karl), url.Values{"remove": {"1"}, "paypal_individual": {"https://paypal.example/new"}})
+	if a.payCfg().Stripe() || a.payLink(m) != "https://paypal.example/new" {
+		t.Errorf("removed: %+v", a.store.PaySettings())
+	}
+}
+
+func TestMaskKey(t *testing.T) {
+	for k, want := range map[string]string{"": "", "sk_live_51Habcdefghij1234": "sk_live_…1234", "whsec_abcdefghijklmn9876": "whsec_…9876", "rk_test_x": "••••••••"} {
+		if got := maskKey(k); got != want {
+			t.Errorf("maskKey(%q) = %q, want %q", k, got, want)
+		}
 	}
 }

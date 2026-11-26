@@ -287,6 +287,9 @@ type storeData struct {
 	// PayWith is how members pay dues, picked on Treasurer → Payments:
 	// "card", "paypal", or "" for both (payWays).
 	PayWith string `json:"pay_with,omitempty"`
+	// The Stripe keys and PayPal links typed on Treasurer → Payments
+	// (paysettings.go); once saved they replace paxvelo.conf's.
+	PaySettings PaySettings `json:"pay_settings,omitzero"`
 	// The membership emails (Thanks for renewing, Finish paying, Membership
 	// ran out) were added once (seedMemberAutos).
 	MemberAutosSeeded bool `json:"member_autos_seeded,omitempty"`

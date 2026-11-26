@@ -103,6 +103,7 @@ func readPayCode(store *Store, code string) (int, bool) {
 // Treasurer → Payments switched off. Switching one off only counts while
 // the other works, so there's always a way to pay if either is set up.
 func payWays(cfg Config, store *Store, plan string) (card bool, paypal string) {
+	cfg = payCfg(cfg, store)
 	card, paypal = cfg.Stripe(), cfg.PayLink(plan)
 	switch store.PayWith() {
 	case "card":
@@ -198,9 +199,9 @@ func (a *App) payPage(w http.ResponseWriter, r *http.Request) {
 	code := r.PathValue("code")
 	id, ok := readPayCode(a.store, code)
 	m, found := a.store.MemberByID(id)
-	if !ok || !found || !a.cfg.Stripe() || m.FamilyOf != 0 {
+	if !ok || !found || !a.payCfg().Stripe() || m.FamilyOf != 0 {
 		if found && m.FamilyOf != 0 { // a Family rider's dues are the plan holder's
-			if p, ok := a.store.MemberByID(m.FamilyOf); ok && a.cfg.Stripe() {
+			if p, ok := a.store.MemberByID(m.FamilyOf); ok && a.payCfg().Stripe() {
 				http.Redirect(w, r, "/pay/"+payCode(a.store, p.ID), http.StatusSeeOther)
 				return
 			}
@@ -255,7 +256,7 @@ func (a *App) startPay(w http.ResponseWriter, r *http.Request) {
 	code := r.PathValue("code")
 	id, ok := readPayCode(a.store, code)
 	m, found := a.store.MemberByID(id)
-	if !ok || !found || !a.cfg.Stripe() || m.FamilyOf != 0 {
+	if !ok || !found || !a.payCfg().Stripe() || m.FamilyOf != 0 {
 		a.site.notFound(w, r)
 		return
 	}
@@ -363,6 +364,11 @@ var stripeHTTP = &http.Client{Timeout: 20 * time.Second}
 
 // stripe calls Stripe's API with the secret key, reading the answer into out.
 func (a *App) stripe(method, path string, form url.Values, out any) error {
+	return a.stripeAs(a.payCfg().StripeSecretKey, method, path, form, out)
+}
+
+// stripeAs is stripe with a given secret key.
+func (a *App) stripeAs(key, method, path string, form url.Values, out any) error {
 	var body io.Reader
 	if form != nil {
 		body = strings.NewReader(form.Encode())
@@ -371,7 +377,7 @@ func (a *App) stripe(method, path string, form url.Values, out any) error {
 	if err != nil {
 		return err
 	}
-	req.SetBasicAuth(a.cfg.StripeSecretKey, "")
+	req.SetBasicAuth(key, "")
 	req.Header.Set("Stripe-Version", "2024-06-20")
 	if form != nil {
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -458,7 +464,7 @@ func (a *App) recordStripe(s stripeSession, member int, via string) {
 
 // stripeWebhook is where Stripe says a payment went through.
 func (a *App) stripeWebhook(w http.ResponseWriter, r *http.Request) {
-	if !a.cfg.Stripe() {
+	if !a.payCfg().Stripe() {
 		http.NotFound(w, r)
 		return
 	}
@@ -467,7 +473,7 @@ func (a *App) stripeWebhook(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unreadable", http.StatusBadRequest)
 		return
 	}
-	if !stripeSigned(body, r.Header.Get("Stripe-Signature"), a.cfg.StripeWebhookSecret, time.Now()) {
+	if !stripeSigned(body, r.Header.Get("Stripe-Signature"), a.payCfg().StripeWebhookSecret, time.Now()) {
 		http.Error(w, "bad signature", http.StatusBadRequest)
 		return
 	}

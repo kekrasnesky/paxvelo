@@ -19,6 +19,9 @@ DUES_FAMILY=45
 PAYPAL_INDIVIDUAL_URL=
 PAYPAL_FAMILY_URL=
 # Or card payments through Stripe, which mark members paid by themselves.
+# Easier: leave these four empty and type them on Treasurer → Payments →
+# Card and PayPal setup (treasurer or president). Once saved there, those
+# replace what's here.
 # Both set = Pay buttons go to the site's pay page: card, plus PayPal while the
 # PAYPAL_* links above are filled in (Treasurer → Payments switches between
 # Card, PayPal and Both). In Stripe's dashboard:

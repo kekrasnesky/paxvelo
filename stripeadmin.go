@@ -24,6 +24,7 @@ type paymentsView struct {
 	// now ("card", "paypal", "both", or "" with neither set up).
 	CanCard, CanPayPal bool
 	With               string
+	Setup              paySetupView
 }
 
 func (v paymentsView) Net() int64 { return v.Total - v.Fees }
@@ -58,8 +59,9 @@ type unfinishedRow struct {
 const unfinishedFor = 30 * 24 * time.Hour
 
 func (a *App) paymentsView(year int) *paymentsView {
-	v := &paymentsView{On: a.cfg.Stripe(), Test: a.cfg.Stripe() && !isLiveKey(a.cfg.StripeSecretKey),
-		CanCard: a.cfg.Stripe(), CanPayPal: a.cfg.PayPalIndividual != "" || a.cfg.PayPalFamily != ""}
+	c := a.payCfg()
+	v := &paymentsView{On: c.Stripe(), Test: c.Stripe() && !isLiveKey(c.StripeSecretKey),
+		CanCard: c.Stripe(), CanPayPal: c.PayPalIndividual != "" || c.PayPalFamily != ""}
 	switch w := a.store.PayWith(); {
 	case w == "card" && v.CanCard, w == "paypal" && v.CanPayPal:
 		v.With = w
@@ -123,6 +125,7 @@ func isLiveKey(k string) bool {
 func (a *App) paymentsPage(w http.ResponseWriter, r *http.Request) {
 	year := a.moneyYear(r)
 	m := &moneyView{Year: year, Years: a.moneyYears(year), Payments: a.paymentsView(year)}
+	m.Payments.Setup = a.paySetupView(r)
 	v := adminView{Title: "Payments", Tab: "payments", Money: m}
 	v.Flash, v.Error = flashFrom(r)
 	a.renderAdmin(w, r, http.StatusOK, "money-payments", v)

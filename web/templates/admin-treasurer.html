@@ -236,10 +236,10 @@ document.querySelectorAll('.money-form select[name=category]').forEach(function(
   <input type="hidden" name="year" value="{{$m.Year}}">
   <span class="muted small" aria-hidden="true">Dues by</span>
   <span class="seg" role="group" aria-label="Dues by">
-    <button class="ghost" name="with" value="card" aria-pressed="{{eq $p.With "card"}}"{{if not $p.CanCard}} disabled title="STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET in paxvelo.conf"{{end}}>Card</button><button class="ghost" name="with" value="paypal" aria-pressed="{{eq $p.With "paypal"}}"{{if not $p.CanPayPal}} disabled title="PAYPAL_INDIVIDUAL_URL and PAYPAL_FAMILY_URL in paxvelo.conf"{{end}}>PayPal</button><button class="ghost" name="with" value="both" aria-pressed="{{eq $p.With "both"}}"{{if not (and $p.CanCard $p.CanPayPal)}} disabled{{end}}>Both</button>
+    <button class="ghost" name="with" value="card" aria-pressed="{{eq $p.With "card"}}"{{if not $p.CanCard}} disabled title="Card and PayPal setup"{{end}}>Card</button><button class="ghost" name="with" value="paypal" aria-pressed="{{eq $p.With "paypal"}}"{{if not $p.CanPayPal}} disabled title="Card and PayPal setup"{{end}}>PayPal</button><button class="ghost" name="with" value="both" aria-pressed="{{eq $p.With "both"}}"{{if not (and $p.CanCard $p.CanPayPal)}} disabled{{end}}>Both</button>
   </span>
 </form>
-{{if not $p.On}}<p class="flash warn" title="STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET in paxvelo.conf">Card payments are off.</p>{{else if $p.Test}}<p class="flash warn">Stripe test mode: no real money.</p>{{end}}
+{{if not $p.On}}<p class="flash warn">Card payments are off.{{if $p.Setup.Can}} <a href="#setup">Card and PayPal setup</a>{{end}}</p>{{else if $p.Test}}<p class="flash warn">Stripe test mode: no real money.</p>{{end}}
 {{with $p.Rows}}<dl class="facts pay-facts">
   <div><dt>Payments</dt><dd>{{len .}}</dd></div>
   <div><dt>New members</dt><dd>{{$p.New}}</dd></div>
@@ -267,6 +267,24 @@ document.querySelectorAll('.money-form select[name=category]').forEach(function(
   </tr>{{end}}</tbody>
 </table></div>
 {{else}}<p class="empty">No card payments in {{$m.Year}}.</p>{{end}}
+{{with $p.Setup}}{{if .Can}}<details class="card pay-setup" id="setup"{{if not (or $p.CanCard $p.CanPayPal)}} open{{end}}>
+  <summary><h2>Card and PayPal setup</h2></summary>
+  <form method="post" action="/admin/treasurer/payments/setup" autocomplete="off">
+    <h3>Stripe</h3>
+    <div class="field-row">
+      <label class="field">Secret key <input type="password" name="secret" placeholder="{{or .Secret "sk_live_… or rk_live_…"}}" spellcheck="false" autocomplete="new-password" title="Stripe → Developers → API keys"></label>
+      <label class="field">Webhook signing secret <input type="password" name="webhook" placeholder="{{or .Webhook "whsec_…"}}" spellcheck="false" autocomplete="new-password" title="Stripe → Developers → Webhooks"></label>
+    </div>
+    <label class="field">Webhook address <input value="{{.Hook}}" readonly title="Events: checkout.session.completed, checkout.session.async_payment_succeeded"></label>
+    {{if .Secret}}<label class="check"><input type="checkbox" name="remove" value="1"> Remove the Stripe keys</label>{{end}}
+    <h3>PayPal</h3>
+    <div class="field-row">
+      <label class="field">Individual link <input type="url" name="paypal_individual" value="{{.PayPalInd}}" placeholder="https://www.paypal.com/…" spellcheck="false"></label>
+      <label class="field">Family link <input type="url" name="paypal_family" value="{{.PayPalFam}}" placeholder="https://www.paypal.com/…" spellcheck="false"></label>
+    </div>
+    <div class="wrap-row"><button>{{icon "save"}}Save</button>{{with .By}}<span class="muted small">{{.}}{{with $p.Setup.At}}, {{date .}}{{end}}</span>{{end}}</div>
+  </form>
+</details>{{end}}{{end}}
 {{template "foot" .}}{{end}}
 
 {{define "req-step"}}{{/* one answer (reqStep) */}}<li class="step {{with .D}}{{if .OK}}yes{{else}}no{{end}}{{else}}wait{{end}}"><span class="step-role">{{.Role}}</span> {{with .D}}<span title="{{date .At}}">{{.By}}</span>{{else}}<span class="muted">Waiting</span>{{end}}</li>{{end}}
